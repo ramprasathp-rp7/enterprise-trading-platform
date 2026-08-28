@@ -32,3 +32,4 @@ Thumbs.db
 
 .cache/
 trading_analytics.duckdb
+analytics_store.duckdb
