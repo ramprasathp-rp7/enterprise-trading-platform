@@ -22,6 +22,22 @@ public final class Position {
         this.averageCost = normalise(Objects.requireNonNull(averageCost, "averageCost"));
     }
 
+    public Long getAccountId() {
+        return accountId;
+    }
+
+    public Long getInstrumentId() {
+        return instrumentId;
+    }
+
+    public int getQuantity() {
+        return quantity;
+    }
+
+    public BigDecimal getAverageCost() {
+        return averageCost;
+    }
+
     /** the default function a caller calls when it found no row for this account/instrument pair. */
     public static Position empty(Long accountId, Long instrumentId) {
         return new Position(accountId, instrumentId, 0, BigDecimal.ZERO);
@@ -63,19 +79,4 @@ public final class Position {
         this.quantity -= soldQuantity;
     }
 
-    public Long getAccountId() {
-        return accountId;
-    }
-
-    public Long getInstrumentId() {
-        return instrumentId;
-    }
-
-    public int getQuantity() {
-        return quantity;
-    }
-
-    public BigDecimal getAverageCost() {
-        return averageCost;
-    }
 }
