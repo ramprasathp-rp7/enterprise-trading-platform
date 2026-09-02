@@ -1,0 +1,59 @@
+sequenceDiagram
+    autonumber
+    actor Client
+    participant Service as OrderPlacementService
+    participant Account as acc: Account
+    participant Instrument as ins: Instrument
+    participant Position as position: Position
+    participant Checker as idempotencyChecker
+    participant Order as order: Order
+
+    Client->>Service: placeOrder(...)
+    activate Service
+
+    %% Step 1: Validations
+    Service->>Account: account.orElseThrow() / isActive()
+    Account-->>Service: acc OK
+    
+    Service->>Instrument: filter(isTradable).orElseThrow()
+    Instrument-->>Service: ins OK
+
+    alt Invalid Quantity (<= 0) or Price (<= 0)
+        Service-->>Client: throw InvalidOrderException
+    end
+
+    alt BUY Side Checks
+        Service->>Account: canAfford(notional)
+        Account-->>Service: boolean
+        alt !canAfford
+            Service-->>Client: throw InsufficientFundsException
+        end
+    else SELL Side Checks
+        Service->>Position: getQuantity()
+        Position-->>Service: heldQuantity
+        alt heldQuantity < quantity
+            Service-->>Client: throw InsufficientHoldingsException
+        end
+    end
+
+    Service->>Checker: isAlreadyUsed(idempotencyKey)
+    Checker-->>Service: boolean
+    alt isAlreadyUsed
+        Service-->>Client: throw DuplicateOrderException
+    end
+
+    %% Step 2: Settlement
+    Note over Service, Order: Create Order Instance
+
+    alt BUY
+        Service->>Account: debit(notional)
+        Service->>Position: applyBuy(quantity, price)
+    else SELL
+        Service->>Account: credit(notional)
+        Service->>Position: applySell(quantity)
+    end
+
+    Service->>Order: markFilled(price)
+    Service-->>Client: return order
+
+    deactivate Service
