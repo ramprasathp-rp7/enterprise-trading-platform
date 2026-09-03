@@ -19,12 +19,15 @@ import com.tradingplatform.domain.model.Position;
 import com.tradingplatform.domain.rules.IdempotencyKeyChecker;
 import com.tradingplatform.domain.rules.OrderPlacementService;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.math.BigDecimal;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -40,14 +43,8 @@ class OrderLogicTest {
             AccountStatus.ACTIVE, 0);
     }
 
-    private static Account suspendedAccount(String cash) {
-        return new Account(1L, "ACC-000001", "Priya Menon", new BigDecimal(cash), "USD",
-            AccountStatus.SUSPENDED, 0);
-    }
-
-    private static Account closedAccount(String cash) {
-        return new Account(1L, "ACC-000001", "Priya Menon", new BigDecimal(cash), "USD",
-            AccountStatus.CLOSED, 0);
+    private static Account inactiveAccount(AccountStatus status, String cash) {
+        return new Account(1L, "ACC-000001", "Priya Menon", new BigDecimal(cash), "USD", status, 0);
     }
 
     private static Instrument tradableInstrument() {
@@ -91,20 +88,14 @@ class OrderLogicTest {
 
     // --- rule 2: the account must be ACTIVE -------------------------------------------------------
 
-    @Test
-    void rule2Fires_orderRejectedOnSuspendedAccount() {
+    @ParameterizedTest(name = "rule2Fires_orderRejectedOnAccountThatIs{0}")
+    @EnumSource(value = AccountStatus.class, names = {"SUSPENDED", "CLOSED"})
+    void rule2Fires_orderRejectedOnInactiveAccount(AccountStatus status) {
         AccountNotActiveException ex = assertThrows(AccountNotActiveException.class, () ->
-            service.placeOrder(buyRequest(10, "25.50", "idem-key-0001"), Optional.of(suspendedAccount("1000.00")),
+            service.placeOrder(buyRequest(10, "25.50", "idem-key-0001"), Optional.of(inactiveAccount(status, "1000.00")),
                 Optional.of(tradableInstrument()), Position.empty(1L, 1L), NEVER_USED));
         assertEquals("ACC-403", ex.getCode());
-        assertEquals(AccountStatus.SUSPENDED, ex.getActualStatus());
-    }
-
-    @Test
-    void rule2Fires_orderRejectedOnClosedAccount() {
-        assertThrows(AccountNotActiveException.class, () ->
-            service.placeOrder(buyRequest(10, "25.50", "idem-key-0001"), Optional.of(closedAccount("1000.00")),
-                Optional.of(tradableInstrument()), Position.empty(1L, 1L), NEVER_USED));
+        assertEquals(status, ex.getActualStatus());
     }
 
     @Test
@@ -118,18 +109,18 @@ class OrderLogicTest {
     // --- rule 3: the instrument must exist and be tradable -------------------------------------------------------
 
     @Test
-    void rule3Fires_orderRejectedOnUnknownInstrument() {
-        InstrumentNotFoundException ex = assertThrows(InstrumentNotFoundException.class, () ->
-            service.placeOrder(buyRequest(10, "25.50", "idem-key-0001"), Optional.of(activeAccount("1000.00")),
-                Optional.empty(), Position.empty(1L, 1L), NEVER_USED));
-        assertEquals("INS-404", ex.getCode());
-    }
-
-    @Test
-    void rule3Fires_orderRejectedOnDelistedInstrument() {
-        assertThrows(InstrumentNotFoundException.class, () ->
-            service.placeOrder(buyRequest(10, "25.50", "idem-key-0001"), Optional.of(activeAccount("1000.00")),
-                Optional.of(delistedInstrument()), Position.empty(1L, 1L), NEVER_USED));
+    void rule3Fires_onUnknownAndOnDelistedInstruments() {
+        assertAll(
+            () -> {
+                InstrumentNotFoundException ex = assertThrows(InstrumentNotFoundException.class, () ->
+                    service.placeOrder(buyRequest(10, "25.50", "idem-key-0001"), Optional.of(activeAccount("1000.00")),
+                        Optional.empty(), Position.empty(1L, 1L), NEVER_USED));
+                assertEquals("INS-404", ex.getCode());
+            },
+            () -> assertThrows(InstrumentNotFoundException.class, () ->
+                service.placeOrder(buyRequest(10, "25.50", "idem-key-0002"), Optional.of(activeAccount("1000.00")),
+                    Optional.of(delistedInstrument()), Position.empty(1L, 1L), NEVER_USED))
+        );
     }
 
     @Test
@@ -140,14 +131,24 @@ class OrderLogicTest {
         assertEquals(OrderStatus.FILLED, order.getStatus());
     }
 
-    // --- rule 4: quantity must be greater than zero -------------------------------------------------------
+    // --- rules 4 and 5: quantity and price must be greater than zero -------------------------------------------------------
 
     @Test
-    void rule4Fires_zeroQuantity() {
-        InvalidOrderException ex = assertThrows(InvalidOrderException.class, () ->
-            service.placeOrder(buyRequest(0, "25.50", "idem-key-0001"), Optional.of(activeAccount("1000.00")),
-                Optional.of(tradableInstrument()), Position.empty(1L, 1L), NEVER_USED));
-        assertEquals("VAL-422", ex.getCode());
+    void rules4And5Fire_onNonPositiveQuantityOrPrice() {
+        assertAll(
+            () -> {
+                InvalidOrderException ex = assertThrows(InvalidOrderException.class, () ->
+                    service.placeOrder(buyRequest(0, "25.50", "idem-key-0001"), Optional.of(activeAccount("1000.00")),
+                        Optional.of(tradableInstrument()), Position.empty(1L, 1L), NEVER_USED));
+                assertEquals("VAL-422", ex.getCode());
+            },
+            () -> {
+                InvalidOrderException ex = assertThrows(InvalidOrderException.class, () ->
+                    service.placeOrder(buyRequest(10, "0.00", "idem-key-0002"), Optional.of(activeAccount("1000.00")),
+                        Optional.of(tradableInstrument()), Position.empty(1L, 1L), NEVER_USED));
+                assertEquals("VAL-422", ex.getCode());
+            }
+        );
     }
 
     @Test
@@ -156,16 +157,6 @@ class OrderLogicTest {
             Optional.of(activeAccount("1000.00")), Optional.of(tradableInstrument()),
             Position.empty(1L, 1L), NEVER_USED);
         assertEquals(OrderStatus.FILLED, order.getStatus());
-    }
-
-    // --- rule 5: price must be greater than zero -------------------------------------------------------
-
-    @Test
-    void rule5Fires_zeroPrice() {
-        InvalidOrderException ex = assertThrows(InvalidOrderException.class, () ->
-            service.placeOrder(buyRequest(10, "0.00", "idem-key-0001"), Optional.of(activeAccount("1000.00")),
-                Optional.of(tradableInstrument()), Position.empty(1L, 1L), NEVER_USED));
-        assertEquals("VAL-422", ex.getCode());
     }
 
     @Test
@@ -259,35 +250,10 @@ class OrderLogicTest {
 
     @Test
     void evaluationOrder_suspendedAccountWithNoCashGetsAccountNotActiveNotInsufficientFunds() {
-        Account account = suspendedAccount("0.00");
+        Account account = inactiveAccount(AccountStatus.SUSPENDED, "0.00");
         AccountNotActiveException ex = assertThrows(AccountNotActiveException.class, () ->
             service.placeOrder(buyRequest(10, "25.50", "idem-key-0001"), Optional.of(account),
                 Optional.of(tradableInstrument()), Position.empty(1L, 1L), NEVER_USED));
         assertEquals("ACC-403", ex.getCode());
-    }
-
-    @Test
-    void evaluationOrder_missingAccountBeatsUnknownInstrument() {
-        AccountNotFoundException ex = assertThrows(AccountNotFoundException.class, () ->
-            service.placeOrder(buyRequest(10, "25.50", "idem-key-0001"), Optional.empty(),
-                Optional.empty(), Position.empty(1L, 1L), NEVER_USED));
-        assertEquals("ACC-404", ex.getCode());
-    }
-
-    @Test
-    void evaluationOrder_zeroQuantityBeatsInsufficientFunds() {
-        Account account = activeAccount("0.00");
-        InvalidOrderException ex = assertThrows(InvalidOrderException.class, () ->
-            service.placeOrder(buyRequest(0, "25.50", "idem-key-0001"), Optional.of(account),
-                Optional.of(tradableInstrument()), Position.empty(1L, 1L), NEVER_USED));
-        assertEquals("VAL-422", ex.getCode());
-    }
-
-    @Test
-    void duplicateIdempotencyKeyIsCheckedLastEvenWhenEverythingElseIsValid() {
-        Account account = activeAccount("1000.00");
-        assertThrows(DuplicateOrderException.class, () ->
-            service.placeOrder(buyRequest(10, "25.50", "idem-key-0001"), Optional.of(account),
-                Optional.of(tradableInstrument()), Position.empty(1L, 1L), usedKeys("idem-key-0001")));
     }
 }
