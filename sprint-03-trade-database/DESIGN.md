@@ -124,4 +124,12 @@ WHERE created_on >= :last_extract_timestamp
 
 * **Cold Analytical Storage Window (Data Lake / Parquet)**: Retains **7 Years** to meet legal and financial compliance requirements. The nightly ETL pipeline continually backs up historical data to cold storage, allowing older rows to be pruned from the primary database instance without losing historical records.
 
+#### 4.3 ADR: Denormalized aggregate fields in accounts.cash_balance and positions.quantity/average_cost
+`orders` is the source of truth for all trading activity. In theory, an account's cash balance and a position's quantity/average cost could be derived at query time by aggregating executed orders for a given account/instrument. Strict 3NF would say these derived values shouldn't be stored as independent columns, since they're functionally determined by data in another table. We store `cash_balance`, `positions.quantity`, and `positions.average_cost` as materialized, denormalized fields rather than computing them on every read.
+
+* **Read performance**: balance and position lookups are extremely hot paths (checked on every order placement for margin/buying-power checks); recomputing via aggregation over orders on every read would be too slow at scale.
+* **Concurrency/correctness**: using accounts.version for optimistic locking on updates to cash_balance is far simpler than trying to lock and recompute an aggregate consistently.
+* **Auditability**: orders remains the immutable event log; these fields are a cache/projection of it, not a replacement for it.
+
+
 
