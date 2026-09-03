@@ -9,16 +9,16 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$ROOT_DIR"
 
 fail() {
-    echo "❌ check.sh: $*" >&2
+    echo "Failure: check.sh: $*" >&2
     exit 1
 }
 
 info() {
-    echo "ℹ️  check.sh: $*"
+    echo "Info:  check.sh: $*"
 }
 
 pass() {
-    echo "✅ check.sh: $*"
+    echo "Passed: check.sh: $*"
 }
 
 # 1. Load manifest.env from project root
