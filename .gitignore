@@ -10,6 +10,13 @@ dist/
 build/
 sprint-04-analytics-etl/src/*.egg-info/
 
+# Maven / Java Build Artifacts (sprint-05-domain-engine)
+sprint-05-domain-engine/target/
+*.class
+*.jar
+*.war
+*.ear
+
 # Testing & Coverage
 .pytest_cache/
 .coverage
@@ -22,6 +29,7 @@ env/
 
 # Environment & Credentials (contain secrets)
 .env
+manifest.env
 !.example.env
 
 # IDE & OS Files
