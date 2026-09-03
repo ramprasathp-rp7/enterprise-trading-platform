@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 MIGRATIONS_DIR="$SCRIPT_DIR/migrations"
 SEED_DIR="$SCRIPT_DIR/seed"
-ENV_FILE="$SCRIPT_DIR/.env"
+ENV_FILE="$SCRIPT_DIR/../.env"
 
 fail() {
     echo "apply.sh: $*" >&2

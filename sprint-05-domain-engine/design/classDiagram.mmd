@@ -1,0 +1,66 @@
+classDiagram
+    class Account {
+        -Long id
+        -String accountId
+        -String holderName
+        -String currency
+        -AccountStatus status
+        -int version
+        -BigDecimal cashBalance
+        +credit(amount:BigDecimal)
+        +debit(amount:BigDecimal)
+        +isActive() boolean
+        +canAfford(amount:BigDecimal) boolean
+    }
+
+    class Instrument {
+        -Long id
+        -String symbol
+        -String name
+        -AssetClass assetClass
+        -boolean tradable
+        +isTradable() boolean
+        +tradable(...) Instrument
+        +delisted(...) Instrument
+    }
+
+    class Position {
+        -Long accountId
+        -Long instrumentId
+        -int quantity
+        -BigDecimal avgCost
+        +empty(...) Position
+        +applyBuy(...)
+        +applySell(...)
+    }
+
+    class Order {
+        -UUID id
+        -Long accountId
+        -Long instrumentId
+        -String symbol
+        -OrderSide side
+        -int quantity
+        -BigDecimal price
+        -String IdempotencyKey
+        -Instant createdOn
+        +cancel()
+        +markRejected()
+        +markFilled(executedPrice:BigDecimal)
+    }
+
+    class OrderPlacementService {
+        +placeOrder(request:PlaceOrderRequest, account:Optional~Account~, instrument:Optional~Instrument~, position:Position, idempotencyKeyChecker:IdempotencyKeyChecker)
+    }
+
+    %% Foreign Key Associations (Unidirectional)
+    Position "*" --> "1" Account : accountId
+    Position "*" --> "1" Instrument : instrumentId
+    Order "*" --> "1" Account : accountId
+    Order "*" --> "1" Instrument : instrumentId
+
+    %% Dependency Relationships
+    OrderPlacementService ..> Account : validates & debits
+    OrderPlacementService ..> Instrument : validates tradability
+    OrderPlacementService ..> Order : creates & updates
+    OrderPlacementService ..> Position : updates
