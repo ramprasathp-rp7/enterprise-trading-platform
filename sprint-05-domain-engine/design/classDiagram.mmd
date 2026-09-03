@@ -7,10 +7,10 @@ classDiagram
         -AccountStatus status
         -int version
         -BigDecimal cashBalance
-        +credit(amount:BigDecimal)
-        +debit(amount:BigDecimal)
         +isActive() boolean
-        +canAfford(amount:BigDecimal) boolean
+        +canAfford(BigDecimal) boolean
+        +debit(BigDecimal) void
+        +credit(BigDecimal) void
     }
 
     class Instrument {
@@ -18,20 +18,21 @@ classDiagram
         -String symbol
         -String name
         -AssetClass assetClass
+        -String currency
         -boolean tradable
         +isTradable() boolean
-        +tradable(...) Instrument
-        +delisted(...) Instrument
+        +tradable(...)$ Instrument
+        +delisted(...)$ Instrument
     }
 
     class Position {
         -Long accountId
         -Long instrumentId
         -int quantity
-        -BigDecimal avgCost
-        +empty(...) Position
-        +applyBuy(...)
-        +applySell(...)
+        -BigDecimal averageCost
+        +applyBuy(int, BigDecimal) void
+        +applySell(int) void
+        +empty(Long, Long)$ Position
     }
 
     class Order {
@@ -42,25 +43,127 @@ classDiagram
         -OrderSide side
         -int quantity
         -BigDecimal price
-        -String IdempotencyKey
+        -BigDecimal executedPrice
+        -String idempotencyKey
         -Instant createdOn
-        +cancel()
-        +markRejected()
-        +markFilled(executedPrice:BigDecimal)
+        -OrderStatus status
+        +markFilled(BigDecimal) void
+        +markRejected() void
+        +cancel() void
+    }
+
+    class AccountStatus {
+        <<enumeration>>
+        ACTIVE
+        SUSPENDED
+        CLOSED
+    }
+
+    class OrderSide {
+        <<enumeration>>
+        BUY
+        SELL
+    }
+
+    class OrderStatus {
+        <<enumeration>>
+        NEW
+        FILLED
+        REJECTED
+        CANCELLED
+        +isTerminal() boolean
+    }
+
+    class AssetClass {
+        <<enumeration>>
+        EQUITY
+        FX
+        CRYPTO
+    }
+
+    class PlaceOrderRequest {
+        -Long accountId
+        -String symbol
+        -OrderSide side
+        -Integer quantity
+        -BigDecimal price
+        -String idempotencyKey
+    }
+
+    class DomainException {
+        <<abstract>>
+        -ErrorCode errorCode
+        +getErrorCode() ErrorCode
+        +getCode() String
+    }
+
+    class ErrorCode {
+        <<enumeration>>
+        ACC_404
+        ACC_403
+        INS_404
+        ORD_400
+        ORD_409
+        VAL_422
+        +code() String
+    }
+
+    class AccountNotFoundException {
+        -Long accountId
+    }
+    class AccountNotActiveException {
+        -Long accountId
+        -AccountStatus actualStatus
+    }
+    class InstrumentNotFoundException {
+        -String symbol
+    }
+    class InsufficientFundsException {
+        -BigDecimal available
+        -BigDecimal required
+    }
+    class InsufficientHoldingsException {
+        -int held
+        -int requested
+    }
+    class DuplicateOrderException {
+        -String idempotencyKey
+    }
+    class InvalidOrderException
+
+    class IdempotencyKeyChecker {
+        <<interface>>
+        +isAlreadyUsed(String) boolean
     }
 
     class OrderPlacementService {
-        +placeOrder(request:PlaceOrderRequest, account:Optional~Account~, instrument:Optional~Instrument~, position:Position, idempotencyKeyChecker:IdempotencyKeyChecker)
+        +placeOrder(PlaceOrderRequest, Optional~Account~, Optional~Instrument~, Position, IdempotencyKeyChecker) Order
     }
 
-    %% Foreign Key Associations (Unidirectional)
-    Position "*" --> "1" Account : accountId
-    Position "*" --> "1" Instrument : instrumentId
-    Order "*" --> "1" Account : accountId
-    Order "*" --> "1" Instrument : instrumentId
+    DomainException <|-- AccountNotFoundException
+    DomainException <|-- AccountNotActiveException
+    DomainException <|-- InstrumentNotFoundException
+    DomainException <|-- InsufficientFundsException
+    DomainException <|-- InsufficientHoldingsException
+    DomainException <|-- DuplicateOrderException
+    DomainException <|-- InvalidOrderException
+    DomainException --> ErrorCode : carries
 
-    %% Dependency Relationships
-    OrderPlacementService ..> Account : validates & debits
-    OrderPlacementService ..> Instrument : validates tradability
-    OrderPlacementService ..> Order : creates & updates
-    OrderPlacementService ..> Position : updates
+    Account "1" --> "1" AccountStatus : status
+    Order "1" --> "1" OrderSide : side
+    Order "1" --> "1" OrderStatus : status
+    Instrument "1" --> "1" AssetClass : assetClass
+    PlaceOrderRequest "1" --> "1" OrderSide : side
+
+    Order "many" --> "1" Account : accountId
+    Order "many" --> "1" Instrument : instrumentId
+    Position "many" --> "1" Account : accountId
+    Position "many" --> "1" Instrument : instrumentId
+
+    OrderPlacementService ..> Account : reads / mutates
+    OrderPlacementService ..> Instrument : reads
+    OrderPlacementService ..> Position : reads / mutates
+    OrderPlacementService ..> PlaceOrderRequest : consumes
+    OrderPlacementService ..> Order : creates
+    OrderPlacementService ..> IdempotencyKeyChecker : consults
+    OrderPlacementService ..> DomainException : throws
