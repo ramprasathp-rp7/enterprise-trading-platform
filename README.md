@@ -70,7 +70,7 @@ cp .env.example .env
 ### 1. Database Setup (Sprint 3)
 ```bash
 cd sprint-03-trade-database
-./scripts/apply_migrations.sh
+./apply.sh
 ```
 
 ### 2. Analytics Pipeline Setup (Sprint 4)

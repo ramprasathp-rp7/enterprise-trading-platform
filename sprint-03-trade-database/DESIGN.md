@@ -131,5 +131,20 @@ WHERE created_on >= :last_extract_timestamp
 * **Concurrency/correctness**: using accounts.version for optimistic locking on updates to cash_balance is far simpler than trying to lock and recompute an aggregate consistently.
 * **Auditability**: `orders` remains the immutable event log; these fields are a cache/projection of it, not a replacement for it.
 
+### 5. Database Setup
+
+```bash
+cd sprint-03-trade-database
+./apply.sh
+```
+
+### 6. Probes Check
+
+```bash
+cd sprint-03-trade-database
+./scripts/check.sh
+```
+
+
 
 
