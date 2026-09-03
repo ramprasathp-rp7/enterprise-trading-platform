@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -18,38 +19,38 @@ class PositionTest {
     }
 
     @Test
-    void firstBuySetsAverageCostToThePriceItWasBoughtAt() {
+    void buysRecalculateTheWeightedAverageAcrossOldAndNewUnits() {
         Position position = Position.empty(1L, 1L);
+
         position.applyBuy(10, new BigDecimal("25.50"));
-        assertEquals(10, position.getQuantity());
-        assertEquals(new BigDecimal("25.500000"), position.getAverageCost());
+        assertAll(
+            () -> assertEquals(10, position.getQuantity()),
+            () -> assertEquals(new BigDecimal("25.500000"), position.getAverageCost())
+        );
+
+        position.applyBuy(10, new BigDecimal("30.00")); // (10*25.50 + 10*30.00) / 20 = 27.75
+        assertAll(
+            () -> assertEquals(20, position.getQuantity()),
+            () -> assertEquals(new BigDecimal("27.750000"), position.getAverageCost())
+        );
     }
 
     @Test
-    void secondBuyRecalculatesTheWeightedAverage() {
-        Position position = Position.empty(1L, 1L);
-        position.applyBuy(10, new BigDecimal("20.00")); // cost basis 200
-        position.applyBuy(10, new BigDecimal("30.00")); // cost basis 300, total 500 / 20 = 25
-        assertEquals(20, position.getQuantity());
-        assertEquals(new BigDecimal("25.000000"), position.getAverageCost());
-    }
-
-    @Test
-    void sellReducesQuantityAndLeavesAverageCostUnchanged() {
+    void sellReducesQuantityAndLeavesAverageCostUnchangedIncludingSellingTheEntireHolding() {
         Position position = Position.empty(1L, 1L);
         position.applyBuy(10, new BigDecimal("20.00"));
+
         position.applySell(4);
-        assertEquals(6, position.getQuantity());
-        assertEquals(new BigDecimal("20.000000"), position.getAverageCost());
-    }
+        assertAll(
+            () -> assertEquals(6, position.getQuantity()),
+            () -> assertEquals(new BigDecimal("20.000000"), position.getAverageCost())
+        );
 
-    @Test
-    void sellOfExactlyTheHeldQuantityLeavesZero() {
-        Position position = Position.empty(1L, 1L);
-        position.applyBuy(10, new BigDecimal("20.00"));
-        position.applySell(10);
-        assertEquals(0, position.getQuantity());
-        assertEquals(new BigDecimal("20.000000"), position.getAverageCost());
+        position.applySell(6);
+        assertAll(
+            () -> assertEquals(0, position.getQuantity()),
+            () -> assertEquals(new BigDecimal("20.000000"), position.getAverageCost())
+        );
     }
 
     @Test
@@ -60,14 +61,12 @@ class PositionTest {
     }
 
     @Test
-    void quantityNeverGoesNegativeAtConstruction() {
-        assertThrows(IllegalArgumentException.class, () -> new Position(1L, 1L, -1, BigDecimal.ZERO));
-    }
-
-    @Test
-    void buyOfZeroOrFewerUnitsIsRejected() {
-        Position position = Position.empty(1L, 1L);
-        assertThrows(IllegalArgumentException.class, () -> position.applyBuy(0, new BigDecimal("20.00")));
+    void constructionAndBuyRejectNonPositiveQuantities() {
+        assertAll(
+            () -> assertThrows(IllegalArgumentException.class, () -> new Position(1L, 1L, -1, BigDecimal.ZERO)),
+            () -> assertThrows(IllegalArgumentException.class, () ->
+                Position.empty(1L, 1L).applyBuy(0, new BigDecimal("20.00")))
+        );
     }
 
     @Test

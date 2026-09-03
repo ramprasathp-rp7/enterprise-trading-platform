@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -21,18 +22,12 @@ class AccountTest {
     // --- status -------------------------------------------------------
 
     @Test
-    void activeAccountIsActive() {
-        assertTrue(account(AccountStatus.ACTIVE, "1000.00").isActive());
-    }
-
-    @Test
-    void suspendedAccountIsNotActive() {
-        assertFalse(account(AccountStatus.SUSPENDED, "1000.00").isActive());
-    }
-
-    @Test
-    void closedAccountIsNotActive() {
-        assertFalse(account(AccountStatus.CLOSED, "1000.00").isActive());
+    void statusDeterminesWhetherTheAccountIsActive() {
+        assertAll(
+            () -> assertTrue(account(AccountStatus.ACTIVE, "1000.00").isActive(), "ACTIVE should be active"),
+            () -> assertFalse(account(AccountStatus.SUSPENDED, "1000.00").isActive(), "SUSPENDED should not be active"),
+            () -> assertFalse(account(AccountStatus.CLOSED, "1000.00").isActive(), "CLOSED should not be active")
+        );
     }
 
     // --- identity -------------------------------------------------------
@@ -62,21 +57,13 @@ class AccountTest {
     // --- affordability -------------------------------------------------------
 
     @Test
-    void canAffordReturnsTrueWhenBalanceCoversAmountExactly() {
+    void canAffordReflectsWhetherBalanceCoversTheAmount() {
         Account acc = account(AccountStatus.ACTIVE, "500.00");
-        assertTrue(acc.canAfford(new BigDecimal("500.00")));
-    }
-
-    @Test
-    void canAffordReturnsTrueWhenBalanceComfortablyCoversAmount() {
-        Account acc = account(AccountStatus.ACTIVE, "500.00");
-        assertTrue(acc.canAfford(new BigDecimal("100.00")));
-    }
-
-    @Test
-    void canAffordReturnsFalseWhenBalanceIsShort() {
-        Account acc = account(AccountStatus.ACTIVE, "500.00");
-        assertFalse(acc.canAfford(new BigDecimal("500.01")));
+        assertAll(
+            () -> assertTrue(acc.canAfford(new BigDecimal("500.00")), "balance exactly covers amount"),
+            () -> assertTrue(acc.canAfford(new BigDecimal("100.00")), "balance comfortably covers amount"),
+            () -> assertFalse(acc.canAfford(new BigDecimal("500.01")), "balance is one cent short")
+        );
     }
 
     // --- debit / credit -------------------------------------------------------
@@ -96,16 +83,9 @@ class AccountTest {
     }
 
     @Test
-    void debitRefusesToLeaveTheBalanceNegative() {
+    void debitRefusesToLeaveBalanceNegativeAndLeavesBalanceUnchanged() {
         Account acc = account(AccountStatus.ACTIVE, "100.00");
         assertThrows(IllegalStateException.class, () -> acc.debit(new BigDecimal("100.01")));
-    }
-
-    @Test
-    void debitRefusedBeforeAnythingIsSubtracted() {
-        Account acc = account(AccountStatus.ACTIVE, "100.00");
-        assertThrows(IllegalStateException.class, () -> acc.debit(new BigDecimal("100.01")));
-        // The balance is exactly what it was before the refused debit was attempted.
         assertEquals(new BigDecimal("100.00"), acc.getCashBalance());
     }
 
@@ -117,44 +97,26 @@ class AccountTest {
     }
 
     @Test
-    void debitOfZeroIsRejected() {
+    void debitAndCreditRejectNonPositiveAmounts() {
         Account acc = account(AccountStatus.ACTIVE, "100.00");
-        assertThrows(IllegalArgumentException.class, () -> acc.debit(BigDecimal.ZERO));
-    }
-
-    @Test
-    void debitOfNegativeAmountIsRejected() {
-        Account acc = account(AccountStatus.ACTIVE, "100.00");
-        assertThrows(IllegalArgumentException.class, () -> acc.debit(new BigDecimal("-1.00")));
-    }
-
-    @Test
-    void creditOfZeroIsRejected() {
-        Account acc = account(AccountStatus.ACTIVE, "100.00");
-        assertThrows(IllegalArgumentException.class, () -> acc.credit(BigDecimal.ZERO));
-    }
-
-    @Test
-    void creditOfNegativeAmountIsRejected() {
-        Account acc = account(AccountStatus.ACTIVE, "100.00");
-        assertThrows(IllegalArgumentException.class, () -> acc.credit(new BigDecimal("-1.00")));
+        assertAll(
+            () -> assertThrows(IllegalArgumentException.class, () -> acc.debit(BigDecimal.ZERO)),
+            () -> assertThrows(IllegalArgumentException.class, () -> acc.debit(new BigDecimal("-1.00"))),
+            () -> assertThrows(IllegalArgumentException.class, () -> acc.credit(BigDecimal.ZERO)),
+            () -> assertThrows(IllegalArgumentException.class, () -> acc.credit(new BigDecimal("-1.00")))
+        );
     }
 
     // --- money precision -------------------------------------------------------
 
     @Test
-    void balanceDoesNotDriftOverManySmallOperations() {
+    void balanceDoesNotDriftOverManySmallOperationsAndIsNeverADouble() {
         Account acc = account(AccountStatus.ACTIVE, "1000.00");
         for (int i = 0; i < 5_000; i++) {
             acc.debit(new BigDecimal("0.10"));
             acc.credit(new BigDecimal("0.10"));
         }
         assertEquals(new BigDecimal("1000.00"), acc.getCashBalance());
-    }
-
-    @Test
-    void balanceIsNeverRepresentedAsADouble() {
-        Account acc = account(AccountStatus.ACTIVE, "10.10");
-        assertEquals("10.10", acc.getCashBalance().toString());
+        assertEquals("1000.00", acc.getCashBalance().toString());
     }
 }
