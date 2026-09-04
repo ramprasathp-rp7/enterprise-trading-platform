@@ -31,6 +31,11 @@ public final class OrderPlacementService {
         Objects.requireNonNull(position, "position");
         Objects.requireNonNull(idempotencyKeyChecker, "idempotencyKeyChecker");
 
+        /* Since the method contains a unit of work with strict ordering of business validation rules,
+        and is not a nested logic, the rule validation occurs subsequently within the same suite 
+        and does not deliberately follow the modular approach.
+        */
+        
         // Rule 1: the account must exist
         Account acc = account.orElseThrow(() -> new AccountNotFoundException(request.getAccountId()));
 
