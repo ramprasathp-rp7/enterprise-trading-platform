@@ -13,6 +13,7 @@ dependencies = [
     "plotly>=5.18",
     "python-dotenv>=1.0",
     "duckdb>=0.10",
+    "psycopg2-binary>=2.9",
 ]
 
 # `pip install -e 'sprint-04-analytics-etl[dev]'` — the engineering contract's

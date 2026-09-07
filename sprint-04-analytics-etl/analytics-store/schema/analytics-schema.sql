@@ -49,10 +49,12 @@
 --
 -- LOADING IT
 --
--- The load is incremental, driven by a watermark on orders.created_on. Load
--- dimensions before facts, or a fact row will reference a key that does not
--- exist yet. Make the load idempotent: re-running yesterday's load must not
--- double-count. Merge on the natural key, do not blindly insert.
+-- The load is incremental, driven by a watermark on orders.updated_on, not
+-- created_on: an order mutates in place (NEW -> FILLED), and a created_on
+-- watermark would never re-read that status change. Load dimensions before
+-- facts, or a fact row will reference a key that does not exist yet. Make the
+-- load idempotent: re-running yesterday's load must not double-count. Merge
+-- on the natural key, do not blindly insert.
 -- =============================================================================
 
 
@@ -221,9 +223,10 @@ CREATE TABLE fact_trades (
 -- trade_key        Surrogate key assigned by the ETL.
 -- source_order_id  The operational orders.id as text. The unique constraint on
 --                  it is what makes the load idempotent: re-running a window
---                  cannot insert the same order twice. Enforce it in the
---                  pipeline as well, because some warehouse configurations
---                  will not.
+--                  upserts the same order instead of inserting it twice, so a
+--                  status change picked up by a later watermark window
+--                  updates the existing row rather than being silently
+--                  dropped.
 -- quantity, price  Additive and semi-additive measures. quantity sums.
 --                  price does NOT sum: averaging or summing a price across
 --                  rows is meaningless. Sum trade_value instead. This mistake
@@ -305,7 +308,7 @@ CREATE TABLE fact_trades (
 --   3. dim_account     merge on account_id, Type 2. Close the previous version
 --                      by setting end_date and is_current = FALSE, then insert
 --                      the new version.
---   4. fact_trades     insert orders created since the last watermark,
+--   4. fact_trades     upsert orders with updated_on since the last watermark,
 --                      resolving each dimension key by lookup.
 --
 -- Checks to run before load, failing the batch or dead-lettering the row:
@@ -316,7 +319,7 @@ CREATE TABLE fact_trades (
 --   - quantity > 0 and price > 0.
 --   - side is BUY or SELL; status is one of the four order statuses.
 --   - trade_value equals its inputs, recomputed rather than trusted.
---   - source_order_id has not been loaded before.
+--   - source_order_id resolves to at most one fact row (upsert, not insert).
 --
 -- Reconcile after load: the row count and summed trade_value in fact_trades
 -- for a given day must equal the same figures computed against Postgres for

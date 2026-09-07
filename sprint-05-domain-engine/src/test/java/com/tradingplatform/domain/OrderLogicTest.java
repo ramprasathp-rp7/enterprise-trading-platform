@@ -35,8 +35,8 @@ class OrderLogicTest {
 
     private final OrderPlacementService service = new OrderPlacementService();
 
-    // Never reports any key as used
-    private static final IdempotencyKeyChecker NEVER_USED = key -> false;
+    // Never rejects a key as already claimed
+    private static final IdempotencyKeyChecker NEVER_USED = key -> { };
 
     private static Account activeAccount(String cash) {
         return new Account(1L, "ACC-000001", "Priya Menon", new BigDecimal(cash), "USD",
@@ -63,10 +63,14 @@ class OrderLogicTest {
         return new PlaceOrderRequest(1L, "ACME", OrderSide.SELL, quantity, new BigDecimal(price), idempotencyKey);
     }
 
-    // A key checker backed by a set
+    // A key checker backed by a set — claim() throws for any key already in the set
     private static IdempotencyKeyChecker usedKeys(String... alreadyUsed) {
         Set<String> keys = new HashSet<>(Set.of(alreadyUsed));
-        return keys::contains;
+        return key -> {
+            if (keys.contains(key)) {
+                throw new DuplicateOrderException(key);
+            }
+        };
     }
 
     // --- rule 1: the account must exist -------------------------------------------------------
@@ -103,7 +107,7 @@ class OrderLogicTest {
         Order order = service.placeOrder(buyRequest(10, "25.50", "idem-key-0001"),
             Optional.of(activeAccount("1000.00")), Optional.of(tradableInstrument()),
             Position.empty(1L, 1L), NEVER_USED);
-        assertEquals(OrderStatus.FILLED, order.getStatus());
+        assertEquals(OrderStatus.NEW, order.getStatus());
     }
 
     // --- rule 3: the instrument must exist and be tradable -------------------------------------------------------
@@ -128,7 +132,7 @@ class OrderLogicTest {
         Order order = service.placeOrder(buyRequest(10, "25.50", "idem-key-0001"),
             Optional.of(activeAccount("1000.00")), Optional.of(tradableInstrument()),
             Position.empty(1L, 1L), NEVER_USED);
-        assertEquals(OrderStatus.FILLED, order.getStatus());
+        assertEquals(OrderStatus.NEW, order.getStatus());
     }
 
     // --- rules 4 and 5: quantity and price must be greater than zero -------------------------------------------------------
@@ -156,7 +160,7 @@ class OrderLogicTest {
         Order order = service.placeOrder(buyRequest(1, "25.50", "idem-key-0001"),
             Optional.of(activeAccount("1000.00")), Optional.of(tradableInstrument()),
             Position.empty(1L, 1L), NEVER_USED);
-        assertEquals(OrderStatus.FILLED, order.getStatus());
+        assertEquals(OrderStatus.NEW, order.getStatus());
     }
 
     @Test
@@ -164,7 +168,7 @@ class OrderLogicTest {
         Order order = service.placeOrder(buyRequest(10, "0.01", "idem-key-0001"),
             Optional.of(activeAccount("1000.00")), Optional.of(tradableInstrument()),
             Position.empty(1L, 1L), NEVER_USED);
-        assertEquals(OrderStatus.FILLED, order.getStatus());
+        assertEquals(OrderStatus.NEW, order.getStatus());
     }
 
     // --- rule 6: BUY affordability -------------------------------------------------------
@@ -186,6 +190,9 @@ class OrderLogicTest {
 
         Order order = service.placeOrder(buyRequest(10, "25.50", "idem-key-0001"), Optional.of(account),
             Optional.of(tradableInstrument()), position, NEVER_USED);
+        assertEquals(OrderStatus.NEW, order.getStatus());
+
+        service.settle(account, position, order, new BigDecimal("25.50"));
 
         assertEquals(OrderStatus.FILLED, order.getStatus());
         assertEquals(new BigDecimal("25.50"), order.getExecutedPrice());
@@ -218,6 +225,9 @@ class OrderLogicTest {
 
         Order order = service.placeOrder(sellRequest(4, "25.50", "idem-key-0001"), Optional.of(account),
             Optional.of(tradableInstrument()), position, NEVER_USED);
+        assertEquals(OrderStatus.NEW, order.getStatus());
+
+        service.settle(account, position, order, new BigDecimal("25.50"));
 
         assertEquals(OrderStatus.FILLED, order.getStatus());
         // 1000.00 + (4 * 25.50) = 1102.00
@@ -243,7 +253,7 @@ class OrderLogicTest {
         Order order = service.placeOrder(buyRequest(10, "25.50", "idem-key-0002"),
             Optional.of(activeAccount("1000.00")), Optional.of(tradableInstrument()),
             Position.empty(1L, 1L), usedKeys("idem-key-0001"));
-        assertEquals(OrderStatus.FILLED, order.getStatus());
+        assertEquals(OrderStatus.NEW, order.getStatus());
     }
 
     // --- evaluation order: first failure wins -------------------------------------------------------

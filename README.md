@@ -30,13 +30,11 @@
 
 ```text
 .
-├── contracts/                  # Binding OpenAPI, Kafka, and SQL contracts
-│   └── analytics-schema.sql    # Analytical schema contract
-├── infra/                      # Local infrastructure setup (PostgreSQL)
 ├── sprint-03-trade-database/   # PostgreSQL schema (migrations, seed, design, probes, queries, scripts)
 ├── sprint-04-analytics-etl/    # Installable Python package (extract, transform, load, claims, tests)
 ├── sprint-05-domain-engine/    # Standalone pure-Java 21 Maven module (entities, enums, services, tests)
-├── .env.example                # Shared environment variable template
+├── manifest.env                 # Harness manifest consumed by scripts/check.sh
+├── .example.env                 # Shared environment variable template
 └── README.md                   # Project documentation
 ```
 
@@ -48,7 +46,7 @@
 | :---: | :--- | :--- | :---: |
 | **03** | **Trade Database** | 3NF PostgreSQL schema, numbered migrations, `VARCHAR` + `CHECK` constraints, DB-level idempotency (`23505`), index justifications, live constraint violation probes. | **Complete** |
 | **04** | **Analytics ETL** | Installable Python package, DuckDB star schema target, Plotly dashboard (3+ business claims), 4-way error handling, quarantine pattern for defective rows, Fauxnance caching. | **Complete** |
-| **05** | **Domain Engine** | Framework-free Java 21 module, 4 entities, 4 enums, `PlaceOrderRequest` DTO validation, 7 domain exceptions, 8 order placement rules, `IdempotencyKeyChecker` seam interface, 64 JUnit 5 tests. | **Complete** |
+| **05** | **Domain Engine** | Framework-free Java 21 module, 4 entities, 4 enums, `PlaceOrderRequest` DTO validation, 7 domain exceptions, 8 order placement rules, `IdempotencyKeyChecker` seam interface, 66 JUnit 5 tests. | **Complete** |
 
 ---
 
@@ -63,7 +61,7 @@
 ### Environment Configuration
 Copy the template environment file and set your local credentials:
 ```bash
-cp .env.example .env
+cp .example.env .env
 ```
 > **Note:** Never commit `.env` or expose your `FAUXNANCE_API_KEY`.
 
@@ -77,7 +75,7 @@ cd sprint-03-trade-database
 ```bash
 cd sprint-04-analytics-etl
 python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts ctivate
+source .venv/bin/activate  # On Windows (PowerShell): .venv\Scripts\Activate.ps1
 pip install -e '.[dev]'
 pytest
 ```

@@ -3,7 +3,9 @@
 
 ## Why Indexes Matter
 
-Indexes let Postgres jump straight to matching rows instead of scanning the whole table, and can also pre-sort data so `ORDER BY` / `LIMIT` avoid an in-memory sort. The tradeoffs: each index adds storage overhead and slows down writes (insert/update/delete), so indexes should be targeted at real, frequent query patterns rather than added speculatively. Partial indexes (like `WHERE status = 'NEW'`) keep the index small by only covering the subset of roaddws actually queried often.
+Indexes let Postgres jump straight to matching rows instead of scanning the whole table, and can also pre-sort data so `ORDER BY` / `LIMIT` avoid an in-memory sort. The tradeoffs: each index adds storage overhead and slows down writes (insert/update/delete), so indexes should be targeted at real, frequent query patterns rather than added speculatively. Partial indexes (like `WHERE status = 'NEW'`) keep the index small by only covering the subset of rows actually queried often.
+
+> **Re-capture pending.** Every `orders` plan below (`rows=0.00`) was taken against an empty table — `scripts/check.sh` seeds the database only after these plans were captured, so nothing here shows the index at scale. Re-run `scripts/check.sh` end to end against the seeded database and paste the `EXPLAIN (ANALYZE, BUFFERS)` output back in to replace the plans below; the per-index write-cost notes are qualitative until then.
 
 ---
 
@@ -17,7 +19,9 @@ CREATE INDEX ix_orders_account_open_created_on
 
 **Justification:** Composite leading column `account_id` provides exact lookup. `created_on DESC` avoids in-memory sorting. The partial filter (`WHERE status = 'NEW'`) keeps the index small and fast, since orders rapidly transition out of `NEW` to terminal states.
 
-**EXPLAIN ANALYZE:**
+**Write cost:** Partial, so only `NEW`-row writes pay it. Every `INSERT` and every `UPDATE`/`DELETE` that changes `status` while the row is `NEW` maintains this index; once an order leaves `NEW` the row drops out of it and further updates to that row are free.
+
+**EXPLAIN ANALYZE** (captured against an empty `orders` table — re-capture after seeding):
 ```
 Index Scan using ix_orders_account_open_created_on on orders  (cost=0.12..8.14 rows=1 width=368) (actual time=0.033..0.033 rows=0.00 loops=1)
   Index Cond: (account_id = 6)
@@ -40,7 +44,9 @@ CREATE INDEX ix_orders_account_created_on
 
 **Justification:** Combines filtering by `account_id` and sorting by `created_on DESC` in a single B-Tree, allowing Postgres to satisfy `ORDER BY ... LIMIT 50` via a fast index scan without a full-set sort.
 
-**EXPLAIN ANALYZE:**
+**Write cost:** Unconditional (no partial filter) — every `INSERT` into `orders` maintains this index, and so does every `UPDATE` that touches `account_id` or `created_on` (neither changes post-insert in practice, so in effect this is a one-time cost per row, paid on insert).
+
+**EXPLAIN ANALYZE** (captured against an empty `orders` table — re-capture after seeding):
 ```
 Limit  (cost=0.14..8.16 rows=1 width=368) (actual time=0.007..0.007 rows=0.00 loops=1)
   Buffers: shared hit=2
@@ -92,7 +98,9 @@ CREATE INDEX ix_orders_created_on
 
 **Justification:** Unscoped query across all accounts. Because `ix_orders_account_created_on` starts with `account_id`, it cannot serve global date-range scans. A single-column index on `created_on` allows efficient range scans.
 
-**EXPLAIN ANALYZE** (on this small test dataset the planner still chose a seq scan; the index pays off as table size grows):
+**Write cost:** Unconditional — every `INSERT` into `orders` maintains this index. `created_on` never changes post-insert, so like index 2 this is a one-time cost per row.
+
+**EXPLAIN ANALYZE** (on this small test dataset the planner still chose a seq scan; the index pays off as table size grows — re-capture after seeding):
 ```
 Seq Scan on orders  (cost=0.00..12.50 rows=67 width=368) (actual time=0.019..0.019 rows=0.00 loops=1)
   Filter: (created_on >= '2026-03-10 08:05:01+00'::timestamp with time zone)
@@ -101,6 +109,21 @@ Planning:
 Planning Time: 0.158 ms
 Execution Time: 0.700 ms
 ```
+
+---
+
+## 4. `ix_orders_updated_on` (added in `migrations/002_orders_updated_on_index_and_positions_version.sql`)
+```sql
+CREATE INDEX ix_orders_updated_on
+    ON orders (updated_on);
+```
+**Target Query:** The nightly analytical extract (`DESIGN.md` section 2), now windowed on `updated_on` instead of `created_on` — an order mutates in place (`NEW` -> `FILLED`), and a `created_on` watermark never re-reads that status change.
+
+**Justification:** Same shape as index 3, on the column the watermark actually filters on.
+
+**Write cost:** Unconditional, and paid on every status transition, not just on insert — `updated_on` changes on every `UPDATE` to the row (`trg_orders_set_updated`), so this index is maintained once at insert and again on every later fill/cancel/reject. Costlier to maintain than index 3, and that cost is the point: it is what lets the ETL see the status change at all.
+
+**EXPLAIN ANALYZE:** not yet captured — this index was added after the plans above; re-capture together with the rest.
 
 ---
 
@@ -132,3 +155,4 @@ Planning:
 Planning Time: 5.492 ms
 Execution Time: 1.239 ms
 ```
+

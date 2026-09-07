@@ -133,11 +133,12 @@ classDiagram
 
     class IdempotencyKeyChecker {
         <<interface>>
-        +isAlreadyUsed(String) boolean
+        +claim(String) void
     }
 
     class OrderPlacementService {
         +placeOrder(PlaceOrderRequest, Optional~Account~, Optional~Instrument~, Position, IdempotencyKeyChecker) Order
+        +settle(Account, Position, Order, BigDecimal) void
     }
 
     DomainException <|-- AccountNotFoundException

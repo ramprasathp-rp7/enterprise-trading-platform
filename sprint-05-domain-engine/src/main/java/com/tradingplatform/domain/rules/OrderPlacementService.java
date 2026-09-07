@@ -4,7 +4,6 @@ import com.tradingplatform.domain.dto.PlaceOrderRequest;
 import com.tradingplatform.domain.enums.OrderSide;
 import com.tradingplatform.domain.exception.AccountNotActiveException;
 import com.tradingplatform.domain.exception.AccountNotFoundException;
-import com.tradingplatform.domain.exception.DuplicateOrderException;
 import com.tradingplatform.domain.exception.InstrumentNotFoundException;
 import com.tradingplatform.domain.exception.InsufficientFundsException;
 import com.tradingplatform.domain.exception.InsufficientHoldingsException;
@@ -77,22 +76,34 @@ public final class OrderPlacementService {
         }
 
         // Rule 8: the idempotency key must not already have been used
-        if (idempotencyKeyChecker.isAlreadyUsed(request.getIdempotencyKey())) {
-            throw new DuplicateOrderException(request.getIdempotencyKey());
-        }
+        idempotencyKeyChecker.claim(request.getIdempotencyKey());
 
-        Order order = new Order(acc.getId(), ins.getId(), ins.getSymbol(), side, quantity, price,
+        // placeOrder validates and admits the order; it does not settle it — the order returned is NEW.
+        return new Order(acc.getId(), ins.getId(), ins.getSymbol(), side, quantity, price,
             request.getIdempotencyKey());
+    }
 
-        if (side == OrderSide.BUY) {
+    /**
+     * Settles a NEW order at its executed price: moves cash, updates the position and marks the order FILLED.
+     *
+     * @throws IllegalStateException if the order is not currently NEW
+     */
+    public void settle(Account acc, Position position, Order order, BigDecimal executedPrice) {
+        Objects.requireNonNull(acc, "acc");
+        Objects.requireNonNull(position, "position");
+        Objects.requireNonNull(order, "order");
+        Objects.requireNonNull(executedPrice, "executedPrice");
+
+        BigDecimal notional = executedPrice.multiply(BigDecimal.valueOf(order.getQuantity()));
+
+        if (order.getSide() == OrderSide.BUY) {
             acc.debit(notional);
-            position.applyBuy(quantity, price);
+            position.applyBuy(order.getQuantity(), executedPrice);
         } else {
             acc.credit(notional);
-            position.applySell(quantity);
+            position.applySell(order.getQuantity());
         }
 
-        order.markFilled(price);
-        return order;
+        order.markFilled(executedPrice);
     }
 }
