@@ -56,17 +56,18 @@ SELECT
     price, 
     executed_price, 
     status, 
-    created_on 
+    created_on,
+    updated_on 
 FROM orders
-WHERE created_on >= :last_extract_timestamp 
-  AND created_on <  :current_extract_timestamp;
+WHERE updated_on >= :last_extract_timestamp 
+  AND updated_on <  :current_extract_timestamp;
 
 ```
 
 #### 2.2 Database Performance & Reliability Mechanics
 
-* **Index Alignment**: The extraction query runs directly against the dedicated operational B-Tree index `ix_orders_created_on ON orders (created_on)`.
-* **Database Access Plan**: The PostgreSQL query planner uses a `Bitmap Index Scan` across `ix_orders_created_on` to aggregate relevant page pointers in memory, followed by a sequential `Bitmap Heap Scan`. This prevents random disk I/O thrashing during large multi-gigabyte nightly batch jobs.
+* **Index Alignment**: The extraction query runs directly against the dedicated operational B-Tree index `ix_orders_updated_on ON orders (updated_on)`. Windowing on `updated_on` rather than `created_on` is deliberate: an order mutates in place (`NEW` becomes `FILLED` days later), and a `created_on` watermark would never re-read that status change, freezing the analytical store at whatever status an order had when it was first extracted.
+* **Database Access Plan**: The PostgreSQL query planner uses a `Bitmap Index Scan` across `ix_orders_updated_on` to aggregate relevant page pointers in memory, followed by a sequential `Bitmap Heap Scan`. This prevents random disk I/O thrashing during large multi-gigabyte nightly batch jobs.
 * **At-Least-Once Delivery Guarantees**: The ETL pipeline runner updates its high-water mark timestamp (`:current_extract_timestamp`) in external persistent state only after the downstream analytical warehouse confirms a successful write. If a job fails mid-stream, the next run safely re-fetches the same window without data loss or record corruption.
 
 ---

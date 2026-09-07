@@ -61,24 +61,27 @@ sequenceDiagram
         end
     end
 
-    %% Rule 8: Idempotency check
-    Svc->>+Idem: isAlreadyUsed(idempotencyKey)
-    Idem-->>-Svc: isAlreadyUsed boolean
-    Svc->>Svc: Rule 8: key not already used
+    %% Rule 8: Idempotency claim
+    Svc->>+Idem: claim(idempotencyKey)
+    Idem-->>-Svc: void (throws if already claimed)
     alt key already used
         Svc-->>Caller: throw DuplicateOrderException (ORD-409)
     end
 
-    Note over Svc: All eight rules passed. No Trade Executor<br/>exists yet (Sprint 7), so settle it now.
+    Note over Svc: All eight rules passed. Settlement is a separate call —<br/>the Trade Executor (Sprint 7) will invoke settle() against a live quote.
 
-    %% Execution & Settlement
+    %% Order admission
     Svc->>+Ord: new Order(..., status=NEW)
     Ord-->>-Svc: order instance
-    
+
+    Svc-->>-Caller: return Order (status=NEW)
+
+    Caller->>+Svc: settle(account, position, order, executedPrice)
+
     alt side == BUY
         Svc->>+Acc: debit(notional)
         Acc-->>-Svc: void / success
-        Svc->>+Pos: applyBuy(quantity, price)
+        Svc->>+Pos: applyBuy(quantity, executedPrice)
         Pos-->>-Svc: void / success
     else side == SELL
         Svc->>+Acc: credit(notional)
@@ -86,8 +89,8 @@ sequenceDiagram
         Svc->>+Pos: applySell(quantity)
         Pos-->>-Svc: void / success
     end
-    
-    Svc->>+Ord: markFilled(price)
+
+    Svc->>+Ord: markFilled(executedPrice)
     Ord-->>-Svc: void / success
 
-    Svc-->>-Caller: return Order (status=FILLED)
+    Svc-->>-Caller: return (order status=FILLED)
