@@ -26,6 +26,7 @@ htmlcov/
 venv/
 env/
 .venv/
+leap_capstone_psql/
 
 # Environment & Credentials (contain secrets)
 .env
@@ -38,6 +39,6 @@ manifest.env
 .DS_Store
 Thumbs.db
 
-.cache/
+sprint-04-analytics-etl/.cache/
 trading_analytics.duckdb
 analytics_store.duckdb

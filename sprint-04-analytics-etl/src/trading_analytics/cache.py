@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-DEFAULT_CACHE_DIR = Path(".cache")
+DEFAULT_CACHE_DIR = Path(__file__).resolve().parent.parent.parent / ".cache"
 
 
 def cache_path(symbol: str, start: str, end: str, cache_dir: Path = DEFAULT_CACHE_DIR) -> Path:
