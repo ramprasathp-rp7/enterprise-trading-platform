@@ -146,6 +146,8 @@ cd sprint-03-trade-database
 ./scripts/check.sh
 ```
 
+### 7. Explain Analyze
 
-
-
+```bash
+psql -h localhost -p 5432 -U postgres -d enterprise_trading_platform -f sprint-03-trade-database/queries/queries.sql
+```
