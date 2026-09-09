@@ -23,12 +23,30 @@ public interface OrderMapper {
         String idempotencyKey
     );
 
-    @Select("SELECT CONCAT('ORD-', o.id::text) AS order_id, o.status, CASE WHEN o.status = 'NEW' THEN 'Order accepted' WHEN o.status = 'FILLED' THEN 'Order executed' WHEN o.status = 'REJECTED' THEN 'Order rejected' END AS message, i.symbol, o.side, o.quantity, o.price FROM orders o JOIN instruments i ON i.id = o.instrument_id WHERE o.id = #{id}")
+    @Select("SELECT CONCAT('ORD-', o.id::text) AS order_id, "+
+            "o.status, "+
+            "CASE WHEN o.status = 'NEW' THEN 'Order accepted' "+
+            "WHEN o.status = 'FILLED' THEN 'Order executed' "+
+            "WHEN o.status = 'REJECTED' THEN 'Order rejected' END AS message, "+
+            "i.symbol, "+
+            "o.side, "+
+            "o.quantity, "+
+            "o.price "+
+            "FROM orders o "+
+            "JOIN instruments i ON i.id = o.instrument_id WHERE o.id = #{id}")
     OrderResponse findOrderResponseById(UUID id);
 
     @Update("UPDATE orders SET status = 'CANCELLED' WHERE id = #{id} AND status = 'NEW'")
     int changeOrderIfNew(UUID id);
 
-    @Select("SELECT CONCAT('ORD-', o.id::text) AS order_id, o.status, CASE WHEN o.status = 'CANCELLED' THEN 'Order cancelled' END AS message, i.symbol, o.side, o.quantity, o.price FROM orders o JOIN instruments i ON i.id = o.instrument_id WHERE o.id = #{id}")
+    @Select("SELECT CONCAT('ORD-', o.id::text) AS order_id, "+
+            "o.status, "+
+            "'Order cancelled' AS message, "+
+            "i.symbol, "+
+            "o.side, "+
+            "o.quantity, "+
+            "o.price "+
+            "FROM orders o "+
+            "JOIN instruments i ON i.id = o.instrument_id WHERE o.id = #{id}")
     OrderResponse findChangedOrderAfterCancelling(UUID id);
 }
