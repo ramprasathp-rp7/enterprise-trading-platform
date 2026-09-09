@@ -12,7 +12,8 @@ import com.tradingplatform.domain.enums.OrderSide;
 import com.tradingplatform.domain.enums.OrderStatus;
 
 public interface OrderMapper {
-    @Insert("INSERT INTO orders (id, account_id, instrument_id, side, quantity, price, status, idempotency_key) VALUES (#{id}, #{accountId}, #{instrumentId}, #{side}, #{quantity}, #{price}, #{status}, #{idempotencyKey})")
+    @Insert("INSERT INTO orders (id, account_id, instrument_id, side, quantity, price, status, idempotency_key) "+
+            "VALUES (#{id}, #{accountId}, #{instrumentId}, #{side}, #{quantity}, #{price}, #{status}, #{idempotencyKey})")
     int insertOrder(UUID id,
         long accountId,
         long instrumentId,
@@ -37,7 +38,7 @@ public interface OrderMapper {
     OrderResponse findOrderResponseById(UUID id);
 
     @Update("UPDATE orders SET status = 'CANCELLED' WHERE id = #{id} AND status = 'NEW'")
-    int changeOrderIfNew(UUID id);
+    int cancelOrderIfNew(UUID id);
 
     @Select("SELECT CONCAT('ORD-', o.id::text) AS order_id, "+
             "o.status, "+
@@ -48,5 +49,5 @@ public interface OrderMapper {
             "o.price "+
             "FROM orders o "+
             "JOIN instruments i ON i.id = o.instrument_id WHERE o.id = #{id}")
-    OrderResponse findChangedOrderAfterCancelling(UUID id);
+    OrderResponse findCancelledOrder(UUID id);
 }
