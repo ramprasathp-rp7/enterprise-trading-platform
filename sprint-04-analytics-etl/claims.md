@@ -47,8 +47,13 @@ volume day (2026-08-20) isn't compared here, because its data starts
 2026-05-29. It has no candle on that date at all, so "did TATASTEEL.BO also
 peak that day" isn't answerable from this pull, not "no."
 
-**How a teammate runs this pipeline:** `trading-analytics-etl` — a console
-script declared in `pyproject.toml`'s `[project.scripts]`, installed via
-`pip install -e 'sprint-04-analytics-etl[dev]'`. Also runnable as
-`python -m trading_analytics` (a `__main__.py` module is provided as a second
-entry point). Charts are built separately via `python -m trading_analytics.dashboard`.
+**How a teammate runs this pipeline:** 
+```
+pip install -e "sprint-04-analytics-etl[dev]"
+
+pytest sprint-04-analytics-etl
+
+trading-analytics-etl --symbols RELIANCE.NS INFY.NS TATASTEEL.BO --start 2025-08-01 --end 2026-08-01
+
+python -m trading_analytics.dashboard --db-path trading_analytics.duckdb --output-dir sprint-04-analytics-etl/charts
+```

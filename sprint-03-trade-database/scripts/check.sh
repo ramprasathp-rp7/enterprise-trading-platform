@@ -2,9 +2,10 @@
 
 set -euo pipefail
 
-# Resolves repo root (enterprise-trading-platform) from scripts/
+# Resolves repo root (enterprise-trading-platform) from scripts/, two levels up
+# (scripts/ -> sprint-03-trade-database/ -> repo root).
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
-ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 cd "$ROOT_DIR"
 
@@ -67,7 +68,7 @@ run_probe_test() {
     info "Running probe $probe_name (expecting SQLSTATE $expected_sqlstate)..."
 
     local output
-    output=$(psql -v ON_ERROR_STOP=1 -d "$TARGET_DB" -f "$probe_file" 2>&1) && {
+    output=$(psql -v ON_ERROR_STOP=1 --no-psqlrc -v VERBOSITY=verbose -d "$TARGET_DB" -f "$probe_file" 2>&1) && {
         fail "Probe $probe_name succeeded unexpectedly! Expected SQLSTATE $expected_sqlstate."
     }
 
@@ -80,8 +81,8 @@ run_probe_test() {
 }
 
 # 5. Run Probes against probes/ directory
-run_probe_test "probes/duplicate-idempotency-key.sql" "23505"
-run_probe_test "probes/orphan-foreign-key.sql" "23503"
+run_probe_test "sprint-03-trade-database/probes/duplicate-idempotency-key.sql" "23505"
+run_probe_test "sprint-03-trade-database/probes/orphan-foreign-key.sql" "23503"
 
 echo ""
 echo "================================================================="
