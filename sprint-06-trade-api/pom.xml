@@ -4,28 +4,36 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>3.4.0</version>
+    <relativePath/>
+  </parent>
+
   <groupId>com.tradingplatform</groupId>
-  <artifactId>domain-engine</artifactId>
+  <artifactId>trade-api</artifactId>
   <version>1.0.0-SNAPSHOT</version>
   <packaging>jar</packaging>
 
-  <name>Enterprise Trading Platform - Domain Engine</name>
+  <name>Enterprise Trading Platform - Trade REST API</name>
   <description>
-    Sprint 5: the trading domain in plain Java.
+    Sprint 6: the trade api in springboot.
   </description>
 
   <properties>
+    <java.version>21</java.version>
     <maven.compiler.release>21</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-
     <junit.version>5.10.2</junit.version>
     <jakarta.validation.version>3.0.2</jakarta.validation.version>
     <hibernate.validator.version>8.0.1.Final</hibernate.validator.version>
     <jakarta.el.version>4.0.2</jakarta.el.version>
+    <mybatis.version>3.0.3</mybatis.version>
   </properties>
 
   <dependencies>
-
+    
     <dependency>
       <groupId>jakarta.validation</groupId>
       <artifactId>jakarta.validation-api</artifactId>
@@ -47,11 +55,31 @@
     </dependency>
 
     <dependency>
-      <groupId>org.glassfish</groupId>
-      <artifactId>jakarta.el</artifactId>
-      <version>${jakarta.el.version}</version>
-      <scope>test</scope>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-web</artifactId>
     </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-validation</artifactId>
+    </dependency>
+
+    <dependency>
+        <groupId>org.mybatis.spring.boot</groupId>
+        <artifactId>mybatis-spring-boot-starter</artifactId>
+        <version>${mybatis.version}</version>
+    </dependency>
+    <dependency>
+        <groupId>org.postgresql</groupId>
+        <artifactId>postgresql</artifactId>
+        <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-test</artifactId>
+        <scope>test</scope>
+    </dependency>
+
   </dependencies>
 
   <build>
@@ -60,49 +88,6 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.13.0</version>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <version>3.2.5</version>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-enforcer-plugin</artifactId>
-        <version>3.5.0</version>
-        <executions>
-          <execution>
-            <id>ban-transport-and-persistence-dependencies</id>
-            <phase>validate</phase>
-            <goals>
-              <goal>enforce</goal>
-            </goals>
-            <configuration>
-              <rules>
-                <bannedDependencies>
-                  <searchTransitive>true</searchTransitive>
-                  <excludes>
-                    <exclude>org.springframework:*</exclude>
-                    <exclude>org.springframework.boot:*</exclude>
-                    <exclude>jakarta.servlet:*</exclude>
-                    <exclude>javax.servlet:*</exclude>
-                    <exclude>org.postgresql:*</exclude>
-                    <exclude>com.mysql:*</exclude>
-                    <exclude>mysql:*</exclude>
-                    <exclude>com.h2database:*</exclude>
-                    <exclude>org.mariadb.jdbc:*</exclude>
-                    <exclude>org.mybatis:*</exclude>
-                    <exclude>org.mybatis.spring.boot:*</exclude>
-                    <exclude>com.zaxxer:HikariCP</exclude>
-                  </excludes>
-                </bannedDependencies>
-              </rules>
-              <fail>true</fail>
-            </configuration>
-          </execution>
-        </executions>
       </plugin>
     </plugins>
   </build>
