@@ -4,15 +4,15 @@ import com.tradingplatform.domain.model.Order;
 
 public abstract class DomainException extends RuntimeException {
 
-    private final ErrorCode errorCode;
+    private final com.tradingplatform.domain.enums.ErrorCode errorCode;
     private Order rejectedOrder;
 
-    protected DomainException(ErrorCode errorCode, String catalogueMessage) {
+    protected DomainException(com.tradingplatform.domain.enums.ErrorCode errorCode, String catalogueMessage) {
         super(catalogueMessage);
         this.errorCode = errorCode;
     }
 
-    public ErrorCode getErrorCode() {
+    public com.tradingplatform.domain.enums.ErrorCode getErrorCode() {
         return errorCode;
     }
 

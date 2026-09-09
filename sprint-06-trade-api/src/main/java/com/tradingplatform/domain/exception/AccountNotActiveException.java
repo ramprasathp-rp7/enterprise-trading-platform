@@ -10,7 +10,7 @@ public final class AccountNotActiveException extends DomainException {
     private final AccountStatus actualStatus;
 
     public AccountNotActiveException(Long accountId, AccountStatus actualStatus) {
-        super(ErrorCode.ACC_403, "Account not active");
+        super(com.tradingplatform.domain.enums.ErrorCode.ACC_403, "Account not active");
         this.accountId = accountId;
         this.actualStatus = actualStatus;
     }

@@ -51,7 +51,7 @@ public final class OrderPlacementService {
         // whatever price the order is actually executed at.
 
         // Rule 1: the account must exist
-        Account acc = account.orElseThrow(() -> new AccountNotFoundException(request.getAccountId()));
+        Account acc = account.orElseThrow(() -> new AccountNotFoundException(request.accountId()));
 
         // Rule 2: the account must be ACTIVE
         if (!acc.isActive()) {
@@ -60,16 +60,16 @@ public final class OrderPlacementService {
 
         // Rule 3: the instrument must exist and be tradable
         Instrument ins = instrument.filter(Instrument::isTradable)
-            .orElseThrow(() -> new InstrumentNotFoundException(request.getSymbol()));
+            .orElseThrow(() -> new InstrumentNotFoundException(request.symbol()));
 
         // Rule 4: quantity must be greater than zero
-        Integer quantity = request.getQuantity();
+        Integer quantity = request.quantity();
         if (quantity == null || quantity <= 0) {
             throw new InvalidOrderException("Quantity must be greater than zero");
         }
 
         // Rule 5: price must be greater than zero
-        BigDecimal price = request.getPrice();
+        BigDecimal price = request.price();
         if (price == null || price.signum() <= 0) {
             throw new InvalidOrderException("Price must be greater than zero");
         }
@@ -79,9 +79,9 @@ public final class OrderPlacementService {
         // and nothing to audit as one, until all five pass. From here the order is well-formed:
         // rules 6–8 can still reject it, but the rejection now happens to a real order, which we
         // keep (REJECTED) instead of letting it vanish into a bare exception.
-        OrderSide side = request.getSide();
+        OrderSide side = request.side();
         Order order = new Order(acc.getId(), ins.getId(), ins.getSymbol(), side, quantity, price,
-            request.getIdempotencyKey());
+            request.idempotencyKey());
 
         BigDecimal notional = price.multiply(BigDecimal.valueOf(quantity));
 
@@ -100,7 +100,7 @@ public final class OrderPlacementService {
 
         // Rule 8: the idempotency key must not already have been used
         try {
-            idempotencyKeyChecker.claim(request.getIdempotencyKey());
+            idempotencyKeyChecker.claim(request.idempotencyKey());
         } catch (DuplicateOrderException ex) {
             throw reject(order, ex);
         }

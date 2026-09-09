@@ -7,7 +7,7 @@ public final class InsufficientHoldingsException extends DomainException {
     private final int requested;
 
     public InsufficientHoldingsException(int held, int requested) {
-        super(ErrorCode.ORD_409, "Insufficient holdings");
+        super(com.tradingplatform.domain.enums.ErrorCode.ORD_409, "Insufficient holdings");
         this.held = held;
         this.requested = requested;
     }

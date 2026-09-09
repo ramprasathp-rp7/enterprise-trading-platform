@@ -6,7 +6,7 @@ public final class AccountNotFoundException extends DomainException {
     private final Long accountId;
 
     public AccountNotFoundException(Long accountId) {
-        super(ErrorCode.ACC_404, "Account not found");
+        super(com.tradingplatform.domain.enums.ErrorCode.ACC_404, "Account not found");
         this.accountId = accountId;
     }
     

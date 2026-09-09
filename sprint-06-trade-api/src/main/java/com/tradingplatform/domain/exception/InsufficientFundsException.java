@@ -9,7 +9,7 @@ public final class InsufficientFundsException extends DomainException {
     private final BigDecimal required;
 
     public InsufficientFundsException(BigDecimal available, BigDecimal required) {
-        super(ErrorCode.ORD_400, "Insufficient funds");
+        super(com.tradingplatform.domain.enums.ErrorCode.ORD_400, "Insufficient funds");
         this.available = available;
         this.required = required;
     }
