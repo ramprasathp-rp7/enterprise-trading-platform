@@ -9,7 +9,7 @@ import com.tradingplatform.domain.enums.OrderStatus;
 
 public interface OrdersMapper {
     @Select("SELECT order_id, account_id, symbol, side, quantity, price, executed_price, status, idempotency_key, created_on from ORDERS where id=#{id}")
-    List<OrderHistoryEntry> findOrdersByAccountId(int id)
+    List<OrderHistoryEntry> findOrdersByAccountId(int id);
 
     @Select("SELECT order_id, account_id, symbol, side, quantity, price, executed_price, status, idempotency_key, created_on from ORDERS where id=#{id} and status=#{status}")
     List<OrderHistoryEntry> findOrdersByAccountIdAndStatus(int id, OrderStatus status);
@@ -18,8 +18,6 @@ public interface OrdersMapper {
     List<OrderHistoryEntry> findOrdersByAccountIdAndStatusAndFromAndTo(int id, OrderStatus status);
 
     @Select("SELECT order_id, account_id, symbol, side, quantity, price, executed_price, status, idempotency_key, created_on from ORDERS where id=#{id} and createdOn between #{from} and #{to}")
-    List<OrderHistoryEntry> findOrdersByAccountIdAndFromAndTo(int id)
+    List<OrderHistoryEntry> findOrdersByAccountIdAndFromAndTo(int id);
 
-} {
-    
-}
+} 

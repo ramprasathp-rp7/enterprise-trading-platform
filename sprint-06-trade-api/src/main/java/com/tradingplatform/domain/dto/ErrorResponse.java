@@ -1,6 +1,6 @@
 package com.tradingplatform.domain.dto;
 
-import com.tradingplatform.domain.enums.ErrorCode;
+import com.tradingplatform.domain.exception.ErrorCode;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

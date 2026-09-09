@@ -1,3 +1,5 @@
+package com.tradingplatform.api.mappers;
+
 import org.apache.ibatis.annotations.Select;
 
 import com.tradingplatform.domain.dto.PositionResponse;
