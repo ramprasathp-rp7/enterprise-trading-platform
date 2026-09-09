@@ -1,0 +1,96 @@
+sequenceDiagram
+    autonumber
+    participant Caller as Caller (test / future Sprint 6 controller)
+    participant Svc as OrderPlacementService
+    participant Acc as Account
+    participant Ins as Instrument
+    participant Pos as Position
+    participant Idem as IdempotencyKeyChecker
+    participant Ord as Order
+
+    Caller->>+Svc: placeOrder(request, account, instrument, position, idemChecker)
+
+    %% Rule 1: Account presence check
+    Svc->>Svc: Rule 1: account.orElseThrow()
+    alt account not present
+        Svc-->>Caller: throw AccountNotFoundException (ACC-404)
+    end
+
+    %% Rule 2: Account active status
+    Svc->>+Acc: isActive()
+    Acc-->>-Svc: status (e.g. ACTIVE)
+    Svc->>Svc: Rule 2: check status
+    alt SUSPENDED or CLOSED
+        Svc-->>Caller: throw AccountNotActiveException (ACC-403)
+    end
+
+    %% Rule 3: Instrument tradability check
+    Svc->>+Ins: isTradable()
+    Ins-->>-Svc: isTradable boolean
+    Svc->>Svc: Rule 3: instrument present and tradable
+    alt unknown symbol or delisted
+        Svc-->>Caller: throw InstrumentNotFoundException (INS-404)
+    end
+
+    %% Rule 4: Quantity check
+    Svc->>Svc: Rule 4: quantity > 0
+    alt quantity <= 0
+        Svc-->>Caller: throw InvalidOrderException (VAL-422)
+    end
+
+    %% Rule 5: Price check
+    Svc->>Svc: Rule 5: price > 0
+    alt price <= 0
+        Svc-->>Caller: throw InvalidOrderException (VAL-422)
+    end
+
+    %% Rule 6 & 7: Affordability / Holdings check
+    alt side == BUY
+        Svc->>+Acc: canAfford(quantity * price)
+        Acc-->>-Svc: canAfford boolean
+        Svc->>Svc: Rule 6: sufficient cash
+        alt insufficient funds
+            Svc-->>Caller: throw InsufficientFundsException (ORD-400)
+        end
+    else side == SELL
+        Svc->>+Pos: getQuantity()
+        Pos-->>-Svc: held quantity
+        Svc->>Svc: Rule 7: held >= requested
+        alt insufficient holdings
+            Svc-->>Caller: throw InsufficientHoldingsException (ORD-409)
+        end
+    end
+
+    %% Rule 8: Idempotency claim
+    Svc->>+Idem: claim(idempotencyKey)
+    Idem-->>-Svc: void (throws if already claimed)
+    alt key already used
+        Svc-->>Caller: throw DuplicateOrderException (ORD-409)
+    end
+
+    Note over Svc: All eight rules passed. Settlement is a separate call —<br/>the Trade Executor (Sprint 7) will invoke settle() against a live quote.
+
+    %% Order admission
+    Svc->>+Ord: new Order(..., status=NEW)
+    Ord-->>-Svc: order instance
+
+    Svc-->>-Caller: return Order (status=NEW)
+
+    Caller->>+Svc: settle(account, position, order, executedPrice)
+
+    alt side == BUY
+        Svc->>+Acc: debit(notional)
+        Acc-->>-Svc: void / success
+        Svc->>+Pos: applyBuy(quantity, executedPrice)
+        Pos-->>-Svc: void / success
+    else side == SELL
+        Svc->>+Acc: credit(notional)
+        Acc-->>-Svc: void / success
+        Svc->>+Pos: applySell(quantity)
+        Pos-->>-Svc: void / success
+    end
+
+    Svc->>+Ord: markFilled(executedPrice)
+    Ord-->>-Svc: void / success
+
+    Svc-->>-Caller: return (order status=FILLED)
