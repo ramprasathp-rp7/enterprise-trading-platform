@@ -59,7 +59,7 @@ public final class OrderPlacementService {
         }
 
         // Rule 3: the instrument must exist and be tradable
-        Instrument ins = instrument.filter(Instrument::isTradable)
+        Instrument ins = instrument.filter(i -> i != null && i.isTradable())
             .orElseThrow(() -> new InstrumentNotFoundException(request.symbol()));
 
         // Rule 4: quantity must be greater than zero
