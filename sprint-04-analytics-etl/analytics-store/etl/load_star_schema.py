@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 import duckdb
 import psycopg2
@@ -198,30 +198,35 @@ def load_fact_trades(
     duck_con: duckdb.DuckDBPyConnection,
     instrument_keys: dict[str, int],
     account_keys: dict[str, int],
+    since: datetime | None = None,
 ) -> int:
+    # Watermarked on updated_on, not created_on: an order mutates in place (NEW -> FILLED),
+    # and a created_on watermark would never re-read that status change.
+    query = """
+        SELECT o.id AS order_id, a.account_id, i.symbol, o.side, o.quantity,
+               o.price, o.executed_price, o.status, o.created_on
+          FROM orders o
+          JOIN accounts a ON a.id = o.account_id
+          JOIN instruments i ON i.id = o.instrument_id
+    """
+    params: list = []
+    if since is not None:
+        query += " WHERE o.updated_on >= %s"
+        params.append(since)
+    query += " ORDER BY o.created_on"
+
     with pg_con.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-        cur.execute(
-            """
-            SELECT o.id AS order_id, a.account_id, i.symbol, o.side, o.quantity,
-                   o.price, o.executed_price, o.status, o.created_on
-              FROM orders o
-              JOIN accounts a ON a.id = o.account_id
-              JOIN instruments i ON i.id = o.instrument_id
-             ORDER BY o.created_on
-            """
-        )
+        cur.execute(query, params)
         source_rows = cur.fetchall()
 
-    already_loaded = {
-        r[0] for r in duck_con.execute("SELECT source_order_id FROM fact_trades").fetchall()
-    }
+    existing_keys = dict(
+        duck_con.execute("SELECT source_order_id, trade_key FROM fact_trades").fetchall()
+    )
     next_key = (duck_con.execute("SELECT coalesce(max(trade_key), 0) FROM fact_trades").fetchone()[0]) + 1
 
-    inserted = 0
+    upserted = 0
     for row in source_rows:
         source_order_id = str(row["order_id"])
-        if source_order_id in already_loaded:
-            continue
 
         account_key = account_keys.get(row["account_id"])
         instrument_key = instrument_keys.get(row["symbol"])
@@ -238,15 +243,26 @@ def load_fact_trades(
         price_for_value = row["executed_price"] if row["status"] == "FILLED" else row["price"]
         trade_value = row["quantity"] * price_for_value
 
+        trade_key = existing_keys.get(source_order_id)
+        if trade_key is None:
+            trade_key = next_key
+            next_key += 1
+
+        # ON CONFLICT DO UPDATE (not skip-if-loaded): a re-read row may have changed status/executed_price.
         duck_con.execute(
             """
             INSERT INTO fact_trades
                 (trade_key, account_key, instrument_key, date_key, side, quantity, price, status,
                  executed_price, trade_value, source_order_id, created_at, loaded_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())
+            ON CONFLICT (source_order_id) DO UPDATE SET
+                status = EXCLUDED.status,
+                executed_price = EXCLUDED.executed_price,
+                trade_value = EXCLUDED.trade_value,
+                loaded_at = now()
             """,
             [
-                next_key,
+                trade_key,
                 account_key,
                 instrument_key,
                 date_key,
@@ -260,13 +276,12 @@ def load_fact_trades(
                 created_on,
             ],
         )
-        next_key += 1
-        inserted += 1
+        upserted += 1
 
-    return inserted
+    return upserted
 
 
-def run(pg_dsn: str, duckdb_path: str) -> None:
+def run(pg_dsn: str, duckdb_path: str, since: datetime | None = None) -> None:
     pg_con = get_pg_connection(pg_dsn)
     duck_con = duckdb.connect(duckdb_path)
     try:
@@ -281,8 +296,8 @@ def run(pg_dsn: str, duckdb_path: str) -> None:
         account_keys = load_dim_account(pg_con, duck_con)
         print(f"dim_account: {len(account_keys)} accounts merged")
 
-        n_facts = load_fact_trades(pg_con, duck_con, instrument_keys, account_keys)
-        print(f"fact_trades: {n_facts} new orders loaded")
+        n_facts = load_fact_trades(pg_con, duck_con, instrument_keys, account_keys, since=since)
+        print(f"fact_trades: {n_facts} orders loaded/updated")
     finally:
         pg_con.close()
         duck_con.close()
@@ -302,5 +317,11 @@ if __name__ == "__main__":
         ),
     )
     parser.add_argument("--duckdb-path", default="analytics_store.duckdb")
+    parser.add_argument(
+        "--since",
+        default=None,
+        help="High-water mark (ISO 8601 timestamp): only orders with updated_on >= this value are (re-)loaded.",
+    )
     args = parser.parse_args()
-    run(args.pg_dsn, args.duckdb_path)
+    since = datetime.fromisoformat(args.since) if args.since else None
+    run(args.pg_dsn, args.duckdb_path, since=since)
