@@ -1,19 +1,19 @@
 package com.tradingplatform.api.controllers;
 
-import com.tradingplatform.api.security.AccountAccessAuthorizer;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.tradingplatform.api.services.OrderService;
 import com.tradingplatform.domain.dto.OrderResponse;
 import com.tradingplatform.domain.dto.PlaceOrderRequest;
 
-import org.springframework.http.HttpStatus;
+import java.net.URI;
+
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
 
@@ -21,24 +21,37 @@ import org.springframework.web.bind.annotation.PathVariable;
 @RestController 
 @RequestMapping("/api/v1/orders")
 public class OrderController {
-    private final AccountAccessAuthorizer accountAccessAuthorizer;
 
-    public OrderController(AccountAccessAuthorizer accountAccessAuthorizer) {
-        this.accountAccessAuthorizer = accountAccessAuthorizer;
+    private final OrderService orderService;
+
+    public OrderController(OrderService orderService) {
+        this.orderService = orderService;
     }
 
     @PostMapping
-    public ResponseEntity<OrderResponse> placeOrder(
-        @Valid @RequestBody PlaceOrderRequest orderRequest,
-        HttpServletRequest request
-    ) {
-        accountAccessAuthorizer.assertTokenCanAccess(orderRequest.accountId(), request);
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+    public ResponseEntity<OrderResponse> placeOrder(@RequestBody PlaceOrderRequest orderRequest) {
+    
+        // Fixneeded
+        double tradeValue = orderRequest.quantity() * orderRequest.price().doubleValue();
+        double fee = orderService.calculateFee(orderRequest.symbol(), tradeValue);
+
+        OrderResponse response = orderService.placeOrder(orderRequest);
+        URI location = URI.create("/api/v1/orders/" + response.orderId());
+        return ResponseEntity.created(location).body(response);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<OrderResponse> getOrder(@PathVariable String id) {
+
+        OrderResponse order = orderService.getOrderById(id);
+        return ResponseEntity.ok(order);
     }
     
-    @DeleteMapping("/{id}")
+    @PatchMapping("/{id}")
     public ResponseEntity<OrderResponse> cancelOrder(@PathVariable String id) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+
+        OrderResponse order = orderService.cancelOrderById(id);
+        return ResponseEntity.ok(order);
     }
     
     
