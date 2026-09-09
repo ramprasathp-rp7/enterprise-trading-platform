@@ -6,7 +6,7 @@ public final class InstrumentNotFoundException extends DomainException {
     private final String symbol;
 
     public InstrumentNotFoundException(String symbol) {
-        super(ErrorCode.INS_404, "Instrument not found");
+        super(com.tradingplatform.domain.enums.ErrorCode.INS_404, "Instrument not found");
         this.symbol = symbol;
     }
 

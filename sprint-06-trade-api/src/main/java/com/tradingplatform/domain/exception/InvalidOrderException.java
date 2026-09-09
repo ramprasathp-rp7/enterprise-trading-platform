@@ -4,6 +4,6 @@ package com.tradingplatform.domain.exception;
 public final class InvalidOrderException extends DomainException {
 
     public InvalidOrderException(String catalogueMessage) {
-        super(ErrorCode.VAL_422, catalogueMessage);
+        super(com.tradingplatform.domain.enums.ErrorCode.VAL_422, catalogueMessage);
     }
 }
