@@ -6,7 +6,6 @@ import com.tradingplatform.domain.enums.OrderStatus;
 import jakarta.servlet.http.HttpServletRequest;
 
 import java.time.Instant;
-import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -52,8 +51,8 @@ public class AccountController {
             @PathVariable long id,
             HttpServletRequest request,
             @RequestParam(required = false) Optional<OrderStatus> status,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Optional<OffsetDateTime> from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Optional<OffsetDateTime> to) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Optional<Instant> from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Optional<Instant> to) {
         accountAccessAuthorizer.assertTokenCanAccess(id, request);
         return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
     }
