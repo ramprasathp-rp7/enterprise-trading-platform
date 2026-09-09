@@ -1,6 +1,7 @@
 package com.tradingplatform.domain.exception;
 
 public enum ErrorCode {
+    AUTH_401("AUTH-401"),
     ACC_404("ACC-404"),
     ACC_403("ACC-403"),
     INS_404("INS-404"),

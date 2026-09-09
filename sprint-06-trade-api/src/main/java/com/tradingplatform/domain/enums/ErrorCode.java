@@ -1,6 +1,9 @@
 package com.tradingplatform.domain.enums;
 
+import com.fasterxml.jackson.annotation.JsonValue;
+
 public enum ErrorCode {
+    AUTH_401("AUTH-401"),
     ACC_404("ACC-404"),
     ACC_403("ACC-403"),
     INS_404("INS-404"),
@@ -14,8 +17,18 @@ public enum ErrorCode {
         this.code = code;
     }
 
+    @JsonValue
     public String code() {
         return code;
+    }
+
+    public static ErrorCode fromCode(String code) {
+        for (ErrorCode value : values()) {
+            if (value.code.equals(code)) {
+                return value;
+            }
+        }
+        throw new IllegalArgumentException("Unknown error code: " + code);
     }
 
     @Override
