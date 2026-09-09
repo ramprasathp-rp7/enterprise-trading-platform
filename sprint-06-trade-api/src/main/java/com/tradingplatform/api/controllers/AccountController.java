@@ -3,6 +3,7 @@ package com.tradingplatform.api.controllers;
 import com.tradingplatform.domain.dto.*;
 import com.tradingplatform.domain.enums.OrderStatus;
 
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -38,8 +39,8 @@ public class AccountController {
     public ResponseEntity<List<OrderHistoryEntry>> getOrders(
             @PathVariable String id,
             @RequestParam(required = false) Optional<OrderStatus> status,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Optional<OffsetDateTime> from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Optional<OffsetDateTime> to) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Optional<Instant> from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Optional<Instant> to) {
                 return new ResponseEntity<>();
             }
        
