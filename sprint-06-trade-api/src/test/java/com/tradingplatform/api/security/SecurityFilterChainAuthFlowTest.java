@@ -5,7 +5,7 @@ import com.tradingplatform.api.mappers.AccountMapper;
 import com.tradingplatform.api.mappers.InstrumentMapper;
 import com.tradingplatform.api.mappers.OrderMapper;
 import com.tradingplatform.api.mappers.PositionMapper;
-import com.tradingplatform.domain.exception.GlobalExceptionHandler;
+import com.tradingplatform.api.exception.GlobalExceptionHandler;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;

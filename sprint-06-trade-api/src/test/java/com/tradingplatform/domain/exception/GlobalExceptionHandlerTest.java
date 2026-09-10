@@ -1,5 +1,6 @@
 package com.tradingplatform.domain.exception;
 
+import com.tradingplatform.api.exception.GlobalExceptionHandler;
 import com.tradingplatform.domain.dto.ErrorResponse;
 import com.tradingplatform.domain.enums.ErrorCode;
 import com.tradingplatform.domain.enums.AccountStatus;

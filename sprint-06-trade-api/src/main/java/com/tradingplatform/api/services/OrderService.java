@@ -111,15 +111,6 @@ public class OrderService {
         return buildOrderResponse(cancelledOrder, instrument);
     }
 
-    public double calculateFee(String ticker, double tradeValue) {
-        // TODO: Implement fee calculation logic
-        // Example: 0.1% fee for standard instruments
-        // double feePercentage = getFeePercentage(ticker);
-        // return tradeValue * (feePercentage / 100.0);
-        
-        return 0.0;
-    }
-
     private OrderResponse buildOrderResponse(Order order, Instrument instrument) {
         // Determine message based on order status
         String message = switch(order.getStatus()) {

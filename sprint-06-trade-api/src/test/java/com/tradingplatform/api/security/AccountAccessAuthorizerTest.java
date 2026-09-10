@@ -1,6 +1,6 @@
 package com.tradingplatform.api.security;
 
-import com.tradingplatform.domain.exception.AccountNotActiveException;
+import com.tradingplatform.domain.exception.AccountUnauthorizedException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -33,13 +33,14 @@ class AccountAccessAuthorizerTest {
     void returnsAccountForbiddenWhenTokenDoesNotReachAccount() {
         setJwtAuthentication(5L);
 
-        AccountNotActiveException ex = assertThrows(
-            AccountNotActiveException.class,
+        AccountUnauthorizedException ex = assertThrows(
+            AccountUnauthorizedException.class,
             () -> authorizer.assertTokenCanAccess(6L)
         );
 
         assertEquals("ACC-403", ex.getCode());
-        assertEquals("Account not active", ex.getMessage());
+        assertEquals(6L, ex.getAccountId());
+        assertEquals(5L, ex.getAuthenticatedAccountId());
     }
 
     private void setJwtAuthentication(long accountId) {

@@ -1,7 +1,8 @@
-package com.tradingplatform.domain.exception;
+package com.tradingplatform.api.exception;
 
 import com.tradingplatform.domain.dto.ErrorResponse;
 import com.tradingplatform.domain.enums.ErrorCode;
+import com.tradingplatform.domain.exception.*;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
