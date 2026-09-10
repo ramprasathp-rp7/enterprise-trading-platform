@@ -1,11 +1,13 @@
 package com.tradingplatform.api.controllers;
 
 import com.tradingplatform.api.security.AccountAccessAuthorizer;
+import com.tradingplatform.api.services.AccountService;
 import com.tradingplatform.domain.dto.*;
 import com.tradingplatform.domain.enums.OrderStatus;
 import jakarta.servlet.http.HttpServletRequest;
 
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -23,27 +25,32 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/accounts")
 public class AccountController {
     private final AccountAccessAuthorizer accountAccessAuthorizer;
+    private final AccountService accountService;
 
-    public AccountController(AccountAccessAuthorizer accountAccessAuthorizer) {
+    public AccountController(AccountAccessAuthorizer accountAccessAuthorizer, AccountService accountService) {
         this.accountAccessAuthorizer = accountAccessAuthorizer;
+        this.accountService = accountService;
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<AccountResponse> getAccount(@PathVariable long id, HttpServletRequest request) {
         accountAccessAuthorizer.assertTokenCanAccess(id, request);
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        AccountResponse response = accountService.getAccount(id);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{id}/balance")
     public ResponseEntity<BalanceResponse> getBalance(@PathVariable long id, HttpServletRequest request) {
         accountAccessAuthorizer.assertTokenCanAccess(id, request);
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        BalanceResponse response = accountService.getBalance(id);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{id}/positions")
-    public ResponseEntity<PositionResponse> getPositions(@PathVariable long id, HttpServletRequest request) {
+    public ResponseEntity<List<PositionResponse>> getPositions(@PathVariable long id, HttpServletRequest request) {
         accountAccessAuthorizer.assertTokenCanAccess(id, request);
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        List<PositionResponse> response = accountService.getPositions(id);
+        return ResponseEntity.ok(response);
     }
     
     @GetMapping("/{id}/orders")
@@ -51,9 +58,10 @@ public class AccountController {
             @PathVariable long id,
             HttpServletRequest request,
             @RequestParam(required = false) Optional<OrderStatus> status,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Optional<Instant> from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Optional<Instant> to) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Optional<OffsetDateTime> from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Optional<OffsetDateTime> to) {
         accountAccessAuthorizer.assertTokenCanAccess(id, request);
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        List<OrderHistoryEntry> response = accountService.getOrders(id, status, from, to);
+        return ResponseEntity.ok(response);
     }
 }
