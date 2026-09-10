@@ -1,9 +1,11 @@
 package com.tradingplatform.api.services;
 
+import com.tradingplatform.api.mappers.InstrumentMapper;
 import com.tradingplatform.api.mappers.OrderMapper;
 import com.tradingplatform.domain.dto.OrderResponse;
 import com.tradingplatform.domain.dto.PlaceOrderRequest;
 import com.tradingplatform.domain.enums.OrderStatus;
+import com.tradingplatform.domain.model.Instrument;
 import com.tradingplatform.domain.model.Order;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,13 +19,16 @@ public class OrderService {
     private final OrderValidationService orderValidationService;
     private final OrderSettlementService orderSettlementService;
     private final OrderMapper orderMapper;
+    private final InstrumentMapper instrumentMapper;
     
     public OrderService(OrderValidationService orderValidationService, 
                         OrderSettlementService orderSettlementService,
-                        OrderMapper orderMapper) {
+                        OrderMapper orderMapper,
+                        InstrumentMapper instrumentMapper) {
         this.orderValidationService = orderValidationService;
         this.orderSettlementService = orderSettlementService;
         this.orderMapper = orderMapper;
+        this.instrumentMapper = instrumentMapper;
     }
 
     @Transactional
@@ -46,29 +51,43 @@ public class OrderService {
         // Settle the order: move cash, update position, mark FILLED
         orderSettlementService.settle(newOrder, newOrder.getPrice());
 
-        // Fetch the settled order from database and return as response
-        OrderResponse response = orderMapper.findOrderResponseById(newOrder.getId());
-        if (response == null) {
+        // Fetch the settled order from database (now with FILLED status and executedPrice)
+        Order settledOrder = orderMapper.findOrderById(newOrder.getId());
+        if (settledOrder == null) {
             throw new IllegalStateException("Order not found after settlement: " + newOrder.getId());
         }
-        return response;
+
+        // Fetch instrument for order response
+        Instrument instrument = instrumentMapper.findById(settledOrder.getInstrumentId());
+        if (instrument == null) {
+            throw new IllegalStateException("Instrument not found for order: " + settledOrder.getInstrumentId());
+        }
+
+        // Build and return OrderResponse from entities
+        return buildOrderResponse(settledOrder, instrument);
     }
 
     public OrderResponse getOrderById(String orderId) {
-
         UUID id = UUID.fromString(orderId);
 
         // Fetch order from database via OrderMapper
-        OrderResponse order = orderMapper.findOrderResponseById(id);
+        Order order = orderMapper.findOrderById(id);
         if (order == null) {
             throw new NoSuchElementException("Order not found: " + orderId);
         }
-        return order;
+
+        // Fetch instrument for order response
+        Instrument instrument = instrumentMapper.findById(order.getInstrumentId());
+        if (instrument == null) {
+            throw new IllegalStateException("Instrument not found for order: " + order.getInstrumentId());
+        }
+
+        // Build and return OrderResponse from entities
+        return buildOrderResponse(order, instrument);
     }
 
 
     public OrderResponse cancelOrderById(String orderId) {
-
         UUID id = UUID.fromString(orderId);
         int rowsUpdated = orderMapper.cancelOrderIfNew(id);
 
@@ -76,13 +95,20 @@ public class OrderService {
             throw new IllegalStateException("Cannot cancel order: either not found or not in NEW status");
         }
 
-        // Fetch and return the cancelled order
-        OrderResponse cancelledOrder = orderMapper.findCancelledOrder(id);
+        // Fetch the cancelled order from database
+        Order cancelledOrder = orderMapper.findOrderById(id);
         if (cancelledOrder == null) {
             throw new NoSuchElementException("Order not found after cancellation: " + orderId);
         }
 
-        return cancelledOrder;
+        // Fetch instrument for order response
+        Instrument instrument = instrumentMapper.findById(cancelledOrder.getInstrumentId());
+        if (instrument == null) {
+            throw new IllegalStateException("Instrument not found for order: " + cancelledOrder.getInstrumentId());
+        }
+
+        // Build and return OrderResponse from entities
+        return buildOrderResponse(cancelledOrder, instrument);
     }
 
     public double calculateFee(String ticker, double tradeValue) {
@@ -92,5 +118,27 @@ public class OrderService {
         // return tradeValue * (feePercentage / 100.0);
         
         return 0.0;
+    }
+
+    private OrderResponse buildOrderResponse(Order order, Instrument instrument) {
+        // Determine message based on order status
+        String message = switch(order.getStatus()) {
+            case NEW -> "Order accepted";
+            case FILLED -> "Order executed";
+            case REJECTED -> "Order rejected";
+            case CANCELLED -> "Order cancelled";
+            default -> "Unknown status";
+        };
+
+        // Build and return OrderResponse
+        return new OrderResponse(
+            "ORD-" + order.getId().toString(),
+            order.getStatus(),
+            message,
+            instrument.getSymbol(),
+            order.getSide(),
+            order.getQuantity(),
+            order.getPrice()
+        );
     }
 }
