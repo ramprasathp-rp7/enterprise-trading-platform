@@ -5,6 +5,7 @@ import com.tradingplatform.api.mappers.OrderMapper;
 import com.tradingplatform.api.mappers.PositionMapper;
 import com.tradingplatform.domain.enums.OrderSide;
 import com.tradingplatform.domain.enums.OrderStatus;
+import com.tradingplatform.domain.exception.OptimisticLockException;
 import com.tradingplatform.domain.model.Account;
 import com.tradingplatform.domain.model.Order;
 import com.tradingplatform.domain.model.Position;
@@ -61,9 +62,26 @@ public class OrderSettlementService {
         // Mark the order as FILLED with the executed price
         order.markFilled(executedPrice);
 
-        // Persist all changes back to the database
-        accountMapper.updateAccount(acc);
-        positionMapper.updatePosition(position);
+        // Calculate new versions for optimistic locking
+        int newAccountVersion = acc.getVersion() + 1;
+        int newPositionVersion = position.getVersion() + 1;
+
+        // Persist all changes back to the database with optimistic lock checks
+        // WHERE clause checks: version = #{version} (what we read)
+        // SET clause sets: version = #{newVersion} (what we calculated)
+        int accountRowsUpdated = accountMapper.updateAccount(acc, newAccountVersion);
+        if (accountRowsUpdated == 0) {
+            // Another transaction has modified the account since we read it
+            throw new OptimisticLockException("Account", order.getAccountId());
+        }
+
+        int positionRowsUpdated = positionMapper.updatePosition(position, newPositionVersion);
+        if (positionRowsUpdated == 0) {
+            // Another transaction has modified the position since we read it
+            throw new OptimisticLockException("Position", order.getAccountId() + ":" + order.getInstrumentId());
+        }
+
         orderMapper.updateOrderStatus(order.getId(), OrderStatus.FILLED, executedPrice);
     }
 }
+
