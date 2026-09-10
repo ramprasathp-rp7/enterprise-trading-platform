@@ -35,6 +35,6 @@ public interface AccountMapper {
     @Select("SELECT account_id, symbol, quantity, average_cost FROM positions WHERE account_id=#{id}")
     List<PositionResponse> findPositionByAccountId(Long id);
 
-    @Update("UPDATE accounts SET cash_balance = #{cashBalance}, version = #{version}, last_updated = CURRENT_TIMESTAMP WHERE id = #{id}")
-    int updateAccount(Account account);
+    @Update("UPDATE accounts SET cash_balance = #{cashBalance}, version = #{newVersion}, last_updated = CURRENT_TIMESTAMP WHERE id = #{id} AND version = #{version}")
+    int updateAccount(Account account, int newVersion);
 }

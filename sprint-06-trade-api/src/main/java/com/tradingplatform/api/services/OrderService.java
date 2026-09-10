@@ -6,6 +6,7 @@ import com.tradingplatform.domain.dto.PlaceOrderRequest;
 import com.tradingplatform.domain.enums.OrderStatus;
 import com.tradingplatform.domain.model.Order;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.NoSuchElementException;
 import java.util.UUID;
@@ -25,6 +26,7 @@ public class OrderService {
         this.orderMapper = orderMapper;
     }
 
+    @Transactional
     public OrderResponse placeOrder(PlaceOrderRequest orderRequest) {
         // Validate and create order (throws DomainException on validation failure)
         Order newOrder = orderValidationService.validateAndCreateOrder(orderRequest);

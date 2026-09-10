@@ -8,11 +8,16 @@ public final class Position {
 
     private final Long accountId;
     private final Long instrumentId;
+    private final int version;
 
     private int quantity;
     private BigDecimal averageCost;
 
     public Position(Long accountId, Long instrumentId, int quantity, BigDecimal averageCost) {
+        this(accountId, instrumentId, quantity, averageCost, 0);
+    }
+
+    public Position(Long accountId, Long instrumentId, int quantity, BigDecimal averageCost, int version) {
         this.accountId = Objects.requireNonNull(accountId, "accountId");
         this.instrumentId = Objects.requireNonNull(instrumentId, "instrumentId");
         if (quantity < 0) {
@@ -20,6 +25,10 @@ public final class Position {
         }
         this.quantity = quantity;
         this.averageCost = normalise(Objects.requireNonNull(averageCost, "averageCost"));
+        if (version < 0) {
+            throw new IllegalArgumentException("version must not be negative: " + version);
+        }
+        this.version = version;
     }
 
     public Long getAccountId() {
@@ -36,6 +45,10 @@ public final class Position {
 
     public BigDecimal getAverageCost() {
         return averageCost;
+    }
+
+    public int getVersion() {
+        return version;
     }
 
     /** the default function a caller calls when it found no row for this account/instrument pair. */
