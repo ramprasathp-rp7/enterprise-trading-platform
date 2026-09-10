@@ -61,7 +61,10 @@ public class AccountController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Optional<OffsetDateTime> from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Optional<OffsetDateTime> to) {
         accountAccessAuthorizer.assertTokenCanAccess(id, request);
-        List<OrderHistoryEntry> response = accountService.getOrders(id, status, from, to);
+        // Convert OffsetDateTime parameters to Instant for service layer
+        Optional<Instant> fromInstant = from.map(OffsetDateTime::toInstant);
+        Optional<Instant> toInstant = to.map(OffsetDateTime::toInstant);
+        List<OrderHistoryEntry> response = accountService.getOrders(id, status, fromInstant, toInstant);
         return ResponseEntity.ok(response);
     }
 }
