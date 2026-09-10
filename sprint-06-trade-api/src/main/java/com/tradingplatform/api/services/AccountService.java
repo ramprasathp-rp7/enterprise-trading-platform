@@ -13,7 +13,6 @@ import com.tradingplatform.domain.model.Position;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -92,23 +91,19 @@ public class AccountService {
      * @throws AccountNotFoundException if account does not exist
      */
     public List<OrderHistoryEntry> getOrders(long accountId, Optional<OrderStatus> status,
-                                            Optional<OffsetDateTime> from, Optional<OffsetDateTime> to) {
+                                            Optional<Instant> from, Optional<Instant> to) {
         // Verify account exists by attempting to fetch it
         getAccount(accountId);
 
-        // Convert OffsetDateTime to Instant if present
-        Optional<Instant> fromInstant = from.map(OffsetDateTime::toInstant);
-        Optional<Instant> toInstant = to.map(OffsetDateTime::toInstant);
-
         // Route to appropriate mapper method based on provided filters
         List<Order> orders;
-        if (status.isPresent() && fromInstant.isPresent() && toInstant.isPresent()) {
+        if (status.isPresent() && from.isPresent() && to.isPresent()) {
             orders = accountMapper.findOrdersByAccountIdAndStatusAndFromAndTo(accountId, status.get(), 
-                fromInstant.get(), toInstant.get());
+                from.get(), to.get());
         } else if (status.isPresent()) {
             orders = accountMapper.findOrdersByAccountIdAndStatus(accountId, status.get());
-        } else if (fromInstant.isPresent() && toInstant.isPresent()) {
-            orders = accountMapper.findOrdersByAccountIdAndFromAndTo(accountId, fromInstant.get(), toInstant.get());
+        } else if (from.isPresent() && to.isPresent()) {
+            orders = accountMapper.findOrdersByAccountIdAndFromAndTo(accountId, from.get(), to.get());
         } else {
             orders = accountMapper.findOrdersByAccountId(accountId);
         }

@@ -21,8 +21,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -236,11 +234,8 @@ class AccountServiceTest {
             .thenReturn(orders);
 
         // When
-        OffsetDateTime fromOffset = OffsetDateTime.ofInstant(oneHourAgo, ZoneOffset.UTC);
-        OffsetDateTime toOffset = OffsetDateTime.ofInstant(now, ZoneOffset.UTC);
-        
         List<OrderHistoryEntry> response = accountService.getOrders(
-            TEST_ACCOUNT_ID, Optional.empty(), Optional.of(fromOffset), Optional.of(toOffset)
+            TEST_ACCOUNT_ID, Optional.empty(), Optional.of(oneHourAgo), Optional.of(now)
         );
 
         // Then
@@ -270,11 +265,8 @@ class AccountServiceTest {
         )).thenReturn(orders);
 
         // When
-        OffsetDateTime fromOffset = OffsetDateTime.ofInstant(oneHourAgo, ZoneOffset.UTC);
-        OffsetDateTime toOffset = OffsetDateTime.ofInstant(now, ZoneOffset.UTC);
-        
         List<OrderHistoryEntry> response = accountService.getOrders(
-            TEST_ACCOUNT_ID, Optional.of(OrderStatus.FILLED), Optional.of(fromOffset), Optional.of(toOffset)
+            TEST_ACCOUNT_ID, Optional.of(OrderStatus.FILLED), Optional.of(oneHourAgo), Optional.of(now)
         );
 
         // Then
