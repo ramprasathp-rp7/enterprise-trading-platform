@@ -4,14 +4,12 @@ import com.tradingplatform.api.security.AccountAccessAuthorizer;
 import com.tradingplatform.api.services.AccountService;
 import com.tradingplatform.domain.dto.*;
 import com.tradingplatform.domain.enums.OrderStatus;
-import jakarta.servlet.http.HttpServletRequest;
 
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,22 +31,22 @@ public class AccountController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<AccountResponse> getAccount(@PathVariable long id, HttpServletRequest request) {
-        accountAccessAuthorizer.assertTokenCanAccess(id, request);
+    public ResponseEntity<AccountResponse> getAccount(@PathVariable long id) {
+        accountAccessAuthorizer.assertTokenCanAccess(id);
         AccountResponse response = accountService.getAccount(id);
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{id}/balance")
-    public ResponseEntity<BalanceResponse> getBalance(@PathVariable long id, HttpServletRequest request) {
-        accountAccessAuthorizer.assertTokenCanAccess(id, request);
+    public ResponseEntity<BalanceResponse> getBalance(@PathVariable long id) {
+        accountAccessAuthorizer.assertTokenCanAccess(id);
         BalanceResponse response = accountService.getBalance(id);
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{id}/positions")
-    public ResponseEntity<List<PositionResponse>> getPositions(@PathVariable long id, HttpServletRequest request) {
-        accountAccessAuthorizer.assertTokenCanAccess(id, request);
+    public ResponseEntity<List<PositionResponse>> getPositions(@PathVariable long id) {
+        accountAccessAuthorizer.assertTokenCanAccess(id);
         List<PositionResponse> response = accountService.getPositions(id);
         return ResponseEntity.ok(response);
     }
@@ -56,11 +54,10 @@ public class AccountController {
     @GetMapping("/{id}/orders")
     public ResponseEntity<List<OrderHistoryEntry>> getOrders(
             @PathVariable long id,
-            HttpServletRequest request,
             @RequestParam(required = false) Optional<OrderStatus> status,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Optional<OffsetDateTime> from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Optional<OffsetDateTime> to) {
-        accountAccessAuthorizer.assertTokenCanAccess(id, request);
+        accountAccessAuthorizer.assertTokenCanAccess(id);
         // Convert OffsetDateTime parameters to Instant for service layer
         Optional<Instant> fromInstant = from.map(OffsetDateTime::toInstant);
         Optional<Instant> toInstant = to.map(OffsetDateTime::toInstant);

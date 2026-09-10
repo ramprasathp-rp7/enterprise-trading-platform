@@ -2,10 +2,14 @@ package com.tradingplatform.domain.exception;
 
 import com.tradingplatform.domain.dto.ErrorResponse;
 import com.tradingplatform.domain.enums.ErrorCode;
+import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
@@ -15,6 +19,19 @@ import org.springframework.web.context.request.WebRequest;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+            @ExceptionHandler(AuthenticationException.class)
+            public ResponseEntity<ErrorResponse> handleAuthenticationFailure(
+                    AuthenticationException ex,
+                    WebRequest request) {
+
+                logger.warn("Authentication failed: {}", ex.getClass().getSimpleName());
+
+                return new ResponseEntity<>(
+                    new ErrorResponse(ErrorCode.AUTH_401, "Unauthorised"),
+                    HttpStatus.UNAUTHORIZED
+                );
+            }
+
     
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
     
@@ -141,6 +158,24 @@ public class GlobalExceptionHandler {
         
         return new ResponseEntity<>(
             new ErrorResponse(ErrorCode.VAL_422, ex.getMessage()),
+            HttpStatus.UNPROCESSABLE_ENTITY
+        );
+    }
+
+    @ExceptionHandler({MethodArgumentNotValidException.class, ConstraintViolationException.class})
+    public ResponseEntity<ErrorResponse> handleValidationException(
+            Exception ex,
+            WebRequest request) {
+        String message = "Invalid input";
+        if (ex instanceof MethodArgumentNotValidException methodArgumentNotValidException) {
+            FieldError firstError = methodArgumentNotValidException.getBindingResult().getFieldError();
+            if (firstError != null && firstError.getDefaultMessage() != null) {
+                message = firstError.getDefaultMessage();
+            }
+        }
+
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.VAL_422, message),
             HttpStatus.UNPROCESSABLE_ENTITY
         );
     }

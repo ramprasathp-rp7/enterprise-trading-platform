@@ -18,6 +18,20 @@ public final class Position {
         this(accountId, instrumentId, symbol, quantity, averageCost, 0);
     }
 
+    /**
+     * Backward-compatible overload kept for tests/callers that do not pass symbol yet.
+     */
+    public Position(Long accountId, Long instrumentId, int quantity, BigDecimal averageCost) {
+        this(accountId, instrumentId, null, quantity, averageCost, 0);
+    }
+
+    /**
+     * Backward-compatible overload kept for tests/callers that do not pass symbol yet.
+     */
+    public Position(Long accountId, Long instrumentId, int quantity, BigDecimal averageCost, int version) {
+        this(accountId, instrumentId, null, quantity, averageCost, version);
+    }
+
     public Position(Long accountId, Long instrumentId, String symbol, int quantity, BigDecimal averageCost, int version) {
         this.accountId = Objects.requireNonNull(accountId, "accountId");
         this.instrumentId = Objects.requireNonNull(instrumentId, "instrumentId");
@@ -60,6 +74,13 @@ public final class Position {
     /** the default function a caller calls when it found no row for this account/instrument pair. */
     public static Position empty(Long accountId, String symbol, Long instrumentId) {
         return new Position(accountId, instrumentId, symbol, 0, BigDecimal.ZERO);
+    }
+
+    /**
+     * Backward-compatible overload kept for tests/callers that do not pass symbol yet.
+     */
+    public static Position empty(Long accountId, Long instrumentId) {
+        return empty(accountId, null, instrumentId);
     }
 
     private static BigDecimal normalise(BigDecimal amount) {

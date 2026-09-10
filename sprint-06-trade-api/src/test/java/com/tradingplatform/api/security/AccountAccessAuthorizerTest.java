@@ -1,10 +1,14 @@
 package com.tradingplatform.api.security;
 
 import com.tradingplatform.domain.exception.AccountNotActiveException;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 
-import java.util.List;
+import java.time.Instant;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -13,26 +17,42 @@ class AccountAccessAuthorizerTest {
 
     private final AccountAccessAuthorizer authorizer = new AccountAccessAuthorizer();
 
+    @AfterEach
+    void clearContext() {
+        SecurityContextHolder.clearContext();
+    }
+
     @Test
     void allowsAccessWhenTokenMatchesRequestedAccount() {
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setAttribute(AuthenticatedUser.REQUEST_ATTRIBUTE, new AuthenticatedUser("u-1", 5L, List.of("CUSTOMER")));
+        setJwtAuthentication(5L);
 
-        authorizer.assertTokenCanAccess(5L, request);
+        authorizer.assertTokenCanAccess(5L);
     }
 
     @Test
     void returnsAccountForbiddenWhenTokenDoesNotReachAccount() {
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setAttribute(AuthenticatedUser.REQUEST_ATTRIBUTE, new AuthenticatedUser("u-1", 5L, List.of("CUSTOMER")));
+        setJwtAuthentication(5L);
 
         AccountNotActiveException ex = assertThrows(
             AccountNotActiveException.class,
-            () -> authorizer.assertTokenCanAccess(6L, request)
+            () -> authorizer.assertTokenCanAccess(6L)
         );
 
         assertEquals("ACC-403", ex.getCode());
         assertEquals("Account not active", ex.getMessage());
+    }
+
+    private void setJwtAuthentication(long accountId) {
+        Jwt jwt = new Jwt(
+            "token-value",
+            Instant.now(),
+            Instant.now().plusSeconds(900),
+            Map.of("alg", "HS256"),
+            Map.of("sub", "u-1", "accountId", accountId, "roles", java.util.List.of("CUSTOMER"), "iss", "auth-service")
+        );
+        SecurityContextHolder.getContext().setAuthentication(
+            new UsernamePasswordAuthenticationToken(jwt, null, java.util.List.of())
+        );
     }
 }
 
