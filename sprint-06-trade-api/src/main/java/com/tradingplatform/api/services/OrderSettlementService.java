@@ -42,7 +42,7 @@ public class OrderSettlementService {
         Position position = positionMapper.findByAccountAndInstrument(order.getAccountId(), order.getInstrumentId());
         if (position == null) {
             // Position doesn't exist yet; create an empty one
-            position = Position.empty(order.getAccountId(), order.getInstrumentId());
+            position = Position.empty(order.getAccountId(), order.getSymbol(), order.getInstrumentId());
         }
 
         // Calculate notional value of the order

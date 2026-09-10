@@ -93,7 +93,7 @@ public class OrderValidationService {
         // Fetch Position for funds/holdings validation
         Position position = positionMapper.findByAccountAndInstrument(account.getId(), instrument.getId());
         if (position == null) {
-            position = Position.empty(account.getId(), instrument.getId());
+            position = Position.empty(account.getId(), instrument.getSymbol(), instrument.getId());
         }
 
         BigDecimal notional = price.multiply(BigDecimal.valueOf(quantity));
