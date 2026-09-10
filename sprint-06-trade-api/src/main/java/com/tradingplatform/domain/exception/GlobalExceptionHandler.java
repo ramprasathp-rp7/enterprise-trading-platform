@@ -6,20 +6,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 
 
-/**
- * Global exception handler for the trading platform API.
- * 
- * Maps domain exceptions to standardized HTTP responses with error codes.
- * - Response body contains only user-facing message, code, and timestamp
- * - All diagnostic details are logged server-side with request context
- * - Clients can branch on error code since multiple codes may map to same HTTP status
- */
-@ControllerAdvice
+// Global exception handler for the trading platform API.
+
+@RestControllerAdvice
 public class GlobalExceptionHandler {
     
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
