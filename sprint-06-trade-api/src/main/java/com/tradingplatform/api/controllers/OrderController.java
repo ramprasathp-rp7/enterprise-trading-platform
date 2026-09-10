@@ -1,5 +1,6 @@
 package com.tradingplatform.api.controllers;
 
+import com.tradingplatform.api.security.AccountAccessAuthorizer;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -9,6 +10,7 @@ import com.tradingplatform.domain.dto.PlaceOrderRequest;
 
 import java.net.URI;
 
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,15 +25,17 @@ import org.springframework.web.bind.annotation.PathVariable;
 public class OrderController {
 
     private final OrderService orderService;
+    private final AccountAccessAuthorizer accountAccessAuthorizer;
 
-    public OrderController(OrderService orderService) {
+    public OrderController(OrderService orderService, AccountAccessAuthorizer accountAccessAuthorizer) {
         this.orderService = orderService;
+        this.accountAccessAuthorizer = accountAccessAuthorizer;
     }
 
     @PostMapping
-    public ResponseEntity<OrderResponse> placeOrder(@RequestBody PlaceOrderRequest orderRequest) {
-    
-        // Fixneeded
+    public ResponseEntity<OrderResponse> placeOrder(@Valid @RequestBody PlaceOrderRequest orderRequest) {
+        accountAccessAuthorizer.assertTokenCanAccess(orderRequest.accountId());
+
         double tradeValue = orderRequest.quantity() * orderRequest.price().doubleValue();
         double fee = orderService.calculateFee(orderRequest.symbol(), tradeValue);
 
