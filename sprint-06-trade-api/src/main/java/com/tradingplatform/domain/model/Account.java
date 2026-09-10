@@ -4,6 +4,7 @@ import com.tradingplatform.domain.enums.AccountStatus;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.util.Objects;
 
 /**
@@ -17,8 +18,26 @@ public final class Account {
     private final String currency;
     private final AccountStatus status;
     private final int version;
+    private Instant lastUpdated;
+    private Instant createdOn;
 
     private BigDecimal cashBalance;
+
+    public Account(Long id, String accountId, String holderName, BigDecimal cashBalance,
+                    String currency, AccountStatus status, int version, Instant createdOn, Instant lastUpdated) {
+        this.id = id;
+        this.accountId = Objects.requireNonNull(accountId, "accountId");
+        this.holderName = Objects.requireNonNull(holderName, "holderName");
+        this.cashBalance = normalise(Objects.requireNonNull(cashBalance, "cashBalance"));
+        this.currency = Objects.requireNonNull(currency, "currency");
+        this.status = Objects.requireNonNull(status, "status");
+        if (version < 0) {
+            throw new IllegalArgumentException("version must not be negative: " + version);
+        }
+        this.version = version;
+        this.lastUpdated = lastUpdated;
+        this.createdOn = createdOn;
+    }
 
     public Account(Long id, String accountId, String holderName, BigDecimal cashBalance,
                     String currency, AccountStatus status, int version) {
@@ -60,6 +79,10 @@ public final class Account {
 
     public int getVersion() {
         return version;
+    }
+
+    public Instant getLastUpdated() {
+        return lastUpdated;
     }
 
     private static BigDecimal normalise(BigDecimal amount) {
