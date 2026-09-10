@@ -8,6 +8,8 @@ import com.tradingplatform.domain.dto.OrderHistoryEntry;
 import com.tradingplatform.domain.enums.OrderStatus;
 import com.tradingplatform.domain.exception.AccountNotFoundException;
 import com.tradingplatform.domain.model.Account;
+import com.tradingplatform.domain.model.Order;
+import com.tradingplatform.domain.model.Position;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -18,6 +20,7 @@ import java.util.Optional;
 /**
  * Service layer for account read operations.
  * Orchestrates between controllers and MyBatis mappers for data access.
+ * Handles conversion from entities to response DTOs.
  */
 @Service
 public class AccountService {
@@ -40,16 +43,7 @@ public class AccountService {
         if (account == null) {
             throw new AccountNotFoundException(accountId);
         }
-        // Convert Account model to AccountResponse DTO
-        return new AccountResponse(
-            account.getId(),
-            account.getAccountId(),
-            account.getHolderName(),
-            account.getCashBalance(),
-            account.getStatus(),
-            account.getVersion(),
-            java.time.Instant.now() // Use current timestamp as lastUpdated
-        );
+        return mapToAccountResponse(account);
     }
 
     /**
@@ -60,11 +54,11 @@ public class AccountService {
      * @throws AccountNotFoundException if account does not exist
      */
     public BalanceResponse getBalance(long accountId) {
-        BalanceResponse balance = accountMapper.findBalanceByAccountId(accountId);
-        if (balance == null) {
+        Account account = accountMapper.findByAccountId(accountId);
+        if (account == null) {
             throw new AccountNotFoundException(accountId);
         }
-        return balance;
+        return mapToBalanceResponse(account);
     }
 
     /**
@@ -78,8 +72,12 @@ public class AccountService {
         // Verify account exists first
         getAccount(accountId);
         
-        List<PositionResponse> positions = accountMapper.findPositionByAccountId(accountId);
-        return positions != null ? positions : List.of();
+        List<Position> positions = accountMapper.findPositionByAccountId(accountId);
+        return positions != null ? 
+            positions.stream()
+                .map(this::mapToPositionResponse)
+                .toList() 
+            : List.of();
     }
 
     /**
@@ -103,15 +101,82 @@ public class AccountService {
         Optional<Instant> toInstant = to.map(OffsetDateTime::toInstant);
 
         // Route to appropriate mapper method based on provided filters
+        List<Order> orders;
         if (status.isPresent() && fromInstant.isPresent() && toInstant.isPresent()) {
-            return accountMapper.findOrdersByAccountIdAndStatusAndFromAndTo(accountId, status.get(), 
+            orders = accountMapper.findOrdersByAccountIdAndStatusAndFromAndTo(accountId, status.get(), 
                 fromInstant.get(), toInstant.get());
         } else if (status.isPresent()) {
-            return accountMapper.findOrdersByAccountIdAndStatus(accountId, status.get());
+            orders = accountMapper.findOrdersByAccountIdAndStatus(accountId, status.get());
         } else if (fromInstant.isPresent() && toInstant.isPresent()) {
-            return accountMapper.findOrdersByAccountIdAndFromAndTo(accountId, fromInstant.get(), toInstant.get());
+            orders = accountMapper.findOrdersByAccountIdAndFromAndTo(accountId, fromInstant.get(), toInstant.get());
         } else {
-            return accountMapper.findOrdersByAccountId(accountId);
+            orders = accountMapper.findOrdersByAccountId(accountId);
         }
+
+        // Convert Order entities to OrderHistoryEntry DTOs
+        return orders != null ? 
+            orders.stream()
+                .map(this::mapToOrderHistoryEntry)
+                .toList()
+            : List.of();
+    }
+
+
+
+    /**
+     * Convert Account entity to AccountResponse DTO.
+     */
+    private AccountResponse mapToAccountResponse(Account account) {
+        return new AccountResponse(
+            account.getId(),
+            account.getAccountId(),
+            account.getHolderName(),
+            account.getCashBalance(),
+            account.getStatus(),
+            account.getVersion(),
+            account.getLastUpdated() != null ? account.getLastUpdated() : Instant.now()
+        );
+    }
+
+    /**
+     * Convert Account entity to BalanceResponse DTO.
+     */
+    private BalanceResponse mapToBalanceResponse(Account account) {
+        return new BalanceResponse(
+            account.getId(),
+            account.getCashBalance(),
+            account.getCurrency(),
+            account.getLastUpdated() != null ? account.getLastUpdated() : Instant.now()
+        );
+    }
+
+    /**
+     * Convert Position entity to PositionResponse DTO.
+     */
+    private PositionResponse mapToPositionResponse(Position position) {
+        return new PositionResponse(
+            position.getAccountId(),
+            position.getSymbol(),
+            position.getQuantity(),
+            position.getAverageCost()
+        );
+    }
+
+    /**
+     * Convert Order entity to OrderHistoryEntry DTO.
+     */
+    private OrderHistoryEntry mapToOrderHistoryEntry(Order order) {
+        return new OrderHistoryEntry(
+            order.getId().toString(),
+            order.getAccountId(),
+            order.getSymbol(),
+            order.getSide(),
+            order.getQuantity(),
+            order.getPrice(),
+            order.getExecutedPrice(),
+            order.getStatus(),
+            order.getIdempotencyKey(),
+            order.getCreatedOn()
+        );
     }
 }
