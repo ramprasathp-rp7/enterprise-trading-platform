@@ -85,6 +85,10 @@ public final class Account {
         return lastUpdated;
     }
 
+    public Instant getCreatedOn(){
+        return createdOn;
+    }
+    
     private static BigDecimal normalise(BigDecimal amount) {
         return amount.setScale(2, RoundingMode.HALF_UP);
     }
