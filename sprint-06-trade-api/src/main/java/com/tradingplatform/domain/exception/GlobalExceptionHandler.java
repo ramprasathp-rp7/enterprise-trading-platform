@@ -24,10 +24,9 @@ public class GlobalExceptionHandler {
     
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
     
-    /**
-     * ACC-404: Account not found
-     * Maps to HTTP 404 (Not Found)
-     */
+   
+    // ACC-404: Account not found Maps to HTTP 404 (Not Found)
+
     @ExceptionHandler(AccountNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleAccountNotFound(
             AccountNotFoundException ex,
@@ -41,10 +40,9 @@ public class GlobalExceptionHandler {
         );
     }
     
-    /**
-     * ACC-403: Unauthorized access to account (token does not reach account)
-     * Maps to HTTP 403 (Forbidden)
-     */
+    
+    // ACC-403: Unauthorized access to account (token does not reach account) Maps to HTTP 403 (Forbidden)
+     
     @ExceptionHandler(AccountUnauthorizedException.class)
     public ResponseEntity<ErrorResponse> handleAccountUnauthorized(
             AccountUnauthorizedException ex,
@@ -59,10 +57,8 @@ public class GlobalExceptionHandler {
         );
     }
     
-    /**
-     * ACC-403: Account exists but is not active
-     * Maps to HTTP 403 (Forbidden)
-     */
+    //ACC-403: Account exists but is not active Maps to HTTP 403 (Forbidden)
+    
     @ExceptionHandler(AccountNotActiveException.class)
     public ResponseEntity<ErrorResponse> handleAccountNotActive(
             AccountNotActiveException ex,
@@ -77,10 +73,8 @@ public class GlobalExceptionHandler {
         );
     }
     
-    /**
-     * INS-404: Instrument not found or untradable
-     * Maps to HTTP 404 (Not Found)
-     */
+    // INS-404: Instrument not found or untradable Maps to HTTP 404 (Not Found)
+     
     @ExceptionHandler(InstrumentNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleInstrumentNotFound(
             InstrumentNotFoundException ex,
@@ -94,10 +88,8 @@ public class GlobalExceptionHandler {
         );
     }
     
-    /**
-     * ORD-400: Insufficient funds for order
-     * Maps to HTTP 400 (Bad Request)
-     */
+    // ORD-400: Insufficient funds for order Maps to HTTP 400 (Bad Request)
+    
     @ExceptionHandler(InsufficientFundsException.class)
     public ResponseEntity<ErrorResponse> handleInsufficientFunds(
             InsufficientFundsException ex,
@@ -112,10 +104,8 @@ public class GlobalExceptionHandler {
         );
     }
     
-    /**
-     * ORD-409: Insufficient holdings for order (conflict state)
-     * Maps to HTTP 409 (Conflict)
-     */
+    // ORD-409: Insufficient holdings for order (conflict state) Maps to HTTP 409 (Conflict)
+    
     @ExceptionHandler(InsufficientHoldingsException.class)
     public ResponseEntity<ErrorResponse> handleInsufficientHoldings(
             InsufficientHoldingsException ex,
@@ -130,10 +120,8 @@ public class GlobalExceptionHandler {
         );
     }
     
-    /**
-     * ORD-409: Duplicate idempotency key (order conflict)
-     * Maps to HTTP 409 (Conflict)
-     */
+    // ORD-409: Duplicate idempotency key (order conflict) Maps to HTTP 409 (Conflict)
+    
     @ExceptionHandler(DuplicateOrderException.class)
     public ResponseEntity<ErrorResponse> handleDuplicateOrder(
             DuplicateOrderException ex,
@@ -148,10 +136,8 @@ public class GlobalExceptionHandler {
         );
     }
     
-    /**
-     * VAL-422: Invalid order data (quantity, price, etc.)
-     * Maps to HTTP 422 (Unprocessable Entity)
-     */
+    // VAL-422: Invalid order data (quantity, price, etc.) Maps to HTTP 422 (Unprocessable Entity)
+     
     @ExceptionHandler(InvalidOrderException.class)
     public ResponseEntity<ErrorResponse> handleInvalidOrder(
             InvalidOrderException ex,
@@ -165,9 +151,22 @@ public class GlobalExceptionHandler {
         );
     }
     
-    /**
-     * Catch-all handler for any DomainException not explicitly handled
-     */
+    // ORD-409: Optimistic lock conflict (concurrent modification) Maps to HTTP 409 (Conflict)
+    @ExceptionHandler(OptimisticLockException.class)
+    public ResponseEntity<ErrorResponse> handleOptimisticLock(
+            OptimisticLockException ex,
+            WebRequest request) {
+        
+        logger.error("Optimistic lock conflict: resourceType={}, resourceId={}", 
+            ex.getResourceType(), ex.getResourceId());
+        
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.ORD_409, "The resource was modified by another transaction. Please retry your request."),
+            HttpStatus.CONFLICT
+        );
+    }
+    
+    // Catch-all handler for any DomainException not explicitly handled
     @ExceptionHandler(DomainException.class)
     public ResponseEntity<ErrorResponse> handleDomainException(
             DomainException ex,
@@ -182,9 +181,7 @@ public class GlobalExceptionHandler {
         );
     }
     
-    /**
-     * Catch-all for unexpected exceptions
-     */
+    //Catch-all for unexpected exceptions
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(
             Exception ex,
