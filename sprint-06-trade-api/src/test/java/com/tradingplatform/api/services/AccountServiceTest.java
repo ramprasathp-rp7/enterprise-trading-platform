@@ -10,6 +10,8 @@ import com.tradingplatform.domain.enums.OrderSide;
 import com.tradingplatform.domain.enums.OrderStatus;
 import com.tradingplatform.domain.exception.AccountNotFoundException;
 import com.tradingplatform.domain.model.Account;
+import com.tradingplatform.domain.model.Order;
+import com.tradingplatform.domain.model.Position;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -23,6 +25,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -65,9 +68,11 @@ class AccountServiceTest {
     @DisplayName("1.1 getAccount() returns AccountResponse successfully")
     void testGetAccount_ReturnsAccountResponseSuccessfully() {
         // Given
+        Instant now = Instant.now();
         Account mockAccount = new Account(
             TEST_ACCOUNT_ID, TEST_ACCOUNT_ID_STR, TEST_HOLDER_NAME,
-            TEST_CASH_BALANCE, TEST_CURRENCY, AccountStatus.ACTIVE, TEST_VERSION
+            TEST_CASH_BALANCE, TEST_CURRENCY, AccountStatus.ACTIVE, TEST_VERSION,
+            now, now
         );
         when(accountMapper.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(mockAccount);
 
@@ -82,7 +87,7 @@ class AccountServiceTest {
         assertThat(response.cashBalance()).isEqualTo(TEST_CASH_BALANCE);
         assertThat(response.status()).isEqualTo(AccountStatus.ACTIVE);
         assertThat(response.version()).isEqualTo(TEST_VERSION);
-        assertThat(response.lastUpdated()).isNotNull(); // Should have current timestamp
+        assertThat(response.lastUpdated()).isNotNull();
 
         verify(accountMapper, times(1)).findByAccountId(TEST_ACCOUNT_ID);
     }
@@ -91,10 +96,13 @@ class AccountServiceTest {
     @DisplayName("1.2 getBalance() returns BalanceResponse successfully")
     void testGetBalance_ReturnsBalanceResponseSuccessfully() {
         // Given
-        BalanceResponse mockBalance = new BalanceResponse(
-            TEST_ACCOUNT_ID, TEST_CASH_BALANCE, TEST_CURRENCY, Instant.now()
+        Instant now = Instant.now();
+        Account mockAccount = new Account(
+            TEST_ACCOUNT_ID, TEST_ACCOUNT_ID_STR, TEST_HOLDER_NAME,
+            TEST_CASH_BALANCE, TEST_CURRENCY, AccountStatus.ACTIVE, TEST_VERSION,
+            now, now
         );
-        when(accountMapper.findBalanceByAccountId(TEST_ACCOUNT_ID)).thenReturn(mockBalance);
+        when(accountMapper.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(mockAccount);
 
         // When
         BalanceResponse response = accountService.getBalance(TEST_ACCOUNT_ID);
@@ -106,19 +114,20 @@ class AccountServiceTest {
         assertThat(response.currency()).isEqualTo(TEST_CURRENCY);
         assertThat(response.asOf()).isNotNull();
 
-        verify(accountMapper, times(1)).findBalanceByAccountId(TEST_ACCOUNT_ID);
+        verify(accountMapper, times(1)).findByAccountId(TEST_ACCOUNT_ID);
     }
 
     @Test
     @DisplayName("1.3 getPositions() returns list of PositionResponse successfully")
     void testGetPositions_ReturnsPositionListSuccessfully() {
         // Given
-        Account mockAccount = createMockAccount();
+        Instant now = Instant.now();
+        Account mockAccount = createMockAccount(now);
         when(accountMapper.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(mockAccount);
 
-        PositionResponse position1 = new PositionResponse(TEST_ACCOUNT_ID, "INFY", 100, new BigDecimal("1500.00"));
-        PositionResponse position2 = new PositionResponse(TEST_ACCOUNT_ID, "RELIANCE", 50, new BigDecimal("2300.00"));
-        List<PositionResponse> positions = List.of(position1, position2);
+        Position position1 = new Position(TEST_ACCOUNT_ID, 10L, "INFY", 100, new BigDecimal("1500.00"));
+        Position position2 = new Position(TEST_ACCOUNT_ID, 20L, "RELIANCE", 50, new BigDecimal("2300.00"));
+        List<Position> positions = List.of(position1, position2);
         
         when(accountMapper.findPositionByAccountId(TEST_ACCOUNT_ID)).thenReturn(positions);
 
@@ -128,7 +137,6 @@ class AccountServiceTest {
         // Then
         assertThat(response).isNotNull();
         assertThat(response).hasSize(2);
-        assertThat(response).containsExactly(position1, position2);
         assertThat(response.get(0).symbol()).isEqualTo("INFY");
         assertThat(response.get(0).quantity()).isEqualTo(100);
         assertThat(response.get(1).symbol()).isEqualTo("RELIANCE");
@@ -142,7 +150,8 @@ class AccountServiceTest {
     @DisplayName("1.4 getPositions() returns empty list when no positions exist")
     void testGetPositions_ReturnsEmptyListWhenNoPositions() {
         // Given
-        Account mockAccount = createMockAccount();
+        Instant now = Instant.now();
+        Account mockAccount = createMockAccount(now);
         when(accountMapper.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(mockAccount);
         when(accountMapper.findPositionByAccountId(TEST_ACCOUNT_ID)).thenReturn(List.of());
 
@@ -158,20 +167,13 @@ class AccountServiceTest {
     @DisplayName("1.5 getOrders() returns all orders without filters")
     void testGetOrders_ReturnsAllOrdersWithoutFilters() {
         // Given
-        Account mockAccount = createMockAccount();
+        Instant now = Instant.now();
+        Account mockAccount = createMockAccount(now);
         when(accountMapper.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(mockAccount);
 
-        OrderHistoryEntry order1 = new OrderHistoryEntry(
-            "ORD-001", TEST_ACCOUNT_ID, "INFY", OrderSide.BUY, 100,
-            new BigDecimal("1500.00"), new BigDecimal("1505.00"), OrderStatus.FILLED,
-            "idempotency-key-1", Instant.now().minusSeconds(3600)
-        );
-        OrderHistoryEntry order2 = new OrderHistoryEntry(
-            "ORD-002", TEST_ACCOUNT_ID, "RELIANCE", OrderSide.SELL, 50,
-            new BigDecimal("2300.00"), null, OrderStatus.NEW,
-            "idempotency-key-2", Instant.now()
-        );
-        List<OrderHistoryEntry> orders = List.of(order2, order1); // Most recent first
+        Order order1 = createMockOrder("INFY", OrderStatus.FILLED, now.minusSeconds(3600));
+        Order order2 = createMockOrder("RELIANCE", OrderStatus.NEW, now);
+        List<Order> orders = List.of(order2, order1); // Most recent first
 
         when(accountMapper.findOrdersByAccountId(TEST_ACCOUNT_ID)).thenReturn(orders);
 
@@ -183,8 +185,8 @@ class AccountServiceTest {
         // Then
         assertThat(response).isNotNull();
         assertThat(response).hasSize(2);
-        assertThat(response.get(0).orderId()).isEqualTo("ORD-002"); // Most recent first
-        assertThat(response.get(1).orderId()).isEqualTo("ORD-001");
+        assertThat(response.get(0).symbol()).isEqualTo("RELIANCE"); // Most recent first
+        assertThat(response.get(1).symbol()).isEqualTo("INFY");
 
         verify(accountMapper, times(1)).findByAccountId(TEST_ACCOUNT_ID);
         verify(accountMapper, times(1)).findOrdersByAccountId(TEST_ACCOUNT_ID);
@@ -194,15 +196,12 @@ class AccountServiceTest {
     @DisplayName("1.6 getOrders() filters by status only")
     void testGetOrders_FiltersByStatusOnly() {
         // Given
-        Account mockAccount = createMockAccount();
+        Instant now = Instant.now();
+        Account mockAccount = createMockAccount(now);
         when(accountMapper.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(mockAccount);
 
-        OrderHistoryEntry filledOrder = new OrderHistoryEntry(
-            "ORD-001", TEST_ACCOUNT_ID, "INFY", OrderSide.BUY, 100,
-            new BigDecimal("1500.00"), new BigDecimal("1505.00"), OrderStatus.FILLED,
-            "idempotency-key-1", Instant.now()
-        );
-        List<OrderHistoryEntry> orders = List.of(filledOrder);
+        Order filledOrder = createMockOrder("INFY", OrderStatus.FILLED, now);
+        List<Order> orders = List.of(filledOrder);
 
         when(accountMapper.findOrdersByAccountIdAndStatus(TEST_ACCOUNT_ID, OrderStatus.FILLED))
             .thenReturn(orders);
@@ -225,18 +224,13 @@ class AccountServiceTest {
     @DisplayName("1.7 getOrders() filters by date range only")
     void testGetOrders_FiltersByDateRangeOnly() {
         // Given
-        Account mockAccount = createMockAccount();
-        when(accountMapper.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(mockAccount);
-
         Instant now = Instant.now();
         Instant oneHourAgo = now.minusSeconds(3600);
+        Account mockAccount = createMockAccount(now);
+        when(accountMapper.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(mockAccount);
         
-        OrderHistoryEntry order = new OrderHistoryEntry(
-            "ORD-001", TEST_ACCOUNT_ID, "INFY", OrderSide.BUY, 100,
-            new BigDecimal("1500.00"), new BigDecimal("1505.00"), OrderStatus.FILLED,
-            "idempotency-key-1", oneHourAgo
-        );
-        List<OrderHistoryEntry> orders = List.of(order);
+        Order order = createMockOrder("INFY", OrderStatus.FILLED, oneHourAgo);
+        List<Order> orders = List.of(order);
 
         when(accountMapper.findOrdersByAccountIdAndFromAndTo(TEST_ACCOUNT_ID, oneHourAgo, now))
             .thenReturn(orders);
@@ -263,18 +257,13 @@ class AccountServiceTest {
     @DisplayName("1.8 getOrders() filters by status and date range")
     void testGetOrders_FiltersByStatusAndDateRange() {
         // Given
-        Account mockAccount = createMockAccount();
-        when(accountMapper.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(mockAccount);
-
         Instant now = Instant.now();
         Instant oneHourAgo = now.minusSeconds(3600);
+        Account mockAccount = createMockAccount(now);
+        when(accountMapper.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(mockAccount);
         
-        OrderHistoryEntry order = new OrderHistoryEntry(
-            "ORD-001", TEST_ACCOUNT_ID, "INFY", OrderSide.BUY, 100,
-            new BigDecimal("1500.00"), new BigDecimal("1505.00"), OrderStatus.FILLED,
-            "idempotency-key-1", oneHourAgo
-        );
-        List<OrderHistoryEntry> orders = List.of(order);
+        Order order = createMockOrder("INFY", OrderStatus.FILLED, oneHourAgo);
+        List<Order> orders = List.of(order);
 
         when(accountMapper.findOrdersByAccountIdAndStatusAndFromAndTo(
             TEST_ACCOUNT_ID, OrderStatus.FILLED, oneHourAgo, now
@@ -323,14 +312,14 @@ class AccountServiceTest {
     void testGetBalance_ThrowsAccountNotFound_ForUnknownAccount() {
         // Given
         long unknownAccountId = 999L;
-        when(accountMapper.findBalanceByAccountId(unknownAccountId)).thenReturn(null);
+        when(accountMapper.findByAccountId(unknownAccountId)).thenReturn(null);
 
         // When & Then
         assertThatThrownBy(() -> accountService.getBalance(unknownAccountId))
             .isInstanceOf(AccountNotFoundException.class)
             .hasMessageContaining("Account not found");
 
-        verify(accountMapper, times(1)).findBalanceByAccountId(unknownAccountId);
+        verify(accountMapper, times(1)).findByAccountId(unknownAccountId);
     }
 
     @Test
@@ -369,10 +358,33 @@ class AccountServiceTest {
     // Helper Methods
     // ============================================================================
 
-    private Account createMockAccount() {
+    private Account createMockAccount(Instant timestamp) {
         return new Account(
             TEST_ACCOUNT_ID, TEST_ACCOUNT_ID_STR, TEST_HOLDER_NAME,
-            TEST_CASH_BALANCE, TEST_CURRENCY, AccountStatus.ACTIVE, TEST_VERSION
+            TEST_CASH_BALANCE, TEST_CURRENCY, AccountStatus.ACTIVE, TEST_VERSION,
+            timestamp, timestamp
         );
+    }
+
+    private Order createMockOrder(String symbol, OrderStatus status, Instant createdOn) {
+        Order order = new Order(
+            TEST_ACCOUNT_ID, 10L, symbol, OrderSide.BUY, 100,
+            new BigDecimal("1500.00"), "idempotency-key-" + UUID.randomUUID()
+        );
+        // Set status and executed price via reflection for testing
+        try {
+            java.lang.reflect.Field statusField = Order.class.getDeclaredField("status");
+            statusField.setAccessible(true);
+            statusField.set(order, status);
+            
+            if (status == OrderStatus.FILLED) {
+                java.lang.reflect.Field executedPriceField = Order.class.getDeclaredField("executedPrice");
+                executedPriceField.setAccessible(true);
+                executedPriceField.set(order, new BigDecimal("1505.00"));
+            }
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+        return order;
     }
 }
