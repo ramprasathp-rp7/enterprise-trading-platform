@@ -93,7 +93,7 @@ public class OrderValidationService {
         // Fetch Position for funds/holdings validation
         Position position = positionMapper.findByAccountAndInstrument(account.getId(), instrument.getId());
         if (position == null) {
-            position = Position.empty(account.getId(), instrument.getSymbol(), instrument.getId());
+            position = Position.empty(account.getId(), instrument.getId());
         }
 
         BigDecimal notional = price.multiply(BigDecimal.valueOf(quantity));
@@ -113,7 +113,7 @@ public class OrderValidationService {
         }
 
         // All validations passed; create and return NEW order
-        return new Order(account.getId(), instrument.getId(), instrument.getSymbol(), side, quantity, price,
+        return new Order(account.getId(), instrument.getId(), side, quantity, price,
             request.idempotencyKey());
     }
 }

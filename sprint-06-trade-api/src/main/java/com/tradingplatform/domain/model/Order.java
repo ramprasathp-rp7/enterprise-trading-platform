@@ -16,7 +16,6 @@ public final class Order {
     private final UUID id;
     private final Long accountId;
     private final Long instrumentId;
-    private final String symbol;
     private final OrderSide side;
     private final int quantity;
     private final BigDecimal price;
@@ -26,12 +25,11 @@ public final class Order {
     private OrderStatus status;
     private BigDecimal executedPrice;
 
-    public Order(Long accountId, Long instrumentId, String symbol, OrderSide side,
+    public Order(Long accountId, Long instrumentId, OrderSide side,
                  int quantity, BigDecimal price, String idempotencyKey) {
         this.id = UUID.randomUUID();
         this.accountId = Objects.requireNonNull(accountId, "accountId");
         this.instrumentId = Objects.requireNonNull(instrumentId, "instrumentId");
-        this.symbol = Objects.requireNonNull(symbol, "symbol");
         this.side = Objects.requireNonNull(side, "side");
         if (quantity <= 0) {
             throw new IllegalArgumentException("quantity must be greater than zero: " + quantity);
@@ -59,9 +57,6 @@ public final class Order {
         return instrumentId;
     }
 
-    public String getSymbol() {
-        return symbol;
-    }
 
     public OrderSide getSide() {
         return side;

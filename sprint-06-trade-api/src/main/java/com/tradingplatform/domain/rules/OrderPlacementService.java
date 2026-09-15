@@ -80,7 +80,7 @@ public final class OrderPlacementService {
         // rules 6–8 can still reject it, but the rejection now happens to a real order, which we
         // keep (REJECTED) instead of letting it vanish into a bare exception.
         OrderSide side = request.side();
-        Order order = new Order(acc.getId(), ins.getId(), ins.getSymbol(), side, quantity, price,
+        Order order = new Order(acc.getId(), ins.getId(), side, quantity, price,
             request.idempotencyKey());
 
         BigDecimal notional = price.multiply(BigDecimal.valueOf(quantity));

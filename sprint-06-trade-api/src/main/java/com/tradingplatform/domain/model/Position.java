@@ -8,37 +8,21 @@ public final class Position {
 
     private final Long accountId;
     private final Long instrumentId;
-    private final String symbol;
     private final int version;
 
     private int quantity;
     private BigDecimal averageCost;
 
-    public Position(Long accountId, Long instrumentId, String symbol, int quantity, BigDecimal averageCost) {
-        this(accountId, instrumentId, symbol, quantity, averageCost, 0);
-    }
-
-    /**
-     * Backward-compatible overload kept for tests/callers that do not pass symbol yet.
-     */
     public Position(Long accountId, Long instrumentId, int quantity, BigDecimal averageCost) {
-        this(accountId, instrumentId, null, quantity, averageCost, 0);
+        this(accountId, instrumentId, quantity, averageCost, 0);
     }
 
-    /**
-     * Backward-compatible overload kept for tests/callers that do not pass symbol yet.
-     */
     public Position(Long accountId, Long instrumentId, int quantity, BigDecimal averageCost, int version) {
-        this(accountId, instrumentId, null, quantity, averageCost, version);
-    }
-
-    public Position(Long accountId, Long instrumentId, String symbol, int quantity, BigDecimal averageCost, int version) {
         this.accountId = Objects.requireNonNull(accountId, "accountId");
         this.instrumentId = Objects.requireNonNull(instrumentId, "instrumentId");
         if (quantity < 0) {
             throw new IllegalArgumentException("quantity must not be negative: " + quantity);
         }
-        this.symbol = symbol;
         this.quantity = quantity;
         this.averageCost = normalise(Objects.requireNonNull(averageCost, "averageCost"));
         if (version < 0) {
@@ -55,10 +39,6 @@ public final class Position {
         return instrumentId;
     }
 
-    public String getSymbol(){
-        return symbol;
-    }
-
     public int getQuantity() {
         return quantity;
     }
@@ -71,16 +51,8 @@ public final class Position {
         return version;
     }
 
-    /** the default function a caller calls when it found no row for this account/instrument pair. */
-    public static Position empty(Long accountId, String symbol, Long instrumentId) {
-        return new Position(accountId, instrumentId, symbol, 0, BigDecimal.ZERO);
-    }
-
-    /**
-     * Backward-compatible overload kept for tests/callers that do not pass symbol yet.
-     */
     public static Position empty(Long accountId, Long instrumentId) {
-        return empty(accountId, null, instrumentId);
+        return new Position(accountId, instrumentId, 0, BigDecimal.ZERO);
     }
 
     private static BigDecimal normalise(BigDecimal amount) {

@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class OrderTest {
 
     private static Order newOrder() {
-        return new Order(1L, 1L, "ACME", OrderSide.BUY, 100, new BigDecimal("25.50"), "idem-key-0001");
+        return new Order(1L, 1L, OrderSide.BUY, 100, new BigDecimal("25.50"), "idem-key-0001");
     }
 
     @Test
@@ -83,9 +83,9 @@ class OrderTest {
     void quantityAndPriceMustBeGreaterThanZeroAtConstruction() {
         assertAll(
             () -> assertThrows(IllegalArgumentException.class, () ->
-                new Order(1L, 1L, "ACME", OrderSide.BUY, 0, new BigDecimal("25.50"), "idem-key-0001")),
+                new Order(1L, 1L, OrderSide.BUY, 0, new BigDecimal("25.50"), "idem-key-0001")),
             () -> assertThrows(IllegalArgumentException.class, () ->
-                new Order(1L, 1L, "ACME", OrderSide.BUY, 100, BigDecimal.ZERO, "idem-key-0001"))
+                new Order(1L, 1L, OrderSide.BUY, 100, BigDecimal.ZERO, "idem-key-0001"))
         );
     }
 }

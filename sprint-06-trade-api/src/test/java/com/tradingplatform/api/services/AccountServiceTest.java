@@ -1,15 +1,22 @@
 package com.tradingplatform.api.services;
 
 import com.tradingplatform.api.mappers.AccountMapper;
+import com.tradingplatform.api.mappers.InstrumentMapper;
+import com.tradingplatform.api.mappers.InstrumentMapper;
+import com.tradingplatform.api.mappers.InstrumentMapper;
 import com.tradingplatform.domain.dto.AccountResponse;
 import com.tradingplatform.domain.dto.BalanceResponse;
 import com.tradingplatform.domain.dto.OrderHistoryEntry;
 import com.tradingplatform.domain.dto.PositionResponse;
 import com.tradingplatform.domain.enums.AccountStatus;
+import com.tradingplatform.domain.enums.AssetClass;
 import com.tradingplatform.domain.enums.OrderSide;
 import com.tradingplatform.domain.enums.OrderStatus;
 import com.tradingplatform.domain.exception.AccountNotFoundException;
 import com.tradingplatform.domain.model.Account;
+import com.tradingplatform.domain.model.Instrument;
+import com.tradingplatform.domain.model.Instrument;
+import com.tradingplatform.domain.model.Instrument;
 import com.tradingplatform.domain.model.Order;
 import com.tradingplatform.domain.model.Position;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,6 +51,9 @@ class AccountServiceTest {
     @Mock
     private AccountMapper accountMapper;
 
+    @Mock
+    private InstrumentMapper instrumentMapper;
+
     private AccountService accountService;
 
     private static final long TEST_ACCOUNT_ID = 1L;
@@ -55,7 +65,7 @@ class AccountServiceTest {
 
     @BeforeEach
     void setUp() {
-        accountService = new AccountService(accountMapper);
+        accountService = new AccountService(accountMapper, instrumentMapper);
     }
 
     // ============================================================================
@@ -123,11 +133,16 @@ class AccountServiceTest {
         Account mockAccount = createMockAccount(now);
         when(accountMapper.findByAccountId(TEST_ACCOUNT_ID)).thenReturn(mockAccount);
 
-        Position position1 = new Position(TEST_ACCOUNT_ID, 10L, "INFY", 100, new BigDecimal("1500.00"));
-        Position position2 = new Position(TEST_ACCOUNT_ID, 20L, "RELIANCE", 50, new BigDecimal("2300.00"));
+        Position position1 = new Position(TEST_ACCOUNT_ID, 10L, 100, new BigDecimal("1500.00"));
+        Position position2 = new Position(TEST_ACCOUNT_ID, 20L, 50, new BigDecimal("2300.00"));
         List<Position> positions = List.of(position1, position2);
         
         when(accountMapper.findPositionByAccountId(TEST_ACCOUNT_ID)).thenReturn(positions);
+        
+        Instrument instr1 = new Instrument(10L, "INFY", "Infosys", AssetClass.EQUITY, "INR", true);
+        Instrument instr2 = new Instrument(20L, "RELIANCE", "Reliance Industries", AssetClass.EQUITY, "INR", true);
+        when(instrumentMapper.findById(10L)).thenReturn(instr1);
+        when(instrumentMapper.findById(20L)).thenReturn(instr2);
 
         // When
         List<PositionResponse> response = accountService.getPositions(TEST_ACCOUNT_ID);
@@ -142,6 +157,8 @@ class AccountServiceTest {
 
         verify(accountMapper, times(1)).findByAccountId(TEST_ACCOUNT_ID);
         verify(accountMapper, times(1)).findPositionByAccountId(TEST_ACCOUNT_ID);
+        verify(instrumentMapper, times(1)).findById(10L);
+        verify(instrumentMapper, times(1)).findById(20L);
     }
 
     @Test
@@ -174,6 +191,11 @@ class AccountServiceTest {
         List<Order> orders = List.of(order2, order1); // Most recent first
 
         when(accountMapper.findOrdersByAccountId(TEST_ACCOUNT_ID)).thenReturn(orders);
+        
+        // Mock instrument lookups for the orders (both use instrumentId 10L, so return RELIANCE)
+        // In a real scenario, each order would have a different instrumentId
+        Instrument instr = new Instrument(10L, "RELIANCE", "Reliance Industries", AssetClass.EQUITY, "INR", true);
+        when(instrumentMapper.findById(10L)).thenReturn(instr);
 
         // When
         List<OrderHistoryEntry> response = accountService.getOrders(
@@ -183,11 +205,13 @@ class AccountServiceTest {
         // Then
         assertThat(response).isNotNull();
         assertThat(response).hasSize(2);
+        // Both orders resolve to RELIANCE since they both have instrumentId 10L
         assertThat(response.get(0).symbol()).isEqualTo("RELIANCE"); // Most recent first
-        assertThat(response.get(1).symbol()).isEqualTo("INFY");
+        assertThat(response.get(1).symbol()).isEqualTo("RELIANCE");
 
         verify(accountMapper, times(1)).findByAccountId(TEST_ACCOUNT_ID);
         verify(accountMapper, times(1)).findOrdersByAccountId(TEST_ACCOUNT_ID);
+        verify(instrumentMapper, times(2)).findById(10L);
     }
 
     @Test
@@ -204,6 +228,9 @@ class AccountServiceTest {
         when(accountMapper.findOrdersByAccountIdAndStatus(TEST_ACCOUNT_ID, OrderStatus.FILLED))
             .thenReturn(orders);
 
+        Instrument instr = new Instrument(10L, "INFY", "Infosys", AssetClass.EQUITY, "INR", true);
+        when(instrumentMapper.findById(10L)).thenReturn(instr);
+
         // When
         List<OrderHistoryEntry> response = accountService.getOrders(
             TEST_ACCOUNT_ID, Optional.of(OrderStatus.FILLED), Optional.empty(), Optional.empty()
@@ -213,9 +240,11 @@ class AccountServiceTest {
         assertThat(response).isNotNull();
         assertThat(response).hasSize(1);
         assertThat(response.get(0).status()).isEqualTo(OrderStatus.FILLED);
+        assertThat(response.get(0).symbol()).isEqualTo("INFY");
 
         verify(accountMapper, times(1)).findByAccountId(TEST_ACCOUNT_ID);
         verify(accountMapper, times(1)).findOrdersByAccountIdAndStatus(TEST_ACCOUNT_ID, OrderStatus.FILLED);
+        verify(instrumentMapper, times(1)).findById(10L);
     }
 
     @Test
@@ -233,6 +262,9 @@ class AccountServiceTest {
         when(accountMapper.findOrdersByAccountIdAndFromAndTo(TEST_ACCOUNT_ID, oneHourAgo, now))
             .thenReturn(orders);
 
+        Instrument instr = new Instrument(10L, "INFY", "Infosys", AssetClass.EQUITY, "INR", true);
+        when(instrumentMapper.findById(10L)).thenReturn(instr);
+
         // When
         List<OrderHistoryEntry> response = accountService.getOrders(
             TEST_ACCOUNT_ID, Optional.empty(), Optional.of(oneHourAgo), Optional.of(now)
@@ -241,11 +273,13 @@ class AccountServiceTest {
         // Then
         assertThat(response).isNotNull();
         assertThat(response).hasSize(1);
+        assertThat(response.get(0).symbol()).isEqualTo("INFY");
 
         verify(accountMapper, times(1)).findByAccountId(TEST_ACCOUNT_ID);
         verify(accountMapper, times(1)).findOrdersByAccountIdAndFromAndTo(
             eq(TEST_ACCOUNT_ID), any(Instant.class), any(Instant.class)
         );
+        verify(instrumentMapper, times(1)).findById(10L);
     }
 
     @Test
@@ -264,6 +298,9 @@ class AccountServiceTest {
             TEST_ACCOUNT_ID, OrderStatus.FILLED, oneHourAgo, now
         )).thenReturn(orders);
 
+        Instrument instr = new Instrument(10L, "INFY", "Infosys", AssetClass.EQUITY, "INR", true);
+        when(instrumentMapper.findById(10L)).thenReturn(instr);
+
         // When
         List<OrderHistoryEntry> response = accountService.getOrders(
             TEST_ACCOUNT_ID, Optional.of(OrderStatus.FILLED), Optional.of(oneHourAgo), Optional.of(now)
@@ -273,11 +310,13 @@ class AccountServiceTest {
         assertThat(response).isNotNull();
         assertThat(response).hasSize(1);
         assertThat(response.get(0).status()).isEqualTo(OrderStatus.FILLED);
+        assertThat(response.get(0).symbol()).isEqualTo("INFY");
 
         verify(accountMapper, times(1)).findByAccountId(TEST_ACCOUNT_ID);
         verify(accountMapper, times(1)).findOrdersByAccountIdAndStatusAndFromAndTo(
             eq(TEST_ACCOUNT_ID), eq(OrderStatus.FILLED), any(Instant.class), any(Instant.class)
         );
+        verify(instrumentMapper, times(1)).findById(10L);
     }
 
     // ============================================================================
@@ -360,7 +399,7 @@ class AccountServiceTest {
 
     private Order createMockOrder(String symbol, OrderStatus status, Instant createdOn) {
         Order order = new Order(
-            TEST_ACCOUNT_ID, 10L, symbol, OrderSide.BUY, 100,
+            TEST_ACCOUNT_ID, 10L, OrderSide.BUY, 100,
             new BigDecimal("1500.00"), "idempotency-key-" + UUID.randomUUID()
         );
         // Set status and executed price via reflection for testing

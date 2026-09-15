@@ -3,7 +3,10 @@ package com.tradingplatform.api.mappers;
 import java.math.BigDecimal;
 import java.util.UUID;
 
+import org.apache.ibatis.annotations.Arg;
+import org.apache.ibatis.annotations.ConstructorArgs;
 import org.apache.ibatis.annotations.Insert;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
@@ -23,16 +26,24 @@ public interface OrderMapper {
             OrderStatus status,
             String idempotencyKey);
 
+    @ConstructorArgs({
+        @Arg(column = "account_id", javaType = Long.class),
+        @Arg(column = "instrument_id", javaType = Long.class),
+        @Arg(column = "side", javaType = OrderSide.class),
+        @Arg(column = "quantity", javaType = int.class),
+        @Arg(column = "price", javaType = BigDecimal.class),
+        @Arg(column = "idempotency_key", javaType = String.class)
+    })
     @Select("SELECT id, account_id, instrument_id, side, quantity, price, status, executed_price, idempotency_key, created_on " +
             "FROM orders WHERE id = #{id}")
-    Order findOrderById(UUID id);
+    Order findOrderById(@Param("id") UUID id);
 
     @Update("UPDATE orders SET status = 'CANCELLED' WHERE id = #{id} AND status = 'NEW'")
-    int cancelOrderIfNew(UUID id);
+    int cancelOrderIfNew(@Param("id") UUID id);
 
     @Select("SELECT EXISTS(SELECT 1 FROM orders WHERE idempotency_key = #{idempotencyKey})")
-    boolean existsByIdempotencyKey(String idempotencyKey);
+    boolean existsByIdempotencyKey(@Param("idempotencyKey") String idempotencyKey);
 
     @Update("UPDATE orders SET status = #{status}, executed_price = #{executedPrice} WHERE id = #{id}")
-    int updateOrderStatus(UUID id, OrderStatus status, BigDecimal executedPrice);
+    int updateOrderStatus(@Param("id") UUID id, @Param("status") OrderStatus status, @Param("executedPrice") BigDecimal executedPrice);
 }
