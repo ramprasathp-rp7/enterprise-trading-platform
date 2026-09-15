@@ -181,6 +181,21 @@ public class GlobalExceptionHandler {
         );
     }
 
+    // PREF-422: Invalid preference data (key, value, format, etc.) Maps to HTTP 422 (Unprocessable Entity)
+
+    @ExceptionHandler(InvalidPreferenceException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidPreference(
+            InvalidPreferenceException ex,
+            WebRequest request) {
+
+        logger.error("Invalid preference data: {}", ex.getMessage());
+
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.INVALID_PREFERENCE, ex.getMessage()),
+            HttpStatus.UNPROCESSABLE_ENTITY
+        );
+    }
+
     @ExceptionHandler({MethodArgumentNotValidException.class, ConstraintViolationException.class})
     public ResponseEntity<ErrorResponse> handleValidationException(
             Exception ex,
@@ -282,7 +297,7 @@ public class GlobalExceptionHandler {
             case ACC_403 -> HttpStatus.FORBIDDEN;
             case ORD_400 -> HttpStatus.BAD_REQUEST;
             case ORD_409 -> HttpStatus.CONFLICT;
-            case VAL_422 -> HttpStatus.UNPROCESSABLE_ENTITY;
+            case VAL_422, INVALID_PREFERENCE -> HttpStatus.UNPROCESSABLE_ENTITY;
         };
     }
     
