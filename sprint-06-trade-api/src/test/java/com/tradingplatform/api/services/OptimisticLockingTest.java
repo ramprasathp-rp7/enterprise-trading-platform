@@ -64,7 +64,7 @@ class OptimisticLockingTest {
         
         Position position = new Position(1L, 1L, 0, BigDecimal.ZERO, 0);
         
-        Order buyOrder = new Order(1L, 1L, "INFY.NS", OrderSide.BUY, 200, 
+        Order buyOrder = new Order(1L, 1L, OrderSide.BUY, 200, 
             new BigDecimal("25.00"), "order-buy-1");
         
         when(accountMapper.findByAccountId(1L)).thenReturn(account);
@@ -102,7 +102,7 @@ class OptimisticLockingTest {
         
         Position position = new Position(1L, 1L, 0, BigDecimal.ZERO, 0);
         
-        Order order = new Order(1L, 1L, "INFY.NS", OrderSide.BUY, 100, 
+        Order order = new Order(1L, 1L, OrderSide.BUY, 100, 
             new BigDecimal("25.00"), "order-1");
         
         when(accountMapper.findByAccountId(1L)).thenReturn(account);
@@ -149,7 +149,7 @@ class OptimisticLockingTest {
         
         Position position = new Position(1L, 1L, 0, BigDecimal.ZERO, 0);
         
-        Order order = new Order(1L, 1L, "INFY.NS", OrderSide.BUY, 100, 
+        Order order = new Order(1L, 1L, OrderSide.BUY, 100, 
             new BigDecimal("25.00"), "order-concurrent");
         
         when(accountMapper.findByAccountId(1L)).thenReturn(account);

@@ -1,6 +1,7 @@
 package com.tradingplatform.api.services;
 
 import com.tradingplatform.api.mappers.AccountMapper;
+import com.tradingplatform.api.mappers.InstrumentMapper;
 import com.tradingplatform.domain.dto.AccountResponse;
 import com.tradingplatform.domain.dto.BalanceResponse;
 import com.tradingplatform.domain.dto.PositionResponse;
@@ -8,6 +9,7 @@ import com.tradingplatform.domain.dto.OrderHistoryEntry;
 import com.tradingplatform.domain.enums.OrderStatus;
 import com.tradingplatform.domain.exception.AccountNotFoundException;
 import com.tradingplatform.domain.model.Account;
+import com.tradingplatform.domain.model.Instrument;
 import com.tradingplatform.domain.model.Order;
 import com.tradingplatform.domain.model.Position;
 import org.springframework.stereotype.Service;
@@ -25,9 +27,11 @@ import java.util.Optional;
 public class AccountService {
 
     private final AccountMapper accountMapper;
+    private final InstrumentMapper instrumentMapper;
 
-    public AccountService(AccountMapper accountMapper) {
+    public AccountService(AccountMapper accountMapper, InstrumentMapper instrumentMapper) {
         this.accountMapper = accountMapper;
+        this.instrumentMapper = instrumentMapper;
     }
 
     /**
@@ -149,9 +153,12 @@ public class AccountService {
      * Convert Position entity to PositionResponse DTO.
      */
     private PositionResponse mapToPositionResponse(Position position) {
+        // Fetch instrument to get symbol for the response
+        Instrument instrument = instrumentMapper.findById(position.getInstrumentId());
+        String symbol = instrument != null ? instrument.getSymbol() : "UNKNOWN";
         return new PositionResponse(
             position.getAccountId(),
-            position.getSymbol(),
+            symbol,
             position.getQuantity(),
             position.getAverageCost()
         );
@@ -161,10 +168,13 @@ public class AccountService {
      * Convert Order entity to OrderHistoryEntry DTO.
      */
     private OrderHistoryEntry mapToOrderHistoryEntry(Order order) {
+        // Fetch instrument to get symbol for the response
+        Instrument instrument = instrumentMapper.findById(order.getInstrumentId());
+        String symbol = instrument != null ? instrument.getSymbol() : "UNKNOWN";
         return new OrderHistoryEntry(
             order.getId().toString(),
             order.getAccountId(),
-            order.getSymbol(),
+            symbol,
             order.getSide(),
             order.getQuantity(),
             order.getPrice(),
