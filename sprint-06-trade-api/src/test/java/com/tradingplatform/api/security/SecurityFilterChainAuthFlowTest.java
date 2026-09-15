@@ -98,8 +98,8 @@ class SecurityFilterChainAuthFlowTest {
         String token = createToken("HS256", Instant.now().plusSeconds(900).getEpochSecond(), 1L);
 
         mockMvc.perform(get("/api/v1/probe").header("Authorization", "Bearer " + token))
-            .andExpect(status().isInternalServerError())
-            .andExpect(content().json("{\"errorCode\":\"VAL-422\",\"message\":\"An unexpected error occurred. Please contact support.\"}"));
+            .andExpect(status().isUnprocessableEntity())
+            .andExpect(content().json("{\"errorCode\":\"VAL-422\",\"message\":\"Invalid input\"}"));
     }
 
     private String createToken(String alg, long exp, long accountId) {

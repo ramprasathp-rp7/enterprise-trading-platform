@@ -25,7 +25,7 @@ public class ApiSecurityConfiguration {
 
     @Bean
     public JwtDecoder jwtDecoder(
-        @Value("${JWT_SECRET:mission-control-shared-secret-key-32-bytes-minimum}") String jwtSecret,
+        @Value("${JWT_SECRET}") String jwtSecret,
         @Value("${JWT_ISSUER:auth-service}") String jwtIssuer
     ) {
         NimbusJwtDecoder decoder = NimbusJwtDecoder

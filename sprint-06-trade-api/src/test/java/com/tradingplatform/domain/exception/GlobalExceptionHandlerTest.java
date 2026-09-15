@@ -78,7 +78,7 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().errorCode()).isEqualTo(ErrorCode.ACC_403);
         assertThat(response.getBody().message())
-            .isEqualTo("This account is not active and cannot be used for trading.");
+            .isEqualTo("You do not have permission to access this account.");
         
         // Verify no internal details exposed
         assertThat(response.getBody().message())
@@ -404,7 +404,7 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    @DisplayName("Support Multiple Codes - Distinguish 403s by handler (ACC-403 paths)")
+    @DisplayName("Support Multiple Codes - Both 403s return identical messages")
     void testMultiplePaths_For403Status_DistinctHandlers() {
         // Given two different 403 scenarios
         AccountNotActiveException notActive = new AccountNotActiveException(1L, AccountStatus.SUSPENDED);
@@ -414,16 +414,18 @@ class GlobalExceptionHandlerTest {
         ResponseEntity<ErrorResponse> notActiveResponse = handler.handleAccountNotActive(notActive, webRequest);
         ResponseEntity<ErrorResponse> unauthorizedResponse = handler.handleAccountUnauthorized(unauthorized, webRequest);
         
-        // Then both are 403 with same code but different messages
+        // Then both are 403 with same code and identical messages for security
         assertThat(notActiveResponse.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
         assertThat(unauthorizedResponse.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
         
         assertThat(notActiveResponse.getBody().errorCode()).isEqualTo(ErrorCode.ACC_403);
         assertThat(unauthorizedResponse.getBody().errorCode()).isEqualTo(ErrorCode.ACC_403);
         
-        // Different messages for each scenario
-        assertThat(notActiveResponse.getBody().message()).contains("not active");
-        assertThat(unauthorizedResponse.getBody().message()).contains("permission");
+        // Same message for both scenarios (doesn't reveal which check failed)
+        assertThat(notActiveResponse.getBody().message())
+            .isEqualTo("You do not have permission to access this account.");
+        assertThat(unauthorizedResponse.getBody().message())
+            .isEqualTo("You do not have permission to access this account.");
     }
 
     @Test
