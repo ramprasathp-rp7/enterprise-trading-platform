@@ -1,0 +1,170 @@
+classDiagram
+    class Account {
+        -Long id
+        -String accountId
+        -String holderName
+        -String currency
+        -AccountStatus status
+        -int version
+        -BigDecimal cashBalance
+        +isActive() boolean
+        +canAfford(BigDecimal) boolean
+        +debit(BigDecimal) void
+        +credit(BigDecimal) void
+    }
+
+    class Instrument {
+        -Long id
+        -String symbol
+        -String name
+        -AssetClass assetClass
+        -String currency
+        -boolean tradable
+        +isTradable() boolean
+        +tradable(...)$ Instrument
+        +delisted(...)$ Instrument
+    }
+
+    class Position {
+        -Long accountId
+        -Long instrumentId
+        -int quantity
+        -BigDecimal averageCost
+        +applyBuy(int, BigDecimal) void
+        +applySell(int) void
+        +empty(Long, Long)$ Position
+    }
+
+    class Order {
+        -UUID id
+        -Long accountId
+        -Long instrumentId
+        -String symbol
+        -OrderSide side
+        -int quantity
+        -BigDecimal price
+        -BigDecimal executedPrice
+        -String idempotencyKey
+        -Instant createdOn
+        -OrderStatus status
+        +markFilled(BigDecimal) void
+        +markRejected() void
+        +cancel() void
+    }
+
+    class AccountStatus {
+        <<enumeration>>
+        ACTIVE
+        SUSPENDED
+        CLOSED
+    }
+
+    class OrderSide {
+        <<enumeration>>
+        BUY
+        SELL
+    }
+
+    class OrderStatus {
+        <<enumeration>>
+        NEW
+        FILLED
+        REJECTED
+        CANCELLED
+        +isTerminal() boolean
+    }
+
+    class AssetClass {
+        <<enumeration>>
+        EQUITY
+        FX
+        CRYPTO
+    }
+
+    class PlaceOrderRequest {
+        -Long accountId
+        -String symbol
+        -OrderSide side
+        -Integer quantity
+        -BigDecimal price
+        -String idempotencyKey
+    }
+
+    class DomainException {
+        <<abstract>>
+        -ErrorCode errorCode
+        +getErrorCode() ErrorCode
+        +getCode() String
+    }
+
+    class ErrorCode {
+        <<enumeration>>
+        ACC_404
+        ACC_403
+        INS_404
+        ORD_400
+        ORD_409
+        VAL_422
+        +code() String
+    }
+
+    class AccountNotFoundException {
+        -Long accountId
+    }
+    class AccountNotActiveException {
+        -Long accountId
+        -AccountStatus actualStatus
+    }
+    class InstrumentNotFoundException {
+        -String symbol
+    }
+    class InsufficientFundsException {
+        -BigDecimal available
+        -BigDecimal required
+    }
+    class InsufficientHoldingsException {
+        -int held
+        -int requested
+    }
+    class DuplicateOrderException {
+        -String idempotencyKey
+    }
+    class InvalidOrderException
+
+    class IdempotencyKeyChecker {
+        <<interface>>
+        +claim(String) void
+    }
+
+    class OrderPlacementService {
+        +placeOrder(PlaceOrderRequest, Optional~Account~, Optional~Instrument~, Position, IdempotencyKeyChecker) Order
+        +settle(Account, Position, Order, BigDecimal) void
+    }
+
+    DomainException <|-- AccountNotFoundException
+    DomainException <|-- AccountNotActiveException
+    DomainException <|-- InstrumentNotFoundException
+    DomainException <|-- InsufficientFundsException
+    DomainException <|-- InsufficientHoldingsException
+    DomainException <|-- DuplicateOrderException
+    DomainException <|-- InvalidOrderException
+    DomainException --> ErrorCode : carries
+
+    Account "1" --> "1" AccountStatus : status
+    Order "1" --> "1" OrderSide : side
+    Order "1" --> "1" OrderStatus : status
+    Instrument "1" --> "1" AssetClass : assetClass
+    PlaceOrderRequest "1" --> "1" OrderSide : side
+
+    Order "many" --> "1" Account : accountId
+    Order "many" --> "1" Instrument : instrumentId
+    Position "many" --> "1" Account : accountId
+    Position "many" --> "1" Instrument : instrumentId
+
+    OrderPlacementService ..> Account : reads / mutates
+    OrderPlacementService ..> Instrument : reads
+    OrderPlacementService ..> Position : reads / mutates
+    OrderPlacementService ..> PlaceOrderRequest : consumes
+    OrderPlacementService ..> Order : creates
+    OrderPlacementService ..> IdempotencyKeyChecker : consults
+    OrderPlacementService ..> DomainException : throws
