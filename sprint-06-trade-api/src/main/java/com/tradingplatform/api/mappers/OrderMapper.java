@@ -41,9 +41,6 @@ public interface OrderMapper {
     @Update("UPDATE orders SET status = 'CANCELLED' WHERE id = #{id} AND status = 'NEW'")
     int cancelOrderIfNew(@Param("id") UUID id);
 
-    @Select("SELECT EXISTS(SELECT 1 FROM orders WHERE idempotency_key = #{idempotencyKey})")
-    boolean existsByIdempotencyKey(@Param("idempotencyKey") String idempotencyKey);
-
     @Update("UPDATE orders SET status = #{status}, executed_price = #{executedPrice} WHERE id = #{id}")
     int updateOrderStatus(@Param("id") UUID id, @Param("status") OrderStatus status, @Param("executedPrice") BigDecimal executedPrice);
 }

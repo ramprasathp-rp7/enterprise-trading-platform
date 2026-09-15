@@ -2,13 +2,12 @@ package com.tradingplatform.api.services;
 
 import com.tradingplatform.api.mappers.AccountMapper;
 import com.tradingplatform.api.mappers.InstrumentMapper;
-import com.tradingplatform.api.mappers.OrderMapper;
 import com.tradingplatform.api.mappers.PositionMapper;
 import com.tradingplatform.domain.dto.PlaceOrderRequest;
 import com.tradingplatform.domain.enums.OrderSide;
 import com.tradingplatform.domain.exception.AccountNotActiveException;
 import com.tradingplatform.domain.exception.AccountNotFoundException;
-import com.tradingplatform.domain.exception.DuplicateOrderException;
+import com.tradingplatform.domain.exception.DomainException;
 import com.tradingplatform.domain.exception.InstrumentNotFoundException;
 import com.tradingplatform.domain.exception.InsufficientFundsException;
 import com.tradingplatform.domain.exception.InsufficientHoldingsException;
@@ -26,11 +25,11 @@ import java.util.Objects;
  Pure validation service for order placement requests.
  
  Validates all 8 business rules in optimized order:
- Rule 8 (Idempotency): Check first - fail fast if duplicate key exists
  Rule 1-2 (Account): Verify account exists and is ACTIVE
  Rule 3 (Instrument): Verify instrument exists and is tradable
  Rule 4-5 (Price/Qty): Verify quantity and price are positive
  Rule 6-7 (Funds/Holdings): Verify sufficient funds or holdings
+ Rule 8 (Idempotency): Verify if duplicate key exists
  
 */
 
@@ -40,26 +39,17 @@ public class OrderValidationService {
     private final AccountMapper accountMapper;
     private final InstrumentMapper instrumentMapper;
     private final PositionMapper positionMapper;
-    private final OrderMapper orderMapper;
 
     public OrderValidationService(AccountMapper accountMapper,
                                  InstrumentMapper instrumentMapper,
-                                 PositionMapper positionMapper,
-                                 OrderMapper orderMapper) {
+                                 PositionMapper positionMapper) {
         this.accountMapper = accountMapper;
         this.instrumentMapper = instrumentMapper;
         this.positionMapper = positionMapper;
-        this.orderMapper = orderMapper;
     }
 
     public Order validateAndCreateOrder(PlaceOrderRequest request) {
         Objects.requireNonNull(request, "request");
-
-        // Rule 8 (first): the idempotency key must not already have been used
-        // Fail fast on duplicate key - don't proceed further
-        if (orderMapper.existsByIdempotencyKey(request.idempotencyKey())) {
-            throw new DuplicateOrderException(request.idempotencyKey());
-        }
 
         // Rule 1: the account must exist
         Account account = accountMapper.findByAccountId(request.accountId());
@@ -98,22 +88,31 @@ public class OrderValidationService {
 
         BigDecimal notional = price.multiply(BigDecimal.valueOf(quantity));
         OrderSide side = request.side();
+        Order order = new Order(account.getId(), instrument.getId(), side, quantity, price,
+            request.idempotencyKey());
 
         if (side == OrderSide.BUY) {
             // Rule 6: on a BUY, the cash balance must cover quantity * price.
             if (!account.canAfford(notional)) {
-                throw new InsufficientFundsException(account.getCashBalance(), notional);
+                throw reject(order, new InsufficientFundsException(account.getCashBalance(), notional));
             }
         } else {
             // Rule 7: on a SELL, the held quantity must be at least the order quantity.
             int held = position.getQuantity();
             if (held < quantity) {
-                throw new InsufficientHoldingsException(held, quantity);
+                throw reject(order, new InsufficientHoldingsException(held, quantity));
             }
         }
 
+        // Rule 8: the idempotency key will be enforced at database INSERT via UNIQUE constraint
+        // This validation method returns a NEW order; insertion and idempotency check happens in OrderService
+        
         // All validations passed; create and return NEW order
-        return new Order(account.getId(), instrument.getId(), side, quantity, price,
-            request.idempotencyKey());
+        return order;
+    }
+
+    private static DomainException reject(Order order, DomainException exception) {
+        order.markRejected();
+        return exception.withRejectedOrder(order);
     }
 }
