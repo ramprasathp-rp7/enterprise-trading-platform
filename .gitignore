@@ -11,7 +11,7 @@ build/
 sprint-04-analytics-etl/src/*.egg-info/
 
 # Maven / Java Build Artifacts (sprint-05-domain-engine)
-sprint-05-domain-engine/target/
+target/
 *.class
 *.jar
 *.war
