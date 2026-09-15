@@ -2,9 +2,11 @@ package com.tradingplatform.api.services;
 
 import com.tradingplatform.api.mappers.InstrumentMapper;
 import com.tradingplatform.api.mappers.OrderMapper;
+import com.tradingplatform.api.security.AccountAccessAuthorizer;
 import com.tradingplatform.domain.dto.OrderResponse;
 import com.tradingplatform.domain.dto.PlaceOrderRequest;
 import com.tradingplatform.domain.enums.OrderStatus;
+import com.tradingplatform.domain.exception.OrderNotCancellableException;
 import com.tradingplatform.domain.model.Instrument;
 import com.tradingplatform.domain.model.Order;
 import org.springframework.stereotype.Service;
@@ -20,15 +22,18 @@ public class OrderService {
     private final OrderSettlementService orderSettlementService;
     private final OrderMapper orderMapper;
     private final InstrumentMapper instrumentMapper;
+    private final AccountAccessAuthorizer accountAccessAuthorizer;
     
     public OrderService(OrderValidationService orderValidationService, 
                         OrderSettlementService orderSettlementService,
                         OrderMapper orderMapper,
-                        InstrumentMapper instrumentMapper) {
+                        InstrumentMapper instrumentMapper,
+                        AccountAccessAuthorizer accountAccessAuthorizer) {
         this.orderValidationService = orderValidationService;
         this.orderSettlementService = orderSettlementService;
         this.orderMapper = orderMapper;
         this.instrumentMapper = instrumentMapper;
+        this.accountAccessAuthorizer = accountAccessAuthorizer;
     }
 
     @Transactional
@@ -89,10 +94,21 @@ public class OrderService {
 
     public OrderResponse cancelOrderById(String orderId) {
         UUID id = UUID.fromString(orderId);
+        
+        // Fetch the order first to check if it exists and get account ID
+        Order order = orderMapper.findOrderById(id);
+        if (order == null) {
+            throw new NoSuchElementException("Order not found: " + orderId);
+        }
+        
+        // Authorize access to this order's account
+        accountAccessAuthorizer.assertTokenCanAccess(order.getAccountId());
+        
+        // Attempt to cancel the order atomically (only if in NEW status)
         int rowsUpdated = orderMapper.cancelOrderIfNew(id);
 
         if (rowsUpdated == 0) {
-            throw new IllegalStateException("Cannot cancel order: either not found or not in NEW status");
+            throw new OrderNotCancellableException(orderId);
         }
 
         // Fetch the cancelled order from database

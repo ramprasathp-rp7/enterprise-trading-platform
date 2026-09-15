@@ -4,6 +4,9 @@ import com.tradingplatform.domain.dto.ErrorResponse;
 import com.tradingplatform.domain.enums.ErrorCode;
 import com.tradingplatform.domain.exception.*;
 import jakarta.validation.ConstraintViolationException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -80,7 +83,7 @@ public class GlobalExceptionHandler {
             ex.getAccountId(), ex.getActualStatus());
         
         return new ResponseEntity<>(
-            new ErrorResponse(ErrorCode.ACC_403, "This account is not active and cannot be used for trading."),
+            new ErrorResponse(ErrorCode.ACC_403, "You do not have permission to access this account."),
             HttpStatus.FORBIDDEN
         );
     }
@@ -148,6 +151,21 @@ public class GlobalExceptionHandler {
         );
     }
     
+    // ORD-409: Order not cancellable (not in NEW status) Maps to HTTP 409 (Conflict)
+    
+    @ExceptionHandler(OrderNotCancellableException.class)
+    public ResponseEntity<ErrorResponse> handleOrderNotCancellable(
+            OrderNotCancellableException ex,
+            WebRequest request) {
+        
+        logger.error("Order not cancellable: orderId={}", ex.getOrderId());
+        
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.ORD_409, "The order is not in a cancellable state."),
+            HttpStatus.CONFLICT
+        );
+    }
+    
     // VAL-422: Invalid order data (quantity, price, etc.) Maps to HTTP 422 (Unprocessable Entity)
      
     @ExceptionHandler(InvalidOrderException.class)
@@ -205,10 +223,67 @@ public class GlobalExceptionHandler {
         logger.error("Unhandled domain exception: code={}, message={}", 
             ex.getCode(), ex.getMessage(), ex);
         
+        HttpStatus status = mapErrorCodeToHttpStatus(ex.getErrorCode());
         return new ResponseEntity<>(
             new ErrorResponse(ex.getErrorCode(), ex.getMessage()),
-            HttpStatus.INTERNAL_SERVER_ERROR
+            status
         );
+    }
+    
+    // Handle malformed request bodies
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleHttpMessageNotReadable(
+            HttpMessageNotReadableException ex,
+            WebRequest request) {
+        
+        logger.warn("Malformed request body");
+        
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.VAL_422, "Invalid input"),
+            HttpStatus.UNPROCESSABLE_ENTITY
+        );
+    }
+    
+    // Handle unsupported HTTP methods
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleHttpRequestMethodNotSupported(
+            HttpRequestMethodNotSupportedException ex,
+            WebRequest request) {
+        
+        logger.warn("HTTP method not supported: {}", ex.getMethod());
+        
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.VAL_422, "Invalid input"),
+            HttpStatus.UNPROCESSABLE_ENTITY
+        );
+    }
+    
+    // Handle resource not found (404 for non-mapped endpoints)
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNoResourceFound(
+            NoResourceFoundException ex,
+            WebRequest request) {
+        
+        logger.warn("Resource not found: {} {}", ex.getHttpMethod(), ex.getResourcePath());
+        
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.VAL_422, "Invalid input"),
+            HttpStatus.UNPROCESSABLE_ENTITY
+        );
+    }
+    
+    /**
+     * Maps error codes to their corresponding HTTP status.
+     */
+    private HttpStatus mapErrorCodeToHttpStatus(ErrorCode code) {
+        return switch(code) {
+            case AUTH_401 -> HttpStatus.UNAUTHORIZED;
+            case ACC_404, INS_404 -> HttpStatus.NOT_FOUND;
+            case ACC_403 -> HttpStatus.FORBIDDEN;
+            case ORD_400 -> HttpStatus.BAD_REQUEST;
+            case ORD_409 -> HttpStatus.CONFLICT;
+            case VAL_422 -> HttpStatus.UNPROCESSABLE_ENTITY;
+        };
     }
     
     //Catch-all for unexpected exceptions
