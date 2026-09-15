@@ -6,9 +6,11 @@ import com.tradingplatform.api.security.AccountAccessAuthorizer;
 import com.tradingplatform.domain.dto.OrderResponse;
 import com.tradingplatform.domain.dto.PlaceOrderRequest;
 import com.tradingplatform.domain.enums.OrderStatus;
+import com.tradingplatform.domain.exception.DuplicateOrderException;
 import com.tradingplatform.domain.exception.OrderNotCancellableException;
 import com.tradingplatform.domain.model.Instrument;
 import com.tradingplatform.domain.model.Order;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,16 +44,24 @@ public class OrderService {
         Order newOrder = orderValidationService.validateAndCreateOrder(orderRequest);
 
         // Persist order to database via OrderMapper
-        orderMapper.insertOrder(
-            newOrder.getId(),
-            newOrder.getAccountId(),
-            newOrder.getInstrumentId(),
-            newOrder.getSide(),
-            newOrder.getQuantity(),
-            newOrder.getPrice(),
-            OrderStatus.NEW,  // Order starts in NEW status
-            newOrder.getIdempotencyKey()
-        );
+        // Rule 8 is enforced here: if idempotency key is duplicate, database UNIQUE constraint throws DuplicateKeyException
+        try {
+            orderMapper.insertOrder(
+                newOrder.getId(),
+                newOrder.getAccountId(),
+                newOrder.getInstrumentId(),
+                newOrder.getSide(),
+                newOrder.getQuantity(),
+                newOrder.getPrice(),
+                OrderStatus.NEW,  // Order starts in NEW status
+                newOrder.getIdempotencyKey()
+            );
+        } catch (DuplicateKeyException ex) {
+            // Rule 8 violation: idempotency key already used
+            // Mark order REJECTED and attach it to exception for audit trail
+            newOrder.markRejected();
+            throw new DuplicateOrderException(newOrder.getIdempotencyKey()).withRejectedOrder(newOrder);
+        }
 
         // Settle the order: move cash, update position, mark FILLED
         orderSettlementService.settle(newOrder, newOrder.getPrice());
