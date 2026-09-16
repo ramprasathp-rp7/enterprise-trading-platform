@@ -24,23 +24,23 @@ public interface PreferenceMapper {
 
     /**
      * Retrieve preferences for a given account as raw data.
-     * Returns a map with keys: preferences (as JSON string).
+     * Returns the JSON string directly.
      *
      * @param accountId the account ID
-     * @return Map with result data, empty Optional if not found or preferences is NULL
+     * @return JSON string, empty Optional if not found or preferences is NULL
      */
-    @Select("SELECT preferences::text as preferences FROM accounts WHERE id = #{accountId} AND preferences IS NOT NULL")
-    Optional<Map<String, Object>> findPreferencesByAccountIdRaw(@Param("accountId") Long accountId);
+    @Select("SELECT preferences::text FROM accounts WHERE id = #{accountId} AND preferences IS NOT NULL")
+    Optional<String> findPreferencesByAccountIdRaw(@Param("accountId") Long accountId);
     
     /**
      * Retrieve preferences for a given account (even if NULL).
      * Used to distinguish between "no account" and "NULL preferences".
      *
      * @param accountId the account ID
-     * @return Map with result data, empty Optional if account doesn't exist
+     * @return JSON string, empty Optional if account doesn't exist
      */
-    @Select("SELECT preferences::text as preferences FROM accounts WHERE id = #{accountId}")
-    Optional<Map<String, Object>> findPreferencesByAccountIdIncludingNull(@Param("accountId") Long accountId);
+    @Select("SELECT preferences::text FROM accounts WHERE id = #{accountId}")
+    Optional<String> findPreferencesByAccountIdIncludingNull(@Param("accountId") Long accountId);
     
     /**
      * Retrieve customer preferences for a given account.
@@ -51,8 +51,7 @@ public interface PreferenceMapper {
      * @return Optional containing CustomerPreference if found with non-null preferences, empty otherwise
      */
     default Optional<CustomerPreference> findPreferencesByAccountId(Long accountId) {
-        return findPreferencesByAccountIdRaw(accountId).map(row -> {
-            String prefsJson = (String) row.get("preferences");
+        return findPreferencesByAccountIdRaw(accountId).map(prefsJson -> {
             Map<String, Object> prefs = prefsJson != null && !prefsJson.equals("null") 
                 ? parseJson(prefsJson)
                 : new HashMap<>();
@@ -69,8 +68,7 @@ public interface PreferenceMapper {
      * @return Optional with preferences (may be parsed as empty Map if NULL in DB)
      */
     default Optional<Map<String, Object>> getPreferencesForAccount(Long accountId) {
-        return findPreferencesByAccountIdIncludingNull(accountId).map(row -> {
-            String prefsJson = (String) row.get("preferences");
+        return findPreferencesByAccountIdIncludingNull(accountId).map(prefsJson -> {
             // If DB has NULL, return empty map (signals to service layer: use defaults)
             return (prefsJson != null && !prefsJson.equals("null")) 
                 ? parseJson(prefsJson)
