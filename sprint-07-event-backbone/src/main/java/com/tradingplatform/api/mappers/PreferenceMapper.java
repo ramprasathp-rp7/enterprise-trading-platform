@@ -2,7 +2,6 @@ package com.tradingplatform.api.mappers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tradingplatform.domain.model.CustomerPreference;
-import com.tradingplatform.domain.model.PlatformDefaults;
 import org.apache.ibatis.annotations.*;
 
 import java.time.LocalDateTime;
@@ -11,65 +10,71 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * MyBatis mapper for customer preferences and platform defaults persistence.
- * Handles JSONB column storage/retrieval. JSON serialization/deserialization
- * is handled in the Service layer using ObjectMapper.
+ * MyBatis mapper for customer preferences persistence.
+ * Handles JSONB column storage/retrieval from accounts.preferences.
+ *
+ * Design:
+ * - Preferences are stored as nullable JSONB in the accounts table
+ * - NULL means account uses Spring configuration defaults (handled in service layer)
+ * - Non-NULL contains per-account preference overrides
+ * - Service layer is responsible for merging account preferences with property defaults
  */
 @Mapper
 public interface PreferenceMapper {
 
     /**
-     * Retrieve customer preferences for a given account as raw data.
-     * Returns a map with keys: account_id, preferences (as JSON string), last_modified.
+     * Retrieve preferences for a given account as raw data.
+     * Returns a map with keys: preferences (as JSON string).
      *
      * @param accountId the account ID
-     * @return Map with result data, empty Optional if not found
+     * @return Map with result data, empty Optional if not found or preferences is NULL
      */
-    @Select("SELECT account_id, preferences::text as preferences, last_modified FROM customer_preferences WHERE account_id = #{accountId}")
+    @Select("SELECT preferences::text as preferences FROM accounts WHERE id = #{accountId} AND preferences IS NOT NULL")
     Optional<Map<String, Object>> findPreferencesByAccountIdRaw(@Param("accountId") Long accountId);
+    
+    /**
+     * Retrieve preferences for a given account (even if NULL).
+     * Used to distinguish between "no account" and "NULL preferences".
+     *
+     * @param accountId the account ID
+     * @return Map with result data, empty Optional if account doesn't exist
+     */
+    @Select("SELECT preferences::text as preferences FROM accounts WHERE id = #{accountId}")
+    Optional<Map<String, Object>> findPreferencesByAccountIdIncludingNull(@Param("accountId") Long accountId);
     
     /**
      * Retrieve customer preferences for a given account.
      * Uses raw mapper and constructs domain object in interface default method.
+     * Returns empty Optional if preferences is NULL (account uses defaults).
      *
      * @param accountId the account ID
-     * @return Optional containing CustomerPreference if found, empty otherwise
+     * @return Optional containing CustomerPreference if found with non-null preferences, empty otherwise
      */
     default Optional<CustomerPreference> findPreferencesByAccountId(Long accountId) {
         return findPreferencesByAccountIdRaw(accountId).map(row -> {
-            Long id = ((Number) row.get("account_id")).longValue();
             String prefsJson = (String) row.get("preferences");
             Map<String, Object> prefs = prefsJson != null && !prefsJson.equals("null") 
                 ? parseJson(prefsJson)
                 : new HashMap<>();
-            LocalDateTime modified = (LocalDateTime) row.get("last_modified");
-            return new CustomerPreference(id, prefs, modified);
+            // Use current time as lastModified; could be updated to track actual DB timestamp
+            return new CustomerPreference(accountId, prefs, LocalDateTime.now());
         });
     }
-
-    /**
-     * Retrieve platform-wide default preferences as raw data.
-     *
-     * @return Map with result data, empty Optional if not found
-     */
-    @Select("SELECT id, defaults::text as defaults, last_updated FROM platform_defaults WHERE id = 1")
-    Optional<Map<String, Object>> findPlatformDefaultsRaw();
     
     /**
-     * Retrieve platform-wide default preferences.
-     * Uses raw mapper and constructs domain object in interface default method.
+     * Check if account exists and retrieve preferences (which may be NULL).
+     * Returns empty Optional if account doesn't exist.
      *
-     * @return Optional containing PlatformDefaults if found, empty otherwise
+     * @param accountId the account ID
+     * @return Optional with preferences (may be parsed as empty Map if NULL in DB)
      */
-    default Optional<PlatformDefaults> findPlatformDefaults() {
-        return findPlatformDefaultsRaw().map(row -> {
-            Long id = ((Number) row.get("id")).longValue();
-            String defaultsJson = (String) row.get("defaults");
-            Map<String, Object> defaults = defaultsJson != null && !defaultsJson.equals("null")
-                ? parseJson(defaultsJson)
+    default Optional<Map<String, Object>> getPreferencesForAccount(Long accountId) {
+        return findPreferencesByAccountIdIncludingNull(accountId).map(row -> {
+            String prefsJson = (String) row.get("preferences");
+            // If DB has NULL, return empty map (signals to service layer: use defaults)
+            return (prefsJson != null && !prefsJson.equals("null")) 
+                ? parseJson(prefsJson)
                 : new HashMap<>();
-            LocalDateTime updated = (LocalDateTime) row.get("last_updated");
-            return new PlatformDefaults(id, defaults, updated);
         });
     }
     
@@ -87,34 +92,30 @@ public interface PreferenceMapper {
     }
 
     /**
-     * Insert or update customer preferences for an account (upsert operation).
-     * If preferences exist, update them; otherwise insert new row.
+     * Update preferences for an account.
+     * Sets the preferences column in the accounts table.
      * Preferences should be passed as a JSON string.
      *
      * @param accountId the account ID
-     * @param preferencesJson the preferences as JSON string
+     * @param preferencesJson the preferences as JSON string (can be null to reset to defaults)
      */
-    @Insert("INSERT INTO customer_preferences (account_id, preferences, last_modified) " +
-            "VALUES (#{accountId}, #{preferencesJson}::jsonb, CURRENT_TIMESTAMP) " +
-            "ON CONFLICT (account_id) DO UPDATE SET " +
-            "preferences = #{preferencesJson}::jsonb, " +
-            "last_modified = CURRENT_TIMESTAMP")
-    void upsertPreferences(@Param("accountId") Long accountId, @Param("preferencesJson") String preferencesJson);
+    @Update("UPDATE accounts SET preferences = #{preferencesJson}::jsonb WHERE id = #{accountId}")
+    void updatePreferences(@Param("accountId") Long accountId, @Param("preferencesJson") String preferencesJson);
 
     /**
-     * Delete customer preferences for an account, effectively resetting to platform defaults.
+     * Reset preferences for an account to NULL (will use platform defaults).
      *
      * @param accountId the account ID
      */
-    @Delete("DELETE FROM customer_preferences WHERE account_id = #{accountId}")
-    void deletePreferences(@Param("accountId") Long accountId);
+    @Update("UPDATE accounts SET preferences = NULL WHERE id = #{accountId}")
+    void resetPreferences(@Param("accountId") Long accountId);
 
     /**
-     * Check if preferences exist for an account.
+     * Check if an account exists.
      *
      * @param accountId the account ID
-     * @return true if preferences exist, false otherwise
+     * @return true if account exists, false otherwise
      */
-    @Select("SELECT EXISTS(SELECT 1 FROM customer_preferences WHERE account_id = #{accountId})")
-    boolean existsByAccountId(@Param("accountId") Long accountId);
+    @Select("SELECT EXISTS(SELECT 1 FROM accounts WHERE id = #{accountId})")
+    boolean accountExists(@Param("accountId") Long accountId);
 }

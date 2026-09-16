@@ -1,17 +1,20 @@
 package com.tradingplatform.api.services;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tradingplatform.api.mappers.AccountMapper;
+import com.tradingplatform.api.mappers.InstrumentMapper;
 import com.tradingplatform.api.mappers.PreferenceMapper;
+import com.tradingplatform.config.PreferenceDefaults;
+import com.tradingplatform.domain.enums.AccountStatus;
 import com.tradingplatform.domain.exception.InvalidPreferenceException;
-import com.tradingplatform.domain.model.CustomerPreference;
-import com.tradingplatform.domain.model.PlatformDefaults;
+import com.tradingplatform.domain.model.Account;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -20,194 +23,238 @@ import static org.mockito.Mockito.*;
 /**
  * Unit tests for PreferenceService.
  * 
- * Note: Tests focus on mapper integration and merge logic.
- * Service is tested through PreferenceControllerTest for account validation scenarios.
+ * Tests cover:
+ * - Nullable preferences handling
+ * - Merge logic (Spring config defaults + account preferences)
+ * - Partial updates
+ * - Deletion (reset to NULL)
+ * 
+ * Note: Uses test stub implementations instead of mocks for AccountService and PreferenceDefaults
+ * due to Mockito/ByteBuddy compatibility issues with Java 25.
  */
 @ExtendWith(MockitoExtension.class)
 class PreferenceServiceTest {
     @Mock
     private PreferenceMapper preferenceMapper;
+    
+    @Mock
+    private AccountMapper accountMapper;
+    
+    @Mock
+    private InstrumentMapper instrumentMapper;
 
+    private PreferenceService preferenceService;
+    private AccountService accountService;
+    private PreferenceDefaults preferenceDefaults;
     private ObjectMapper objectMapper;
     private final Long testAccountId = 1L;
-    private final LocalDateTime testTime = LocalDateTime.now();
+    
+    /**
+     * Stub implementation of PreferenceDefaults for testing
+     */
+    private static class PreferenceDefaultsStub extends PreferenceDefaults {
+        private final Map<String, Object> configDefaults = new HashMap<>();
+        
+        public PreferenceDefaultsStub() {
+            super();
+            configDefaults.put("NOTIFICATION_EMAIL", true);
+            configDefaults.put("NOTIFICATION_TRADING_ALERTS", true);
+            configDefaults.put("DISPLAY_THEME", "light");
+            configDefaults.put("DISPLAY_CURRENCY", "USD");
+            configDefaults.put("TRADING_DEFAULT_ORDER_TYPE", "LIMIT");
+            configDefaults.put("TRADING_MAX_ORDER_SIZE", 10000);
+            configDefaults.put("TIMEZONE", "UTC");
+            configDefaults.put("LANGUAGE", "en");
+        }
+        
+        @Override
+        public Map<String, Object> getDefaults() {
+            return new HashMap<>(configDefaults);
+        }
+        
+        @Override
+        public Map<String, Object> getDefaultsCopy() {
+            return new HashMap<>(configDefaults);
+        }
+    }
 
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
+        
+        // Mock accountMapper to return a valid account (avoid AccountNotFoundException)
+        // Use lenient() to avoid UnnecessaryStubbingException for tests that don't use account service
+        lenient().when(accountMapper.findByAccountId(testAccountId)).thenReturn(
+            new Account(testAccountId, "ACC-001", "Test User", new BigDecimal("1000.00"), "USD", AccountStatus.ACTIVE, 0)
+        );
+        
+        accountService = new AccountService(accountMapper, instrumentMapper);
+        preferenceDefaults = new PreferenceDefaultsStub();
+        
+        // Manually instantiate service with mocked preferences mapper and test stubs
+        preferenceService = new PreferenceService(preferenceMapper, accountService, objectMapper, preferenceDefaults);
     }
 
     // ============ getPlatformDefaults Tests ============
 
     @Test
-    void testGetPlatformDefaults_WithDefaults_ReturnsDefaults() {
-        // Setup
-        Map<String, Object> platformDefaults = new HashMap<>();
-        platformDefaults.put("NOTIFICATION_EMAIL", true);
-        platformDefaults.put("DISPLAY_THEME", "light");
-
-        PlatformDefaults platformDefaultsObj = new PlatformDefaults(1L, platformDefaults, testTime);
-
-        when(preferenceMapper.findPlatformDefaults()).thenReturn(Optional.of(platformDefaultsObj));
-
-        // Note: Creating service without mocking AccountService requires handling the dependency
-        // This test demonstrates the merge logic works when mapper provides data
-        Map<String, Object> result = preferenceMapper.findPlatformDefaults()
-                .map(PlatformDefaults::getDefaults)
-                .orElse(new HashMap<>());
+    void testGetPlatformDefaults_ReturnsConfigDefaults() {
+        // Act
+        Map<String, Object> result = preferenceService.getPlatformDefaults();
 
         // Assert
-        assertEquals(2, result.size());
+        assertNotNull(result);
         assertEquals(true, result.get("NOTIFICATION_EMAIL"));
         assertEquals("light", result.get("DISPLAY_THEME"));
+        assertEquals("UTC", result.get("TIMEZONE"));
+        assertEquals(8, result.size());
     }
 
-    @Test
-    void testGetPlatformDefaults_NoDefaults_ReturnsEmpty() {
-        // Setup
-        when(preferenceMapper.findPlatformDefaults()).thenReturn(Optional.empty());
-
-        // Act - Direct mapper call shows empty behavior
-        Map<String, Object> result = preferenceMapper.findPlatformDefaults()
-                .map(PlatformDefaults::getDefaults)
-                .orElse(new HashMap<>());
-
-        // Assert
-        assertTrue(result.isEmpty());
-    }
-
-    // ============ getCustomerPreference Tests ============
+    // ============ getPreferencesForAccount Tests ============
 
     @Test
-    void testGetCustomerPreference_Found_ReturnsPreference() {
-        // Setup
-        Map<String, Object> accountPrefs = new HashMap<>();
-        accountPrefs.put("DISPLAY_THEME", "dark");
-
-        CustomerPreference customerPref = new CustomerPreference(testAccountId, accountPrefs, testTime);
-
-        when(preferenceMapper.findPreferencesByAccountId(testAccountId)).thenReturn(Optional.of(customerPref));
+    void testGetPreferencesForAccount_NullPreferences_ReturnsConfigDefaults() {
+        // Setup: account exists, preferences are NULL (empty optional)
+        when(preferenceMapper.getPreferencesForAccount(testAccountId)).thenReturn(Optional.empty());
 
         // Act
-        Optional<CustomerPreference> result = preferenceMapper.findPreferencesByAccountId(testAccountId);
+        Map<String, Object> result = preferenceService.getPreferencesForAccount(testAccountId);
 
-        // Assert
-        assertTrue(result.isPresent());
-        assertEquals(testAccountId, result.get().getAccountId());
-        assertEquals("dark", result.get().getPreferences().get("DISPLAY_THEME"));
+        // Assert: should return all config defaults
+        assertNotNull(result);
+        assertEquals(true, result.get("NOTIFICATION_EMAIL"));
+        assertEquals("light", result.get("DISPLAY_THEME"));
+        assertEquals("UTC", result.get("TIMEZONE"));
+        assertEquals(8, result.size());
+        
+        verify(preferenceMapper).getPreferencesForAccount(testAccountId);
     }
 
     @Test
-    void testGetCustomerPreference_NotFound_ReturnsEmpty() {
-        // Setup
-        when(preferenceMapper.findPreferencesByAccountId(testAccountId)).thenReturn(Optional.empty());
+    void testGetPreferencesForAccount_WithAccountPreferences_MergesWithDefaults() {
+        // Setup: account has some preferences
+        Map<String, Object> accountPrefs = new HashMap<>();
+        accountPrefs.put("DISPLAY_THEME", "dark");  // Override default
+        accountPrefs.put("LANGUAGE", "es");         // Override default
+        
+        when(preferenceMapper.getPreferencesForAccount(testAccountId)).thenReturn(Optional.of(accountPrefs));
 
         // Act
-        Optional<CustomerPreference> result = preferenceMapper.findPreferencesByAccountId(testAccountId);
+        Map<String, Object> result = preferenceService.getPreferencesForAccount(testAccountId);
 
-        // Assert
-        assertTrue(result.isEmpty());
-    }
-
-    // ============ Merge Logic Unit Tests ============
-
-    @Test
-    void testMergePreferencesLogic_AccountOverridesPlatformDefault() {
-        // This test demonstrates the merge strategy:
-        // Platform defaults + Account overrides = Final preferences
-        
-        Map<String, Object> platformDefaults = new HashMap<>();
-        platformDefaults.put("NOTIFICATION_EMAIL", true);
-        platformDefaults.put("DISPLAY_THEME", "light");
-        platformDefaults.put("TIMEZONE", "UTC");
-
-        Map<String, Object> accountPrefs = new HashMap<>();
-        accountPrefs.put("DISPLAY_THEME", "dark");  // Override platform default
-        accountPrefs.put("LANGUAGE", "en");          // Additional preference
-
-        // Merge logic: start with platform defaults, apply account overrides
-        Map<String, Object> merged = new HashMap<>(platformDefaults);
-        merged.putAll(accountPrefs);
-
-        // Assert
-        assertEquals("dark", merged.get("DISPLAY_THEME"));      // Account override wins
-        assertEquals(true, merged.get("NOTIFICATION_EMAIL"));   // Platform default retained
-        assertEquals("en", merged.get("LANGUAGE"));             // Account addition retained
-        assertEquals("UTC", merged.get("TIMEZONE"));            // Platform default retained
+        // Assert: config defaults + account overrides
+        assertEquals("dark", result.get("DISPLAY_THEME"));    // Account override
+        assertEquals("es", result.get("LANGUAGE"));           // Account override
+        assertEquals(true, result.get("NOTIFICATION_EMAIL")); // Config default
+        assertEquals("UTC", result.get("TIMEZONE"));          // Config default
+        assertEquals(8, result.size());
     }
 
     @Test
-    void testMergePreferencesLogic_NoAccountPreferences() {
-        // Test merge when account has no custom preferences
-        
-        Map<String, Object> platformDefaults = new HashMap<>();
-        platformDefaults.put("NOTIFICATION_EMAIL", true);
-        platformDefaults.put("DISPLAY_THEME", "light");
-
-        Map<String, Object> accountPrefs = new HashMap<>();  // Empty
-
-        Map<String, Object> merged = new HashMap<>(platformDefaults);
-        merged.putAll(accountPrefs);
-
-        // Assert
-        assertEquals(2, merged.size());
-        assertEquals(true, merged.get("NOTIFICATION_EMAIL"));
-        assertEquals("light", merged.get("DISPLAY_THEME"));
-    }
-
-    @Test
-    void testMergePreferencesLogic_NoPlatformDefaults() {
-        // Test merge when no platform defaults exist
-        
-        Map<String, Object> platformDefaults = new HashMap<>();  // Empty
-        
+    void testGetPreferencesForAccount_PartialAccountPreferences() {
+        // Setup: account only overrides a couple of preferences
         Map<String, Object> accountPrefs = new HashMap<>();
         accountPrefs.put("DISPLAY_THEME", "dark");
-        accountPrefs.put("LANGUAGE", "en");
+        
+        when(preferenceMapper.getPreferencesForAccount(testAccountId)).thenReturn(Optional.of(accountPrefs));
 
-        Map<String, Object> merged = new HashMap<>(platformDefaults);
-        merged.putAll(accountPrefs);
+        // Act
+        Map<String, Object> result = preferenceService.getPreferencesForAccount(testAccountId);
 
-        // Assert
-        assertEquals(2, merged.size());
-        assertEquals("dark", merged.get("DISPLAY_THEME"));
-        assertEquals("en", merged.get("LANGUAGE"));
+        // Assert: only one preference is overridden, rest are defaults
+        assertEquals("dark", result.get("DISPLAY_THEME"));
+        assertEquals("light", result.getOrDefault("DISPLAY_THEME_BACKUP", "light")); // Not overridden
+        assertEquals("UTC", result.get("TIMEZONE"));                                  // Not overridden
+        assertEquals(true, result.get("NOTIFICATION_EMAIL"));                         // Not overridden
     }
 
-    // ============ Validation Tests ============
+    // ============ updateAccountPreferences Tests ============
 
     @Test
-    void testValidatePreferences_ValidPreferences_PassesValidation() {
-        // Valid preferences should not throw
-        Map<String, Object> validPrefs = new HashMap<>();
-        validPrefs.put("DISPLAY_THEME", "dark");
-        validPrefs.put("LANGUAGE", "en");
+    void testUpdateAccountPreferences_ValidPreferences_UpdatesSuccessfully() throws Exception {
+        // Setup
+        Map<String, Object> newPrefs = new HashMap<>();
+        newPrefs.put("DISPLAY_THEME", "dark");
+        
+        Map<String, Object> existingPrefs = new HashMap<>();
+        when(preferenceMapper.getPreferencesForAccount(testAccountId)).thenReturn(Optional.of(existingPrefs));
 
-        // Validation logic: no null or blank keys
-        boolean isValid = validPrefs.keySet().stream()
-                .allMatch(key -> key != null && !key.isEmpty());
+        // Act
+        preferenceService.updateAccountPreferences(testAccountId, newPrefs);
 
-        assertTrue(isValid);
+        // Assert: mapper's updatePreferences should be called with merged preferences
+        verify(preferenceMapper).updatePreferences(eq(testAccountId), contains("DISPLAY_THEME"));
     }
 
     @Test
-    void testValidatePreferences_NullKey_FailsValidation() {
-        // Null keys should fail validation
+    void testUpdateAccountPreferences_PartialUpdate_MergesWithExisting() throws Exception {
+        // Setup: existing preferences with multiple keys
+        Map<String, Object> existingPrefs = new HashMap<>();
+        existingPrefs.put("DISPLAY_THEME", "light");
+        existingPrefs.put("LANGUAGE", "en");
+        
+        when(preferenceMapper.getPreferencesForAccount(testAccountId)).thenReturn(Optional.of(existingPrefs));
+
+        Map<String, Object> newPrefs = new HashMap<>();
+        newPrefs.put("DISPLAY_THEME", "dark");  // Override
+
+        // Act
+        preferenceService.updateAccountPreferences(testAccountId, newPrefs);
+
+        // Assert: both DISPLAY_THEME (updated) and LANGUAGE (retained) should be in the update
+        verify(preferenceMapper).updatePreferences(argThat(accountId -> accountId.equals(testAccountId)), 
+            argThat(json -> json.contains("DISPLAY_THEME") && json.contains("LANGUAGE")));
+    }
+
+    @Test
+    void testUpdateAccountPreferences_NullPreferences_ThrowsException() {
+        // Act & Assert
+        assertThrows(InvalidPreferenceException.class, () ->
+            preferenceService.updateAccountPreferences(testAccountId, null)
+        );
+    }
+
+    @Test
+    void testUpdateAccountPreferences_EmptyPreferences_ThrowsException() {
+        // Act & Assert
+        assertThrows(InvalidPreferenceException.class, () ->
+            preferenceService.updateAccountPreferences(testAccountId, new HashMap<>())
+        );
+    }
+
+    @Test
+    void testUpdateAccountPreferences_NullKey_ThrowsException() {
+        // Setup
         Map<String, Object> invalidPrefs = new HashMap<>();
         invalidPrefs.put(null, "value");
 
-        boolean hasNullKey = invalidPrefs.keySet().stream().anyMatch(k -> k == null);
-        assertTrue(hasNullKey);
+        // Act & Assert
+        assertThrows(InvalidPreferenceException.class, () ->
+            preferenceService.updateAccountPreferences(testAccountId, invalidPrefs)
+        );
     }
 
     @Test
-    void testValidatePreferences_BlankKey_FailsValidation() {
-        // Blank keys should fail validation
+    void testUpdateAccountPreferences_BlankKey_ThrowsException() {
+        // Setup
         Map<String, Object> invalidPrefs = new HashMap<>();
         invalidPrefs.put("", "value");
 
-        boolean hasBlankKey = invalidPrefs.keySet().stream().anyMatch(k -> k != null && k.isEmpty());
-        assertTrue(hasBlankKey);
+        // Act & Assert
+        assertThrows(InvalidPreferenceException.class, () ->
+            preferenceService.updateAccountPreferences(testAccountId, invalidPrefs)
+        );
+    }
+
+    // ============ deleteAccountPreferences Tests ============
+
+    @Test
+    void testDeleteAccountPreferences_CallsResetPreferences() {
+        // Act
+        preferenceService.deleteAccountPreferences(testAccountId);
+
+        // Assert: mapper's resetPreferences should be called with NULL
+        verify(preferenceMapper).resetPreferences(testAccountId);
     }
 
     // ============ JSON Serialization Tests ============
@@ -236,37 +283,5 @@ class PreferenceServiceTest {
 
         assertEquals("dark", prefs.get("DISPLAY_THEME"));
         assertEquals("en", prefs.get("LANGUAGE"));
-    }
-
-    // ============ Mapper Integration Tests ============
-
-    @Test
-    void testMapperUpsertCall_WithValidPreferences() {
-        // Test that valid preferences trigger mapper upsert
-        Map<String, Object> prefs = new HashMap<>();
-        prefs.put("DISPLAY_THEME", "dark");
-
-        when(preferenceMapper.findPreferencesByAccountId(testAccountId)).thenReturn(Optional.empty());
-
-        // Simulate what the service does: find existing, merge, serialize, upsert
-        Optional<CustomerPreference> existing = preferenceMapper.findPreferencesByAccountId(testAccountId);
-        Map<String, Object> toUpsert = new HashMap<>(prefs);
-        if (existing.isPresent()) {
-            Map<String, Object> merged = new HashMap<>(existing.get().getPreferences());
-            merged.putAll(prefs);
-            toUpsert = merged;
-        }
-
-        // Verify we prepared data for upsert
-        assertNotNull(toUpsert);
-        assertEquals("dark", toUpsert.get("DISPLAY_THEME"));
-    }
-
-    @Test
-    void testMapperDeleteCall_RemovesPreferences() {
-        // Test that delete is called on mapper
-        preferenceMapper.deletePreferences(testAccountId);
-
-        verify(preferenceMapper).deletePreferences(testAccountId);
     }
 }

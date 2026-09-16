@@ -2,10 +2,10 @@ package com.tradingplatform.api.services;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tradingplatform.api.mappers.PreferenceMapper;
+import com.tradingplatform.config.PreferenceDefaults;
 import com.tradingplatform.domain.exception.AccountNotFoundException;
 import com.tradingplatform.domain.exception.InvalidPreferenceException;
 import com.tradingplatform.domain.model.CustomerPreference;
-import com.tradingplatform.domain.model.PlatformDefaults;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,41 +13,51 @@ import java.util.*;
 
 /**
  * Service for managing customer preferences.
- * Handles preference retrieval, updates, and merging with platform defaults.
- * Designed to be extended with business logic validation if preferences need to affect trading rules.
+ * Handles preference retrieval, updates, and merging with Spring configuration defaults.
+ *
+ * Architecture:
+ * - Preferences stored in accounts.preferences as nullable JSONB
+ * - NULL preferences mean account inherits all Spring config defaults
+ * - Non-null preferences are merged with config defaults (preferences override)
+ * - Spring configuration (@see PreferenceDefaults) provides environment-specific defaults
  */
 @Service
 @Transactional
-public class PreferenceService {
+public class PreferenceService implements IPreferenceService {
     private final PreferenceMapper preferenceMapper;
     private final AccountService accountService;
     private final ObjectMapper objectMapper;
+    private final PreferenceDefaults preferenceDefaults;
 
-    public PreferenceService(PreferenceMapper preferenceMapper, AccountService accountService, ObjectMapper objectMapper) {
+    public PreferenceService(PreferenceMapper preferenceMapper, AccountService accountService, 
+                           ObjectMapper objectMapper, PreferenceDefaults preferenceDefaults) {
         this.preferenceMapper = Objects.requireNonNull(preferenceMapper, "preferenceMapper cannot be null");
         this.accountService = Objects.requireNonNull(accountService, "accountService cannot be null");
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper cannot be null");
+        this.preferenceDefaults = Objects.requireNonNull(preferenceDefaults, "preferenceDefaults cannot be null");
     }
 
     /**
      * Retrieve merged preferences for an account.
-     * Account-specific preferences override platform defaults.
+     * Returns Spring configuration defaults, with account-specific preferences overriding them.
      *
      * @param accountId the account ID
-     * @return merged preferences (account-level + platform defaults)
+     * @return merged preferences (account-level preferences override config defaults)
      * @throws AccountNotFoundException if account does not exist
      */
     public Map<String, Object> getPreferencesForAccount(Long accountId) {
         // Verify account exists
         accountService.getAccount(accountId);
 
-        // Get platform defaults
-        Map<String, Object> mergedPreferences = getPlatformDefaults();
+        // Start with Spring configuration defaults (a copy to prevent external modification)
+        Map<String, Object> mergedPreferences = preferenceDefaults.getDefaultsCopy();
 
-        // Merge with account-specific preferences
-        preferenceMapper.findPreferencesByAccountId(accountId).ifPresent(pref ->
-                mergedPreferences.putAll(pref.getPreferences())
-        );
+        // Merge with account-specific preferences if they exist (account overrides defaults)
+        preferenceMapper.getPreferencesForAccount(accountId).ifPresent(accountPrefs -> {
+            if (!accountPrefs.isEmpty()) {
+                mergedPreferences.putAll(accountPrefs);
+            }
+        });
 
         return mergedPreferences;
     }
@@ -55,7 +65,7 @@ public class PreferenceService {
     /**
      * Update customer preferences for an account.
      * Validates preference keys and performs partial update (only provided keys are updated).
-     * Non-provided keys retain their current values or platform defaults.
+     * Non-provided keys retain their current value or use the default.
      *
      * @param accountId the account ID
      * @param preferences the preference key-value pairs to update
@@ -70,28 +80,28 @@ public class PreferenceService {
             throw new InvalidPreferenceException("Preferences cannot be null or empty");
         }
 
-        // Get existing preferences or start fresh
-        Map<String, Object> existingPreferences = preferenceMapper.findPreferencesByAccountId(accountId)
-                .map(pref -> new HashMap<>(pref.getPreferences()))
-                .orElseGet(HashMap::new);
-
         // Validate new preferences before merging
         validatePreferences(preferences);
 
+        // Get existing account preferences (may be empty if NULL in DB)
+        Map<String, Object> accountPreferences = preferenceMapper.getPreferencesForAccount(accountId)
+                .orElseGet(HashMap::new);
+
         // Merge new preferences with existing ones (partial update)
-        existingPreferences.putAll(preferences);
+        accountPreferences.putAll(preferences);
 
         // Convert to JSON string and persist
         try {
-            String preferencesJson = objectMapper.writeValueAsString(existingPreferences);
-            preferenceMapper.upsertPreferences(accountId, preferencesJson);
+            String preferencesJson = objectMapper.writeValueAsString(accountPreferences);
+            preferenceMapper.updatePreferences(accountId, preferencesJson);
         } catch (Exception e) {
             throw new InvalidPreferenceException("Failed to serialize preferences: " + e.getMessage());
         }
     }
 
     /**
-     * Delete customer preferences for an account, resetting to platform defaults.
+     * Delete customer preferences for an account, resetting to Spring config defaults.
+     * This sets the preferences column to NULL in the database.
      *
      * @param accountId the account ID
      * @throws AccountNotFoundException if account does not exist
@@ -100,31 +110,30 @@ public class PreferenceService {
         // Verify account exists
         accountService.getAccount(accountId);
 
-        preferenceMapper.deletePreferences(accountId);
+        preferenceMapper.resetPreferences(accountId);
     }
 
     /**
-     * Retrieve platform-wide default preferences.
+     * Retrieve platform-wide default preferences from Spring configuration.
+     * This does not query the database; it returns the configured defaults.
      *
-     * @return merged platform defaults
+     * @return a copy of platform defaults from Spring configuration
      */
     public Map<String, Object> getPlatformDefaults() {
-        return preferenceMapper.findPlatformDefaults()
-                .map(PlatformDefaults::getDefaults)
-                .map(HashMap::new)
-                .orElseGet(HashMap::new);
+        return preferenceDefaults.getDefaultsCopy();
     }
 
     /**
-     * Get customer preference with last modified timestamp.
+     * Get customer preference with merged result.
+     * Includes account-specific preferences merged with defaults.
      * Used internally for response DTOs.
      *
      * @param accountId the account ID
-     * @return Optional containing CustomerPreference if found
+     * @return Optional containing merged preferences
      */
     @Transactional(readOnly = true)
-    public Optional<CustomerPreference> getCustomerPreference(Long accountId) {
-        return preferenceMapper.findPreferencesByAccountId(accountId);
+    public Map<String, Object> getCustomerPreferencesMerged(Long accountId) {
+        return getPreferencesForAccount(accountId);
     }
 
     /**
