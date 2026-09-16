@@ -34,13 +34,13 @@ public interface OrderMapper {
         @Arg(column = "price", javaType = BigDecimal.class),
         @Arg(column = "idempotency_key", javaType = String.class)
     })
-    @Select("SELECT id, account_id, instrument_id, side, quantity, price, status, executed_price, idempotency_key, created_on " +
+    @Select("SELECT id, account_id, instrument_id, side, quantity, price, status, executed_price, fee, idempotency_key, created_on " +
             "FROM orders WHERE id = #{id}")
     Order findOrderById(@Param("id") UUID id);
 
     @Update("UPDATE orders SET status = 'CANCELLED' WHERE id = #{id} AND status = 'NEW'")
     int cancelOrderIfNew(@Param("id") UUID id);
 
-    @Update("UPDATE orders SET status = #{status}, executed_price = #{executedPrice} WHERE id = #{id}")
-    int updateOrderStatus(@Param("id") UUID id, @Param("status") OrderStatus status, @Param("executedPrice") BigDecimal executedPrice);
+    @Update("UPDATE orders SET status = #{status}, executed_price = #{executedPrice}, fee = #{fee} WHERE id = #{id}")
+    int updateOrderStatus(@Param("id") UUID id, @Param("status") OrderStatus status, @Param("executedPrice") BigDecimal executedPrice, @Param("fee") BigDecimal fee);
 }
