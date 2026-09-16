@@ -1,7 +1,7 @@
 package com.tradingplatform.api.controllers;
 
 import com.tradingplatform.api.security.AccountAccessAuthorizer;
-import com.tradingplatform.api.services.PreferenceService;
+import com.tradingplatform.api.services.IPreferenceService;
 import com.tradingplatform.domain.dto.PreferenceRequest;
 import com.tradingplatform.domain.dto.PreferenceResponse;
 import com.tradingplatform.domain.dto.PlatformDefaultsResponse;
@@ -25,10 +25,10 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1")
 public class PreferenceController {
-    private final PreferenceService preferenceService;
+    private final IPreferenceService preferenceService;
     private final AccountAccessAuthorizer accountAccessAuthorizer;
 
-    public PreferenceController(PreferenceService preferenceService, AccountAccessAuthorizer accountAccessAuthorizer) {
+    public PreferenceController(IPreferenceService preferenceService, AccountAccessAuthorizer accountAccessAuthorizer) {
         this.preferenceService = preferenceService;
         this.accountAccessAuthorizer = accountAccessAuthorizer;
     }
@@ -45,13 +45,7 @@ public class PreferenceController {
         accountAccessAuthorizer.assertTokenCanAccess(id);
 
         Map<String, Object> mergedPreferences = preferenceService.getPreferencesForAccount(id);
-
-        // Get last modified timestamp from account preferences if they exist
-        LocalDateTime lastModified = preferenceService.getCustomerPreference(id)
-                .map(pref -> pref.getLastModified())
-                .orElseGet(LocalDateTime::now);
-
-        PreferenceResponse response = new PreferenceResponse(id, mergedPreferences, lastModified);
+        PreferenceResponse response = new PreferenceResponse(id, mergedPreferences, LocalDateTime.now());
         return ResponseEntity.ok(response);
     }
 
@@ -75,11 +69,7 @@ public class PreferenceController {
 
         // Retrieve and return updated merged preferences
         Map<String, Object> updatedPreferences = preferenceService.getPreferencesForAccount(id);
-        LocalDateTime lastModified = preferenceService.getCustomerPreference(id)
-                .map(pref -> pref.getLastModified())
-                .orElseGet(LocalDateTime::now);
-
-        PreferenceResponse response = new PreferenceResponse(id, updatedPreferences, lastModified);
+        PreferenceResponse response = new PreferenceResponse(id, updatedPreferences, LocalDateTime.now());
         return ResponseEntity.ok(response);
     }
 
