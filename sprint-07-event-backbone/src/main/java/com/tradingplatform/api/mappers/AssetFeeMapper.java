@@ -32,6 +32,6 @@ public interface AssetFeeMapper {
         @Arg(column = "flat_fee", javaType = BigDecimal.class),
         @Arg(column = "percentage_fee", javaType = BigDecimal.class)
     })
-    @Select("SELECT asset_type, flat_fee, percentage_fee FROM asset_fees WHERE asset_type = #{assetType}")
+    @Select("SELECT asset_type, flat_fee, percentage_fee FROM assets WHERE asset_type = #{assetType}")
     AssetFeeStructure findByAssetType(@Param("assetType") String assetType);
 }
