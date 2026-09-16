@@ -7,6 +7,8 @@ import com.tradingplatform.domain.enums.AccountStatus;
 import com.tradingplatform.domain.enums.OrderSide;
 import com.tradingplatform.domain.exception.OptimisticLockException;
 import com.tradingplatform.domain.model.Account;
+import com.tradingplatform.domain.model.AssetFeeStructure;
+import com.tradingplatform.domain.model.Feeable;
 import com.tradingplatform.domain.model.Order;
 import com.tradingplatform.domain.model.Position;
 import org.junit.jupiter.api.BeforeEach;
@@ -71,15 +73,17 @@ class OptimisticLockingTest {
         when(positionMapper.findByAccountAndInstrument(1L, 1L)).thenReturn(position);
         when(accountMapper.updateAccount(any(Account.class), anyInt())).thenReturn(1);  // Cash updated
         when(positionMapper.updatePosition(any(Position.class), anyInt())).thenReturn(1);  // Position updated
-        when(orderMapper.updateOrderStatus(any(), any(), any())).thenReturn(1);  // Order marked FILLED
+        when(orderMapper.updateOrderStatus(any(), any(), any(), any())).thenReturn(1);  // Order marked FILLED
+        
+        Feeable fee = new AssetFeeStructure("EQUITY", new BigDecimal("5.00"), new BigDecimal("0.001"));
         
         // Act
-        settlementService.settle(buyOrder, new BigDecimal("25.00"));
+        settlementService.settle(buyOrder, new BigDecimal("25.00"), fee);
         
         // Assert: All three were updated (cash, position, order)
         verify(accountMapper, times(1)).updateAccount(any(Account.class), anyInt());
         verify(positionMapper, times(1)).updatePosition(any(Position.class), anyInt());
-        verify(orderMapper, times(1)).updateOrderStatus(any(), any(), any());
+        verify(orderMapper, times(1)).updateOrderStatus(any(), any(), any(), any());
     }
 
     /**
@@ -112,12 +116,12 @@ class OptimisticLockingTest {
         when(accountMapper.updateAccount(any(Account.class), anyInt())).thenReturn(1);
         
         // Position update FAILS (0 rows due to concurrent modification)
-        when(positionMapper.updatePosition(any(Position.class), anyInt())).thenReturn(0);
+        Feeable fee = new AssetFeeStructure("EQUITY", new BigDecimal("5.00"), new BigDecimal("0.001"));
         
         // Act & Assert
         OptimisticLockException ex = assertThrows(
             OptimisticLockException.class,
-            () -> settlementService.settle(order, new BigDecimal("25.00"))
+            () -> settlementService.settle(order, new BigDecimal("25.00"), fee)
         );
         
         // Verify: Exception thrown, preventing partial commit
@@ -127,7 +131,7 @@ class OptimisticLockingTest {
         verify(accountMapper, times(1)).updateAccount(any(Account.class), anyInt());
         verify(positionMapper, times(1)).updatePosition(any(Position.class), anyInt());
         // Note: orderMapper.updateOrderStatus is NOT called because position failed
-        verify(orderMapper, never()).updateOrderStatus(any(), any(), any());
+        verify(orderMapper, never()).updateOrderStatus(any(), any(), any(), any());
     }
 
     /**
@@ -158,10 +162,12 @@ class OptimisticLockingTest {
         // UPDATE returns 0 rows = version mismatch (another transaction changed it)
         when(accountMapper.updateAccount(any(Account.class), anyInt())).thenReturn(0);
         
+        Feeable fee = new AssetFeeStructure("EQUITY", new BigDecimal("5.00"), new BigDecimal("0.001"));
+        
         // Act & Assert
         OptimisticLockException ex = assertThrows(
             OptimisticLockException.class,
-            () -> settlementService.settle(order, new BigDecimal("25.00"))
+            () -> settlementService.settle(order, new BigDecimal("25.00"), fee)
         );
         
         // Verify: ORD-409 error code returned

@@ -1,5 +1,6 @@
 package com.tradingplatform.api.services;
 
+import com.tradingplatform.api.mappers.AssetFeeMapper;
 import com.tradingplatform.api.mappers.InstrumentMapper;
 import com.tradingplatform.api.mappers.OrderMapper;
 import com.tradingplatform.api.security.AccountAccessAuthorizer;
@@ -24,17 +25,20 @@ public class OrderService {
     private final OrderSettlementService orderSettlementService;
     private final OrderMapper orderMapper;
     private final InstrumentMapper instrumentMapper;
+    private final AssetFeeMapper assetFeeMapper;
     private final AccountAccessAuthorizer accountAccessAuthorizer;
     
     public OrderService(OrderValidationService orderValidationService, 
                         OrderSettlementService orderSettlementService,
                         OrderMapper orderMapper,
                         InstrumentMapper instrumentMapper,
+                        AssetFeeMapper assetFeeMapper,
                         AccountAccessAuthorizer accountAccessAuthorizer) {
         this.orderValidationService = orderValidationService;
         this.orderSettlementService = orderSettlementService;
         this.orderMapper = orderMapper;
         this.instrumentMapper = instrumentMapper;
+        this.assetFeeMapper = assetFeeMapper;
         this.accountAccessAuthorizer = accountAccessAuthorizer;
     }
 
@@ -63,19 +67,25 @@ public class OrderService {
             throw new DuplicateOrderException(newOrder.getIdempotencyKey()).withRejectedOrder(newOrder);
         }
 
-        // Settle the order: move cash, update position, mark FILLED
-        orderSettlementService.settle(newOrder, newOrder.getPrice());
+        // Fetch instrument to get asset class for fee calculation
+        Instrument instrument = instrumentMapper.findById(newOrder.getInstrumentId());
+        if (instrument == null) {
+            throw new IllegalStateException("Instrument not found for order: " + newOrder.getInstrumentId());
+        }
 
-        // Fetch the settled order from database (now with FILLED status and executedPrice)
+        // Load fee structure by asset type (convert enum to String)
+        var feeable = assetFeeMapper.findByAssetType(instrument.getAssetClass().name());
+        if (feeable == null) {
+            throw new IllegalStateException("Fee structure not found for asset type: " + instrument.getAssetClass());
+        }
+
+        // Settle the order: move cash, update position, mark FILLED, debit fee
+        orderSettlementService.settle(newOrder, newOrder.getPrice(), feeable);
+
+        // Fetch the settled order from database (now with FILLED status, executedPrice, and fee)
         Order settledOrder = orderMapper.findOrderById(newOrder.getId());
         if (settledOrder == null) {
             throw new IllegalStateException("Order not found after settlement: " + newOrder.getId());
-        }
-
-        // Fetch instrument for order response
-        Instrument instrument = instrumentMapper.findById(settledOrder.getInstrumentId());
-        if (instrument == null) {
-            throw new IllegalStateException("Instrument not found for order: " + settledOrder.getInstrumentId());
         }
 
         // Build and return OrderResponse from entities
@@ -155,7 +165,8 @@ public class OrderService {
             instrument.getSymbol(),
             order.getSide(),
             order.getQuantity(),
-            order.getPrice()
+            order.getPrice(),
+            order.getFee() != null ? order.getFee() : java.math.BigDecimal.ZERO
         );
     }
 }
