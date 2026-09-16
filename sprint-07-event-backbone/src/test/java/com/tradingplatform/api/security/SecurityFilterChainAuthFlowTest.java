@@ -5,6 +5,7 @@ import com.tradingplatform.api.mappers.AccountMapper;
 import com.tradingplatform.api.mappers.InstrumentMapper;
 import com.tradingplatform.api.mappers.OrderMapper;
 import com.tradingplatform.api.mappers.PositionMapper;
+import com.tradingplatform.api.mappers.PreferenceMapper;
 import com.tradingplatform.api.exception.GlobalExceptionHandler;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,18 +32,27 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = SecurityFilterChainAuthFlowTest.ProbeController.class)
-@Import({ApiSecurityConfiguration.class, ResolverAuthenticationEntryPoint.class, GlobalExceptionHandler.class})
+@Import({
+    ApiSecurityConfiguration.class,
+    ResolverAuthenticationEntryPoint.class,
+    GlobalExceptionHandler.class
+})
 @TestPropertySource(properties = {
     "JWT_SECRET=test-shared-secret-32-bytes-minimum-key",
     "JWT_ISSUER=auth-service"
 })
 class SecurityFilterChainAuthFlowTest {
 
-    private static final String SECRET = "test-shared-secret-32-bytes-minimum-key";
+    private static final String SECRET =
+            "test-shared-secret-32-bytes-minimum-key";
 
     @Autowired
     private MockMvc mockMvc;
 
+    /*
+     * These mocks prevent @MapperScan from trying to create
+     * real MyBatis mapper beans during @WebMvcTest.
+     */
     @MockBean
     private AccountMapper accountMapper;
 
@@ -55,68 +65,135 @@ class SecurityFilterChainAuthFlowTest {
     @MockBean
     private InstrumentMapper instrumentMapper;
 
+    @MockBean
+    private PreferenceMapper preferenceMapper;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
+
 
     @Test
     void missingHeaderReturnsContractUnauthorisedBody() throws Exception {
         mockMvc.perform(get("/api/v1/probe"))
-            .andExpect(status().isUnauthorized())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-            .andExpect(content().json("{\"errorCode\":\"AUTH-401\",\"message\":\"Unauthorised\"}"));
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(content().json(
+                        "{\"errorCode\":\"AUTH-401\",\"message\":\"Unauthorised\"}"
+                ));
     }
+
 
     @Test
     void wrongSchemeReturnsContractUnauthorisedBody() throws Exception {
-        mockMvc.perform(get("/api/v1/probe").header("Authorization", "Basic abc"))
-            .andExpect(status().isUnauthorized())
-            .andExpect(content().json("{\"errorCode\":\"AUTH-401\",\"message\":\"Unauthorised\"}"));
+        mockMvc.perform(
+                get("/api/v1/probe")
+                        .header("Authorization", "Basic abc")
+        )
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().json(
+                        "{\"errorCode\":\"AUTH-401\",\"message\":\"Unauthorised\"}"
+                ));
     }
+
 
     @Test
     void expiredTokenReturnsContractUnauthorisedBody() throws Exception {
-        String token = createToken("HS256", Instant.now().minusSeconds(1).getEpochSecond(), 1L);
+        String token = createToken(
+                "HS256",
+                Instant.now().minusSeconds(1).getEpochSecond(),
+                1L
+        );
 
-        mockMvc.perform(get("/api/v1/probe").header("Authorization", "Bearer " + token))
-            .andExpect(status().isUnauthorized())
-            .andExpect(content().json("{\"errorCode\":\"AUTH-401\",\"message\":\"Unauthorised\"}"));
+        mockMvc.perform(
+                get("/api/v1/probe")
+                        .header("Authorization", "Bearer " + token)
+        )
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().json(
+                        "{\"errorCode\":\"AUTH-401\",\"message\":\"Unauthorised\"}"
+                ));
     }
+
 
     @Test
     void forgedSignatureReturnsContractUnauthorisedBody() throws Exception {
-        String validToken = createToken("HS256", Instant.now().plusSeconds(900).getEpochSecond(), 1L);
-        String[] tokenParts = validToken.split("\\.");
-        String forgedPayload = base64Url("{\"sub\":\"u-1\",\"accountId\":2,\"roles\":[\"CUSTOMER\"],\"iat\":1750000000,\"exp\":1790000900,\"iss\":\"auth-service\"}");
-        String forgedToken = tokenParts[0] + "." + forgedPayload + "." + tokenParts[2];
+        String validToken = createToken(
+                "HS256",
+                Instant.now().plusSeconds(900).getEpochSecond(),
+                1L
+        );
 
-        mockMvc.perform(get("/api/v1/probe").header("Authorization", "Bearer " + forgedToken))
-            .andExpect(status().isUnauthorized())
-            .andExpect(content().json("{\"errorCode\":\"AUTH-401\",\"message\":\"Unauthorised\"}"));
+        String[] tokenParts = validToken.split("\\.");
+
+        String forgedPayload = base64Url(
+                "{\"sub\":\"u-1\",\"accountId\":2,\"roles\":[\"CUSTOMER\"]," +
+                "\"iat\":1750000000,\"exp\":1790000900,\"iss\":\"auth-service\"}"
+        );
+
+        String forgedToken =
+                tokenParts[0] + "." +
+                forgedPayload + "." +
+                tokenParts[2];
+
+        mockMvc.perform(
+                get("/api/v1/probe")
+                        .header("Authorization", "Bearer " + forgedToken)
+        )
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().json(
+                        "{\"errorCode\":\"AUTH-401\",\"message\":\"Unauthorised\"}"
+                ));
     }
+
 
     @Test
     void validTokenAllowsRequest() throws Exception {
-        String token = createToken("HS256", Instant.now().plusSeconds(900).getEpochSecond(), 1L);
+        String token = createToken(
+                "HS256",
+                Instant.now().plusSeconds(900).getEpochSecond(),
+                1L
+        );
 
-        mockMvc.perform(get("/api/v1/probe").header("Authorization", "Bearer " + token))
-            .andExpect(status().isUnprocessableEntity())
-            .andExpect(content().json("{\"errorCode\":\"VAL-422\",\"message\":\"Invalid input\"}"));
+        mockMvc.perform(
+                get("/api/v1/probe")
+                        .header("Authorization", "Bearer " + token)
+        )
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(content().json(
+                        "{\"errorCode\":\"VAL-422\",\"message\":\"Invalid input\"}"
+                ));
     }
 
-    private String createToken(String alg, long exp, long accountId) {
+
+    private String createToken(
+            String alg,
+            long exp,
+            long accountId) {
+
         long issuedAt = Instant.now().getEpochSecond();
-        String header = base64Url(toJson(Map.of("alg", alg, "typ", "JWT")));
-        String payload = base64Url(toJson(Map.of(
-            "sub", "u-1",
-            "accountId", accountId,
-            "roles", List.of("CUSTOMER"),
-            "iat", issuedAt,
-            "exp", exp,
-            "iss", "auth-service"
-        )));
+
+        String header = base64Url(
+                toJson(Map.of(
+                        "alg", alg,
+                        "typ", "JWT"
+                ))
+        );
+
+        String payload = base64Url(
+                toJson(Map.of(
+                        "sub", "u-1",
+                        "accountId", accountId,
+                        "roles", List.of("CUSTOMER"),
+                        "iat", issuedAt,
+                        "exp", exp,
+                        "iss", "auth-service"
+                ))
+        );
 
         String signature = sign(header + "." + payload);
+
         return header + "." + payload + "." + signature;
     }
+
 
     private String toJson(Map<String, Object> map) {
         try {
@@ -126,28 +203,49 @@ class SecurityFilterChainAuthFlowTest {
         }
     }
 
+
     private String sign(String value) {
         try {
             Mac mac = Mac.getInstance("HmacSHA256");
-            mac.init(new SecretKeySpec(SECRET.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
-            byte[] signature = mac.doFinal(value.getBytes(StandardCharsets.UTF_8));
-            return Base64.getUrlEncoder().withoutPadding().encodeToString(signature);
+
+            mac.init(
+                    new SecretKeySpec(
+                            SECRET.getBytes(StandardCharsets.UTF_8),
+                            "HmacSHA256"
+                    )
+            );
+
+            byte[] signature =
+                    mac.doFinal(
+                            value.getBytes(StandardCharsets.UTF_8)
+                    );
+
+            return Base64.getUrlEncoder()
+                    .withoutPadding()
+                    .encodeToString(signature);
+
         } catch (Exception ex) {
             throw new IllegalStateException(ex);
         }
     }
 
+
     private String base64Url(String raw) {
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(raw.getBytes(StandardCharsets.UTF_8));
+        return Base64.getUrlEncoder()
+                .withoutPadding()
+                .encodeToString(
+                        raw.getBytes(StandardCharsets.UTF_8)
+                );
     }
+
 
     @RestController
     @RequestMapping("/api/v1/probe")
     public static class ProbeController {
+
         @GetMapping
         String probe() {
             return "ok";
         }
     }
 }
-
