@@ -1,4 +1,4 @@
-package com.tradingplatform.domain.exception;
+package com.tradingplatform.exception;
 
 import com.tradingplatform.enums.AccountStatus;
 import com.tradingplatform.enums.ErrorCode;

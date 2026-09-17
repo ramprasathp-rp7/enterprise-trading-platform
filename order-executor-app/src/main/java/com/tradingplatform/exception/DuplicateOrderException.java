@@ -1,4 +1,4 @@
-package com.tradingplatform.domain.exception;
+package com.tradingplatform.exception;
 // Rule 8 : Duplicate Idempotency Key in order
 
 import com.tradingplatform.enums.ErrorCode;

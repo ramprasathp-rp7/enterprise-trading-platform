@@ -1,6 +1,7 @@
-package com.tradingplatform.domain.exception;
+package com.tradingplatform.exception;
 
 import java.math.BigDecimal;
+
 import com.tradingplatform.enums.ErrorCode;
 // Rule 6: a BUY costs more than the available cash balance.
 

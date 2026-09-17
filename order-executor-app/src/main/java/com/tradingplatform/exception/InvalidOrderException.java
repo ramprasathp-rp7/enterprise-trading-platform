@@ -1,4 +1,4 @@
-package com.tradingplatform.domain.exception;
+package com.tradingplatform.exception;
 // Rule 4, 5 : Quantity and Price must be positive
 
 import com.tradingplatform.enums.ErrorCode;
