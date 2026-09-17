@@ -1,6 +1,7 @@
 package com.tradingplatform.fill;
 
-import com.tradingplatform.domain.Order;
+import com.tradingplatform.domain.model.Order;
+import com.tradingplatform.domain.enums.OrderSide;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -13,19 +14,19 @@ public class DefaultFillRuleTest {
 
     @Test
     void buyLimitAtOrAboveQuoteFills() {
-        Order o = new Order("1","INFY.NS","BUY",10,new BigDecimal("100.00"));
+        Order o = new Order(1L, 100L, OrderSide.BUY, 10, new BigDecimal("100.00"), "key-1");
         assertEquals(Decision.FILL, rule.decide(o, Optional.of(new BigDecimal("99.99"))));
     }
 
     @Test
     void sellLimitAtOrBelowQuoteFills() {
-        Order o = new Order("1","INFY.NS","SELL",10,new BigDecimal("100.00"));
+        Order o = new Order(1L, 100L, OrderSide.SELL, 10, new BigDecimal("100.00"), "key-1");
         assertEquals(Decision.FILL, rule.decide(o, Optional.of(new BigDecimal("100.00"))));
     }
 
     @Test
     void noPriceReturnsNoPrice() {
-        Order o = new Order("1","INFY.NS","BUY",10,new BigDecimal("100.00"));
+        Order o = new Order(1L, 100L, OrderSide.BUY, 10, new BigDecimal("100.00"), "key-1");
         assertEquals(Decision.NO_PRICE, rule.decide(o, Optional.empty()));
     }
 }
