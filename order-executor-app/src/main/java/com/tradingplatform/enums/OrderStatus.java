@@ -4,7 +4,7 @@ public enum OrderStatus {
     NEW,
     FILLED,
     REJECTED,
-    CANCELLED;
+    CANCELLED; 
 
     public boolean isTerminal() {
         return this != NEW;
