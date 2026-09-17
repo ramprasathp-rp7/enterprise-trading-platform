@@ -1,31 +1,35 @@
 package com.tradingplatform.executor;
 
 import java.math.BigDecimal;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import com.tradingplatform.mappers.AccountMapper;
-import com.tradingplatform.mappers.AssetFeeMapper;
-import com.tradingplatform.mappers.InstrumentMapper;
-import com.tradingplatform.mappers.OrderMapper;
-import com.tradingplatform.services.OrderSettlementService;
-import com.tradingplatform.enums.AccountStatus;
-import com.tradingplatform.enums.OrderSide;
-import com.tradingplatform.enums.OrderStatus;
 import com.tradingplatform.domain.Account;
 import com.tradingplatform.domain.AssetFeeStructure;
 import com.tradingplatform.domain.Instrument;
 import com.tradingplatform.domain.Order;
-
+import com.tradingplatform.enums.AccountStatus;
+import com.tradingplatform.enums.OrderSide;
+import com.tradingplatform.enums.OrderStatus;
 import com.tradingplatform.fill.Decision;
 import com.tradingplatform.fill.FillRule;
+import com.tradingplatform.mappers.AccountMapper;
+import com.tradingplatform.mappers.AssetFeeMapper;
+import com.tradingplatform.mappers.InstrumentMapper;
+import com.tradingplatform.mappers.OrderMapper;
 import com.tradingplatform.quote.PricingUnavailableException;
 import com.tradingplatform.quote.QuoteClient;
+import com.tradingplatform.services.OrderSettlementService;
 
 @Service
 public class OrderExecutorService {
+    private static final Logger logger = LoggerFactory.getLogger(OrderExecutorService.class);
+
     private final QuoteClient quoteClient;
     private final FillRule fillRule;
     private final InstrumentMapper instrumentMapper;
@@ -46,14 +50,21 @@ public class OrderExecutorService {
         this.settlementService = settlementService;
     }
 
-    public void process(String orderId, long accountId, Order order) {
+    public void process(String orderId, long accountId, Order order) throws PricingUnavailableException {
+        if (order != null && orderMapper.findOrderById(UUID.fromString(orderId)) == null) {
+            logger.warn("Rejecting order because it does not exist in Postgres: orderId={}", orderId);
+            throw new NoSuchElementException("Order not found: " + orderId);
+        }
+
         if (order == null) {
+            logger.warn("Rejecting null order payload: orderId={}", orderId);
             orderMapper.updateOrderStatus(UUID.fromString(orderId), OrderStatus.REJECTED, "Order is null", null, null);
             return;
         }
 
         Instrument instrument = instrumentMapper.findById(order.getInstrumentId());
         if (instrument == null || !instrument.isTradable()) {
+            logger.warn("Rejecting order because instrument is not tradable: orderId={}, instrumentId={}", orderId, order.getInstrumentId());
             orderMapper.updateOrderStatus(UUID.fromString(orderId), OrderStatus.REJECTED, "Instrument is not tradable", null, null);
             return;
         }
@@ -62,23 +73,31 @@ public class OrderExecutorService {
         try {
             quoted = quoteClient.getLatestPrice(instrument.getSymbol());
         } catch (PricingUnavailableException e) {
-            orderMapper.updateOrderStatus(UUID.fromString(orderId), OrderStatus.REJECTED, "Attempts have exhausted",null, null);
-            return;
+            logger.warn("Pricing unavailable while processing order: orderId={}, symbol={}, reason={}", orderId, instrument.getSymbol(), e.getMessage());
+            throw e;
         }
 
         Decision d = fillRule.decide(order, quoted);
         switch (d) {
-            case NO_PRICE -> orderMapper.updateOrderStatus(UUID.fromString(orderId), OrderStatus.REJECTED, "No price available", null, null);
-            case REJECT -> orderMapper.updateOrderStatus(UUID.fromString(orderId), OrderStatus.REJECTED, "Order rejected by fill rule", null, null);
+            case NO_PRICE -> {
+                logger.warn("Rejecting order because no price is available: orderId={}", orderId);
+                orderMapper.updateOrderStatus(UUID.fromString(orderId), OrderStatus.REJECTED, "No price available", null, null);
+            }
+            case REJECT -> {
+                logger.warn("Rejecting order by fill rule: orderId={}", orderId);
+                orderMapper.updateOrderStatus(UUID.fromString(orderId), OrderStatus.REJECTED, "Order rejected by fill rule", null, null);
+            }
             case FILL -> {
                 Account account = accountMapper.findByAccountId(accountId);
                 if (account == null || account.getStatus() != AccountStatus.ACTIVE) {
+                    logger.warn("Rejecting order because account is not active: orderId={}, accountId={}", orderId, accountId);
                     orderMapper.updateOrderStatus(UUID.fromString(orderId), OrderStatus.REJECTED, "Suspended Account", null, null);
                 } else {
                     BigDecimal price = quoted.get();
                     if (order.getSide() == OrderSide.BUY) {
                         BigDecimal needed = price.multiply(BigDecimal.valueOf(order.getQuantity()));
                         if (!account.canAfford(needed)) {
+                            logger.warn("Rejecting order because account cannot afford fill: orderId={}, accountId={}", orderId, accountId);
                             orderMapper.updateOrderStatus(UUID.fromString(orderId), OrderStatus.REJECTED, "Insufficient funds", null, null);
                             return;
                         }
@@ -93,6 +112,7 @@ public class OrderExecutorService {
                     settlementService.settle(order, price, feeStructure);
                     // settlementService persists filled order; mirror with mapper for completeness
                     orderMapper.updateOrderStatus(UUID.fromString(orderId), OrderStatus.FILLED, null, price, order.getFee());
+                    logger.debug("Filled order successfully: orderId={}, accountId={}, price={}", orderId, accountId, price);
                 }
             }
         }
