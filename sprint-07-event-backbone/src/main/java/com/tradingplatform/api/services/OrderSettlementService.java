@@ -7,6 +7,7 @@ import com.tradingplatform.domain.enums.OrderSide;
 import com.tradingplatform.domain.enums.OrderStatus;
 import com.tradingplatform.domain.exception.OptimisticLockException;
 import com.tradingplatform.domain.model.Account;
+import com.tradingplatform.domain.model.Feeable;
 import com.tradingplatform.domain.model.Order;
 import com.tradingplatform.domain.model.Position;
 import org.springframework.stereotype.Service;
@@ -28,9 +29,10 @@ public class OrderSettlementService {
         this.orderMapper = orderMapper;
     }
 
-    public void settle(Order order, BigDecimal executedPrice) {
+    public void settle(Order order, BigDecimal executedPrice, Feeable feeable) {
         Objects.requireNonNull(order, "order");
         Objects.requireNonNull(executedPrice, "executedPrice");
+        Objects.requireNonNull(feeable, "feeable");
 
         // Fetch the Account from the database
         Account acc = accountMapper.findByAccountId(order.getAccountId());
@@ -45,22 +47,27 @@ public class OrderSettlementService {
             position = Position.empty(order.getAccountId(), order.getInstrumentId());
         }
 
-        // Calculate notional value of the order
+        // Calculate notional value of the order (price * quantity)
         BigDecimal notional = executedPrice.multiply(BigDecimal.valueOf(order.getQuantity()));
+
+        // Calculate transaction fee based on asset type
+        BigDecimal fee = feeable.calculateFee(notional);
 
         // Apply settlement based on order side
         if (order.getSide() == OrderSide.BUY) {
-            // For BUY: debit cash from account, add holdings to position
-            acc.debit(notional);
+            // For BUY: debit cash (notional + fee) from account, add holdings to position
+            BigDecimal totalDebit = notional.add(fee);
+            acc.debit(totalDebit);
             position.applyBuy(order.getQuantity(), executedPrice);
         } else {
-            // For SELL: credit cash to account, remove holdings from position
-            acc.credit(notional);
+            // For SELL: credit cash (notional - fee) to account, remove holdings from position
+            BigDecimal totalCredit = notional.subtract(fee);
+            acc.credit(totalCredit);
             position.applySell(order.getQuantity());
         }
 
-        // Mark the order as FILLED with the executed price
-        order.markFilled(executedPrice);
+        // Mark the order as FILLED with the executed price and fee
+        order.markFilled(executedPrice, fee);
 
         // Calculate new versions for optimistic locking
         int newAccountVersion = acc.getVersion() + 1;
@@ -81,7 +88,7 @@ public class OrderSettlementService {
             throw new OptimisticLockException("Position", order.getAccountId() + ":" + order.getInstrumentId());
         }
 
-        orderMapper.updateOrderStatus(order.getId(), OrderStatus.FILLED, executedPrice);
+        orderMapper.updateOrderStatus(order.getId(), OrderStatus.FILLED, executedPrice, fee);
     }
 }
 

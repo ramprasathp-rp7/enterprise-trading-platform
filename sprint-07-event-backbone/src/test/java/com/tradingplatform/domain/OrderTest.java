@@ -24,6 +24,7 @@ class OrderTest {
         Order order = newOrder();
         assertEquals(OrderStatus.NEW, order.getStatus());
         assertNull(order.getExecutedPrice());
+        assertNull(order.getFee());
     }
 
     @Test
@@ -39,7 +40,7 @@ class OrderTest {
     @Test
     void markFilledMarkRejectedAndCancelEachSetTheExpectedStatus() {
         Order filled = newOrder();
-        filled.markFilled(new BigDecimal("25.48"));
+        filled.markFilled(new BigDecimal("25.48"), new BigDecimal("5.00"));
 
         Order rejected = newOrder();
         rejected.markRejected();
@@ -50,6 +51,7 @@ class OrderTest {
         assertAll(
             () -> assertEquals(OrderStatus.FILLED, filled.getStatus()),
             () -> assertEquals(new BigDecimal("25.48"), filled.getExecutedPrice()),
+            () -> assertEquals(new BigDecimal("5.00"), filled.getFee()),
             () -> assertEquals(OrderStatus.REJECTED, rejected.getStatus()),
             () -> assertEquals(OrderStatus.CANCELLED, cancelled.getStatus())
         );
@@ -58,9 +60,9 @@ class OrderTest {
     @Test
     void aFilledOrderRefusesToBeFilledAgainOrCancelled() {
         Order order = newOrder();
-        order.markFilled(new BigDecimal("25.50"));
+        order.markFilled(new BigDecimal("25.50"), new BigDecimal("5.00"));
         assertAll(
-            () -> assertThrows(IllegalStateException.class, () -> order.markFilled(new BigDecimal("25.50"))),
+            () -> assertThrows(IllegalStateException.class, () -> order.markFilled(new BigDecimal("25.50"), new BigDecimal("5.00"))),
             () -> assertThrows(IllegalStateException.class, order::cancel)
         );
     }
@@ -74,7 +76,7 @@ class OrderTest {
         cancelled.cancel();
 
         assertAll(
-            () -> assertThrows(IllegalStateException.class, () -> rejected.markFilled(new BigDecimal("25.50"))),
+            () -> assertThrows(IllegalStateException.class, () -> rejected.markFilled(new BigDecimal("25.50"), new BigDecimal("5.00"))),
             () -> assertThrows(IllegalStateException.class, cancelled::markRejected)
         );
     }

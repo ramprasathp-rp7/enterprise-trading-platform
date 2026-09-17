@@ -24,6 +24,7 @@ public final class Order {
 
     private OrderStatus status;
     private BigDecimal executedPrice;
+    private BigDecimal fee;
 
     public Order(Long accountId, Long instrumentId, OrderSide side,
                  int quantity, BigDecimal price, String idempotencyKey) {
@@ -43,6 +44,7 @@ public final class Order {
         this.createdOn = Instant.now();
         this.status = OrderStatus.NEW;
         this.executedPrice = null;
+        this.fee = null;
     }
 
      public UUID getId() {
@@ -86,14 +88,22 @@ public final class Order {
         return executedPrice;
     }
 
+    public BigDecimal getFee() {
+        return fee;
+    }
+
     /**
       if new, status can be changed to FILLED
      *
      * @throws IllegalStateException if the order is not currently NEW
      */
-    public void markFilled(BigDecimal executedPrice) {
+    public void markFilled(BigDecimal executedPrice, BigDecimal fee) {
         requireNew("fill");
         this.executedPrice = Objects.requireNonNull(executedPrice, "executedPrice");
+        this.fee = Objects.requireNonNull(fee, "fee");
+        if (fee.signum() < 0) {
+            throw new IllegalArgumentException("fee must not be negative: " + fee);
+        }
         this.status = OrderStatus.FILLED;
     }
 
