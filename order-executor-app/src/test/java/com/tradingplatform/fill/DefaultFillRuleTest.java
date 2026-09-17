@@ -1,13 +1,13 @@
 package com.tradingplatform.fill;
 
-import com.tradingplatform.domain.model.Order;
-import com.tradingplatform.domain.enums.OrderSide;
-import org.junit.jupiter.api.Test;
-
 import java.math.BigDecimal;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import org.junit.jupiter.api.Test;
+
+import com.tradingplatform.domain.Order;
+import com.tradingplatform.enums.OrderSide;
 
 public class DefaultFillRuleTest {
     DefaultFillRule rule = new DefaultFillRule();

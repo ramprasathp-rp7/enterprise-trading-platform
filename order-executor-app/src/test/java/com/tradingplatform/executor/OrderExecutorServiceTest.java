@@ -42,7 +42,6 @@ public class OrderExecutorServiceTest {
     OrderExecutorService executor;
 
     @BeforeEach
-    @SuppressWarnings("unused")
     void setup() {
         quoteClient = mock(QuoteClient.class);
         fillRule = new DefaultFillRule();
@@ -74,7 +73,13 @@ public class OrderExecutorServiceTest {
         executor.process("1",1L,o);
 
         verify(settlementService, times(1)).settle(o, new BigDecimal("99.50"), any());
-        verify(orderMapper).updateOrderStatus(any(UUID.class), eq(OrderStatus.FILLED), eq(new BigDecimal("99.50")), any());
+        verify(orderMapper).updateOrderStatus(
+            any(UUID.class),
+            eq(OrderStatus.FILLED),
+            isNull(String.class),
+            eq(new BigDecimal("99.50")),
+            isNull(BigDecimal.class)
+        );
     }
 
     @Test
@@ -97,6 +102,12 @@ public class OrderExecutorServiceTest {
         executor.process("2",2L,o);
 
         verify(settlementService, never()).settle(any(), any(), any());
-        verify(orderMapper).updateOrderStatus(any(UUID.class), eq(OrderStatus.REJECTED), isNull(), isNull());
+        verify(orderMapper).updateOrderStatus(
+            any(UUID.class),
+            eq(OrderStatus.REJECTED),
+            eq("No price available"),
+            isNull(BigDecimal.class),
+            isNull(BigDecimal.class)
+        );
     }
 }
