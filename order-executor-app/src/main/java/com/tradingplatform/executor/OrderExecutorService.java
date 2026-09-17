@@ -69,14 +69,13 @@ public class OrderExecutorService {
             return;
         }
 
-        Optional<BigDecimal> quoted;
+        Optional<com.tradingplatform.quote.model.Quote> quoted;
         try {
             quoted = quoteClient.getLatestPrice(instrument.getSymbol());
         } catch (PricingUnavailableException e) {
             logger.warn("Pricing unavailable while processing order: orderId={}, symbol={}, reason={}", orderId, instrument.getSymbol(), e.getMessage());
             throw e;
         }
-
         Decision d = fillRule.decide(order, quoted);
         switch (d) {
             case NO_PRICE -> {
@@ -93,9 +92,18 @@ public class OrderExecutorService {
                     logger.warn("Rejecting order because account is not active: orderId={}, accountId={}", orderId, accountId);
                     orderMapper.updateOrderStatus(UUID.fromString(orderId), OrderStatus.REJECTED, "Suspended Account", null, null);
                 } else {
-                    BigDecimal price = quoted.get();
+                    // determine executed price based on side (ask for BUY, bid for SELL)
+                    com.tradingplatform.quote.model.Quote q = quoted.get();
+                    BigDecimal sidePrice = order.getSide() == OrderSide.BUY ? q.getAsk() : q.getBid();
+                    if (sidePrice == null) {
+                        logger.warn("Rejecting order because quote side price missing: orderId={}", orderId);
+                        orderMapper.updateOrderStatus(UUID.fromString(orderId), OrderStatus.REJECTED, "No price available", null, null);
+                        return;
+                    }
+                    BigDecimal executed = sidePrice.setScale(order.getPrice().scale(), java.math.RoundingMode.HALF_UP);
+
                     if (order.getSide() == OrderSide.BUY) {
-                        BigDecimal needed = price.multiply(BigDecimal.valueOf(order.getQuantity()));
+                        BigDecimal needed = executed.multiply(BigDecimal.valueOf(order.getQuantity()));
                         if (!account.canAfford(needed)) {
                             logger.warn("Rejecting order because account cannot afford fill: orderId={}, accountId={}", orderId, accountId);
                             orderMapper.updateOrderStatus(UUID.fromString(orderId), OrderStatus.REJECTED, "Insufficient funds", null, null);
@@ -103,16 +111,17 @@ public class OrderExecutorService {
                         }
                     }
 
+                    
                     AssetFeeStructure feeStructure = assetFeeMapper.findByAssetType(instrument.getAssetClass().name());
                     /*  Dont do this. Throw an exception instead (?)
                     if (feeStructure == null) {
                         feeStructure = new AssetFeeStructure(instrument.getAssetClass().name(), new BigDecimal("0.00"), new BigDecimal("0.001"));
                     }
                     */
-                    settlementService.settle(order, price, feeStructure);
+                    settlementService.settle(order, executed, feeStructure);
                     // settlementService persists filled order; mirror with mapper for completeness
-                    orderMapper.updateOrderStatus(UUID.fromString(orderId), OrderStatus.FILLED, null, price, order.getFee());
-                    logger.debug("Filled order successfully: orderId={}, accountId={}, price={}", orderId, accountId, price);
+                    orderMapper.updateOrderStatus(UUID.fromString(orderId), OrderStatus.FILLED, null, executed, order.getFee());
+                    logger.debug("Filled order successfully: orderId={}, accountId={}, price={}", orderId, accountId, executed);
                 }
             }
         }

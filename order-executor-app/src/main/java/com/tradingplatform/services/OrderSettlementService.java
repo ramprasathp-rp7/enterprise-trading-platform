@@ -1,10 +1,8 @@
 package com.tradingplatform.services;
 
 import com.tradingplatform.mappers.AccountMapper;
-import com.tradingplatform.mappers.OrderMapper;
 import com.tradingplatform.mappers.PositionMapper;
 import com.tradingplatform.enums.OrderSide;
-import com.tradingplatform.enums.OrderStatus;
 import com.tradingplatform.exception.OptimisticLockException;
 import com.tradingplatform.domain.Account;
 import com.tradingplatform.domain.Feeable;
@@ -20,12 +18,10 @@ public class OrderSettlementService {
 
     private final AccountMapper accountMapper;
     private final PositionMapper positionMapper;
-    private final OrderMapper orderMapper;
 
-    public OrderSettlementService(AccountMapper accountMapper, PositionMapper positionMapper, OrderMapper orderMapper) {
+    public OrderSettlementService(AccountMapper accountMapper, PositionMapper positionMapper) {
         this.accountMapper = accountMapper;
         this.positionMapper = positionMapper;
-        this.orderMapper = orderMapper;
     }
 
     public void settle(Order order, BigDecimal executedPrice, Feeable feeable) {
@@ -65,9 +61,6 @@ public class OrderSettlementService {
             position.applySell(order.getQuantity());
         }
 
-        // Mark the order as FILLED with the executed price and fee
-        order.markFilled(executedPrice, fee);
-
         // Calculate new versions for optimistic locking
         int newAccountVersion = acc.getVersion() + 1;
         int newPositionVersion = position.getVersion() + 1;
@@ -87,7 +80,6 @@ public class OrderSettlementService {
             throw new OptimisticLockException("Position", order.getAccountId() + ":" + order.getInstrumentId());
         }
 
-        orderMapper.updateOrderStatus(order.getId(), OrderStatus.FILLED, executedPrice, fee);
     }
 }
 

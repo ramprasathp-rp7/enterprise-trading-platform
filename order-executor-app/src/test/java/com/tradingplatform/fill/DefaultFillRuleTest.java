@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import com.tradingplatform.domain.Order;
 import com.tradingplatform.enums.OrderSide;
+import com.tradingplatform.quote.model.Quote;
 
 public class DefaultFillRuleTest {
     DefaultFillRule rule = new DefaultFillRule();
@@ -15,13 +16,15 @@ public class DefaultFillRuleTest {
     @Test
     void buyLimitAtOrAboveQuoteFills() {
         Order o = new Order(1L, 100L, OrderSide.BUY, 10, new BigDecimal("100.00"), "key-1");
-        assertEquals(Decision.FILL, rule.decide(o, Optional.of(new BigDecimal("99.99"))));
+        Quote q = new Quote(); q.setAsk(new BigDecimal("99.99")); q.setBid(new BigDecimal("99.90"));
+        assertEquals(Decision.FILL, rule.decide(o, Optional.of(q)));
     }
 
     @Test
     void sellLimitAtOrBelowQuoteFills() {
         Order o = new Order(1L, 100L, OrderSide.SELL, 10, new BigDecimal("100.00"), "key-1");
-        assertEquals(Decision.FILL, rule.decide(o, Optional.of(new BigDecimal("100.00"))));
+        Quote q = new Quote(); q.setBid(new BigDecimal("100.00")); q.setAsk(new BigDecimal("100.10"));
+        assertEquals(Decision.FILL, rule.decide(o, Optional.of(q)));
     }
 
     @Test

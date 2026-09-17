@@ -8,7 +8,7 @@ public class Data {
     private String symbol;
     private String interval;
     private String currency;
-    private List<Candle> candles;
+    private List<QuoteWrapper> quotes;
 
     public String getSymbol() { return symbol; }
     public void setSymbol(String symbol) { this.symbol = symbol; }
@@ -16,6 +16,6 @@ public class Data {
     public void setInterval(String interval) { this.interval = interval; }
     public String getCurrency() { return currency; }
     public void setCurrency(String currency) { this.currency = currency; }
-    public List<Candle> getCandles() { return candles; }
-    public void setCandles(List<Candle> candles) { this.candles = candles; }
+    public List<QuoteWrapper> getQuotes() { return quotes; }
+    public void setQuotes(List<QuoteWrapper> quotes) { this.quotes = quotes; }
 }

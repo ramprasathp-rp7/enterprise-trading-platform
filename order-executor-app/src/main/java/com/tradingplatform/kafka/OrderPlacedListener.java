@@ -39,7 +39,7 @@ public class OrderPlacedListener {
 	private final OrderExecutorService executorService;
 	private final InstrumentMapper instrumentMapper;
 	private final OrderMapper orderMapper;
-	private final KafkaTemplate<String, String> deadLetterKafkaTemplate;
+	private final java.util.function.Consumer<org.apache.kafka.clients.producer.ProducerRecord<String, String>> deadLetterSender;
 	private final ObjectMapper objectMapper;
 
 	public OrderPlacedListener(
@@ -49,10 +49,20 @@ public class OrderPlacedListener {
 		KafkaTemplate<String, String> deadLetterKafkaTemplate,
 		ObjectMapper objectMapper
 	) {
+		this(executorService, instrumentMapper, orderMapper, r -> deadLetterKafkaTemplate.send(r), objectMapper);
+	}
+
+	public OrderPlacedListener(
+		OrderExecutorService executorService,
+		InstrumentMapper instrumentMapper,
+		OrderMapper orderMapper,
+		java.util.function.Consumer<org.apache.kafka.clients.producer.ProducerRecord<String, String>> deadLetterSender,
+		ObjectMapper objectMapper
+	) {
 		this.executorService = executorService;
 		this.instrumentMapper = instrumentMapper;
 		this.orderMapper = orderMapper;
-		this.deadLetterKafkaTemplate = deadLetterKafkaTemplate;
+		this.deadLetterSender = deadLetterSender;
 		this.objectMapper = objectMapper;
 	}
 
@@ -180,6 +190,6 @@ public class OrderPlacedListener {
 		);
 		logger.warn("Publishing dead-letter message: dltTopic={}, originalTopic={}, partition={}, offset={}, reason={}",
 			deadLetterRecord.topic(), record.topic(), record.partition(), record.offset(), reason);
-		deadLetterKafkaTemplate.send(deadLetterRecord);
+		deadLetterSender.accept(deadLetterRecord);
 	}
 }
