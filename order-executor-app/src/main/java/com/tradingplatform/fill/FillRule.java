@@ -1,6 +1,6 @@
 package com.tradingplatform.fill;
 
-import com.tradingplatform.domain.Order;
+import com.tradingplatform.domain.model.Order;
 import java.math.BigDecimal;
 import java.util.Optional;
 
