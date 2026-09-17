@@ -1,6 +1,8 @@
-package com.tradingplatform.domain.exception;
+package com.tradingplatform.exception;
 
 import java.math.BigDecimal;
+
+import com.tradingplatform.enums.ErrorCode;
 // Rule 6: a BUY costs more than the available cash balance.
 
 public final class InsufficientFundsException extends DomainException {
@@ -9,7 +11,7 @@ public final class InsufficientFundsException extends DomainException {
     private final BigDecimal required;
 
     public InsufficientFundsException(BigDecimal available, BigDecimal required) {
-        super(com.tradingplatform.domain.enums.ErrorCode.ORD_400, "Insufficient funds");
+        super(ErrorCode.ORD_400, "Insufficient funds");
         this.available = available;
         this.required = required;
     }
