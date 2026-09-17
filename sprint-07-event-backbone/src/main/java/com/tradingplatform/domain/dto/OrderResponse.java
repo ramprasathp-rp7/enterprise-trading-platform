@@ -34,6 +34,11 @@ public record OrderResponse(
     @NotNull(message = "Price must be mentioned")
     @DecimalMin(value = "0.00", inclusive = false, message = "Price must be greater than zero")
     @Digits(integer = 18, fraction = 2, message = "Price must have at most two decimal places")
-    BigDecimal price
+    BigDecimal price,
+
+    @NotNull(message = "Fee must be mentioned")
+    @DecimalMin(value = "0.00", inclusive = true, message = "Fee must be non-negative")
+    @Digits(integer = 18, fraction = 2, message = "Fee must have at most two decimal places")
+    BigDecimal fee
 ) {
 }
