@@ -1,4 +1,4 @@
-package com.tradingplatform.domain.model;
+package com.tradingplatform.domain;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;

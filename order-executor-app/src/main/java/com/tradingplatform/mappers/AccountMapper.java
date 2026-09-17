@@ -1,4 +1,4 @@
-package com.tradingplatform.api.mappers;
+package com.tradingplatform.mappers;
 
 import java.time.Instant;
 import java.util.List;
@@ -9,12 +9,12 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
-import com.tradingplatform.domain.enums.AccountStatus;
-import com.tradingplatform.domain.enums.OrderSide;
-import com.tradingplatform.domain.enums.OrderStatus;
-import com.tradingplatform.domain.model.Account;
-import com.tradingplatform.domain.model.Order;
-import com.tradingplatform.domain.model.Position;
+import com.tradingplatform.domain.Account;
+import com.tradingplatform.domain.Order;
+import com.tradingplatform.domain.Position;
+import com.tradingplatform.enums.AccountStatus;
+import com.tradingplatform.enums.OrderSide;
+import com.tradingplatform.enums.OrderStatus;
 
 public interface AccountMapper {
     @ConstructorArgs({

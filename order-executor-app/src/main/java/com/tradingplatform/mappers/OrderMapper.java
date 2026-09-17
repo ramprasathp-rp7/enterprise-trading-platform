@@ -1,4 +1,4 @@
-package com.tradingplatform.api.mappers;
+package com.tradingplatform.mappers;
 
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -10,9 +10,9 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
-import com.tradingplatform.domain.enums.OrderSide;
-import com.tradingplatform.domain.enums.OrderStatus;
-import com.tradingplatform.domain.model.Order;
+import com.tradingplatform.domain.Order;
+import com.tradingplatform.enums.OrderSide;
+import com.tradingplatform.enums.OrderStatus;
 
 public interface OrderMapper {
     @Insert("INSERT INTO orders (id, account_id, instrument_id, side, quantity, price, status, idempotency_key) " +
@@ -41,6 +41,6 @@ public interface OrderMapper {
     @Update("UPDATE orders SET status = 'CANCELLED' WHERE id = #{id} AND status = 'NEW'")
     int cancelOrderIfNew(@Param("id") UUID id);
 
-    @Update("UPDATE orders SET status = #{status}, rejected_reason executed_price = #{executedPrice}, fee = #{fee} WHERE id = #{id}")
-    int updateOrderStatus(@Param("id") UUID id, @Param("status") OrderStatus status, @Param("executedPrice") BigDecimal executedPrice, @Param("fee") BigDecimal fee);
+    @Update("UPDATE orders SET status = #{status}, rejected_reason = #{rejectedReason}, executed_price = #{executedPrice}, fee = #{fee} WHERE id = #{id}")
+    int updateOrderStatus(@Param("id") UUID id, @Param("status") com.tradingplatform.enums.OrderStatus status, @Param("rejectedReason") String rejectedReason, @Param("executedPrice") BigDecimal executedPrice, @Param("fee") BigDecimal fee);
 }

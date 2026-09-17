@@ -1,20 +1,19 @@
-package com.tradingplatform.api.services;
+package com.tradingplatform.services;
 
-import com.tradingplatform.api.mappers.AccountMapper;
-import com.tradingplatform.api.mappers.OrderMapper;
-import com.tradingplatform.api.mappers.PositionMapper;
-import com.tradingplatform.domain.enums.OrderSide;
-import com.tradingplatform.domain.enums.OrderStatus;
-import com.tradingplatform.domain.exception.OptimisticLockException;
-import com.tradingplatform.domain.model.Account;
-import com.tradingplatform.domain.model.Feeable;
-import com.tradingplatform.domain.model.Order;
-import com.tradingplatform.domain.model.Position;
+import com.tradingplatform.mappers.AccountMapper;
+import com.tradingplatform.mappers.OrderMapper;
+import com.tradingplatform.mappers.PositionMapper;
+import com.tradingplatform.enums.OrderSide;
+import com.tradingplatform.enums.OrderStatus;
+import com.tradingplatform.exception.OptimisticLockException;
+import com.tradingplatform.domain.Account;
+import com.tradingplatform.domain.Feeable;
+import com.tradingplatform.domain.Order;
+import com.tradingplatform.domain.Position;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.Objects;
-import java.util.UUID;
 
 @Service
 public class OrderSettlementService {

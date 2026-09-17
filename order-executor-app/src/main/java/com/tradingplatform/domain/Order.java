@@ -1,12 +1,12 @@
-package com.tradingplatform.domain.model;
-
-import com.tradingplatform.domain.enums.OrderSide;
-import com.tradingplatform.domain.enums.OrderStatus;
+package com.tradingplatform.domain;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
+
+import com.tradingplatform.enums.OrderSide;
+import com.tradingplatform.enums.OrderStatus;
 
 /**
  Order with unique Idempotency key

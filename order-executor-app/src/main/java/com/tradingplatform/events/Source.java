@@ -1,4 +1,4 @@
-package com.tradingplatform.api.events;
+package com.tradingplatform.events;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;

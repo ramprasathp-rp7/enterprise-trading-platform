@@ -1,11 +1,11 @@
-package com.tradingplatform.domain.model;
-
-import com.tradingplatform.domain.enums.AccountStatus;
+package com.tradingplatform.domain;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.Objects;
+
+import com.tradingplatform.enums.AccountStatus;
 
 /**
  Account of the client with AccountStatus enum

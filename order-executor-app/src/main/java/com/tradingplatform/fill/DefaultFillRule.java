@@ -1,7 +1,7 @@
 package com.tradingplatform.fill;
 
-import com.tradingplatform.domain.model.Order;
-import com.tradingplatform.domain.enums.OrderSide;
+import com.tradingplatform.domain.Order;
+import com.tradingplatform.enums.OrderSide;
 import java.math.BigDecimal;
 import java.util.Optional;
 

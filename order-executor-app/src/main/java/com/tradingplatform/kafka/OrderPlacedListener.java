@@ -1,14 +1,15 @@
 package com.tradingplatform.kafka;
 
-import com.tradingplatform.api.events.MessageEnvelope;
-import com.tradingplatform.api.events.OrderPlacedPayload;
-import com.tradingplatform.executor.OrderExecutorService;
-import com.tradingplatform.api.mappers.InstrumentMapper;
-import com.tradingplatform.domain.model.Instrument;
-import com.tradingplatform.domain.enums.OrderSide;
-import com.tradingplatform.domain.model.Order;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
+
+import com.tradingplatform.mappers.InstrumentMapper;
+import com.tradingplatform.domain.Instrument;
+import com.tradingplatform.domain.Order;
+import com.tradingplatform.enums.OrderSide;
+import com.tradingplatform.events.MessageEnvelope;
+import com.tradingplatform.events.OrderPlacedPayload;
+import com.tradingplatform.executor.OrderExecutorService;
 
 @Component
 public class OrderPlacedListener {

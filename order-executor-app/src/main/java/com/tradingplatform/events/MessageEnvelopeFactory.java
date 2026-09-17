@@ -1,4 +1,4 @@
-package com.tradingplatform.api.events;
+package com.tradingplatform.events;
 
 import java.time.Instant;
 import java.util.UUID;
