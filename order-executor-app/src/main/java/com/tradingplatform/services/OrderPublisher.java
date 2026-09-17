@@ -1,12 +1,13 @@
 package com.tradingplatform.api.services;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tradingplatform.api.events.EventType;
-import com.tradingplatform.api.events.MessageEnvelope;
-import com.tradingplatform.api.events.OrderPlacedPayload;
-import com.tradingplatform.api.events.Source;
 import com.tradingplatform.domain.model.Instrument;
 import com.tradingplatform.domain.model.Order;
+import com.tradingplatform.events.EventType;
+import com.tradingplatform.events.MessageEnvelope;
+import com.tradingplatform.events.OrderPlacedPayload;
+import com.tradingplatform.events.Source;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;

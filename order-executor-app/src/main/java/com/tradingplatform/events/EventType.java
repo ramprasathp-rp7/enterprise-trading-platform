@@ -1,4 +1,4 @@
-package com.tradingplatform.api.events;
+package com.tradingplatform.events;
 
 /**
  * Event type enumeration for all Kafka message payloads.

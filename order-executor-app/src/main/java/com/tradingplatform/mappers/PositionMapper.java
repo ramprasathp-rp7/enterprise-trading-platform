@@ -1,4 +1,4 @@
-package com.tradingplatform.api.mappers;
+package com.tradingplatform.mappers;
 
 import org.apache.ibatis.annotations.Arg;
 import org.apache.ibatis.annotations.ConstructorArgs;
@@ -6,7 +6,7 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
-import com.tradingplatform.domain.model.Position;
+import com.tradingplatform.domain.Position;
 
 public interface PositionMapper {
 

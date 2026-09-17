@@ -1,9 +1,9 @@
-package com.tradingplatform.api.mappers;
+package com.tradingplatform.mappers;
 
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
-import com.tradingplatform.domain.model.Instrument;
+import com.tradingplatform.domain.Instrument;
 
 public interface InstrumentMapper {
 

@@ -1,17 +1,17 @@
-package com.tradingplatform.api.services;
+package com.tradingplatform.services;
 
-import com.tradingplatform.api.mappers.AccountMapper;
-import com.tradingplatform.api.mappers.InstrumentMapper;
-import com.tradingplatform.domain.dto.AccountResponse;
-import com.tradingplatform.domain.dto.BalanceResponse;
-import com.tradingplatform.domain.dto.PositionResponse;
-import com.tradingplatform.domain.dto.OrderHistoryEntry;
-import com.tradingplatform.domain.enums.OrderStatus;
-import com.tradingplatform.domain.exception.AccountNotFoundException;
-import com.tradingplatform.domain.model.Account;
-import com.tradingplatform.domain.model.Instrument;
-import com.tradingplatform.domain.model.Order;
-import com.tradingplatform.domain.model.Position;
+import com.tradingplatform.mappers.AccountMapper;
+import com.tradingplatform.mappers.InstrumentMapper;
+import com.tradingplatform.dto.AccountResponse;
+import com.tradingplatform.dto.BalanceResponse;
+import com.tradingplatform.dto.PositionResponse;
+import com.tradingplatform.dto.OrderHistoryEntry;
+import com.tradingplatform.enums.OrderStatus;
+import com.tradingplatform.exception.AccountNotFoundException;
+import com.tradingplatform.domain.Account;
+import com.tradingplatform.domain.Instrument;
+import com.tradingplatform.domain.Order;
+import com.tradingplatform.domain.Position;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;

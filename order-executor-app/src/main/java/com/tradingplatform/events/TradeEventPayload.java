@@ -1,8 +1,9 @@
-package com.tradingplatform.api.events;
+package com.tradingplatform.events;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.math.BigDecimal;
 import java.time.Instant;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * Payload for ORDER_FILLED, ORDER_REJECTED, and ORDER_CANCELLED events on 'trade-events' topic.

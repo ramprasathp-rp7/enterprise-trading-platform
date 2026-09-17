@@ -1,7 +1,8 @@
-package com.tradingplatform.api.events;
+package com.tradingplatform.events;
+
+import java.time.Instant;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.time.Instant;
 
 /**
  * Generic message envelope for all Kafka topics.

@@ -1,12 +1,13 @@
-package com.tradingplatform.api.mappers;
+package com.tradingplatform.mappers;
 
-import com.tradingplatform.domain.model.AssetFeeStructure;
+import java.math.BigDecimal;
+
 import org.apache.ibatis.annotations.Arg;
 import org.apache.ibatis.annotations.ConstructorArgs;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
-import java.math.BigDecimal;
+import com.tradingplatform.domain.AssetFeeStructure;
 
 /**
  * Mapper interface for AssetFeeStructure persistence.

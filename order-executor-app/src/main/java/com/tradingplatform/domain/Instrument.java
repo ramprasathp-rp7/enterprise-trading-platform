@@ -1,8 +1,8 @@
-package com.tradingplatform.domain.model;
-
-import com.tradingplatform.domain.enums.AssetClass;
+package com.tradingplatform.domain;
 
 import java.util.Objects;
+
+import com.tradingplatform.enums.AssetClass;
 
 /* tradable and delisted instruments with AssetClass enum (Equity, FX, Crypto) */
 public final class Instrument {

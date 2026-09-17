@@ -1,13 +1,17 @@
-package com.tradingplatform.api.mappers;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tradingplatform.domain.model.CustomerPreference;
-import org.apache.ibatis.annotations.*;
+package com.tradingplatform.mappers;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tradingplatform.domain.CustomerPreference;
 
 /**
  * MyBatis mapper for customer preferences persistence.
