@@ -1,80 +1,101 @@
 package com.tradingplatform.executor;
 
-import com.tradingplatform.domain.Order;
+import com.tradingplatform.domain.model.Order;
+import com.tradingplatform.domain.model.Instrument;
+import com.tradingplatform.domain.model.AssetFeeStructure;
 import com.tradingplatform.fill.Decision;
 import com.tradingplatform.fill.FillRule;
 import com.tradingplatform.quote.PricingUnavailableException;
 import com.tradingplatform.quote.QuoteClient;
+import com.tradingplatform.api.mappers.InstrumentMapper;
+import com.tradingplatform.api.mappers.AssetFeeMapper;
+import com.tradingplatform.api.mappers.OrderMapper;
+import com.tradingplatform.domain.enums.OrderStatus;
 import com.tradingplatform.service.AccountService;
-import com.tradingplatform.service.InstrumentService;
-import com.tradingplatform.service.OrderRepository;
-import com.tradingplatform.service.OrderSettlementService;
+import com.tradingplatform.api.services.OrderSettlementService;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class OrderExecutorService {
     private final QuoteClient quoteClient;
     private final FillRule fillRule;
-    private final InstrumentService instrumentService;
+    private final InstrumentMapper instrumentMapper;
+    private final AssetFeeMapper assetFeeMapper;
     private final AccountService accountService;
-    private final OrderRepository orderRepository;
+    private final OrderMapper orderMapper;
     private final OrderSettlementService settlementService;
 
-    public OrderExecutorService(QuoteClient quoteClient, FillRule fillRule, InstrumentService instrumentService,
-                                AccountService accountService, OrderRepository orderRepository,
+    public OrderExecutorService(QuoteClient quoteClient, FillRule fillRule, InstrumentMapper instrumentMapper,
+                                AssetFeeMapper assetFeeMapper, AccountService accountService, OrderMapper orderMapper,
                                 OrderSettlementService settlementService) {
         this.quoteClient = quoteClient;
         this.fillRule = fillRule;
-        this.instrumentService = instrumentService;
+        this.instrumentMapper = instrumentMapper;
+        this.assetFeeMapper = assetFeeMapper;
         this.accountService = accountService;
-        this.orderRepository = orderRepository;
+        this.orderMapper = orderMapper;
         this.settlementService = settlementService;
     }
 
     public void process(String orderId, long accountId, Order order) {
-        if (!instrumentService.isTradable(order.getSymbol())) {
-            orderRepository.updateStatus(orderId, "REJECTED", "INSTRUMENT_NOT_TRADABLE");
+        if (order == null) {
+            orderMapper.updateOrderStatus(UUID.fromString(orderId), OrderStatus.REJECTED, null, null);
             return;
         }
+
+        Instrument instrument = instrumentMapper.findById(order.getInstrumentId());
+        if (instrument == null || !instrument.isTradable()) {
+            orderMapper.updateOrderStatus(UUID.fromString(orderId), OrderStatus.REJECTED, "Instrument does not exist or is delisted", null, null);
+            return;
+        }
+
         Optional<BigDecimal> quoted;
         try {
-            quoted = quoteClient.getLatestPrice(order.getSymbol());
+            quoted = quoteClient.getLatestPrice(instrument.getSymbol());
         } catch (PricingUnavailableException e) {
-            orderRepository.updateStatus(orderId, "REJECTED", "NO_PRICE");
+            orderMapper.updateOrderStatus(UUID.fromString(orderId), OrderStatus.REJECTED, "Attempts have exhausted", null, null);
             return;
         }
 
         Decision d = fillRule.decide(order, quoted);
         switch (d) {
             case NO_PRICE:
-                orderRepository.updateStatus(orderId, "REJECTED", "NO_PRICE");
+                orderMapper.updateOrderStatus(UUID.fromString(orderId), OrderStatus.REJECTED, "Pricing is unavailable", null, null);
                 return;
             case REJECT:
-                orderRepository.updateStatus(orderId, "REJECTED", "NOT_MARKETABLE");
+                orderMapper.updateOrderStatus(UUID.fromString(orderId), "Order does not follow the business rules", OrderStatus.REJECTED, null, null);
                 return;
             case FILL:
                 if (accountService.isSuspended(accountId)) {
-                    orderRepository.updateStatus(orderId, "REJECTED", "ACCOUNT_SUSPENDED");
-                    return;
-                }
-                if (quoted.isEmpty()) {
-                    orderRepository.updateStatus(orderId, "REJECTED", "NO_PRICE");
+                    orderMapper.updateOrderStatus(UUID.fromString(orderId), OrderStatus.REJECTED, "Account has suspended", null, null);
                     return;
                 }
                 BigDecimal price = quoted.get();
-                if ("BUY".equalsIgnoreCase(order.getSide())) {
+                if (order.getSide() == OrderSide.BUY) {
                     BigDecimal needed = price.multiply(BigDecimal.valueOf(order.getQuantity()));
                     if (accountService.getAvailableCash(accountId).compareTo(needed) < 0) {
-                        orderRepository.updateStatus(orderId, "REJECTED", "INSUFFICIENT_FUNDS");
+                        orderMapper.updateOrderStatus(UUID.fromString(orderId), OrderStatus.REJECTED, "Total price does not meet the required amount" null, null);
                         return;
                     }
                 }
-                settlementService.settle(order, price);
-                orderRepository.updateStatus(orderId, "FILLED", "FILLED_AT_QUOTE");
+
+                
+                AssetFeeStructure feeStructure = assetFeeMapper.findByAssetType(instrument.getAssetClass().name());
+                /*  Dont do this. Throw an exception instead (?)
+                if (feeStructure == null) {
+                    feeStructure = new AssetFeeStructure(instrument.getAssetClass().name(), new BigDecimal("0.00"), new BigDecimal("0.001"));
+                }
+                */
+                settlementService.settle(order, price, feeStructure);
+                // settlementService persists filled order; mirror with mapper for completeness
+                orderMapper.updateOrderStatus(UUID.fromString(orderId), OrderStatus.FILLED, price, order.getFee());
                 return;
+
+            
         }
     }
 }
