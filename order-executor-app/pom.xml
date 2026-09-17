@@ -36,6 +36,22 @@
       <artifactId>slf4j-api</artifactId>
     </dependency>
 
+    <!-- Database & Persistence -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-jpa</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.mybatis.spring.boot</groupId>
+      <artifactId>mybatis-spring-boot-starter</artifactId>
+      <version>3.0.3</version>
+    </dependency>
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+
     <!-- Testing -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -56,6 +72,8 @@
     </dependency>
   </dependencies>
   <build>
+    <sourceDirectory>src/main/java</sourceDirectory>
+    <testSourceDirectory>src/test/java</testSourceDirectory>
     <plugins>
       <plugin>
         <groupId>org.springframework.boot</groupId>
