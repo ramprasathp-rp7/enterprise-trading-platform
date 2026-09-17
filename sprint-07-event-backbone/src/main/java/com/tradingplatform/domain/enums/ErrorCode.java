@@ -9,7 +9,8 @@ public enum ErrorCode {
     INS_404("INS-404"),
     ORD_400("ORD-400"),
     ORD_409("ORD-409"),
-    VAL_422("VAL-422");
+    VAL_422("VAL-422"),
+    INVALID_PREFERENCE("PREF-422");
 
     private final String code;
 
