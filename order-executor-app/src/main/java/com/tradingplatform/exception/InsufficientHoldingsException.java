@@ -1,4 +1,4 @@
-package com.tradingplatform.domain.exception;
+package com.tradingplatform.exception;
 // Rule 7: A SELL is larger than the quantity held. 
 
 import com.tradingplatform.enums.ErrorCode;

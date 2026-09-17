@@ -1,4 +1,4 @@
-package com.tradingplatform.domain.exception;
+package com.tradingplatform.exception;
 // Rule 3 : Instrument not found or Untradable instrument
 
 import com.tradingplatform.enums.ErrorCode;

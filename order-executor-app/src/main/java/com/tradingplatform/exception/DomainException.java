@@ -1,4 +1,4 @@
-package com.tradingplatform.domain.exception;
+package com.tradingplatform.exception;
 
 import com.tradingplatform.domain.Order;
 import com.tradingplatform.enums.ErrorCode;

@@ -1,4 +1,4 @@
-package com.tradingplatform.domain.exception;
+package com.tradingplatform.exception;
 // Rule 1 : Account is not Found
 
 import com.tradingplatform.enums.ErrorCode;
