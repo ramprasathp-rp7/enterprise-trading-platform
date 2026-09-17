@@ -14,6 +14,8 @@ import com.tradingplatform.domain.model.Order;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.NoSuchElementException;
 import java.util.UUID;
@@ -27,19 +29,22 @@ public class OrderService {
     private final InstrumentMapper instrumentMapper;
     private final AssetFeeMapper assetFeeMapper;
     private final AccountAccessAuthorizer accountAccessAuthorizer;
+    private final OrderPublisher orderPublisher;
     
     public OrderService(OrderValidationService orderValidationService, 
                         OrderSettlementService orderSettlementService,
                         OrderMapper orderMapper,
                         InstrumentMapper instrumentMapper,
                         AssetFeeMapper assetFeeMapper,
-                        AccountAccessAuthorizer accountAccessAuthorizer) {
+                        AccountAccessAuthorizer accountAccessAuthorizer,
+                        OrderPublisher orderPublisher) {
         this.orderValidationService = orderValidationService;
         this.orderSettlementService = orderSettlementService;
         this.orderMapper = orderMapper;
         this.instrumentMapper = instrumentMapper;
         this.assetFeeMapper = assetFeeMapper;
         this.accountAccessAuthorizer = accountAccessAuthorizer;
+        this.orderPublisher = orderPublisher;
     }
 
     @Transactional
@@ -67,29 +72,27 @@ public class OrderService {
             throw new DuplicateOrderException(newOrder.getIdempotencyKey()).withRejectedOrder(newOrder);
         }
 
-        // Fetch instrument to get asset class for fee calculation
+        // Fetch instrument to get symbol for ORDER_PLACED event
         Instrument instrument = instrumentMapper.findById(newOrder.getInstrumentId());
         if (instrument == null) {
             throw new IllegalStateException("Instrument not found for order: " + newOrder.getInstrumentId());
         }
 
-        // Load fee structure by asset type (convert enum to String)
-        var feeable = assetFeeMapper.findByAssetType(instrument.getAssetClass().name());
-        if (feeable == null) {
-            throw new IllegalStateException("Fee structure not found for asset type: " + instrument.getAssetClass());
-        }
+        // Register post-commit callback to publish ORDER_PLACED event to Kafka.
+        // Publishing after commit ensures the order is persisted before notifying the executor.
+        // If Kafka publish fails, the order remains in the database and can be replayed.
+        TransactionSynchronizationManager.registerSynchronization(
+            new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    orderPublisher.publishOrderPlaced(newOrder, instrument);
+                }
+            }
+        );
 
-        // Settle the order: move cash, update position, mark FILLED, debit fee
-        orderSettlementService.settle(newOrder, newOrder.getPrice(), feeable);
-
-        // Fetch the settled order from database (now with FILLED status, executedPrice, and fee)
-        Order settledOrder = orderMapper.findOrderById(newOrder.getId());
-        if (settledOrder == null) {
-            throw new IllegalStateException("Order not found after settlement: " + newOrder.getId());
-        }
-
-        // Build and return OrderResponse from entities
-        return buildOrderResponse(settledOrder, instrument);
+        // Build and return OrderResponse with NEW status
+        // The Trade Executor will fill this order asynchronously based on ORDER_PLACED event
+        return buildOrderResponse(newOrder, instrument);
     }
 
     public OrderResponse getOrderById(String orderId) {
