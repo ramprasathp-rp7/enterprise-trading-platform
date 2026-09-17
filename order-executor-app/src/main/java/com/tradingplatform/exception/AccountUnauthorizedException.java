@@ -1,6 +1,6 @@
 package com.tradingplatform.domain.exception;
 
-import com.tradingplatform.domain.enums.ErrorCode;
+import com.tradingplatform.enums.ErrorCode;
 
 /**
  * Thrown when an authenticated user attempts to access an account they are not authorized to access.

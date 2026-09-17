@@ -1,18 +1,19 @@
 package com.tradingplatform.domain.exception;
 
-import com.tradingplatform.domain.model.Order;
+import com.tradingplatform.domain.Order;
+import com.tradingplatform.enums.ErrorCode;
 
 public abstract class DomainException extends RuntimeException {
 
-    private final com.tradingplatform.domain.enums.ErrorCode errorCode;
+    private final ErrorCode errorCode;
     private Order rejectedOrder;
 
-    protected DomainException(com.tradingplatform.domain.enums.ErrorCode errorCode, String catalogueMessage) {
+    protected DomainException(ErrorCode errorCode, String catalogueMessage) {
         super(catalogueMessage);
         this.errorCode = errorCode;
     }
 
-    public com.tradingplatform.domain.enums.ErrorCode getErrorCode() {
+    public ErrorCode getErrorCode() {
         return errorCode;
     }
 

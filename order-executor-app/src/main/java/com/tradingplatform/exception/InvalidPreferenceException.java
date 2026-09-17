@@ -1,6 +1,6 @@
 package com.tradingplatform.domain.exception;
 
-import com.tradingplatform.domain.enums.ErrorCode;
+import com.tradingplatform.enums.ErrorCode;
 
 /**
  * Exception thrown when a preference is invalid (e.g., invalid key, invalid value type, out of range).
