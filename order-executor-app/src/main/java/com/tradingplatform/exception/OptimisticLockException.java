@@ -1,4 +1,6 @@
-package com.tradingplatform.domain.exception;
+package com.tradingplatform.exception;
+
+import com.tradingplatform.enums.ErrorCode;
 
 /**
  * Thrown when an optimistic lock conflict is detected during an update.
@@ -14,7 +16,7 @@ public final class OptimisticLockException extends DomainException {
     private final Object resourceId;
 
     public OptimisticLockException(String resourceType, Object resourceId) {
-        super(com.tradingplatform.domain.enums.ErrorCode.ORD_409, 
+        super(ErrorCode.ORD_409, 
               "Optimistic lock conflict: " + resourceType + " " + resourceId + " was modified by another transaction");
         this.resourceType = resourceType;
         this.resourceId = resourceId;

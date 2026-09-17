@@ -1,12 +1,14 @@
-package com.tradingplatform.domain.exception;
+package com.tradingplatform.exception;
 // Rule 3 : Instrument not found or Untradable instrument
+
+import com.tradingplatform.enums.ErrorCode;
 
 public final class InstrumentNotFoundException extends DomainException {
 
     private final String symbol;
 
     public InstrumentNotFoundException(String symbol) {
-        super(com.tradingplatform.domain.enums.ErrorCode.INS_404, "Instrument not found");
+        super(ErrorCode.INS_404, "Instrument not found");
         this.symbol = symbol;
     }
 

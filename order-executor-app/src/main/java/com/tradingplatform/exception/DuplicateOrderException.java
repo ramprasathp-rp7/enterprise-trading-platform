@@ -1,12 +1,14 @@
-package com.tradingplatform.domain.exception;
+package com.tradingplatform.exception;
 // Rule 8 : Duplicate Idempotency Key in order
+
+import com.tradingplatform.enums.ErrorCode;
 
 public final class DuplicateOrderException extends DomainException {
 
     private final String idempotencyKey;
 
     public DuplicateOrderException(String idempotencyKey) {
-        super(com.tradingplatform.domain.enums.ErrorCode.ORD_409, "Duplicate order");
+        super(ErrorCode.ORD_409, "Duplicate order");
         this.idempotencyKey = idempotencyKey;
     }
 
