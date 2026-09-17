@@ -2,7 +2,6 @@ package com.tradingplatform.exception;
 
 import com.tradingplatform.domain.Order;
 import com.tradingplatform.enums.ErrorCode;
-
 public abstract class DomainException extends RuntimeException {
 
     private final ErrorCode errorCode;

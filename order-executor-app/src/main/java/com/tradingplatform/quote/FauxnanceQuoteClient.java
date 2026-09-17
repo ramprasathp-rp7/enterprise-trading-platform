@@ -1,7 +1,6 @@
 package com.tradingplatform.quote;
 
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -37,7 +36,7 @@ public class FauxnanceQuoteClient implements QuoteClient {
     }
 
     @Override
-    public Optional<BigDecimal> getLatestPrice(String symbol) throws PricingUnavailableException {
+    public Optional<com.tradingplatform.quote.model.Quote> getLatestPrice(String symbol) throws PricingUnavailableException {
         long start = System.currentTimeMillis();
         int attempts = 0;
         while (true) {
@@ -48,7 +47,7 @@ public class FauxnanceQuoteClient implements QuoteClient {
                 if (!base.endsWith("/")) {
                     base += "/";
                 }
-                URI uri = URI.create(base + "candles/" + encodedSymbol);
+                URI uri = URI.create(base + "quotes?symbols=" + encodedSymbol);
                 HttpRequest.Builder requestBuilder = HttpRequest.newBuilder().uri(uri).timeout(Duration.ofSeconds(5));
                 if (apiKey != null && !apiKey.isBlank()) {
                     requestBuilder.header("x-api-key", apiKey);
@@ -58,11 +57,12 @@ public class FauxnanceQuoteClient implements QuoteClient {
                 if (resp.statusCode() >= 200 && resp.statusCode() < 300) {
                     FauxnanceResponse fr = mapper.readValue(resp.body(), FauxnanceResponse.class);
                     if (fr.getData() == null) return Optional.empty();
-                    var candles = fr.getData().getCandles();
-                    if (candles == null || candles.isEmpty()) return Optional.empty();
-                    for (int i = candles.size() - 1; i >= 0; i--) {
-                        var c = candles.get(i);
-                        if (c.getClose() != null) return Optional.of(c.getClose());
+                    var quotes = fr.getData().getQuotes();
+                    if (quotes == null || quotes.isEmpty()) return Optional.empty();
+                    // take first matching quote wrapper and return its inner quote if present
+                    for (int i = 0; i < quotes.size(); i++) {
+                        var qw = quotes.get(i);
+                        if (qw != null && qw.getQuote() != null) return Optional.of(qw.getQuote());
                     }
                     return Optional.empty();
                 } else if (resp.statusCode() == 404) {

@@ -1,8 +1,9 @@
 package com.tradingplatform.quote;
 
-import java.math.BigDecimal;
 import java.util.Optional;
 
+import com.tradingplatform.quote.model.Quote;
+
 public interface QuoteClient {
-    Optional<BigDecimal> getLatestPrice(String symbol) throws PricingUnavailableException;
+    Optional<Quote> getLatestPrice(String symbol) throws PricingUnavailableException;
 }
