@@ -10,6 +10,7 @@ import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
@@ -57,6 +58,22 @@ public class KafkaListenerConfig {
     @Bean
     @SuppressWarnings({"unchecked", "null"})
     public KafkaTemplate<String, String> deadLetterKafkaTemplate() {
+        ProducerFactory<String, String> producerFactory = (ProducerFactory<String, String>) (ProducerFactory<?, ?>) deadLetterProducerFactory();
+        return new KafkaTemplate<>(producerFactory);
+    }
+
+    @Bean
+    @SuppressWarnings({"unchecked", "null"})
+    public KafkaTemplate<String, String> tradeEventsKafkaTemplate() {
+        // Reuse same producer factory settings for trade events topic
+        ProducerFactory<String, String> producerFactory = (ProducerFactory<String, String>) (ProducerFactory<?, ?>) deadLetterProducerFactory();
+        return new KafkaTemplate<>(producerFactory);
+    }
+
+    @Bean
+    @Primary
+    @SuppressWarnings({"unchecked", "null"})
+    public KafkaTemplate<String, String> kafkaTemplate() {
         ProducerFactory<String, String> producerFactory = (ProducerFactory<String, String>) (ProducerFactory<?, ?>) deadLetterProducerFactory();
         return new KafkaTemplate<>(producerFactory);
     }

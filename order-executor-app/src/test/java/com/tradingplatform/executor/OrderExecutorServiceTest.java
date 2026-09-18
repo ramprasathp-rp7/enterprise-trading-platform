@@ -59,7 +59,15 @@ public class OrderExecutorServiceTest {
                 // no-op for tests; mappers are mocked if needed
             }
         };
-        executor = new OrderExecutorService(quoteClient, fillRule, instrumentMapper, assetFeeMapper, accountMapper, orderMapper, settlementService);
+        // create a no-op TradeEventPublisher stub to avoid Kafka dependencies in tests
+        com.tradingplatform.publisher.TradeEventPublisher tradeEventPublisher = new com.tradingplatform.publisher.TradeEventPublisher(null, new com.fasterxml.jackson.databind.ObjectMapper()) {
+            @Override
+            public void publishTradeEvent(java.util.UUID orderId, long accountId, com.tradingplatform.enums.OrderStatus status, java.math.BigDecimal executedPrice, String rejectReason, java.time.Instant executedOn) {
+                // no-op
+            }
+        };
+
+        executor = new OrderExecutorService(quoteClient, fillRule, instrumentMapper, assetFeeMapper, accountMapper, orderMapper, settlementService, tradeEventPublisher);
     }
 
     @Test
@@ -90,7 +98,8 @@ public class OrderExecutorServiceTest {
             eq(OrderStatus.FILLED),
             isNull(String.class),
             eq(new BigDecimal("99.50")),
-            isNull(BigDecimal.class)
+            isNull(BigDecimal.class),
+            isNull(java.time.Instant.class)
         );
     }
 
@@ -119,7 +128,8 @@ public class OrderExecutorServiceTest {
             eq(OrderStatus.REJECTED),
             eq("No price available"),
             isNull(BigDecimal.class),
-            isNull(BigDecimal.class)
+            isNull(BigDecimal.class),
+            isNull(java.time.Instant.class)
         );
     }
 }

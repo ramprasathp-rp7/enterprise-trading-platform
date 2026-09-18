@@ -37,10 +37,11 @@ public class OrderExecutorService {
     private final AccountMapper accountMapper;
     private final OrderMapper orderMapper;
     private final OrderSettlementService settlementService;
+    private final com.tradingplatform.publisher.TradeEventPublisher tradeEventPublisher;
 
     public OrderExecutorService(QuoteClient quoteClient, FillRule fillRule, InstrumentMapper instrumentMapper,
                                 AssetFeeMapper assetFeeMapper, AccountMapper accountMapper, OrderMapper orderMapper,
-                                OrderSettlementService settlementService) {
+                                OrderSettlementService settlementService, com.tradingplatform.publisher.TradeEventPublisher tradeEventPublisher) {
         this.quoteClient = quoteClient;
         this.fillRule = fillRule;
         this.instrumentMapper = instrumentMapper;
@@ -48,6 +49,7 @@ public class OrderExecutorService {
         this.accountMapper = accountMapper;
         this.orderMapper = orderMapper;
         this.settlementService = settlementService;
+        this.tradeEventPublisher = tradeEventPublisher;
     }
 
     public void process(Order order) throws PricingUnavailableException {
@@ -87,7 +89,10 @@ public class OrderExecutorService {
             }
             case REJECT -> {
                 logger.warn("Rejecting order by fill rule: orderId={}", orderId);
-                orderMapper.updateOrderStatus(orderId, OrderStatus.REJECTED, "Order rejected by fill rule", null, null, java.time.Instant.now());
+                    java.time.Instant executedOn = java.time.Instant.now();
+                    orderMapper.updateOrderStatus(orderId, OrderStatus.REJECTED, "Order rejected by fill rule", null, null, executedOn);
+                    // publish trade event for rejected order
+                    tradeEventPublisher.publishTradeEvent(orderId, accountId, OrderStatus.REJECTED, null, "Order rejected by fill rule", executedOn);
             }
             case FILL -> {
                 Account account = accountMapper.findByAccountId(accountId);
@@ -125,8 +130,11 @@ public class OrderExecutorService {
                     // set fee on order object so mapper persists correct value
                     order.markFilled(executed, fee);
                     
-                    orderMapper.updateOrderStatus(orderId, OrderStatus.FILLED, null, executed, fee, java.time.Instant.now());
+                    java.time.Instant executedOn = java.time.Instant.now();
+                    orderMapper.updateOrderStatus(orderId, OrderStatus.FILLED, null, executed, fee, executedOn);
                     logger.info("Filled order successfully: orderId={}, accountId={}, price={}", orderId,accountId, executed);
+                    // publish trade event for filled order
+                    tradeEventPublisher.publishTradeEvent(orderId, accountId, OrderStatus.FILLED, executed, null, executedOn);
                 }
             }
         }
