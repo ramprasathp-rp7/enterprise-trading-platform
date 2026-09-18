@@ -7,6 +7,9 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Optional;
 
+import org.springframework.stereotype.Component;
+
+@Component
 public class DefaultFillRule implements FillRule {
     @Override
     public Decision decide(Order order, Optional<Quote> quoted) {

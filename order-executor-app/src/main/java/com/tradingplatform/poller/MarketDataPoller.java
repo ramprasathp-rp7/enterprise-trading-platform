@@ -83,7 +83,7 @@ public class MarketDataPoller {
      * Note: This polls continuously at a fixed rate. The interval itself is validated
      * at initialization time and cannot be changed at runtime without redeployment.
      */
-    @Scheduled(fixedDelayString = "#{@marketDataPoller.getPollIntervalMillis()}")
+    @Scheduled(fixedDelayString = "${POLL_INTERVAL_SECONDS:60}000")
     public void pollMarketData() {
         try {
             logger.debug("Starting market data poll cycle");
@@ -188,5 +188,10 @@ public class MarketDataPoller {
      */
     public long getPollIntervalMillis() {
         return pollIntervalSeconds * 1000L;
+    }
+
+    // Expose poll interval as seconds for external configuration and tests
+    public int getPollIntervalSeconds() {
+        return this.pollIntervalSeconds;
     }
 }
