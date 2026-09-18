@@ -18,6 +18,7 @@ import org.springframework.stereotype.Component;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.tradingplatform.domain.Instrument;
 import com.tradingplatform.domain.Order;
 import com.tradingplatform.enums.OrderSide;
@@ -42,6 +43,7 @@ public class OrderPlacedListener {
 	private final java.util.function.Consumer<org.apache.kafka.clients.producer.ProducerRecord<String, String>> deadLetterSender;
 	private final ObjectMapper objectMapper;
 
+	@Autowired
 	public OrderPlacedListener(
 		OrderExecutorService executorService,
 		InstrumentMapper instrumentMapper,
@@ -153,6 +155,7 @@ public class OrderPlacedListener {
 		Order order = null;
 		if (instrument != null) {
 			order = new Order(
+				orderUuid,
 				payload.accountId(),
 				instrument.getId(),
 				side,
@@ -162,7 +165,7 @@ public class OrderPlacedListener {
 			);
 		}
 
-		executorService.process(payload.orderId(), payload.accountId(), order);
+		executorService.process(order);
 	}
 
 	private void sleep(long millis) {
