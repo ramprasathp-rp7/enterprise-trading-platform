@@ -111,20 +111,10 @@
         </configuration>
       </plugin>
       <plugin>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-maven-plugin</artifactId>
-        <configuration>
-          <jvmArguments>
-            --add-opens java.base/java.util=ALL-UNNAMED
-            --add-opens java.base/java.lang=ALL-UNNAMED
-          </jvmArguments>
-        </configuration>
-      </plugin>
-      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
-          <argLine>-Dnet.bytebuddy.experimental=true</argLine>
+          <argLine>--add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED -Dnet.bytebuddy.experimental=true</argLine>
         </configuration>
       </plugin>
     </plugins>

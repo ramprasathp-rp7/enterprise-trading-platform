@@ -1,18 +1,17 @@
 package com.tradingplatform.api.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tradingplatform.api.mappers.AccountMapper;
-import com.tradingplatform.api.mappers.InstrumentMapper;
-import com.tradingplatform.api.mappers.OrderMapper;
-import com.tradingplatform.api.mappers.PositionMapper;
-import com.tradingplatform.api.mappers.PreferenceMapper;
 import com.tradingplatform.api.exception.GlobalExceptionHandler;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,14 +31,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = SecurityFilterChainAuthFlowTest.ProbeController.class)
-@Import({
-    ApiSecurityConfiguration.class,
-    ResolverAuthenticationEntryPoint.class,
-    GlobalExceptionHandler.class
-})
+@ContextConfiguration(classes = SecurityFilterChainAuthFlowTest.TestConfig.class)
 @TestPropertySource(properties = {
-    "JWT_SECRET=test-shared-secret-32-bytes-minimum-key",
-    "JWT_ISSUER=auth-service"
+        "JWT_SECRET=test-shared-secret-32-bytes-minimum-key",
+        "JWT_ISSUER=auth-service"
 })
 class SecurityFilterChainAuthFlowTest {
 
@@ -49,30 +44,12 @@ class SecurityFilterChainAuthFlowTest {
     @Autowired
     private MockMvc mockMvc;
 
-    /*
-     * These mocks prevent @MapperScan from trying to create
-     * real MyBatis mapper beans during @WebMvcTest.
-     */
-    @MockBean
-    private AccountMapper accountMapper;
-
-    @MockBean
-    private PositionMapper positionMapper;
-
-    @MockBean
-    private OrderMapper orderMapper;
-
-    @MockBean
-    private InstrumentMapper instrumentMapper;
-
-    @MockBean
-    private PreferenceMapper preferenceMapper;
-
     private final ObjectMapper objectMapper = new ObjectMapper();
 
 
     @Test
     void missingHeaderReturnsContractUnauthorisedBody() throws Exception {
+
         mockMvc.perform(get("/api/v1/probe"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
@@ -84,6 +61,7 @@ class SecurityFilterChainAuthFlowTest {
 
     @Test
     void wrongSchemeReturnsContractUnauthorisedBody() throws Exception {
+
         mockMvc.perform(
                 get("/api/v1/probe")
                         .header("Authorization", "Basic abc")
@@ -97,6 +75,7 @@ class SecurityFilterChainAuthFlowTest {
 
     @Test
     void expiredTokenReturnsContractUnauthorisedBody() throws Exception {
+
         String token = createToken(
                 "HS256",
                 Instant.now().minusSeconds(1).getEpochSecond(),
@@ -116,6 +95,7 @@ class SecurityFilterChainAuthFlowTest {
 
     @Test
     void forgedSignatureReturnsContractUnauthorisedBody() throws Exception {
+
         String validToken = createToken(
                 "HS256",
                 Instant.now().plusSeconds(900).getEpochSecond(),
@@ -147,6 +127,7 @@ class SecurityFilterChainAuthFlowTest {
 
     @Test
     void validTokenAllowsRequest() throws Exception {
+
         String token = createToken(
                 "HS256",
                 Instant.now().plusSeconds(900).getEpochSecond(),
@@ -196,6 +177,7 @@ class SecurityFilterChainAuthFlowTest {
 
 
     private String toJson(Map<String, Object> map) {
+
         try {
             return objectMapper.writeValueAsString(map);
         } catch (Exception ex) {
@@ -205,6 +187,7 @@ class SecurityFilterChainAuthFlowTest {
 
 
     private String sign(String value) {
+
         try {
             Mac mac = Mac.getInstance("HmacSHA256");
 
@@ -231,11 +214,23 @@ class SecurityFilterChainAuthFlowTest {
 
 
     private String base64Url(String raw) {
+
         return Base64.getUrlEncoder()
                 .withoutPadding()
                 .encodeToString(
                         raw.getBytes(StandardCharsets.UTF_8)
                 );
+    }
+
+
+    @Configuration
+    @EnableAutoConfiguration
+    @Import({
+            ApiSecurityConfiguration.class,
+            ResolverAuthenticationEntryPoint.class,
+            GlobalExceptionHandler.class
+    })
+    static class TestConfig {
     }
 
 
