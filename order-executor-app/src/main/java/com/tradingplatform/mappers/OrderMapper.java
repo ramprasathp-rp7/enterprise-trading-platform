@@ -1,6 +1,7 @@
 package com.tradingplatform.mappers;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.UUID;
 
 import org.apache.ibatis.annotations.Arg;
@@ -43,4 +44,25 @@ public interface OrderMapper {
 
     @Update("UPDATE orders SET status = #{status}, rejected_reason = #{rejectedReason}, executed_price = #{executedPrice}, fee = #{fee} WHERE id = #{id}")
     int updateOrderStatus(@Param("id") UUID id, @Param("status") com.tradingplatform.enums.OrderStatus status, @Param("rejectedReason") String rejectedReason, @Param("executedPrice") BigDecimal executedPrice, @Param("fee") BigDecimal fee);
+
+    /**
+     * Guarded state transition: updates order status only if current status matches expected.
+     * This is the mechanism that prevents duplicate deliveries from double-processing.
+     *
+     * Returns: 0 if current status != expectedStatus (another delivery already processed)
+     *          1 if update succeeded
+     *
+     * Example: UPDATE orders SET status = 'FILLED', executed_price = ?, executed_on = ?, rejected_reason = ?
+     *          WHERE id = ? AND status = 'NEW'
+     */
+    @Update("UPDATE orders SET status = #{newStatus}, executed_price = #{executedPrice}, executed_on = #{executedOn}, rejected_reason = #{rejectReason} " +
+            "WHERE id = #{id} AND status = #{expectedStatus}")
+    int updateOrderStatusGuarded(
+        @Param("id") UUID id,
+        @Param("expectedStatus") OrderStatus expectedStatus,
+        @Param("newStatus") OrderStatus newStatus,
+        @Param("executedPrice") BigDecimal executedPrice,
+        @Param("executedOn") Instant executedOn,
+        @Param("rejectReason") String rejectReason
+    );
 }

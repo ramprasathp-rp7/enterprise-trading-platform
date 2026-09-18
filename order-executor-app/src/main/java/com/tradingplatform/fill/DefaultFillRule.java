@@ -1,5 +1,6 @@
 package com.tradingplatform.fill;
 
+import org.springframework.stereotype.Component;
 import com.tradingplatform.domain.Order;
 import com.tradingplatform.enums.OrderSide;
 import com.tradingplatform.quote.model.Quote;
@@ -7,6 +8,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Optional;
 
+@Component
 public class DefaultFillRule implements FillRule {
     @Override
     public Decision decide(Order order, Optional<Quote> quoted) {
