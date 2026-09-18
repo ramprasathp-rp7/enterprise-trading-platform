@@ -61,14 +61,14 @@ public class OrderExecutorService {
 
         if (order == null) {
             logger.warn("Rejecting null order payload: orderId={}", orderId);
-            orderMapper.updateOrderStatus(orderId, OrderStatus.REJECTED, "Order is null", null, null);
+            orderMapper.updateOrderStatus(orderId, OrderStatus.REJECTED, "Order is null", null, null, java.time.Instant.now());
             return;
         }
 
         Instrument instrument = instrumentMapper.findById(order.getInstrumentId());
         if (instrument == null || !instrument.isTradable()) {
             logger.warn("Rejecting order because instrument is not tradable: orderId={}, instrumentId={}", orderId, order.getInstrumentId());
-            orderMapper.updateOrderStatus(orderId, OrderStatus.REJECTED, "Instrument is not tradable", null, null);
+            orderMapper.updateOrderStatus(orderId, OrderStatus.REJECTED, "Instrument is not tradable", null, null, java.time.Instant.now());
             return;
         }
 
@@ -81,26 +81,26 @@ public class OrderExecutorService {
         }
         Decision d = fillRule.decide(order, quoted);
         switch (d) {
-            case NO_PRICE -> {
+                case NO_PRICE -> {
                 logger.warn("Rejecting order because no price is available: orderId={}", orderId);
-                orderMapper.updateOrderStatus(orderId, OrderStatus.REJECTED, "No price available", null, null);
+                orderMapper.updateOrderStatus(orderId, OrderStatus.REJECTED, "No price available", null, null, java.time.Instant.now());
             }
             case REJECT -> {
                 logger.warn("Rejecting order by fill rule: orderId={}", orderId);
-                orderMapper.updateOrderStatus(orderId, OrderStatus.REJECTED, "Order rejected by fill rule", null, null);
+                orderMapper.updateOrderStatus(orderId, OrderStatus.REJECTED, "Order rejected by fill rule", null, null, java.time.Instant.now());
             }
             case FILL -> {
                 Account account = accountMapper.findByAccountId(accountId);
                 if (account == null || account.getStatus() != AccountStatus.ACTIVE) {
                     logger.warn("Rejecting order because account is not active: orderId={}, accountId={}", orderId, accountId);
-                    orderMapper.updateOrderStatus(orderId, OrderStatus.REJECTED, "Suspended Account", null, null);
+                    orderMapper.updateOrderStatus(orderId, OrderStatus.REJECTED, "Suspended Account", null, null, java.time.Instant.now());
                 } else {
                     // determine executed price based on side (ask for BUY, bid for SELL)
                     com.tradingplatform.quote.model.Quote q = quoted.get();
                     BigDecimal sidePrice = order.getSide() == OrderSide.BUY ? q.getAsk() : q.getBid();
                     if (sidePrice == null) {
                         logger.warn("Rejecting order because quote side price missing: orderId={}", orderId);
-                        orderMapper.updateOrderStatus(orderId, OrderStatus.REJECTED, "No price available", null, null);
+                        orderMapper.updateOrderStatus(orderId, OrderStatus.REJECTED, "No price available", null, null, java.time.Instant.now());
                         return;
                     }
                     BigDecimal executed = sidePrice.setScale(order.getPrice().scale(), java.math.RoundingMode.HALF_UP);
@@ -109,7 +109,7 @@ public class OrderExecutorService {
                         BigDecimal needed = executed.multiply(BigDecimal.valueOf(order.getQuantity()));
                         if (!account.canAfford(needed)) {
                             logger.warn("Rejecting order because account cannot afford fill: orderId={}, accountId={}", orderId, accountId);
-                            orderMapper.updateOrderStatus(orderId, OrderStatus.REJECTED, "Insufficient funds", null, null);
+                            orderMapper.updateOrderStatus(orderId, OrderStatus.REJECTED, "Insufficient funds", null, null, java.time.Instant.now());
                             return;
                         }
                     }
@@ -121,10 +121,12 @@ public class OrderExecutorService {
                         feeStructure = new AssetFeeStructure(instrument.getAssetClass().name(), new BigDecimal("0.00"), new BigDecimal("0.001"));
                     }
                     */
-                    settlementService.settle(order, executed, feeStructure);
-                    // settlementService persists filled order; mirror with mapper for completeness
-                    orderMapper.updateOrderStatus(orderId, OrderStatus.FILLED, null, executed, order.getFee());
-                    logger.debug("Filled order successfully: orderId={}, accountId={}, price={}", orderId,accountId, executed);
+                    java.math.BigDecimal fee = settlementService.settle(order, executed, feeStructure);
+                    // set fee on order object so mapper persists correct value
+                    order.markFilled(executed, fee);
+                    
+                    orderMapper.updateOrderStatus(orderId, OrderStatus.FILLED, null, executed, fee, java.time.Instant.now());
+                    logger.info("Filled order successfully: orderId={}, accountId={}, price={}", orderId,accountId, executed);
                 }
             }
         }

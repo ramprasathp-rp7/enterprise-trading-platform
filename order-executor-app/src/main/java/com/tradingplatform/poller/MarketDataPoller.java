@@ -86,17 +86,17 @@ public class MarketDataPoller {
     @Scheduled(fixedDelayString = "${POLL_INTERVAL_SECONDS:60}000")
     public void pollMarketData() {
         try {
-            logger.debug("Starting market data poll cycle");
+            logger.info("Starting market data poll cycle");
             
             // Get symbols to poll from active positions
             Set<String> symbols = symbolDiscoveryService.getActiveSymbols();
             
             if (symbols.isEmpty()) {
-                logger.debug("No active symbols to poll, skipping this cycle");
+                logger.info("No active symbols to poll, skipping this cycle");
                 return;
             }
             
-            logger.debug("Polling {} symbols for market data", symbols.size());
+            logger.info("Polling {} symbols for market data", symbols.size());
             
             // Fetch quotes for all symbols in batches of 25
             List<Quote> quotes;
@@ -121,7 +121,7 @@ public class MarketDataPoller {
             // Log quota status
             logQuotaStatus();
             
-            logger.debug("Completed market data poll cycle, published {} quotes", quotes.size());
+            logger.info("Completed market data poll cycle, published {} quotes", quotes.size());
             
         } catch (Exception e) {
             logger.error("Unexpected error in market data poller: {}", e.getMessage(), e);
@@ -165,7 +165,7 @@ public class MarketDataPoller {
         );
         
         kafkaTemplate.send(record);
-        logger.debug("Published quote to market-data: symbol={}", symbol);
+        logger.info("Published quote to market-data: symbol={}", symbol);
     }
 
     /**

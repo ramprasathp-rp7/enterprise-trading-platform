@@ -24,7 +24,7 @@ public class OrderSettlementService {
         this.positionMapper = positionMapper;
     }
 
-    public void settle(Order order, BigDecimal executedPrice, Feeable feeable) {
+    public java.math.BigDecimal settle(Order order, BigDecimal executedPrice, Feeable feeable) {
         Objects.requireNonNull(order, "order");
         Objects.requireNonNull(executedPrice, "executedPrice");
         Objects.requireNonNull(feeable, "feeable");
@@ -79,7 +79,8 @@ public class OrderSettlementService {
             // Another transaction has modified the position since we read it
             throw new OptimisticLockException("Position", order.getAccountId() + ":" + order.getInstrumentId());
         }
-
+        // Return the calculated fee so callers can persist it with the order
+        return fee;
     }
 }
 

@@ -112,7 +112,7 @@ public class OrderPlacedListener {
 			return;
 		}
 
-		logger.debug("Consuming order event: topic={}, partition={}, offset={}, orderId={}, accountId={}",
+		logger.info("Consuming order event: topic={}, partition={}, offset={}, orderId={}, accountId={}",
 			record.topic(), record.partition(), record.offset(), payload.orderId(), payload.accountId());
 
 		int attempts = 0;
@@ -120,7 +120,7 @@ public class OrderPlacedListener {
 		while (true) {
 			try {
 				processOnce(payload, orderUuid);
-				logger.debug("Finished processing order event: orderId={}, accountId={}", payload.orderId(), payload.accountId());
+				logger.info("Finished processing order event: orderId={}, accountId={}", payload.orderId(), payload.accountId());
 				return;
 			} catch (NoSuchElementException | IllegalArgumentException ex) {
 				logger.warn("Dead-lettering order after terminal failure: orderId={}, reason={}", payload.orderId(), ex.getMessage());
