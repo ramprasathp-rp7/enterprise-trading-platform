@@ -21,7 +21,7 @@ COMMENT ON COLUMN assets.flat_fee IS
     'Fixed fee per trade, in base currency.';
 
 COMMENT ON COLUMN assets.percentage_fee IS
-    'Percentage fee on trade notional value in decimal form. E.g., 0.0001 means 0.01%.'
+    'Percentage fee on trade notional value in decimal form. E.g., 0.0001 means 0.01%.';
 
 COMMENT ON COLUMN assets.updated_on IS
     'Timestamp when fee structure was last modified. Used for tracking changes.';
