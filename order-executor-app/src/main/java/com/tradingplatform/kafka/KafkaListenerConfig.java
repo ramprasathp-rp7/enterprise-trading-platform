@@ -22,7 +22,7 @@ import org.springframework.kafka.core.ProducerFactory;
 @EnableKafka
 public class KafkaListenerConfig {
 
-    @Value("${spring.kafka.bootstrap-servers:${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}}")
+    @Value("${spring.kafka.bootstrap-servers:${KAFKA_BOOTSTRAP_SERVERS:10.8.64.7:9092}}")
     private String bootstrapServers;
 
     @Bean

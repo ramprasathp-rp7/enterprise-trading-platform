@@ -68,7 +68,7 @@ class OrderPlacedListenerTest {
             public int getCallCount() { return callCount; }
 
             @Override
-            public void process(String orderId, long accountId, com.tradingplatform.domain.Order order) throws PricingUnavailableException {
+            public void process(com.tradingplatform.domain.Order order) throws PricingUnavailableException {
                 callCount++;
                 java.lang.Throwable t = actions.poll();
                 if (t != null) {

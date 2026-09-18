@@ -83,7 +83,7 @@ public class OrderExecutorServiceTest {
         when(orderMapper.findOrderById(any(java.util.UUID.class))).thenReturn(o);
         when(accountMapper.findByAccountId(1L)).thenReturn(account);
 
-        executor.process(UUID.randomUUID().toString(),1L,o);
+        executor.process(o);
 
         verify(orderMapper).updateOrderStatus(
             any(UUID.class),
@@ -112,7 +112,7 @@ public class OrderExecutorServiceTest {
         when(orderMapper.findOrderById(any(java.util.UUID.class))).thenReturn(o);
         when(accountMapper.findByAccountId(2L)).thenReturn(account);
 
-        executor.process(UUID.randomUUID().toString(),2L,o);
+        executor.process(o);
 
         verify(orderMapper).updateOrderStatus(
             any(UUID.class),
