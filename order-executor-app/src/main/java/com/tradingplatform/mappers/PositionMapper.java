@@ -7,6 +7,7 @@ import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
 import com.tradingplatform.domain.Position;
+import java.util.List;
 
 public interface PositionMapper {
 
@@ -22,4 +23,13 @@ public interface PositionMapper {
 
     @Update("UPDATE positions SET quantity = #{position.quantity}, average_cost = #{position.averageCost}, version = #{newVersion} WHERE account_id = #{position.accountId} AND instrument_id = #{position.instrumentId} AND version = #{position.version}")
     int updatePosition(@Param("position") Position position, @Param("newVersion") int newVersion);
+
+    /**
+     * Get all distinct symbols with non-zero quantity held across all positions.
+     * Used by the market-data poller to determine which symbols to poll for quotes.
+     * 
+     * @return List of distinct symbol strings where quantity > 0
+     */
+    @Select("SELECT DISTINCT i.symbol FROM positions p JOIN instruments i ON p.instrument_id = i.id WHERE p.quantity > 0 AND i.tradable = true ORDER BY i.symbol")
+    List<String> getDistinctSymbolsWithQuantity();
 }
