@@ -14,16 +14,24 @@ set -euo pipefail
 
 # Get absolute path of the script's directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ENV_PATH="$SCRIPT_DIR/../../manifest.env"
+MANIFEST_ENV_PATH="$SCRIPT_DIR/../../manifest.env"
+ENV_PATH="$SCRIPT_DIR/../../.env"
 
-# Load manifest.env if found
+# Load manifest.env (required)
+if [ -f "$MANIFEST_ENV_PATH" ]; then
+  set -a  # Export all variables
+  source "$MANIFEST_ENV_PATH"
+  set +a  # Stop exporting
+else
+  echo "Error: manifest.env file not found at $MANIFEST_ENV_PATH"
+  exit 1
+fi
+
+# Load .env (optional, overrides EC2_PRIVATE_IP if present)
 if [ -f "$ENV_PATH" ]; then
   set -a  # Export all variables
   source "$ENV_PATH"
   set +a  # Stop exporting
-else
-  echo "Error: manifest.env file not found at $ENV_PATH"
-  exit 1
 fi
 
 # Validate required variables from .env

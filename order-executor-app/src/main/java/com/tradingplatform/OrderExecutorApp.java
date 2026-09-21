@@ -1,11 +1,11 @@
 package com.tradingplatform;
 
-import java.util.Map;
-
 import org.springframework.context.annotation.Bean;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.core.env.Environment;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import com.tradingplatform.quote.FauxnanceQuoteClient;
 import com.tradingplatform.quote.QuoteClient;
@@ -19,11 +19,13 @@ public class OrderExecutorApp {
         SpringApplication.run(OrderExecutorApp.class, args);
     }
 
+    @Autowired
+    private Environment env;
+
     @Bean
     public QuoteClient quoteClient() {
-        Map<String, String> env = System.getenv();
-        String baseUrl = env.getOrDefault("FAUXNANCE_BASE_URL", DEFAULT_FAUXNANCE_BASE_URL);
-        String apiKey = env.get("FAUXNANCE_API_KEY");
+        String baseUrl = env.getProperty("FAUXNANCE_BASE_URL", DEFAULT_FAUXNANCE_BASE_URL);
+        String apiKey = env.getProperty("FAUXNANCE_API_KEY");
         return new FauxnanceQuoteClient(baseUrl, apiKey, 3, 250L, 2000L);
     }
 }
