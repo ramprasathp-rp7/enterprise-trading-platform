@@ -228,6 +228,11 @@ public class AnalyticsTransform {
         long nextAccountKey,
         LocalDate effectiveDate
     ) {
+        // rawAccount[4] is the Postgres accounts.id surrogate key, added in
+        // AnalyticsExtract.extractDimAccounts() — dim_account.source_id is
+        // NOT NULL in the schema, so this must be populated, not null.
+        Long sourceId = Long.parseLong(rawAccount[4]);
+
         return new AnalyticsDimAccount(
             nextAccountKey,
             rawAccount[0],
@@ -236,7 +241,7 @@ public class AnalyticsTransform {
             effectiveDate,
             null,  // end_date: NULL for current version
             true,  // is_current: TRUE for current version
-            null,  // source_id: populated later if needed
+            sourceId,
             Instant.now()
         );
     }

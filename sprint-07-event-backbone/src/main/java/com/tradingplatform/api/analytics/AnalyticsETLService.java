@@ -196,9 +196,9 @@ public class AnalyticsETLService {
 
             jdbcTemplate.update(sql,
                 Timestamp.from(lastProcessedCreatedOn),
-                batchId.toString(),
+                batchId,
                 Timestamp.from(lastProcessedCreatedOn),
-                batchId.toString()
+                batchId
             );
 
             System.out.println("Watermark persisted: " + lastProcessedCreatedOn + ", batch: " + batchId);

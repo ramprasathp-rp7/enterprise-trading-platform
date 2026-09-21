@@ -29,7 +29,7 @@ public class AnalyticsLoad {
      */
     private Connection getDuckDbConnection() throws SQLException {
         try {
-            Class.forName("org.duckdb.jdbc.DuckDBDriver");
+            Class.forName("org.duckdb.DuckDBDriver");
         } catch (ClassNotFoundException e) {
             throw new SQLException("DuckDB driver not found on classpath", e);
         }
@@ -46,12 +46,22 @@ public class AnalyticsLoad {
             ResultSet tables = meta.getTables(null, null, "fact_trades", new String[]{"TABLE"});
             
             if (!tables.next()) {
-                // Tables don't exist; load schema
-                String schema = new String(Files.readAllBytes(
-                    Paths.get(AnalyticsLoad.class.getClassLoader()
-                        .getResource("analytics-schema.sql").getPath())
-                ));
-                
+                // Tables don't exist; load schema.
+                // Read via stream, not Paths.get(url.getPath()) — the latter
+                // breaks once this resource is packaged inside a jar, since
+                // its URL is jar:file:...!/analytics-schema.sql rather than a
+                // real filesystem path.
+                String schema;
+                try (java.io.InputStream in = AnalyticsLoad.class.getClassLoader()
+                        .getResourceAsStream("analytics-schema.sql")) {
+                    if (in == null) {
+                        throw new IOException(
+                            "analytics-schema.sql not found on classpath — " +
+                            "expected at src/main/resources/analytics-schema.sql");
+                    }
+                    schema = new String(in.readAllBytes());
+                }
+
                 try (Statement stmt = conn.createStatement()) {
                     stmt.execute(schema);
                 }
@@ -63,10 +73,14 @@ public class AnalyticsLoad {
      * Load dim_date: insert if not already populated.
      */
     public int loadDimDate(List<AnalyticsDimDate> dates) throws SQLException {
+        // dim_date has no loaded_at column in analytics-schema.sql (unlike
+        // dim_instrument, dim_account and fact_trades, which all do). The
+        // AnalyticsDimDate model still carries loadedAt for in-memory use,
+        // it's just not persisted here — the schema is binding, not this insert.
         String sql = """
             INSERT INTO dim_date
-                (date_key, full_date, day, month, year, quarter, day_of_week, day_name, month_name, is_weekday, loaded_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (date_key, full_date, day, month, year, quarter, day_of_week, day_name, month_name, is_weekday)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT DO NOTHING
             """;
 
@@ -85,7 +99,6 @@ public class AnalyticsLoad {
                 stmt.setString(8, date.dayName());
                 stmt.setString(9, date.monthName());
                 stmt.setBoolean(10, date.isWeekday());
-                stmt.setObject(11, date.loadedAt());
                 stmt.addBatch();
             }
             
@@ -122,7 +135,7 @@ public class AnalyticsLoad {
                 stmt.setString(5, instr.currency());
                 stmt.setString(6, instr.exchange());
                 stmt.setBoolean(7, instr.tradable());
-                stmt.setObject(8, instr.loadedAt());
+                stmt.setTimestamp(8, Timestamp.from(instr.loadedAt()));
                 stmt.addBatch();
             }
             
@@ -152,8 +165,14 @@ public class AnalyticsLoad {
                 stmt.setObject(5, account.effectiveDate());
                 stmt.setObject(6, account.endDate());
                 stmt.setBoolean(7, account.isCurrent());
-                stmt.setLong(8, account.sourceId());
-                stmt.setObject(9, account.loadedAt());
+                // sourceId is intentionally null in AnalyticsTransform.transformDimAccount()
+                // ("populated later if needed") — setLong would NPE unboxing a null Long.
+                if (account.sourceId() != null) {
+                    stmt.setLong(8, account.sourceId());
+                } else {
+                    stmt.setNull(8, Types.BIGINT);
+                }
+                stmt.setTimestamp(9, Timestamp.from(account.loadedAt()));
                 stmt.addBatch();
             }
             
@@ -193,8 +212,8 @@ public class AnalyticsLoad {
                 stmt.setBigDecimal(9, trade.executedPrice());
                 stmt.setBigDecimal(10, trade.tradeValue());
                 stmt.setString(11, trade.sourceOrderId());
-                stmt.setObject(12, trade.createdAt());
-                stmt.setObject(13, trade.loadedAt());
+                stmt.setTimestamp(12, Timestamp.from(trade.createdAt()));
+                stmt.setTimestamp(13, Timestamp.from(trade.loadedAt()));
                 stmt.addBatch();
             }
             

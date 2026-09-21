@@ -81,7 +81,8 @@ public class AnalyticsExtract {
             rs.getString("account_id"),
             rs.getString("holder_name"),
             rs.getString("status"),
-            rs.getTimestamp("created_on").toString()
+            rs.getTimestamp("created_on").toString(),
+            rs.getString("id") // Postgres surrogate key -> dim_account.source_id (NOT NULL)
         });
     }
 
