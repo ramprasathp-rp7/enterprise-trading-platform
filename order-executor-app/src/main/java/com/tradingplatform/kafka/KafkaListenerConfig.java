@@ -10,6 +10,7 @@ import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
@@ -23,7 +24,7 @@ import org.springframework.kafka.listener.ContainerProperties;
 @EnableKafka
 public class KafkaListenerConfig {
 
-    @Value("${spring.kafka.bootstrap-servers:${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}}")
+    @Value("${spring.kafka.bootstrap-servers:${KAFKA_BOOTSTRAP_SERVERS:10.8.64.7:9092}}")
     private String bootstrapServers;
 
     @Bean
@@ -91,6 +92,22 @@ public class KafkaListenerConfig {
     @Bean
     @SuppressWarnings({"unchecked", "null"})
     public KafkaTemplate<String, String> deadLetterKafkaTemplate() {
+        ProducerFactory<String, String> producerFactory = (ProducerFactory<String, String>) (ProducerFactory<?, ?>) deadLetterProducerFactory();
+        return new KafkaTemplate<>(producerFactory);
+    }
+
+    @Bean
+    @SuppressWarnings({"unchecked", "null"})
+    public KafkaTemplate<String, String> tradeEventsKafkaTemplate() {
+        // Reuse same producer factory settings for trade events topic
+        ProducerFactory<String, String> producerFactory = (ProducerFactory<String, String>) (ProducerFactory<?, ?>) deadLetterProducerFactory();
+        return new KafkaTemplate<>(producerFactory);
+    }
+
+    @Bean
+    @Primary
+    @SuppressWarnings({"unchecked", "null"})
+    public KafkaTemplate<String, String> kafkaTemplate() {
         ProducerFactory<String, String> producerFactory = (ProducerFactory<String, String>) (ProducerFactory<?, ?>) deadLetterProducerFactory();
         return new KafkaTemplate<>(producerFactory);
     }

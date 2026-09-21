@@ -9,6 +9,7 @@ import com.tradingplatform.events.TradeEventPayload;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
@@ -27,7 +28,7 @@ public class TradeEventPublisher {
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
 
-    public TradeEventPublisher(KafkaTemplate<String, String> kafkaTemplate, ObjectMapper objectMapper) {
+    public TradeEventPublisher(@Qualifier("tradeEventsKafkaTemplate") KafkaTemplate<String, String> kafkaTemplate, ObjectMapper objectMapper) {
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;
     }
@@ -99,7 +100,7 @@ public class TradeEventPublisher {
                     messageJson
                 )
             );
-            logger.debug("Published trade event: orderId={}, accountId={}, status={}, eventType={}",
+            logger.info("Published trade event: orderId={}, accountId={}, status={}, eventType={}",
                 orderId, accountId, status, eventType);
         } catch (JsonProcessingException e) {
             logger.error("Failed to serialize trade event: orderId={}, accountId={}, status={}",

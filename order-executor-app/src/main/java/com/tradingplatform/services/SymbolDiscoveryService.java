@@ -38,9 +38,9 @@ public class SymbolDiscoveryService {
             
             if (logger.isDebugEnabled()) {
                 if (result.isEmpty()) {
-                    logger.debug("No active positions found for symbol discovery");
+                    logger.info("No active positions found for symbol discovery");
                 } else {
-                    logger.debug("Discovered {} active symbols: {}", result.size(), result);
+                    logger.info("Discovered {} active symbols: {}", result.size(), result);
                 }
             }
             

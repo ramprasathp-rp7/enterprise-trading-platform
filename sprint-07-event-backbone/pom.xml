@@ -39,11 +39,6 @@
       <artifactId>jakarta.validation-api</artifactId>
       <version>${jakarta.validation.version}</version>
     </dependency>
-    <dependency>
-      <groupId>org.duckdb</groupId>
-      <artifactId>duckdb_jdbc</artifactId>
-      <version>1.5.5.1</version>
-    </dependency>
 
     <dependency>
       <groupId>org.junit.jupiter</groupId>
@@ -122,10 +117,6 @@
           <argLine>--add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED -Dnet.bytebuddy.experimental=true</argLine>
         </configuration>
       </plugin>
-        <plugin>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-maven-plugin</artifactId>
-    </plugin>
     </plugins>
   </build>
 </project>

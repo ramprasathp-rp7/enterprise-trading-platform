@@ -59,7 +59,15 @@ class OrderPlacedListenerTest {
         objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
         // create a lightweight stub of OrderExecutorService to avoid inline-mock issues on newer JVMs
-        executorService = new OrderExecutorService(null, null, null, null, null, null, null) {
+        // provide a no-op TradeEventPublisher to satisfy the constructor
+        com.tradingplatform.publisher.TradeEventPublisher noopPublisher = new com.tradingplatform.publisher.TradeEventPublisher(null, objectMapper) {
+            @Override
+            public void publishTradeEvent(java.util.UUID orderId, long accountId, com.tradingplatform.enums.OrderStatus status, java.math.BigDecimal executedPrice, String rejectReason, java.time.Instant executedOn) {
+                // no-op
+            }
+        };
+
+        executorService = new OrderExecutorService(null, null, null, null, null, null, null, noopPublisher) {
             private int callCount = 0;
             private final java.util.Queue<java.lang.Throwable> actions = new java.util.ArrayDeque<>();
 
@@ -68,7 +76,7 @@ class OrderPlacedListenerTest {
             public int getCallCount() { return callCount; }
 
             @Override
-            public void process(String orderId, long accountId, com.tradingplatform.domain.Order order) throws PricingUnavailableException {
+            public void process(com.tradingplatform.domain.Order order) throws PricingUnavailableException {
                 callCount++;
                 java.lang.Throwable t = actions.poll();
                 if (t != null) {

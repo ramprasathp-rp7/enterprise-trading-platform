@@ -85,7 +85,7 @@ public class OrderPublisher {
             kafkaTemplate.send(ORDERS_TOPIC, messageKey, envelope)
                 .whenComplete((result, exception) -> {
                     if (exception == null) {
-                        logger.debug("ORDER_PLACED event published: orderId={}, accountId={}, partition={}, offset={}",
+                        logger.info("ORDER_PLACED event published: orderId={}, accountId={}, partition={}, offset={}",
                             order.getId(),
                             order.getAccountId(),
                             result.getRecordMetadata().partition(),
