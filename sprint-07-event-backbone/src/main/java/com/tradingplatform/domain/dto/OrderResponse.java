@@ -1,6 +1,7 @@
 package com.tradingplatform.domain.dto;
 
 import java.math.BigDecimal;
+import java.util.Optional;
 
 import com.tradingplatform.domain.enums.OrderSide;
 import com.tradingplatform.domain.enums.OrderStatus;
@@ -39,6 +40,10 @@ public record OrderResponse(
     @NotNull(message = "Fee must be mentioned")
     @DecimalMin(value = "0.00", inclusive = true, message = "Fee must be non-negative")
     @Digits(integer = 18, fraction = 2, message = "Fee must have at most two decimal places")
-    BigDecimal fee
+    BigDecimal fee,
+
+    // executedPrice is only populated in SYNC mode when order is FILLED/REJECTED
+    // In ASYNC mode, this field is null since order will be filled asynchronously by Trade Executor
+    Optional<BigDecimal> executedPrice
 ) {
 }

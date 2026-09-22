@@ -4,19 +4,23 @@ import com.tradingplatform.api.mappers.AssetFeeMapper;
 import com.tradingplatform.api.mappers.InstrumentMapper;
 import com.tradingplatform.api.mappers.OrderMapper;
 import com.tradingplatform.api.security.AccountAccessAuthorizer;
+import com.tradingplatform.config.ExecutionMode;
 import com.tradingplatform.domain.dto.OrderResponse;
 import com.tradingplatform.domain.dto.PlaceOrderRequest;
 import com.tradingplatform.domain.enums.OrderStatus;
 import com.tradingplatform.domain.exception.DuplicateOrderException;
 import com.tradingplatform.domain.exception.OrderNotCancellableException;
+import com.tradingplatform.domain.model.AssetFeeStructure;
 import com.tradingplatform.domain.model.Instrument;
 import com.tradingplatform.domain.model.Order;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.math.BigDecimal;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 
@@ -30,6 +34,9 @@ public class OrderService {
     private final AssetFeeMapper assetFeeMapper;
     private final AccountAccessAuthorizer accountAccessAuthorizer;
     private final OrderPublisher orderPublisher;
+    
+    @Value("${trading.execution.mode:ASYNC}")
+    private ExecutionMode executionMode;
     
     public OrderService(OrderValidationService orderValidationService, 
                         OrderSettlementService orderSettlementService,
@@ -72,27 +79,55 @@ public class OrderService {
             throw new DuplicateOrderException(newOrder.getIdempotencyKey()).withRejectedOrder(newOrder);
         }
 
-        // Fetch instrument to get symbol for ORDER_PLACED event
+        // Fetch instrument to get symbol for ORDER_PLACED event (or for settlement in SYNC mode)
         Instrument instrument = instrumentMapper.findById(newOrder.getInstrumentId());
         if (instrument == null) {
             throw new IllegalStateException("Instrument not found for order: " + newOrder.getInstrumentId());
         }
 
-        // Register post-commit callback to publish ORDER_PLACED event to Kafka.
-        // Publishing after commit ensures the order is persisted before notifying the executor.
-        // If Kafka publish fails, the order remains in the database and can be replayed.
-        TransactionSynchronizationManager.registerSynchronization(
-            new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    orderPublisher.publishOrderPlaced(newOrder, instrument);
-                }
+        // Check execution mode: SYNC (Sprint 6) or ASYNC (Sprint 7)
+        if (executionMode == ExecutionMode.SYNC) {
+            // Sprint 6: SYNC execution mode - settle order immediately within the request
+            // Fetch asset fee structure for settlement using asset class from instrument
+            String assetType = instrument.getAssetClass().name();  // EQUITY, FX, or CRYPTO
+            AssetFeeStructure feeStructure = assetFeeMapper.findByAssetType(assetType);
+            if (feeStructure == null) {
+                throw new IllegalStateException("Fee structure not found for asset type: " + assetType);
             }
-        );
 
-        // Build and return OrderResponse with NEW status
-        // The Trade Executor will fill this order asynchronously based on ORDER_PLACED event
-        return buildOrderResponse(newOrder, instrument);
+            // Try to settle the order immediately
+            try {
+                orderSettlementService.settle(newOrder, newOrder.getPrice(), feeStructure);
+                // Settlement successful: order is now FILLED
+                // Fetch updated order from DB to confirm status and get executed price
+                Order settledOrder = orderMapper.findOrderById(newOrder.getId());
+                return buildOrderResponse(settledOrder, instrument);
+            } catch (Exception ex) {
+                // Settlement failed (insufficient cash, optimistic lock, etc.)
+                // Mark order as REJECTED in the database
+                orderMapper.updateOrderStatus(newOrder.getId(), OrderStatus.REJECTED, null, null);
+                Order rejectedOrder = orderMapper.findOrderById(newOrder.getId());
+                // Return error response for REJECTED order
+                return buildOrderResponse(rejectedOrder, instrument);
+            }
+        } else {
+            // Sprint 7: ASYNC execution mode (default) - publish to Kafka for async settlement
+            // Register post-commit callback to publish ORDER_PLACED event to Kafka.
+            // Publishing after commit ensures the order is persisted before notifying the executor.
+            // If Kafka publish fails, the order remains in the database and can be replayed.
+            TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        orderPublisher.publishOrderPlaced(newOrder, instrument);
+                    }
+                }
+            );
+
+            // Build and return OrderResponse with NEW status
+            // The Trade Executor will fill this order asynchronously based on ORDER_PLACED event
+            return buildOrderResponse(newOrder, instrument);
+        }
     }
 
     public OrderResponse getOrderById(String orderId) {
@@ -160,6 +195,12 @@ public class OrderService {
             default -> "Unknown status";
         };
 
+        // executedPrice is only populated for FILLED orders in SYNC mode
+        // For other statuses (NEW, REJECTED, CANCELLED), it's empty
+        java.util.Optional<BigDecimal> executedPrice = order.getStatus() == OrderStatus.FILLED
+            ? java.util.Optional.ofNullable(order.getExecutedPrice())
+            : java.util.Optional.empty();
+
         // Build and return OrderResponse
         return new OrderResponse(
             "ORD-" + order.getId().toString(),
@@ -169,7 +210,8 @@ public class OrderService {
             order.getSide(),
             order.getQuantity(),
             order.getPrice(),
-            order.getFee() != null ? order.getFee() : java.math.BigDecimal.ZERO
+            order.getFee() != null ? order.getFee() : java.math.BigDecimal.ZERO,
+            executedPrice
         );
     }
 }
