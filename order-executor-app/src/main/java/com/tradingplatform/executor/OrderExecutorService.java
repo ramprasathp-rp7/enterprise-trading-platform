@@ -23,6 +23,7 @@ import com.tradingplatform.mappers.AssetFeeMapper;
 import com.tradingplatform.mappers.InstrumentMapper;
 import com.tradingplatform.mappers.OrderMapper;
 import com.tradingplatform.quote.PricingUnavailableException;
+import org.springframework.transaction.annotation.Transactional;
 import com.tradingplatform.quote.QuoteClient;
 import com.tradingplatform.services.OrderSettlementService;
 
@@ -52,6 +53,7 @@ public class OrderExecutorService {
         this.tradeEventPublisher = tradeEventPublisher;
     }
 
+    @Transactional
     public void process(Order order) throws PricingUnavailableException {
         UUID orderId = order == null ? null : order.getId();
         long accountId = order == null ? -1L : order.getAccountId();
@@ -63,6 +65,7 @@ public class OrderExecutorService {
 
         if (order == null) {
             logger.warn("Rejecting null order payload: orderId={}", orderId);
+            // conditional update to avoid double writes
             orderMapper.updateOrderStatus(orderId, OrderStatus.REJECTED, "Order is null", null, null, java.time.Instant.now());
             return;
         }
@@ -85,17 +88,30 @@ public class OrderExecutorService {
         switch (d) {
                 case NO_PRICE -> {
                 logger.warn("Rejecting order because no price is available: orderId={}", orderId);
-                orderMapper.updateOrderStatus(orderId, OrderStatus.REJECTED, "No price available", null, null, java.time.Instant.now());
+                int rows = orderMapper.updateOrderStatus(orderId, OrderStatus.REJECTED, "No price available", null, null, java.time.Instant.now());
+                if (rows == 0) {
+                    logger.info("Skipping NoPrice update: order not NEW (already processed) orderId={}", orderId);
+                }
             }
             case REJECT -> {
                 logger.warn("Rejecting order by fill rule: orderId={}", orderId);
                     java.time.Instant executedOn = java.time.Instant.now();
-                    orderMapper.updateOrderStatus(orderId, OrderStatus.REJECTED, "Order rejected by fill rule", null, null, executedOn);
+                    int rows = orderMapper.updateOrderStatus(orderId, OrderStatus.REJECTED, "Order rejected by fill rule", null, null, executedOn);
+                    if (rows == 0) {
+                        logger.info("Skipping reject update: order not NEW (already processed) orderId={}", orderId);
+                        return;
+                    }
                     // publish trade event for rejected order
                     tradeEventPublisher.publishTradeEvent(orderId, accountId, OrderStatus.REJECTED, null, "Order rejected by fill rule", executedOn);
             }
-            case FILL -> {
+                case FILL -> {
                 Account account = accountMapper.findByAccountId(accountId);
+                    // lock order row and check status to avoid double settlement
+                    com.tradingplatform.enums.OrderStatus currentStatus = orderMapper.findOrderStatusForUpdate(orderId);
+                    if (currentStatus != com.tradingplatform.enums.OrderStatus.NEW) {
+                        logger.info("Skipping settlement: order not NEW (status={}) orderId={}", currentStatus, orderId);
+                        return;
+                    }
                 if (account == null || account.getStatus() != AccountStatus.ACTIVE) {
                     logger.warn("Rejecting order because account is not active: orderId={}, accountId={}", orderId, accountId);
                     orderMapper.updateOrderStatus(orderId, OrderStatus.REJECTED, "Suspended Account", null, null, java.time.Instant.now());
@@ -131,7 +147,11 @@ public class OrderExecutorService {
                     order.markFilled(executed, fee);
                     
                     java.time.Instant executedOn = java.time.Instant.now();
-                    orderMapper.updateOrderStatus(orderId, OrderStatus.FILLED, null, executed, fee, executedOn);
+                    int rows = orderMapper.updateOrderStatus(orderId, OrderStatus.FILLED, null, executed, fee, executedOn);
+                    if (rows == 0) {
+                        logger.info("Skipping fill update: order not NEW (already processed) orderId={}", orderId);
+                        return;
+                    }
                     logger.info("Filled order successfully: orderId={}, accountId={}, price={}", orderId,accountId, executed);
                     // publish trade event for filled order
                     tradeEventPublisher.publishTradeEvent(orderId, accountId, OrderStatus.FILLED, executed, null, executedOn);

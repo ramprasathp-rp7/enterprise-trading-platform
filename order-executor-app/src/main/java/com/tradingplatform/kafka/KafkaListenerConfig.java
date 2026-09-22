@@ -24,7 +24,7 @@ import org.springframework.kafka.listener.ContainerProperties;
 @EnableKafka
 public class KafkaListenerConfig {
 
-    @Value("${spring.kafka.bootstrap-servers:${KAFKA_BOOTSTRAP_SERVERS:10.8.64.7:9092}}")
+    @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
 
     @Bean
@@ -95,15 +95,7 @@ public class KafkaListenerConfig {
         ProducerFactory<String, String> producerFactory = (ProducerFactory<String, String>) (ProducerFactory<?, ?>) deadLetterProducerFactory();
         return new KafkaTemplate<>(producerFactory);
     }
-
-    @Bean
-    @SuppressWarnings({"unchecked", "null"})
-    public KafkaTemplate<String, String> tradeEventsKafkaTemplate() {
-        // Reuse same producer factory settings for trade events topic
-        ProducerFactory<String, String> producerFactory = (ProducerFactory<String, String>) (ProducerFactory<?, ?>) deadLetterProducerFactory();
-        return new KafkaTemplate<>(producerFactory);
-    }
-
+    
     @Bean
     @Primary
     @SuppressWarnings({"unchecked", "null"})

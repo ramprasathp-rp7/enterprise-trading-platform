@@ -38,9 +38,12 @@ public interface OrderMapper {
             "FROM orders WHERE id = #{id}")
     Order findOrderById(@Param("id") UUID id);
 
+    @Select("SELECT status FROM orders WHERE id = #{id} FOR UPDATE")
+    com.tradingplatform.enums.OrderStatus findOrderStatusForUpdate(@Param("id") UUID id);
+
     @Update("UPDATE orders SET status = 'CANCELLED' WHERE id = #{id} AND status = 'NEW'")
     int cancelOrderIfNew(@Param("id") UUID id);
 
-        @Update("UPDATE orders SET status = #{status}, rejected_reason = #{rejectedReason}, executed_price = #{executedPrice}, fee = COALESCE(#{fee}, 0), executed_on = #{executedOn} WHERE id = #{id}")
+        @Update("UPDATE orders SET status = #{status}, rejected_reason = #{rejectedReason}, executed_price = #{executedPrice}, fee = COALESCE(#{fee}, 0), executed_on = #{executedOn} WHERE id = #{id} AND status = 'NEW'")
         int updateOrderStatus(@Param("id") UUID id, @Param("status") com.tradingplatform.enums.OrderStatus status, @Param("rejectedReason") String rejectedReason, @Param("executedPrice") BigDecimal executedPrice, @Param("fee") BigDecimal fee, @Param("executedOn") java.time.Instant executedOn);
 }

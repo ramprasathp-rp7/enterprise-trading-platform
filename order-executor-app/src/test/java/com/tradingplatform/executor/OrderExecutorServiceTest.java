@@ -12,6 +12,7 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
 
 import com.tradingplatform.mappers.AccountMapper;
 import com.tradingplatform.mappers.AssetFeeMapper;
@@ -55,8 +56,9 @@ public class OrderExecutorServiceTest {
         // create a lightweight stub of OrderSettlementService to avoid inline-mock issues
         settlementService = new OrderSettlementService(accountMapper, positionMapper) {
             @Override
-            public void settle(Order order, BigDecimal executedPrice, Feeable feeable) {
-                // no-op for tests; mappers are mocked if needed
+            public java.math.BigDecimal settle(Order order, BigDecimal executedPrice, Feeable feeable) {
+                // no-op for tests; return zero fee so callers can continue
+                return java.math.BigDecimal.ZERO;
             }
         };
         // create a no-op TradeEventPublisher stub to avoid Kafka dependencies in tests
@@ -89,6 +91,8 @@ public class OrderExecutorServiceTest {
         q.setBid(new BigDecimal("99.45"));
         when(quoteClient.getLatestPrice("INFY.NS")).thenReturn(Optional.of(q));
         when(orderMapper.findOrderById(any(java.util.UUID.class))).thenReturn(o);
+        when(orderMapper.findOrderStatusForUpdate(any(UUID.class))).thenReturn(OrderStatus.NEW);
+        when(orderMapper.updateOrderStatus(any(UUID.class), any(com.tradingplatform.enums.OrderStatus.class), any(), any(), any(), any())).thenReturn(1);
         when(accountMapper.findByAccountId(1L)).thenReturn(account);
 
         executor.process(o);
@@ -98,8 +102,8 @@ public class OrderExecutorServiceTest {
             eq(OrderStatus.FILLED),
             isNull(String.class),
             eq(new BigDecimal("99.50")),
-            isNull(BigDecimal.class),
-            isNull(java.time.Instant.class)
+            eq(java.math.BigDecimal.ZERO),
+            any(java.time.Instant.class)
         );
     }
 
@@ -119,6 +123,8 @@ public class OrderExecutorServiceTest {
         when(instrumentMapper.findById(100L)).thenReturn(instr);
         when(quoteClient.getLatestPrice("INFY.NS")).thenReturn(Optional.empty());
         when(orderMapper.findOrderById(any(java.util.UUID.class))).thenReturn(o);
+        when(orderMapper.findOrderStatusForUpdate(any(UUID.class))).thenReturn(OrderStatus.NEW);
+        when(orderMapper.updateOrderStatus(any(UUID.class), any(com.tradingplatform.enums.OrderStatus.class), any(), any(), any(), any())).thenReturn(1);
         when(accountMapper.findByAccountId(2L)).thenReturn(account);
 
         executor.process(o);
@@ -129,7 +135,7 @@ public class OrderExecutorServiceTest {
             eq("No price available"),
             isNull(BigDecimal.class),
             isNull(BigDecimal.class),
-            isNull(java.time.Instant.class)
+            any(java.time.Instant.class)
         );
     }
 }

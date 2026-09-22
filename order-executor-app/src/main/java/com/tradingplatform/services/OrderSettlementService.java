@@ -2,6 +2,9 @@ package com.tradingplatform.services;
 
 import com.tradingplatform.mappers.AccountMapper;
 import com.tradingplatform.mappers.PositionMapper;
+
+import jakarta.transaction.Transactional;
+
 import com.tradingplatform.enums.OrderSide;
 import com.tradingplatform.exception.OptimisticLockException;
 import com.tradingplatform.domain.Account;
@@ -24,6 +27,7 @@ public class OrderSettlementService {
         this.positionMapper = positionMapper;
     }
 
+    @Transactional 
     public java.math.BigDecimal settle(Order order, BigDecimal executedPrice, Feeable feeable) {
         Objects.requireNonNull(order, "order");
         Objects.requireNonNull(executedPrice, "executedPrice");
