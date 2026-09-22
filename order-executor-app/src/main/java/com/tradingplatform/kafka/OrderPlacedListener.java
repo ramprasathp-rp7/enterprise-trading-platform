@@ -68,7 +68,7 @@ public class OrderPlacedListener {
 		this.objectMapper = objectMapper;
 	}
 
-	@KafkaListener(topics = "orders", groupId = "trade-executor-group")
+	@KafkaListener(topics = "orders", groupId = "trade-executor")
 	public void onOrderPlaced(ConsumerRecord<String, String> record) {
 		MessageEnvelope<OrderPlacedPayload> envelope;
 		try {
