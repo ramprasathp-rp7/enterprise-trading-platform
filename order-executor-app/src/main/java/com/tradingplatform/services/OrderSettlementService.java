@@ -80,8 +80,17 @@ public class OrderSettlementService {
 
         int positionRowsUpdated = positionMapper.updatePosition(position, newPositionVersion);
         if (positionRowsUpdated == 0) {
-            // Another transaction has modified the position since we read it
-            throw new OptimisticLockException("Position", order.getAccountId() + ":" + order.getInstrumentId());
+            // Check if this is a NEW position (version was 0)
+            if (position.getVersion() == 0) {
+                // Insert new position (first time this account/instrument pair is settled)
+                int positionRowsInserted = positionMapper.insertPosition(position);
+                if (positionRowsInserted == 0) {
+                    throw new IllegalStateException("Failed to insert new position for account " + order.getAccountId() + ", instrument " + order.getInstrumentId());
+                }
+            } else {
+                // Existing position but update failed - likely optimistic lock contention
+                throw new OptimisticLockException("Position", order.getAccountId() + ":" + order.getInstrumentId());
+            }
         }
         // Return the calculated fee so callers can persist it with the order
         return fee;
