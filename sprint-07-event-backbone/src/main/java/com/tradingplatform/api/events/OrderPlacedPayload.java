@@ -13,7 +13,8 @@ import java.time.Instant;
  * @param symbol Instrument symbol in the Fauxnance scheme.
  * @param side Side of the order: BUY or SELL.
  * @param quantity Quantity ordered, greater than zero.
- * @param price Limit price per unit, two decimal places.
+ * @param price Limit price per unit, two decimal places (quoted price).
+ * @param fee Transaction fee calculated at order time (for BUY orders).
  * @param idempotencyKey The client's idempotency key that was accepted.
  * @param createdOn When the order was recorded in the database.
  */
@@ -35,6 +36,9 @@ public record OrderPlacedPayload(
     
     @JsonProperty("price")
     BigDecimal price,
+    
+    @JsonProperty("fee")
+    BigDecimal fee,
     
     @JsonProperty("idempotencyKey")
     String idempotencyKey,

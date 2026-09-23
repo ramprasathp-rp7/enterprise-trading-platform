@@ -62,12 +62,12 @@ class OrderPlacedListenerTest {
         // provide a no-op TradeEventPublisher to satisfy the constructor
         com.tradingplatform.publisher.TradeEventPublisher noopPublisher = new com.tradingplatform.publisher.TradeEventPublisher(null, objectMapper) {
             @Override
-            public void publishTradeEvent(java.util.UUID orderId, long accountId, com.tradingplatform.enums.OrderStatus status, java.math.BigDecimal executedPrice, String rejectReason, java.time.Instant executedOn) {
+            public void publishTradeEvent(java.util.UUID orderId, long accountId, com.tradingplatform.enums.OrderStatus status, java.math.BigDecimal quotedPrice, java.math.BigDecimal executedPrice, java.math.BigDecimal originalFee, String rejectReason, java.time.Instant executedOn) {
                 // no-op
             }
         };
 
-        executorService = new OrderExecutorService(null, null, null, null, null, null, null, noopPublisher) {
+        executorService = new OrderExecutorService(null, null, null, null, null, null, noopPublisher) {
             private int callCount = 0;
             private final java.util.Queue<java.lang.Throwable> actions = new java.util.ArrayDeque<>();
 
@@ -76,7 +76,7 @@ class OrderPlacedListenerTest {
             public int getCallCount() { return callCount; }
 
             @Override
-            public void process(com.tradingplatform.domain.Order order) throws PricingUnavailableException {
+            public void process(com.tradingplatform.domain.Order order, java.math.BigDecimal quotedPrice, java.math.BigDecimal originalFee) throws PricingUnavailableException {
                 callCount++;
                 java.lang.Throwable t = actions.poll();
                 if (t != null) {
@@ -127,6 +127,7 @@ class OrderPlacedListenerTest {
                     "BUY",
                     10,
                     new BigDecimal("100.00"),
+                    new BigDecimal("1.00"),
                     "key-1",
                     Instant.parse("2026-09-17T10:15:30Z")
                 )
@@ -174,6 +175,7 @@ class OrderPlacedListenerTest {
                     "BUY",
                     10,
                     new BigDecimal("100.00"),
+                    new BigDecimal("1.00"),
                     "key-1",
                     Instant.parse("2026-09-17T10:15:30Z")
                 )
@@ -246,6 +248,7 @@ class OrderPlacedListenerTest {
                     "BUY",
                     10,
                     new BigDecimal("100.00"),
+                    new BigDecimal("1.00"),
                     "key-1",
                     Instant.parse("2026-09-17T10:15:30Z")
                 )

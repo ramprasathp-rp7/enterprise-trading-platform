@@ -3,6 +3,7 @@ package com.tradingplatform.domain.dto;
 import java.math.BigDecimal;
 import java.util.Optional;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.tradingplatform.domain.enums.OrderSide;
 import com.tradingplatform.domain.enums.OrderStatus;
 
@@ -12,6 +13,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
+@JsonInclude(JsonInclude.Include.NON_ABSENT)
 public record OrderResponse(
     @NotBlank(message = "orderId cannot be blank")
     String orderId,

@@ -14,8 +14,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * @param symbol Instrument symbol.
  * @param side Side of the order: BUY or SELL.
  * @param quantity Quantity in the order (entire quantity for fills).
- * @param price The limit price from the order.
+ * @param price The limit price from the order (deprecated, use quotedPrice instead).
+ * @param quotedPrice The original quoted price from the order (used for fee recalculation).
  * @param executedPrice The Fauxnance quote the fill was priced at (null on reject/cancel).
+ * @param originalFee The fee calculated at order placement time (used to compare against recalculated fee).
  * @param status Terminal order status: FILLED, REJECTED, or CANCELLED.
  * @param reason Reason for rejection or cancellation (null on fill).
  * @param cashDelta Signed change to the cash balance (null on reject).
@@ -42,8 +44,14 @@ public record TradeEventPayload(
     @JsonProperty("price")
     BigDecimal price,
     
+    @JsonProperty("quotedPrice")
+    BigDecimal quotedPrice,
+    
     @JsonProperty("executedPrice")
     BigDecimal executedPrice,
+    
+    @JsonProperty("originalFee")
+    BigDecimal originalFee,
     
     @JsonProperty("status")
     String status,

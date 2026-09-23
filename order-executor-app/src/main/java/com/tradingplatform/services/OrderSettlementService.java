@@ -28,10 +28,9 @@ public class OrderSettlementService {
     }
 
     @Transactional 
-    public java.math.BigDecimal settle(Order order, BigDecimal executedPrice, Feeable feeable) {
+    public void settle(Order order, BigDecimal executedPrice) {
         Objects.requireNonNull(order, "order");
         Objects.requireNonNull(executedPrice, "executedPrice");
-        Objects.requireNonNull(feeable, "feeable");
 
         // Fetch the Account from the database
         Account acc = accountMapper.findByAccountId(order.getAccountId());
@@ -49,19 +48,14 @@ public class OrderSettlementService {
         // Calculate notional value of the order (price * quantity)
         BigDecimal notional = executedPrice.multiply(BigDecimal.valueOf(order.getQuantity()));
 
-        // Calculate transaction fee based on asset type
-        BigDecimal fee = feeable.calculateFee(notional);
-
-        // Apply settlement based on order side
+        // Apply settlement based on order side (notional only - fees are deducted separately)
         if (order.getSide() == OrderSide.BUY) {
-            // For BUY: debit cash (notional + fee) from account, add holdings to position
-            BigDecimal totalDebit = notional.add(fee);
-            acc.debit(totalDebit);
+            // For BUY: debit cash (notional only) from account, add holdings to position
+            acc.debit(notional);
             position.applyBuy(order.getQuantity(), executedPrice);
         } else {
-            // For SELL: credit cash (notional - fee) to account, remove holdings from position
-            BigDecimal totalCredit = notional.subtract(fee);
-            acc.credit(totalCredit);
+            // For SELL: credit cash (notional only) to account, remove holdings from position
+            acc.credit(notional);
             position.applySell(order.getQuantity());
         }
 
@@ -92,8 +86,6 @@ public class OrderSettlementService {
                 throw new OptimisticLockException("Position", order.getAccountId() + ":" + order.getInstrumentId());
             }
         }
-        // Return the calculated fee so callers can persist it with the order
-        return fee;
     }
 }
 

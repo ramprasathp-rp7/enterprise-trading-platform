@@ -72,11 +72,16 @@ class OrderPlacementCharacterisationTest {
         accountAccessAuthorizer = mock(AccountAccessAuthorizer.class);
         orderPublisher = mock(OrderPublisher.class);
 
+        // Add mocks for new dependencies
+        var availableBalanceService = mock(com.tradingplatform.services.AvailableBalanceService.class);
+
         OrderValidationService validationService =
                 new OrderValidationService(
                         accountMapper,
                         instrumentMapper,
-                        positionMapper
+                        positionMapper,
+                        assetFeeMapper,
+                        availableBalanceService
                 );
 
         OrderSettlementService settlementService =
@@ -86,6 +91,7 @@ class OrderPlacementCharacterisationTest {
                 validationService,
                 settlementService,
                 orderMapper,
+                accountMapper,
                 instrumentMapper,
                 assetFeeMapper,
                 accountAccessAuthorizer,
@@ -192,7 +198,6 @@ class OrderPlacementCharacterisationTest {
         verify(orderMapper, never()).updateOrderStatus(
                 any(UUID.class),
                 any(OrderStatus.class),
-                any(BigDecimal.class),
                 any(BigDecimal.class)
         );
 

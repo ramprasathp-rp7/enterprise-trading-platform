@@ -165,7 +165,11 @@ public class OrderPlacedListener {
 			);
 		}
 
-		executorService.process(order);
+		// Extract quoted price and original fee from ORDER_PLACED event
+		java.math.BigDecimal quotedPrice = payload.price();
+		java.math.BigDecimal originalFee = payload.fee();
+		
+		executorService.process(order, quotedPrice, originalFee);
 	}
 
 	private void sleep(long millis) {

@@ -45,7 +45,9 @@ public class TradeEventPublisher {
      * @param orderId The order ID
      * @param accountId The account ID (used as Kafka key)
      * @param status The final status (FILLED or REJECTED)
+     * @param quotedPrice The original quoted price from ORDER_PLACED (for fee recalculation)
      * @param executedPrice The executed price (null if rejected)
+     * @param originalFee The fee calculated at order placement time
      * @param rejectReason The rejection reason (null if filled)
      * @param executedOn The timestamp when order was executed
      * @throws RuntimeException if serialization or publishing fails
@@ -54,7 +56,9 @@ public class TradeEventPublisher {
         UUID orderId,
         long accountId,
         OrderStatus status,
+        BigDecimal quotedPrice,
         BigDecimal executedPrice,
+        BigDecimal originalFee,
         String rejectReason,
         Instant executedOn
     ) {
@@ -71,7 +75,9 @@ public class TradeEventPublisher {
             null,  // side - not needed for event publishing
             null,  // quantity - not needed for event publishing
             null,  // price - not needed for event publishing
+            quotedPrice,  // quotedPrice from ORDER_PLACED
             executedPrice,
+            originalFee,  // originalFee from ORDER_PLACED
             status.name(),
             rejectReason,
             null,  // cashDelta - not calculated by executor

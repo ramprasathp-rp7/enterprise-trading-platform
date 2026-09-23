@@ -49,27 +49,20 @@ public class OrderExecutorServiceTest {
         quoteClient = mock(QuoteClient.class);
         fillRule = new DefaultFillRule();
         instrumentMapper = mock(InstrumentMapper.class);
-        assetFeeMapper = mock(AssetFeeMapper.class);
         accountMapper = mock(AccountMapper.class);
         orderMapper = mock(OrderMapper.class);
         positionMapper = mock(PositionMapper.class);
         // create a lightweight stub of OrderSettlementService to avoid inline-mock issues
-        settlementService = new OrderSettlementService(accountMapper, positionMapper) {
-            @Override
-            public java.math.BigDecimal settle(Order order, BigDecimal executedPrice, Feeable feeable) {
-                // no-op for tests; return zero fee so callers can continue
-                return java.math.BigDecimal.ZERO;
-            }
-        };
+        settlementService = mock(OrderSettlementService.class);
         // create a no-op TradeEventPublisher stub to avoid Kafka dependencies in tests
         com.tradingplatform.publisher.TradeEventPublisher tradeEventPublisher = new com.tradingplatform.publisher.TradeEventPublisher(null, new com.fasterxml.jackson.databind.ObjectMapper()) {
             @Override
-            public void publishTradeEvent(java.util.UUID orderId, long accountId, com.tradingplatform.enums.OrderStatus status, java.math.BigDecimal executedPrice, String rejectReason, java.time.Instant executedOn) {
+            public void publishTradeEvent(java.util.UUID orderId, long accountId, com.tradingplatform.enums.OrderStatus status, java.math.BigDecimal quotedPrice, java.math.BigDecimal executedPrice, java.math.BigDecimal originalFee, String rejectReason, java.time.Instant executedOn) {
                 // no-op
             }
         };
 
-        executor = new OrderExecutorService(quoteClient, fillRule, instrumentMapper, assetFeeMapper, accountMapper, orderMapper, settlementService, tradeEventPublisher);
+        executor = new OrderExecutorService(quoteClient, fillRule, instrumentMapper, accountMapper, orderMapper, settlementService, tradeEventPublisher);
     }
 
     @Test
@@ -95,7 +88,7 @@ public class OrderExecutorServiceTest {
         when(orderMapper.updateOrderStatus(any(UUID.class), any(com.tradingplatform.enums.OrderStatus.class), any(), any(), any(), any())).thenReturn(1);
         when(accountMapper.findByAccountId(1L)).thenReturn(account);
 
-        executor.process(o);
+        executor.process(o, new BigDecimal("100.00"), java.math.BigDecimal.ZERO);
 
         verify(orderMapper).updateOrderStatus(
             any(UUID.class),
@@ -127,7 +120,7 @@ public class OrderExecutorServiceTest {
         when(orderMapper.updateOrderStatus(any(UUID.class), any(com.tradingplatform.enums.OrderStatus.class), any(), any(), any(), any())).thenReturn(1);
         when(accountMapper.findByAccountId(2L)).thenReturn(account);
 
-        executor.process(o);
+        executor.process(o, new BigDecimal("100.00"), java.math.BigDecimal.ZERO);
 
         verify(orderMapper).updateOrderStatus(
             any(UUID.class),

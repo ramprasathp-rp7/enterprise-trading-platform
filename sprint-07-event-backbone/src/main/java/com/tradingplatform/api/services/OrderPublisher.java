@@ -65,7 +65,8 @@ public class OrderPublisher {
                 instrument.getSymbol(),             // symbol from instrument
                 order.getSide().name(),             // side: BUY or SELL
                 order.getQuantity(),                // quantity
-                order.getPrice(),                   // limit price
+                order.getPrice(),                   // limit price (quoted price)
+                order.getFee(),                     // fee calculated at order time
                 order.getIdempotencyKey(),          // client's idempotency key
                 order.getCreatedOn()                // when order was recorded
             );

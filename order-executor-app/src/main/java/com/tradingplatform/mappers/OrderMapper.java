@@ -1,6 +1,7 @@
 package com.tradingplatform.mappers;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 import org.apache.ibatis.annotations.Arg;
@@ -37,6 +38,22 @@ public interface OrderMapper {
     @Select("SELECT id, account_id, instrument_id, side, quantity, price, status, executed_price, fee, idempotency_key, created_on " +
             "FROM orders WHERE id = #{id}")
     Order findOrderById(@Param("id") UUID id);
+
+    /**
+     * Find all orders for a given account with a specific status.
+     * Used by AvailableBalanceService to calculate reserved funds for pending orders.
+     */
+    @ConstructorArgs({
+        @Arg(column = "account_id", javaType = Long.class),
+        @Arg(column = "instrument_id", javaType = Long.class),
+        @Arg(column = "side", javaType = OrderSide.class),
+        @Arg(column = "quantity", javaType = int.class),
+        @Arg(column = "price", javaType = BigDecimal.class),
+        @Arg(column = "idempotency_key", javaType = String.class)
+    })
+    @Select("SELECT id, account_id, instrument_id, side, quantity, price, status, executed_price, fee, idempotency_key, created_on " +
+            "FROM orders WHERE account_id = #{accountId} AND status = #{status}")
+    List<Order> findOrdersByAccountIdAndStatus(@Param("accountId") Long accountId, @Param("status") OrderStatus status);
 
     @Select("SELECT status FROM orders WHERE id = #{id} FOR UPDATE")
     com.tradingplatform.enums.OrderStatus findOrderStatusForUpdate(@Param("id") UUID id);

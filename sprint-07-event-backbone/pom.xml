@@ -92,6 +92,12 @@
         <artifactId>jackson-datatype-jsr310</artifactId>
     </dependency>
 
+    <!-- Jackson support for Java 8 Optional types -->
+    <dependency>
+        <groupId>com.fasterxml.jackson.datatype</groupId>
+        <artifactId>jackson-datatype-jdk8</artifactId>
+    </dependency>
+
     <dependency>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-test</artifactId>

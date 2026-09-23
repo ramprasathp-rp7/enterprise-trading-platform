@@ -93,6 +93,29 @@ public final class Order {
     }
 
     /**
+     * Set the transaction fee for this order.
+     * Called during validation after fee calculation.
+     */
+    public void setFee(BigDecimal fee) {
+        if (fee != null && fee.signum() < 0) {
+            throw new IllegalArgumentException("fee must not be negative: " + fee);
+        }
+        this.fee = fee;
+    }
+
+    /**
+     * Mark order as FILLED with executed price only.
+     * Used by settlement when fees are deducted separately.
+     *
+     * @throws IllegalStateException if the order is not currently NEW
+     */
+    public void markFilled(BigDecimal executedPrice) {
+        requireNew("fill");
+        this.executedPrice = Objects.requireNonNull(executedPrice, "executedPrice");
+        this.status = OrderStatus.FILLED;
+    }
+
+    /**
       if new, status can be changed to FILLED
      *
      * @throws IllegalStateException if the order is not currently NEW

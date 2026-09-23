@@ -10,7 +10,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.tradingplatform.domain.Account;
-import com.tradingplatform.domain.AssetFeeStructure;
 import com.tradingplatform.domain.Instrument;
 import com.tradingplatform.domain.Order;
 import com.tradingplatform.enums.AccountStatus;
@@ -19,7 +18,6 @@ import com.tradingplatform.enums.OrderStatus;
 import com.tradingplatform.fill.Decision;
 import com.tradingplatform.fill.FillRule;
 import com.tradingplatform.mappers.AccountMapper;
-import com.tradingplatform.mappers.AssetFeeMapper;
 import com.tradingplatform.mappers.InstrumentMapper;
 import com.tradingplatform.mappers.OrderMapper;
 import com.tradingplatform.quote.PricingUnavailableException;
@@ -34,19 +32,17 @@ public class OrderExecutorService {
     private final QuoteClient quoteClient;
     private final FillRule fillRule;
     private final InstrumentMapper instrumentMapper;
-    private final AssetFeeMapper assetFeeMapper;
     private final AccountMapper accountMapper;
     private final OrderMapper orderMapper;
     private final OrderSettlementService settlementService;
     private final com.tradingplatform.publisher.TradeEventPublisher tradeEventPublisher;
 
     public OrderExecutorService(QuoteClient quoteClient, FillRule fillRule, InstrumentMapper instrumentMapper,
-                                AssetFeeMapper assetFeeMapper, AccountMapper accountMapper, OrderMapper orderMapper,
+                                AccountMapper accountMapper, OrderMapper orderMapper,
                                 OrderSettlementService settlementService, com.tradingplatform.publisher.TradeEventPublisher tradeEventPublisher) {
         this.quoteClient = quoteClient;
         this.fillRule = fillRule;
         this.instrumentMapper = instrumentMapper;
-        this.assetFeeMapper = assetFeeMapper;
         this.accountMapper = accountMapper;
         this.orderMapper = orderMapper;
         this.settlementService = settlementService;
@@ -54,7 +50,7 @@ public class OrderExecutorService {
     }
 
     @Transactional
-    public void process(Order order) throws PricingUnavailableException {
+    public void process(Order order, BigDecimal quotedPrice, BigDecimal originalFee) throws PricingUnavailableException {
         UUID orderId = order == null ? null : order.getId();
         long accountId = order == null ? -1L : order.getAccountId();
 
@@ -102,7 +98,7 @@ public class OrderExecutorService {
                         return;
                     }
                     // publish trade event for rejected order
-                    tradeEventPublisher.publishTradeEvent(orderId, accountId, OrderStatus.REJECTED, null, "Order rejected by fill rule", executedOn);
+                    tradeEventPublisher.publishTradeEvent(orderId, accountId, OrderStatus.REJECTED, quotedPrice, null, originalFee, "Order rejected by fill rule", executedOn);
             }
                 case FILL -> {
                 Account account = accountMapper.findByAccountId(accountId);
@@ -135,16 +131,15 @@ public class OrderExecutorService {
                         }
                     }
 
+                    // Settle order - fees are deducted separately (by REST API in SYNC mode, by FeeDeductionService in ASYNC mode)
+                    settlementService.settle(order, executed);
                     
-                    AssetFeeStructure feeStructure = assetFeeMapper.findByAssetType(instrument.getAssetClass().name());
-                    /*  Dont do this. Throw an exception instead (?)
-                    if (feeStructure == null) {
-                        feeStructure = new AssetFeeStructure(instrument.getAssetClass().name(), new BigDecimal("0.00"), new BigDecimal("0.001"));
-                    }
-                    */
-                    java.math.BigDecimal fee = settlementService.settle(order, executed, feeStructure);
-                    // set fee on order object so mapper persists correct value
-                    order.markFilled(executed, fee);
+                    // Fetch the order from database to get the fee (calculated by sprint-07)
+                    Order orderFromDb = orderMapper.findOrderById(orderId);
+                    BigDecimal fee = (orderFromDb != null) ? orderFromDb.getFee() : null;
+                    
+                    // Mark order as filled with executed price and fee
+                    order.markFilled(executed);
                     
                     java.time.Instant executedOn = java.time.Instant.now();
                     int rows = orderMapper.updateOrderStatus(orderId, OrderStatus.FILLED, null, executed, fee, executedOn);
@@ -152,9 +147,9 @@ public class OrderExecutorService {
                         logger.info("Skipping fill update: order not NEW (already processed) orderId={}", orderId);
                         return;
                     }
-                    logger.info("Filled order successfully: orderId={}, accountId={}, price={}", orderId,accountId, executed);
-                    // publish trade event for filled order
-                    tradeEventPublisher.publishTradeEvent(orderId, accountId, OrderStatus.FILLED, executed, null, executedOn);
+                    logger.info("Filled order successfully: orderId={}, accountId={}, price={}, fee={}", orderId, accountId, executed, fee);
+                    // publish trade event for filled order with quoted price and original fee
+                    tradeEventPublisher.publishTradeEvent(orderId, accountId, OrderStatus.FILLED, quotedPrice, executed, originalFee, null, executedOn);
                 }
             }
         }
