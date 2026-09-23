@@ -15,6 +15,7 @@ export class TokenService {
   constructor(
     private jwtService: JwtService,
     private configService: ConfigurationService,
+    private refreshTokenRepository: RefreshTokenRepository,
   ) {}
 
   /**
@@ -33,7 +34,50 @@ export class TokenService {
     return token;
   }
 
+  private async issueRefreshToken(user: User): Promise<{ refreshToken: string; opaque: string }> {
+    const opaque = uuidv4() + '-' + crypto.randomBytes(32).toString('hex');
+    const hash = this.hashToken(opaque);
+    const familyId = uuidv4();
+    const now = new Date();
+    const expiresIn = this.configService.getRefreshTokenLifetime();
+    const expiresOn = new Date(now.getTime() + expiresIn * 1000);
 
+    // Store in database
+    await this.refreshTokenRepository.saveToken({
+      user_id: user.id,
+      token_hash: hash,
+      family_id: familyId,
+      issued_on: now,
+      expires_on: expiresOn,
+      revoked_on: null,
+      replaced_by: null,
+    });
+
+    this.logger.log(`Refresh token issued for user: ${user.id}, family: ${familyId}`);
+
+    return { refreshToken: hash, opaque };
+  }
+
+  /**
+   * Issue a new token pair (access + refresh).
+   * Returns TokenResponseDto with both tokens.
+   */
+  async issueTokenPair(user: User): Promise<TokenResponseDto> {
+    const accessToken = await this.issueAccessToken(user);
+    const { refreshToken, opaque } = await this.issueRefreshToken(user);
+
+    const expiresIn = this.configService.getAccessTokenLifetime();
+
+    this.logger.log(`Token pair issued for user: ${user.id}`);
+
+    return {
+      accessToken,
+      refreshToken: opaque, // Return the opaque token, not the hash
+      tokenType: 'Bearer',
+      expiresIn,
+    };
+  }
+  
   /**
    * Verify an access token and return its claims.
    * Validates signature, expiry, and issuer.
@@ -66,5 +110,57 @@ export class TokenService {
       return null;
     }
   }
+
+  /**
+   * Rotate a refresh token by its opaque value: consume the old one, issue a new pair.
+   * Validates that the token exists, is not revoked, and hasn't expired.
+   * Returns new TokenResponseDto.
+   */
+  
+  async rotateRefreshTokenByOpaque(
+    opaqueToken: string,
+    user: User,
+  ): Promise<TokenResponseDto> {
+    // Hash the opaque token to look it up
+    const tokenHash = this.hashToken(opaqueToken);
+
+    // Find the old token
+    const oldToken = await this.refreshTokenRepository.findByHash(tokenHash);
+
+    if (!oldToken) {
+      this.logger.warn(`Refresh token not found for user: ${user.id}`);
+      throw new Error('Refresh token not found');
+    }
+
+    if (oldToken.revoked_on) {
+      this.logger.warn(`Refresh token already revoked for user: ${user.id}`);
+      throw new Error('Refresh token has been revoked or already used');
+    }
+
+    if (new Date() > oldToken.expires_on) {
+      this.logger.warn(`Refresh token expired for user: ${user.id}`);
+      throw new Error('Refresh token has expired');
+    }
+
+    // Mark the old token as revoked
+    await this.refreshTokenRepository.markRevoked(oldToken.id);
+
+    // Issue new pair
+    const newTokenPair = await this.issueTokenPair(user);
+
+    this.logger.log(`Refresh token rotated for user: ${user.id}`);
+
+    return newTokenPair;
+  }
+
+  /**
+   * Hash a refresh token for storage.
+   * Never store the plaintext opaque token in the database.
+   */
+  private hashToken(token: string): string {
+    return crypto.createHash('sha256').update(token).digest('hex');
+  }
+}
+
 
 }
