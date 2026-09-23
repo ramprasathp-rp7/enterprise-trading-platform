@@ -7,6 +7,7 @@ import { User } from '../database/entities/user.entity';
 import { TokenClaims, DecodedToken } from './token-claims';
 import { TokenResponseDto } from './dto/token-response.dto';
 import { JsonLogger } from '../common/logging/json.logger';
+import { RefreshTokenRepository } from '@/database/repositories/refresh-token.repository';
 
 @Injectable()
 export class TokenService {
@@ -36,7 +37,7 @@ export class TokenService {
 
   private async issueRefreshToken(user: User): Promise<{ refreshToken: string; opaque: string }> {
     const opaque = uuidv4() + '-' + crypto.randomBytes(32).toString('hex');
-    const hash = this.hashToken(opaque);
+    const refreshToken = this.hashToken(opaque);
     const familyId = uuidv4();
     const now = new Date();
     const expiresIn = this.configService.getRefreshTokenLifetime();
@@ -45,7 +46,7 @@ export class TokenService {
     // Store in database
     await this.refreshTokenRepository.saveToken({
       user_id: user.id,
-      token_hash: hash,
+      token_hash: refreshToken,
       family_id: familyId,
       issued_on: now,
       expires_on: expiresOn,
@@ -55,7 +56,7 @@ export class TokenService {
 
     this.logger.log(`Refresh token issued for user: ${user.id}, family: ${familyId}`);
 
-    return { refreshToken: hash, opaque };
+    return { refreshToken, opaque };
   }
 
   /**
@@ -163,4 +164,4 @@ export class TokenService {
 }
 
 
-}
+

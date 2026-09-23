@@ -6,6 +6,10 @@ export class TokenResponseDto {
   accessToken: string;
 
   @IsString()
+  @MinLength(1)
+  refreshToken: string;
+
+  @IsString()
   tokenType: string; // Always "Bearer"
 
   @IsInt()

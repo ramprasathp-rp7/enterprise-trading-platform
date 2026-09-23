@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { TokenService } from '../tokens/tokens.service';
+import { RefreshTokenRepository } from '../database/repositories/refresh-token.repository';
 import { RegisterDto } from '../users/dto/register.dto';
 import { LoginDto } from '../users/dto/login.dto';
 import { UserResponseDto } from '../users/dto/user-response.dto';
@@ -15,6 +16,7 @@ export class AuthService {
   constructor(
     private usersService: UsersService,
     private tokenService: TokenService,
+    private refreshTokenRepository: RefreshTokenRepository,
   ) {}
 
   /**
@@ -64,18 +66,25 @@ export class AuthService {
   async refresh(refreshToken: string): Promise<TokenResponseDto> {
     this.logger.log(`Refresh token request`);
 
-    // Hash the refresh token to look it up
     const crypto = require('crypto');
     const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
 
-    // Find the token record and validate it's not revoked/expired
-    // This will throw if token is invalid, expired, or already used
-    // For now, we rely on the TokenService to handle this
-    // We need the user first though, so we'll validate at controller level
+    // Look up the refresh token record
+    const tokenRecord = await this.refreshTokenRepository.findByHash(tokenHash);
+    if (!tokenRecord) {
+      this.logger.warn('Refresh token not found');
+      throw new UnauthorizedException('Unauthorised');
+    }
 
-    // The controller will pass the decoded token from the guard
-    // This method will be called from controller with user context
-    throw new Error('Refresh endpoint requires controller-level token validation');
+    // Load user
+    const user = await this.usersService.findById(tokenRecord.user_id);
+    if (!user) {
+      this.logger.warn('User not found for refresh token');
+      throw new UnauthorizedException('Unauthorised');
+    }
+
+    // Defer rotation logic to TokenService
+    return this.tokenService.rotateRefreshTokenByOpaque(refreshToken, user);
   }
 
   /**
