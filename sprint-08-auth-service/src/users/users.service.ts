@@ -5,7 +5,7 @@ import { UserResponseDto } from './dto/user-response.dto';
 import { UsersRepository } from '../database/repositories/users.repository';
 import { KnownAccountIdsRepository } from '../database/repositories/known-account-ids.repository';
 import { PasswordService } from './password.service';
-import { UsernameAlreadyExistsError, UserNotFoundError, InvalidPasswordError } from './users.errors';
+import { UsernameAlreadyExistsError, UserNotFoundError, InvalidPasswordError, AccountIdAlreadyExistsError } from './users.errors';
 import { JsonLogger } from '../common/logging/json.logger';
 
 @Injectable()
@@ -40,6 +40,13 @@ export class UsersService {
     if (!accountExists) {
       this.logger.warn(`Account ID not found: ${accountId}`);
       throw new Error(`Account ID ${accountId} does not exist`);
+    }
+
+    // Ensure no other user has this accountId
+    const existingByAccount = await this.usersRepository.findOne({ where: { account_id: accountId } });
+    if (existingByAccount) {
+      this.logger.warn(`Account ID already registered: ${accountId}`);
+      throw new AccountIdAlreadyExistsError(accountId);
     }
 
     // Hash the password

@@ -23,7 +23,7 @@ import { DecodedToken } from '../tokens/token-claims';
 import { TokenService } from '../tokens/tokens.service';
 import { UsersService } from '../users/users.service';
 import { RefreshTokenRepository } from '../database/repositories/refresh-token.repository';
-import { UsernameAlreadyExistsError } from '../users/users.errors';
+import { AccountIdAlreadyExistsError, UsernameAlreadyExistsError } from '../users/users.errors';
 import * as crypto from 'crypto';
 
 @ApiTags('Auth')
@@ -63,7 +63,7 @@ export class AuthController {
     try {
       return await this.authService.register(registerDto);
     } catch (error) {
-      if (error instanceof UsernameAlreadyExistsError) {
+      if (error instanceof UsernameAlreadyExistsError || error instanceof AccountIdAlreadyExistsError) {
         throw new ConflictException('Registration failed');
       }
       throw error;

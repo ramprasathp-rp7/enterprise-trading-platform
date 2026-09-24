@@ -1,4 +1,14 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE TABLE IF NOT EXISTS known_account_ids (
+    account_id  BIGINT       PRIMARY KEY,
+    created_on  TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+
+COMMENT ON TABLE known_account_ids IS
+    'Mirrors accounts.id from the trade database, for existence checks only. '
+    'Seeded once alongside the trade DB seed data, not synced at runtime. '
+    'A row here does not imply anything about the account''s current status, '
+    'cash balance, or holder — only that the id was valid as of seeding.';
 
 CREATE TABLE IF NOT EXISTS users (
     id             UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -10,6 +20,8 @@ CREATE TABLE IF NOT EXISTS users (
     last_updated   TIMESTAMPTZ     NOT NULL DEFAULT now(),
 
     CONSTRAINT uq_users_username UNIQUE (username),
+    CONSTRAINT uq_users_account_id UNIQUE (account_id),
+    CONSTRAINT fk_users_account_id FOREIGN KEY (account_id) REFERENCES known_account_ids(account_id) ON DELETE RESTRICT,
     CONSTRAINT ck_users_username_pattern CHECK (username ~ '^[a-zA-Z0-9._-]+$'),
     CONSTRAINT ck_users_username_length CHECK (char_length(username) BETWEEN 3 AND 64),
     CONSTRAINT ck_users_roles_non_empty CHECK (array_length(roles, 1) >= 1),
@@ -57,14 +69,3 @@ CREATE INDEX IF NOT EXISTS ix_refresh_tokens_user_id ON refresh_tokens (user_id)
 CREATE INDEX IF NOT EXISTS ix_refresh_tokens_family_id ON refresh_tokens (family_id);
 CREATE INDEX IF NOT EXISTS ix_refresh_tokens_expires_on ON refresh_tokens (expires_on)
     WHERE revoked_on IS NULL;
-
-CREATE TABLE IF NOT EXISTS known_account_ids (
-    account_id  BIGINT       PRIMARY KEY,
-    created_on  TIMESTAMPTZ  NOT NULL DEFAULT now()
-);
-
-COMMENT ON TABLE known_account_ids IS
-    'Mirrors accounts.id from the trade database, for existence checks only. '
-    'Seeded once alongside the trade DB seed data, not synced at runtime. '
-    'A row here does not imply anything about the account''s current status, '
-    'cash balance, or holder — only that the id was valid as of seeding.';
