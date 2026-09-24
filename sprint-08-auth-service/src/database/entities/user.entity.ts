@@ -5,7 +5,22 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Index,
+  ValueTransformer,
 } from 'typeorm';
+
+/**
+ * Transformer to convert BIGINT from database (which TypeORM may return as string)
+ * to JavaScript number type. This ensures account_id is always a number.
+ */
+class BigIntToNumberTransformer implements ValueTransformer {
+  to(value: number | null): number | null {
+    return value;
+  }
+
+  from(value: any): number {
+    return Number(value);
+  }
+}
 
 @Entity('users')
 @Index('uq_users_username', ['username'], { unique: true })
@@ -28,6 +43,7 @@ export class User {
 
   @Column({
     type: 'bigint',
+    transformer: new BigIntToNumberTransformer(),
   })
   account_id: number;
 

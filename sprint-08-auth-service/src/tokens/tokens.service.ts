@@ -7,7 +7,7 @@ import { User } from '../database/entities/user.entity';
 import { TokenClaims, DecodedToken } from './token-claims';
 import { TokenResponseDto } from './dto/token-response.dto';
 import { JsonLogger } from '../common/logging/json.logger';
-import { RefreshTokenRepository } from '@/database/repositories/refresh-token.repository';
+import { RefreshTokenRepository } from '../database/repositories/refresh-token.repository';
 
 @Injectable()
 export class TokenService {
