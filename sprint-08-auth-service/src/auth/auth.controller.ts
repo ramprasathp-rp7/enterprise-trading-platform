@@ -122,36 +122,7 @@ export class AuthController {
     schema: { example: { errorCode: 'VAL-422', message: 'Validation error' } },
   })
   async refresh(@Body() refreshDto: RefreshDto): Promise<TokenResponseDto> {
-    try {
-      // Hash the opaque token to look it up
-      const tokenHash = crypto.createHash('sha256').update(refreshDto.refreshToken).digest('hex');
-
-      // Find the token record
-      const tokenRecord = await this.refreshTokenRepository.findByHash(tokenHash);
-      if (!tokenRecord) {
-        throw new Error('Refresh token not found');
-      }
-
-      if (tokenRecord.revoked_on) {
-        throw new Error('Refresh token has been revoked or already used');
-      }
-
-      if (new Date() > tokenRecord.expires_on) {
-        throw new Error('Refresh token has expired');
-      }
-
-      // Find the user
-      const user = await this.usersService.findById(tokenRecord.user_id);
-      if (!user) {
-        throw new Error('User not found');
-      }
-
-      // Rotate: use the public method
-      return await this.tokenService.rotateRefreshTokenByOpaque(refreshDto.refreshToken, user);
-    } catch (error) {
-      // All failures return 401
-      throw new UnauthorizedException('Unauthorised');
-    }
+    return this.authService.refresh(refreshDto.refreshToken);
   }
 
   /**
