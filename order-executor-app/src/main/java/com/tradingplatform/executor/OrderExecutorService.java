@@ -137,6 +137,10 @@ public class OrderExecutorService {
                     // Fetch the order from database to get the fee (calculated by sprint-07)
                     Order orderFromDb = orderMapper.findOrderById(orderId);
                     BigDecimal fee = (orderFromDb != null) ? orderFromDb.getFee() : null;
+                    // If DB hasn't populated a fee yet (sprint-07 behavior), fall back to the original fee
+                    if (fee == null) {
+                        fee = originalFee;
+                    }
                     
                     // Mark order as filled with executed price and fee
                     order.markFilled(executed);
