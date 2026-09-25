@@ -131,4 +131,25 @@ public class OrderExecutorServiceTest {
             any(java.time.Instant.class)
         );
     }
+
+    @Test
+    void cancelledOrderIsSkipped() throws Exception {
+        Order o = new Order(3L, 100L, OrderSide.BUY, 10, new BigDecimal("100.00"), "key-3");
+        when(orderMapper.findOrderById(any(java.util.UUID.class))).thenReturn(o);
+        when(orderMapper.findOrderStatusForUpdate(any(UUID.class))).thenReturn(OrderStatus.CANCELLED);
+
+        executor.process(o, new BigDecimal("100.00"), java.math.BigDecimal.ZERO);
+
+        // Verify that updateOrderStatus was NOT called (order was skipped)
+        verify(orderMapper, org.mockito.Mockito.never()).updateOrderStatus(
+            any(UUID.class),
+            any(com.tradingplatform.enums.OrderStatus.class),
+            any(),
+            any(),
+            any(),
+            any(java.time.Instant.class)
+        );
+        // Verify that settlement service was NOT called
+        verify(settlementService, org.mockito.Mockito.never()).settle(any(), any());
+    }
 }

@@ -66,6 +66,12 @@ public class OrderExecutorService {
             return;
         }
 
+        // Check if order was cancelled
+        if (orderMapper.findOrderStatusForUpdate(orderId) == OrderStatus.CANCELLED) {
+            logger.info("Skipping execution: order is cancelled orderId={}", orderId);
+            return;
+        }
+
         Instrument instrument = instrumentMapper.findById(order.getInstrumentId());
         if (instrument == null || !instrument.isTradable()) {
             logger.warn("Rejecting order because instrument is not tradable: orderId={}, instrumentId={}", orderId, order.getInstrumentId());
