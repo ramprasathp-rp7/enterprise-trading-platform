@@ -1,17 +1,6 @@
-/**
- * Integration tests for Auth Service with Trade REST API (sprint-07-event-backbone)
- * 
- * These tests verify end-to-end token acceptance by the Trade REST API.
- * They require both services to be running:
- *   - Auth Service on port 3000
- *   - Trade REST API (sprint-07-event-backbone) on port 8080
- * 
- * Run with: npm test -- --testPathPattern=integration
- * 
- * These tests are NOT part of the standard test suite (they require external services).
- * They should be run manually before integration, or in a CI/CD pipeline where both services are running.
- */
 
+
+import { beforeAll, describe, expect, it } from '@jest/globals';
 import * as jwt from 'jsonwebtoken';
 
 describe('Auth Service Integration with Trade REST API', () => {
@@ -25,6 +14,7 @@ describe('Auth Service Integration with Trade REST API', () => {
   let testUsername: string;
   let testPassword: string;
   let testAccountId: number;
+  let testExternalAccountId: string;
   
   /**
    * Setup: Register a test user before running integration tests
@@ -34,7 +24,8 @@ describe('Auth Service Integration with Trade REST API', () => {
     const timestamp = Date.now();
     testUsername = `test_user_${timestamp}`;
     testPassword = `Test@Pass${timestamp}`;
-    testAccountId = 1; // Use account ID 1 (seeded in demo-user.seeder.ts)
+    testAccountId = 1; // Internal numeric ID used in JWT and trade API routes
+    testExternalAccountId = 'ACC-000001';
     
     try {
       // Register the test user
@@ -44,7 +35,7 @@ describe('Auth Service Integration with Trade REST API', () => {
         body: JSON.stringify({
           username: testUsername,
           password: testPassword,
-          accountId: testAccountId,
+          accountId: testExternalAccountId,
           roles: ['CUSTOMER'],
         }),
       });

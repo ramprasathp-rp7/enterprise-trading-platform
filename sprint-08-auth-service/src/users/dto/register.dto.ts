@@ -17,12 +17,8 @@ export class RegisterDto {
   @MaxLength(128)
   password: string;
 
-  @IsInt()
-  @Transform(({ value }) => {
-    const num = parseInt(value, 10);
-    return isNaN(num) ? value : num;
-  })
-  accountId: number;
+  @IsString({message: "invalid accountId"})
+  accountId: string;
 
   @IsOptional()
   @IsArray()

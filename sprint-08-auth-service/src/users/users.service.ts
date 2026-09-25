@@ -35,15 +35,15 @@ export class UsersService {
       throw new UsernameAlreadyExistsError(username);
     }
 
-    // Validate that accountId exists in known_account_ids
-    const accountExists = await this.accountIdsRepository.accountIdExists(accountId);
-    if (!accountExists) {
+    // Resolve external account identifier to the internal numeric account id used in JWTs.
+    const knownAccount = await this.accountIdsRepository.findByExternalAccountId(accountId);
+    if (!knownAccount) {
       this.logger.warn(`Account ID not found: ${accountId}`);
       throw new Error(`Account ID ${accountId} does not exist`);
     }
 
-    // Ensure no other user has this accountId
-    const existingByAccount = await this.usersRepository.findOne({ where: { account_id: accountId } });
+    // Ensure no other user has this internal account id
+    const existingByAccount = await this.usersRepository.findOne({ where: { account_id: knownAccount.id } });
     if (existingByAccount) {
       this.logger.warn(`Account ID already registered: ${accountId}`);
       throw new AccountIdAlreadyExistsError(accountId);
@@ -56,7 +56,7 @@ export class UsersService {
     const newUser = await this.usersRepository.saveUser({
       username,
       password_hash: passwordHash,
-      account_id: accountId,
+      account_id: knownAccount.id,
       roles: roles || ['CUSTOMER'],
     });
 

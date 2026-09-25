@@ -1,6 +1,7 @@
 import {
   Entity,
   PrimaryColumn,
+  Column,
   CreateDateColumn,
 } from 'typeorm';
 
@@ -9,7 +10,14 @@ export class KnownAccountId {
   @PrimaryColumn({
     type: 'bigint',
   })
-  account_id: number;
+  id: number;
+
+  @Column({
+    type: 'varchar',
+    length: 32,
+    unique: true,
+  })
+  account_id: string;
 
   @CreateDateColumn({
     type: 'timestamptz',
