@@ -25,3 +25,13 @@ COMMENT ON COLUMN assets.percentage_fee IS
 
 COMMENT ON COLUMN assets.updated_on IS
     'Timestamp when fee structure was last modified. Used for tracking changes.';
+
+
+-- Add FK from instruments.asset_class -> assets.asset_type without immediate validation
+-- This avoids migration failures if there is legacy data to fix first.
+ALTER TABLE instruments
+    ADD CONSTRAINT fk_instruments_asset_class
+    FOREIGN KEY (asset_class) REFERENCES assets(asset_type) ON DELETE RESTRICT NOT VALID;
+
+-- To enforce fully, run the following after confirming data integrity:
+-- ALTER TABLE instruments VALIDATE CONSTRAINT fk_instruments_asset_class;

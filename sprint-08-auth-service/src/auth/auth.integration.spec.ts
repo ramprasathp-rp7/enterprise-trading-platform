@@ -3,6 +3,8 @@
 import { beforeAll, describe, expect, it } from '@jest/globals';
 import * as jwt from 'jsonwebtoken';
 
+// Integration tests require external services. Run only when RUN_INTEGRATION_TESTS=true
+if (process.env.RUN_INTEGRATION_TESTS === 'true') {
 describe('Auth Service Integration with Trade REST API', () => {
   const AUTH_SERVICE_URL = 'http://localhost:3000';
   const TRADE_API_URL = 'http://localhost:8080';
@@ -267,6 +269,12 @@ describe('Auth Service Integration with Trade REST API', () => {
     });
   });
 });
+} else {
+  // Skip integration tests by default to avoid external network dependencies
+  describe.skip('Auth Service Integration with Trade REST API (skipped)', () => {
+    it('skipped', () => expect(true).toBe(true));
+  });
+}
 
 /**
  * Skip these integration tests if services are not running
