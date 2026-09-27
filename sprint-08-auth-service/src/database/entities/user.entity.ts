@@ -22,7 +22,7 @@ class BigIntToNumberTransformer implements ValueTransformer {
   }
 }
 
-@Entity('users')
+@Entity('users', { schema: 'auth' })
 @Index('uq_users_username', ['username'], { unique: true })
 export class User {
   @PrimaryGeneratedColumn('uuid')

@@ -10,7 +10,7 @@ import {
 } from 'typeorm';
 import { User } from './user.entity';
 
-@Entity('refresh_tokens')
+@Entity('refresh_tokens', { schema: 'auth' })
 @Index('ix_refresh_tokens_user_id', ['user_id'])
 @Index('ix_refresh_tokens_family_id', ['family_id'])
 @Index('ix_refresh_tokens_expires_on', ['expires_on'], { where: 'revoked_on IS NULL' })

@@ -5,7 +5,7 @@ import {
   CreateDateColumn,
 } from 'typeorm';
 
-@Entity('known_account_ids')
+@Entity('known_account_ids', { schema: 'auth' })
 export class KnownAccountId {
   @PrimaryColumn({
     type: 'bigint',
