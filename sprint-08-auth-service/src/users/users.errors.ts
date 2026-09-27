@@ -6,7 +6,7 @@ export class UsernameAlreadyExistsError extends Error {
 }
 
 export class AccountIdAlreadyExistsError extends Error {
-  constructor(accountId: number) {
+  constructor(accountId: string) {
     super(`Account ID '${accountId}' is already associated with a user`);
     this.name = 'AccountIdAlreadyExistsError';
   }

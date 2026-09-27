@@ -1,9 +1,7 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
-CREATE SCHEMA IF NOT EXISTS auth;
-
-CREATE TABLE IF NOT EXISTS auth.known_account_ids (
-    account_id  BIGINT       PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS known_account_ids (
+    id          BIGINT       PRIMARY KEY,
+    account_id  VARCHAR(32)      NOT NULL UNIQUE, 
     created_on  TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 
@@ -24,7 +22,7 @@ CREATE TABLE IF NOT EXISTS auth.users (
 
     CONSTRAINT uq_users_username UNIQUE (username),
     CONSTRAINT uq_users_account_id UNIQUE (account_id),
-    CONSTRAINT fk_users_account_id FOREIGN KEY (account_id) REFERENCES auth.known_account_ids(account_id) ON DELETE RESTRICT,
+    CONSTRAINT fk_users_account_id FOREIGN KEY (account_id) REFERENCES known_account_ids(id) ON DELETE RESTRICT,
     CONSTRAINT ck_users_username_pattern CHECK (username ~ '^[a-zA-Z0-9._-]+$'),
     CONSTRAINT ck_users_username_length CHECK (char_length(username) BETWEEN 3 AND 64),
     CONSTRAINT ck_users_roles_non_empty CHECK (array_length(roles, 1) >= 1),
