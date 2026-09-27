@@ -45,4 +45,17 @@ export class RefreshTokenRepository extends Repository<RefreshToken> {
       where: { id },
     });
   }
+
+  async revokeFamily(familyId: string): Promise<void> {
+    await this.update(
+      { family_id: familyId },
+      { revoked_on: new Date() },
+    );
+  }
+
+  async markReplacedBy(id: string, replacedByTokenId: string): Promise<void> {
+    await this.update(id, {
+      replaced_by: replacedByTokenId,
+    });
+  }
 }

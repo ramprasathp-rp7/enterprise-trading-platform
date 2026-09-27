@@ -35,37 +35,38 @@ export class TokenService {
     return token;
   }
 
-  private async issueRefreshToken(user: User): Promise<{ refreshToken: string; opaque: string }> {
+  private async issueRefreshToken(user: User, familyId?: string): Promise<{ refreshToken: string; opaque: string; tokenId: string }> {
     const opaque = uuidv4() + '-' + crypto.randomBytes(32).toString('hex');
     const refreshToken = this.hashToken(opaque);
-    const familyId = uuidv4();
+    const family = familyId || uuidv4();
     const now = new Date();
     const expiresIn = this.configService.getRefreshTokenLifetime();
     const expiresOn = new Date(now.getTime() + expiresIn * 1000);
 
     // Store in database
-    await this.refreshTokenRepository.saveToken({
+    const savedToken = await this.refreshTokenRepository.saveToken({
       user_id: user.id,
       token_hash: refreshToken,
-      family_id: familyId,
+      family_id: family,
       issued_on: now,
       expires_on: expiresOn,
       revoked_on: null,
       replaced_by: null,
     });
 
-    this.logger.log(`Refresh token issued for user: ${user.id}, family: ${familyId}`);
+    this.logger.log(`Refresh token issued for user: ${user.id}, family: ${family}`);
 
-    return { refreshToken, opaque };
+    return { refreshToken, opaque, tokenId: savedToken.id };
   }
 
   /**
    * Issue a new token pair (access + refresh).
    * Returns TokenResponseDto with both tokens.
+   * Optional familyId for token rotation (to keep tokens in same family).
    */
-  async issueTokenPair(user: User): Promise<TokenResponseDto> {
+  async issueTokenPair(user: User, familyId?: string): Promise<TokenResponseDto> {
     const accessToken = await this.issueAccessToken(user);
-    const { refreshToken, opaque } = await this.issueRefreshToken(user);
+    const { refreshToken, opaque } = await this.issueRefreshToken(user, familyId);
 
     const expiresIn = this.configService.getAccessTokenLifetime();
 
@@ -115,6 +116,7 @@ export class TokenService {
   /**
    * Rotate a refresh token by its opaque value: consume the old one, issue a new pair.
    * Validates that the token exists, is not revoked, and hasn't expired.
+   * On replay attempt (using already-revoked token), revokes entire token family.
    * Returns new TokenResponseDto.
    */
   
@@ -134,7 +136,10 @@ export class TokenService {
     }
 
     if (oldToken.revoked_on) {
-      this.logger.warn(`Refresh token already revoked for user: ${user.id}`);
+      // Token replay detected: someone is trying to reuse an already-revoked token
+      // Revoke the entire token family as a security measure
+      this.logger.warn(`Token replay detected for user: ${user.id}, family: ${oldToken.family_id}`);
+      await this.refreshTokenRepository.revokeFamily(oldToken.family_id);
       throw new Error('Refresh token has been revoked or already used');
     }
 
@@ -143,11 +148,20 @@ export class TokenService {
       throw new Error('Refresh token has expired');
     }
 
+    // Issue new pair with SAME family_id to maintain token lineage
+    const newTokenPair = await this.issueTokenPair(user, oldToken.family_id);
+    
+    // Get the new token id by finding the latest token in the family for this user
+    const newTokens = await this.refreshTokenRepository.findByFamilyId(oldToken.family_id);
+    const newToken = newTokens[newTokens.length - 1]; // Most recently created
+    
+    if (newToken) {
+      // Mark old token as replaced by new token
+      await this.refreshTokenRepository.markReplacedBy(oldToken.id, newToken.id);
+    }
+
     // Mark the old token as revoked
     await this.refreshTokenRepository.markRevoked(oldToken.id);
-
-    // Issue new pair
-    const newTokenPair = await this.issueTokenPair(user);
 
     this.logger.log(`Refresh token rotated for user: ${user.id}`);
 

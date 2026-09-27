@@ -61,11 +61,11 @@ export class AuthExceptionFilter implements ExceptionFilter {
         errorCode = ErrorCode.AUTH_401;
         message = 'Unauthorised';
       } else {
-        status = HttpStatus.INTERNAL_SERVER_ERROR;
-        message = 'An error occurred';
+        status = HttpStatus.UNAUTHORIZED;
+        message = 'Unauthorised';
       }
 
-      this.logger.error(`Unhandled exception: ${msg}`);
+      this.logger.error(`Exception: ${msg}`);
     }
 
     const errorResponse: ErrorResponse = {

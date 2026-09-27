@@ -18,7 +18,14 @@ describe('TokenService', () => {
 
   const jwtService = { signAsync: jest.fn().mockResolvedValue('jwt-token'), verifyAsync: jest.fn() } as unknown as JwtService;
   const config = { getAccessTokenLifetime: () => 900, getRefreshTokenLifetime: () => 604800, getJwtSecret: () => 'secret', getJwtIssuer: () => 'auth-service' } as unknown as ConfigurationService;
-  const repo = { saveToken: jest.fn(), findByHash: jest.fn(), markRevoked: jest.fn() } as unknown as RefreshTokenRepository;
+  const repo = { 
+    saveToken: jest.fn().mockResolvedValue({ id: 'token-id' }), 
+    findByHash: jest.fn(), 
+    markRevoked: jest.fn(), 
+    revokeFamily: jest.fn(),
+    findByFamilyId: jest.fn(),
+    markReplacedBy: jest.fn(),
+  } as unknown as RefreshTokenRepository;
 
   beforeEach(() => {
     svc = new TokenService(jwtService, config, repo);
@@ -45,18 +52,35 @@ describe('TokenService', () => {
 
   test('rotate refresh returns a new access token and a new refresh token', async () => {
     const user: any = { id: 'u2', account_id: 15, roles: ['user'] };
+    const familyId = 'family-123';
     // simulate existing token
-    const old = { id: 1, user_id: 'u2', token_hash: 'h', revoked_on: null, expires_on: new Date(Date.now() + 10000) };
+    const old = { id: 'old-token-id', user_id: 'u2', token_hash: 'h', family_id: familyId, revoked_on: null, expires_on: new Date(Date.now() + 10000) };
+    const newToken = { id: 'new-token-id', user_id: 'u2', token_hash: 'new-h', family_id: familyId, revoked_on: null, expires_on: new Date(Date.now() + 10000) };
     (repo.findByHash as jest.Mock).mockResolvedValueOnce(old);
+    (repo.findByFamilyId as jest.Mock).mockResolvedValueOnce([old, newToken]);
+    (repo.markReplacedBy as jest.Mock).mockResolvedValueOnce(undefined);
     (repo.markRevoked as jest.Mock).mockResolvedValueOnce(undefined);
     const result = await svc.rotateRefreshTokenByOpaque('opaque', user);
     expect(result.accessToken).toBeDefined();
     expect(result.refreshToken).toBeDefined();
+    expect(repo.markReplacedBy).toHaveBeenCalledWith('old-token-id', 'new-token-id');
   });
 
   test('rotate refresh rejects revoked or expired tokens', async () => {
     const user: any = { id: 'u3', account_id: 20, roles: ['user'] };
     (repo.findByHash as jest.Mock).mockResolvedValueOnce(null);
     await expect(svc.rotateRefreshTokenByOpaque('x', user)).rejects.toThrow();
+  });
+
+  test('rotate refresh revokes entire token family on replay attempt', async () => {
+    const user: any = { id: 'u4', account_id: 25, roles: ['user'] };
+    const familyId = 'family-123';
+    // simulate already-revoked token (replay attempt)
+    const old = { id: 1, user_id: 'u4', token_hash: 'h', family_id: familyId, revoked_on: new Date(), expires_on: new Date(Date.now() + 10000) };
+    (repo.findByHash as jest.Mock).mockResolvedValueOnce(old);
+    (repo.revokeFamily as jest.Mock).mockResolvedValueOnce(undefined);
+    
+    await expect(svc.rotateRefreshTokenByOpaque('opaque', user)).rejects.toThrow();
+    expect(repo.revokeFamily).toHaveBeenCalledWith(familyId);
   });
 });
