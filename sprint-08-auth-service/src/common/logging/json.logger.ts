@@ -56,8 +56,13 @@ export class JsonLogger implements LoggerService {
       context: ctx,
       message: typeof message === 'string' ? message : JSON.stringify(message),
     };
-    if (trace) {
+    // Avoid emitting full stack traces in production logs. Only include trace
+    // when running in development mode to prevent leaking exception names/details.
+    const isDev = (process.env.NODE_ENV || '').toLowerCase() === 'development';
+    if (trace && isDev) {
       logObject.trace = trace;
+    } else if (trace) {
+      logObject.trace = '[REDACTED]';
     }
     console.error(JSON.stringify(logObject));
   }

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { v4 as uuidv4 } from 'uuid';
 import * as crypto from 'crypto';
@@ -132,7 +132,7 @@ export class TokenService {
 
     if (!oldToken) {
       this.logger.warn(`Refresh token not found for user: ${user.id}`);
-      throw new Error('Refresh token not found');
+      throw new UnauthorizedException('Unauthorised');
     }
 
     if (oldToken.revoked_on) {
@@ -140,12 +140,12 @@ export class TokenService {
       // Revoke the entire token family as a security measure
       this.logger.warn(`Token replay detected for user: ${user.id}, family: ${oldToken.family_id}`);
       await this.refreshTokenRepository.revokeFamily(oldToken.family_id);
-      throw new Error('Refresh token has been revoked or already used');
+      throw new UnauthorizedException('Unauthorised');
     }
 
     if (new Date() > oldToken.expires_on) {
       this.logger.warn(`Refresh token expired for user: ${user.id}`);
-      throw new Error('Refresh token has expired');
+      throw new UnauthorizedException('Unauthorised');
     }
 
     // Issue new pair with SAME family_id to maintain token lineage

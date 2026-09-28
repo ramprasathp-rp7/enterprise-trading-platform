@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { User } from '../database/entities/user.entity';
+import { Role } from '../common/roles.enum';
 import { RegisterDto } from './dto/register.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { UsersRepository } from '../database/repositories/users.repository';
@@ -57,7 +58,7 @@ export class UsersService {
       username,
       password_hash: passwordHash,
       account_id: knownAccount.id,
-      roles: roles || ['CUSTOMER'],
+      roles: (roles as Role[]) || [Role.CUSTOMER],
     });
 
     this.logger.log(`User registered successfully: ${username} (id: ${newUser.id})`);

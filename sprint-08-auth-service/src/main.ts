@@ -63,8 +63,9 @@ async function bootstrap() {
     await app.listen(port);
     logger.log(`Auth service listening on port ${port}`);
   } catch (error: unknown) {
-    const trace = error instanceof Error ? error.stack : String(error);
-    logger.error('Failed to start application', trace);
+    // Avoid leaking exception stacks in production logs; log redacted trace.
+    const traceOrMsg = error instanceof Error ? (process.env.NODE_ENV === 'development' ? error.stack : '[REDACTED]') : String(error);
+    logger.error('Failed to start application', traceOrMsg);
     process.exit(1);
   }
 }

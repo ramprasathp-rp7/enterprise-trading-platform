@@ -1,5 +1,6 @@
-import { IsString, IsInt, MinLength, MaxLength, Matches, IsArray, IsOptional, ArrayMinSize } from 'class-validator';
+import { IsString, IsInt, MinLength, MaxLength, Matches, IsArray, IsOptional, ArrayMinSize, IsEnum } from 'class-validator';
 import { Transform } from 'class-transformer';
+import { Role } from '../../common/roles.enum';
 
 export class RegisterDto {
   @IsString()
@@ -23,5 +24,6 @@ export class RegisterDto {
   @IsOptional()
   @IsArray()
   @ArrayMinSize(1)
-  roles?: string[];
+  @IsEnum(Role, { each: true })
+  roles?: Role[];
 }

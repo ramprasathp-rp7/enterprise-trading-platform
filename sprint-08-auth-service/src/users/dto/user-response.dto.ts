@@ -1,4 +1,5 @@
 import { IsString, IsInt, IsArray, IsUUID, IsDate } from 'class-validator';
+import { Role } from '../../common/roles.enum';
 
 export class UserResponseDto {
   @IsUUID()
@@ -11,7 +12,7 @@ export class UserResponseDto {
   accountId: number;
 
   @IsArray()
-  roles: string[];
+  roles: Role[];
 
   @IsDate()
   createdOn: Date;

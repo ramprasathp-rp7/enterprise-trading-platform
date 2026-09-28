@@ -4,6 +4,9 @@ import { beforeAll, describe, expect, it } from '@jest/globals';
 import * as jwt from 'jsonwebtoken';
 
 // Integration tests require external services. Run only when RUN_INTEGRATION_TESTS=true
+// Force-enable integration tests when this file is executed.
+// NOTE: This will attempt network calls to external services during test runs.
+process.env.RUN_INTEGRATION_TESTS = 'true';
 if (process.env.RUN_INTEGRATION_TESTS === 'true') {
 describe('Auth Service Integration with Trade REST API', () => {
   const AUTH_SERVICE_URL = 'http://localhost:3000';
@@ -26,8 +29,8 @@ describe('Auth Service Integration with Trade REST API', () => {
     const timestamp = Date.now();
     testUsername = `test_user_${timestamp}`;
     testPassword = `Test@Pass${timestamp}`;
-    testAccountId = 1; // Internal numeric ID used in JWT and trade API routes
-    testExternalAccountId = 'ACC-000001';
+    testAccountId = 4; // Internal numeric ID used in JWT and trade API routes
+    testExternalAccountId = 'ACC-000004';
     
     try {
       // Register the test user
@@ -42,6 +45,11 @@ describe('Auth Service Integration with Trade REST API', () => {
         }),
       });
       
+      if (registerResponse.status !== 201) {
+        const text = await registerResponse.text();
+        console.error('Register failed:', registerResponse.status, text);
+      }
+
       expect(registerResponse.status).toBe(201);
       console.log(`Test user registered: ${testUsername}`);
     } catch (error) {

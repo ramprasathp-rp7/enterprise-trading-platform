@@ -32,7 +32,7 @@ describe('TokenService', () => {
   });
 
   test('a token is issued with the contract claims and expiry', async () => {
-    const user: any = { id: 'u1', account_id: 10, roles: ['user'] };
+      const user: any = { id: 'u1', account_id: 10, roles: ['user'] };
     const pair = await svc.issueTokenPair(user);
     expect(pair.accessToken).toBeDefined();
     expect(pair.refreshToken).toBeDefined();

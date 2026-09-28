@@ -7,6 +7,7 @@ import {
   Index,
   ValueTransformer,
 } from 'typeorm';
+import { Role } from '../../common/roles.enum';
 
 /**
  * Transformer to convert BIGINT from database (which TypeORM may return as string)
@@ -50,9 +51,9 @@ export class User {
   @Column({
     type: 'text',
     array: true,
-    default: () => `ARRAY['CUSTOMER']`,
+    default: () => `ARRAY['${Role.CUSTOMER}']`,
   })
-  roles: string[];
+  roles: Role[];
 
   @CreateDateColumn({
     type: 'timestamptz',

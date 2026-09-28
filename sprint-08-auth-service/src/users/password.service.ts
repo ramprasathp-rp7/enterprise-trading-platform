@@ -22,7 +22,8 @@ export class PasswordService {
       this.logger.log('Password hashed successfully');
       return hash;
     } catch (error) {
-      this.logger.error('Password hashing failed', error instanceof Error ? error.stack : String(error));
+      // Log a safe message; stack/exception details are handled by logger
+      this.logger.error('Password hashing failed', error instanceof Error ? error.message : String(error));
       throw new Error('Password hashing failed');
     }
   }
@@ -36,7 +37,7 @@ export class PasswordService {
       const isValid = await argon2.verify(hash, password);
       return isValid;
     } catch (error) {
-      this.logger.error('Password verification failed', error instanceof Error ? error.stack : String(error));
+      this.logger.error('Password verification failed', error instanceof Error ? error.message : String(error));
       return false;
     }
   }
