@@ -17,6 +17,7 @@ import com.tradingplatform.domain.model.Order;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -69,7 +70,7 @@ public class FeeDeductionService {
      */
     @KafkaListener(topics = "trade-events", groupId = "fee-deduction-service")
     @Transactional
-    public void handleOrderFilled(String messageValue) {
+    public void handleOrderFilled(String messageValue, Acknowledgment ack) {
         try {
             // Step 1: Deserialize the MessageEnvelope from Kafka message value
             MessageEnvelope<TradeEventPayload> envelope = objectMapper.readValue(
@@ -92,12 +93,18 @@ public class FeeDeductionService {
             Order order = orderMapper.findOrderById(orderUuid);
             if (order == null) {
                 logger.warn("Order not found for fee deduction: orderId={}", orderIdStr);
+                if (ack != null) {
+                    ack.acknowledge();
+                }
                 return;
             }
             
             // Step 5: Check if order is FILLED (guard against non-FILLED statuses)
             if (order.getStatus() != OrderStatus.FILLED) {
                 logger.debug("Skipping fee deduction - order not FILLED: orderId={}, status={}", orderIdStr, order.getStatus());
+                if (ack != null) {
+                    ack.acknowledge();
+                }
                 return;
             }
             
@@ -107,6 +114,9 @@ public class FeeDeductionService {
             
             if (executedPrice == null) {
                 logger.warn("No executed price in ORDER_FILLED event for fee deduction: orderId={}", orderIdStr);
+                if (ack != null) {
+                    ack.acknowledge();
+                }
                 return;
             }
             
@@ -115,6 +125,9 @@ public class FeeDeductionService {
             Instrument instrument = instrumentMapper.findById(order.getInstrumentId());
             if (instrument == null) {
                 logger.error("Instrument not found for fee recalculation: orderId={}, instrumentId={}", orderIdStr, order.getInstrumentId());
+                if (ack != null) {
+                    ack.acknowledge();
+                }
                 return;
             }
             
@@ -132,6 +145,9 @@ logger.debug("Fee recalculation: orderId={}, originalFee={}, actualFee={}, execu
             // Step 8: If no fee to deduct, skip
             if (actualFee == null || actualFee.signum() <= 0) {
                 logger.debug("No fee to deduct for order: orderId={}, fee={}", orderIdStr, actualFee);
+                if (ack != null) {
+                    ack.acknowledge();
+                }
                 return;
             }
             
@@ -139,6 +155,9 @@ logger.debug("Fee recalculation: orderId={}, originalFee={}, actualFee={}, execu
             Account account = accountMapper.findByAccountId(order.getAccountId());
             if (account == null) {
                 logger.error("Account not found for fee deduction: orderId={}, accountId={}", orderIdStr, order.getAccountId());
+                if (ack != null) {
+                    ack.acknowledge();
+                }
                 return;
             }
             
@@ -151,6 +170,9 @@ logger.debug("Fee recalculation: orderId={}, originalFee={}, actualFee={}, execu
                 // Graceful failure: log and skip (order remains FILLED, fee will be retried if message is replayed)
                 logger.warn("Optimistic lock failure for fee deduction - account modified: orderId={}, accountId={}, actualFee={}", 
                     orderIdStr, order.getAccountId(), actualFee);
+                if (ack != null) {
+                    ack.acknowledge();
+                }
                 return;
             }
             
@@ -159,13 +181,28 @@ logger.debug("Fee recalculation: orderId={}, originalFee={}, actualFee={}, execu
             
             logger.info("Fee deducted successfully: orderId={}, accountId={}, actualFee={}, originalFee={}", 
                 orderIdStr, order.getAccountId(), actualFee, originalFee);
+            if (ack != null) {
+                ack.acknowledge();
+            }
             
         } catch (IllegalArgumentException e) {
             // Invalid UUID format - log and skip
             logger.error("Invalid order ID format in fee deduction: messageValue={}, error={}", messageValue, e.getMessage());
+            if (ack != null) {
+                ack.acknowledge();
+            }
+        } catch (OptimisticLockException e) {
+            // Optimistic locking conflict - log and continue without failing the listener
+            logger.warn("OptimisticLockException during fee deduction: {}", e.getMessage());
+            if (ack != null) {
+                ack.acknowledge();
+            }
         } catch (Exception e) {
             // Unexpected error - log and skip (graceful failure model)
             logger.error("Unexpected error during fee deduction: messageValue={}, error={}", messageValue, e.getMessage(), e);
+            if (ack != null) {
+                ack.acknowledge();
+            }
         }
     }
 }
