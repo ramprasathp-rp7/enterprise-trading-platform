@@ -8,19 +8,15 @@ export class KnownAccountIdsRepository extends Repository<KnownAccountId> {
     super(KnownAccountId, dataSource.createEntityManager());
   }
 
-  async findByExternalAccountId(accountId: string): Promise<KnownAccountId | null> {
-    return this.findOne({
+  async accountIdExists(accountId: number): Promise<boolean> {
+    const count = await this.count({
       where: { account_id: accountId },
     });
+    return count > 0;
   }
 
-  async accountIdExists(accountId: string): Promise<boolean> {
-    const record = await this.findByExternalAccountId(accountId);
-    return record !== null;
-  }
-
-  async addAccountId(id: number, accountId: string): Promise<KnownAccountId> {
-    const record = this.create({ id, account_id: accountId });
+  async addAccountId(accountId: number): Promise<KnownAccountId> {
+    const record = this.create({account_id:accountId});
     return this.save(record);
   }
 }

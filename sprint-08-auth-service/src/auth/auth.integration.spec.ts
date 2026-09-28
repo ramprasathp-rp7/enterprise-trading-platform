@@ -1,6 +1,3 @@
-
-
-import { beforeAll, describe, expect, it } from '@jest/globals';
 import * as jwt from 'jsonwebtoken';
 
 // Integration tests require external services. Run only when RUN_INTEGRATION_TESTS=true
@@ -19,7 +16,6 @@ describe('Auth Service Integration with Trade REST API', () => {
   let testUsername: string;
   let testPassword: string;
   let testAccountId: number;
-  let testExternalAccountId: string;
   
   /**
    * Setup: Register a test user before running integration tests
@@ -29,8 +25,7 @@ describe('Auth Service Integration with Trade REST API', () => {
     const timestamp = Date.now();
     testUsername = `test_user_${timestamp}`;
     testPassword = `Test@Pass${timestamp}`;
-    testAccountId = 4; // Internal numeric ID used in JWT and trade API routes
-    testExternalAccountId = 'ACC-000004';
+    testAccountId = 1; // Internal numeric ID used in JWT and trade API routes
     
     try {
       // Register the test user
@@ -40,7 +35,7 @@ describe('Auth Service Integration with Trade REST API', () => {
         body: JSON.stringify({
           username: testUsername,
           password: testPassword,
-          accountId: testExternalAccountId,
+          accountId: testAccountId,
           roles: ['CUSTOMER'],
         }),
       });

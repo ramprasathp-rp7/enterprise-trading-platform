@@ -16,17 +16,13 @@ export class DemoUserSeeder {
   async seedKnownAccountIds(): Promise<void> {
     // For demo/development: seed a few known account IDs
     // In production, these are mirrored from the trade database
-    const demoAccounts = [
-      { id: 1, accountId: 'ACC-000001' },
-      { id: 2, accountId: 'ACC-000002' },
-      { id: 3, accountId: 'ACC-000003' },
-    ];
+    const demoAccounts = [1,2,3];
 
-    for (const account of demoAccounts) {
-      const exists = await this.accountIdsRepository.accountIdExists(account.accountId);
+    for (const accountId of demoAccounts) {
+      const exists = await this.accountIdsRepository.accountIdExists(accountId);
       if (!exists) {
-        await this.accountIdsRepository.addAccountId(account.id, account.accountId);
-        this.logger.log(`Seeded account ID: ${account.accountId} -> ${account.id}`);
+        await this.accountIdsRepository.addAccountId(accountId);
+        this.logger.log(`Seeded account ID: ${accountId}`);
       }
     }
   }
