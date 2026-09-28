@@ -100,7 +100,7 @@ class OrderPlacedListenerTest {
     void malformedMessageIsDeadLetteredOnFirstAttempt() throws IllegalAccessException, InvocationTargetException, NoSuchMethodException, SecurityException {
         ConsumerRecord<String, String> record = new ConsumerRecord<>("orders", 1, 10L, "1", "{not-json");
 
-        listener.onOrderPlaced(record);
+        listener.onOrderPlaced(record, null);
 
         // executorService is a stub; ensure it was not called
         int calls0 = (int) ((OrderExecutorService)executorService).getClass().getMethod("getCallCount").invoke(executorService);
@@ -135,7 +135,7 @@ class OrderPlacedListenerTest {
         );
         ConsumerRecord<String, String> record = new ConsumerRecord<>("orders", 1, 11L, "42", rawMessage);
 
-        listener.onOrderPlaced(record);
+        listener.onOrderPlaced(record, null);
 
         int calls1 = (int) ((OrderExecutorService)executorService).getClass().getMethod("getCallCount").invoke(executorService);
         org.junit.jupiter.api.Assertions.assertEquals(0, calls1);
@@ -151,7 +151,7 @@ class OrderPlacedListenerTest {
         ConsumerRecord<String, String> record = new ConsumerRecord<>("orders", 1, 12L, "42", rawMessage);
         when(orderMapper.findOrderById(UUID.fromString(orderId))).thenReturn(null);
 
-        listener.onOrderPlaced(record);
+        listener.onOrderPlaced(record, null);
 
         // ensure stub was not called
         int calls2 = (int) ((OrderExecutorService)executorService).getClass().getMethod("getCallCount").invoke(executorService);
@@ -183,7 +183,7 @@ class OrderPlacedListenerTest {
         );
         ConsumerRecord<String, String> record = new ConsumerRecord<>("orders", 1, 13L, "42", rawMessage);
 
-        listener.onOrderPlaced(record);
+        listener.onOrderPlaced(record, null);
 
         int callsX = (int) ((OrderExecutorService)executorService).getClass().getMethod("getCallCount").invoke(executorService);
         org.junit.jupiter.api.Assertions.assertEquals(0, callsX);
@@ -207,7 +207,7 @@ class OrderPlacedListenerTest {
         // schedule a transient failure then success on the stub
         ((OrderExecutorService)executorService).getClass().getMethod("scheduleThrow", java.lang.Throwable.class).invoke(executorService, new PricingUnavailableException("broker unavailable"));
 
-        listener.onOrderPlaced(record);
+        listener.onOrderPlaced(record, null);
 
         // assert stub was invoked twice (retry once)
         int calls = (int) ((OrderExecutorService)executorService).getClass().getMethod("getCallCount").invoke(executorService);
@@ -227,7 +227,7 @@ class OrderPlacedListenerTest {
             new Instrument(100L, "INFY.NS", "Infosys", AssetClass.EQUITY, "INR", true)
         );
         // no scheduled throws; stub will process once
-        listener.onOrderPlaced(record);
+        listener.onOrderPlaced(record, null);
 
         int calls2 = (int) ((OrderExecutorService)executorService).getClass().getMethod("getCallCount").invoke(executorService);
         org.junit.jupiter.api.Assertions.assertEquals(1, calls2);
