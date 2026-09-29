@@ -8,7 +8,11 @@ import com.tradingplatform.api.events.TradeEventPayload;
 import com.tradingplatform.api.mappers.AccountMapper;
 import com.tradingplatform.api.mappers.InstrumentMapper;
 import com.tradingplatform.api.mappers.OrderMapper;
+import com.tradingplatform.api.mappers.TransactionMapper;
 import com.tradingplatform.domain.enums.OrderStatus;
+import com.tradingplatform.domain.enums.TransactionAction;
+import com.tradingplatform.domain.enums.TransactionType;
+import com.tradingplatform.domain.model.Transaction;
 import com.tradingplatform.domain.exception.OptimisticLockException;
 import com.tradingplatform.domain.model.Account;
 import com.tradingplatform.domain.model.AssetFeeStructure;
@@ -22,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -49,16 +54,19 @@ public class FeeDeductionService {
     private final AccountMapper accountMapper;
     private final InstrumentMapper instrumentMapper;
     private final com.tradingplatform.api.mappers.AssetFeeMapper assetFeeMapper;
+    private final TransactionMapper transactionMapper;
     private final ObjectMapper objectMapper;
     
     public FeeDeductionService(OrderMapper orderMapper, AccountMapper accountMapper, 
                                InstrumentMapper instrumentMapper, 
                                com.tradingplatform.api.mappers.AssetFeeMapper assetFeeMapper,
+                               TransactionMapper transactionMapper,
                                ObjectMapper objectMapper) {
         this.orderMapper = orderMapper;
         this.accountMapper = accountMapper;
         this.instrumentMapper = instrumentMapper;
         this.assetFeeMapper = assetFeeMapper;
+        this.transactionMapper = transactionMapper;
         this.objectMapper = objectMapper;
     }
     
@@ -179,8 +187,21 @@ logger.debug("Fee recalculation: orderId={}, originalFee={}, actualFee={}, execu
             // Step 11: Update order fee column with the actual fee that was deducted
             orderMapper.updateOrderFee(orderUuid, actualFee);
             
-            logger.info("Fee deducted successfully: orderId={}, accountId={}, actualFee={}, originalFee={}", 
-                orderIdStr, order.getAccountId(), actualFee, originalFee);
+            // Step 12: Create a transaction record for the fee deduction
+            UUID transactionId = UUID.randomUUID();
+            Transaction feeTransaction = new Transaction(
+                transactionId,
+                order.getAccountId(),
+                orderUuid,  // Link to the order that was filled
+                TransactionType.FEE,
+                TransactionAction.DEBIT,
+                actualFee,
+                Instant.now()
+            );
+            transactionMapper.insertTransaction(feeTransaction);
+            
+            logger.info("Fee deducted successfully: orderId={}, accountId={}, actualFee={}, originalFee={}, transactionId={}", 
+                orderIdStr, order.getAccountId(), actualFee, originalFee, transactionId);
             if (ack != null) {
                 ack.acknowledge();
             }

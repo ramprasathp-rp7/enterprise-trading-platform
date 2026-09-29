@@ -293,9 +293,9 @@ public class GlobalExceptionHandler {
     private HttpStatus mapErrorCodeToHttpStatus(ErrorCode code) {
         return switch(code) {
             case AUTH_401 -> HttpStatus.UNAUTHORIZED;
-            case ACC_404, INS_404 -> HttpStatus.NOT_FOUND;
+            case ACC_404, INS_404, TRANS_404 -> HttpStatus.NOT_FOUND;
             case ACC_403 -> HttpStatus.FORBIDDEN;
-            case ORD_400 -> HttpStatus.BAD_REQUEST;
+            case ORD_400, TRANS_400 -> HttpStatus.BAD_REQUEST;
             case ORD_409 -> HttpStatus.CONFLICT;
             case VAL_422, INVALID_PREFERENCE -> HttpStatus.UNPROCESSABLE_ENTITY;
         };
