@@ -23,6 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import com.tradingplatform.domain.Instrument;
 import com.tradingplatform.domain.Order;
 import com.tradingplatform.enums.OrderSide;
+import com.tradingplatform.enums.OrderStatus;
 import com.tradingplatform.events.EventType;
 import com.tradingplatform.events.MessageEnvelope;
 import com.tradingplatform.events.OrderPlacedPayload;
@@ -145,8 +146,27 @@ public class OrderPlacedListener {
 					ack.acknowledge();
 				}
 				return;
-			} catch (PricingUnavailableException | DataAccessException | KafkaException ex) {
+			} catch (PricingUnavailableException ex) {
+				// Pricing is a business outcome, not a transient system failure
+				attempts++;
+				if (attempts >= MAX_ATTEMPTS) {
+					logger.warn("Rejecting order after pricing outage: orderId={}, attempts={}, reason={}",
+						payload.orderId(), attempts, ex.getMessage());
+					// Update order to REJECTED instead of dead-lettering
+					orderMapper.updateOrderStatus(orderUuid, OrderStatus.REJECTED, 
+						"Pricing service unavailable: " + ex.getMessage(), null, null, java.time.Instant.now());
+					if (ack != null) {
+						ack.acknowledge();
+					}
+					return;
+				}
 
+				logger.warn("Retrying order after pricing outage: orderId={}, attempt={}/{}, backoffMillis={}, reason={}",
+					payload.orderId(), attempts, MAX_ATTEMPTS, backoffMillis, ex.getMessage());
+				sleep(backoffMillis);
+				backoffMillis = Math.max(backoffMillis + 1L, Math.round(backoffMillis * BACKOFF_MULTIPLIER));
+			} catch (DataAccessException | KafkaException ex) {
+				// These are true transient system failures
 				attempts++;
 				if (attempts >= MAX_ATTEMPTS) {
 					logger.warn("Dead-lettering order after retry budget exhausted: orderId={}, attempts={}, reason={}",
