@@ -18,14 +18,35 @@ export class AuthExceptionFilter implements ExceptionFilter {
       status = exception.getStatus();
       const exceptionResponse = exception.getResponse();
 
-      // Handle validation errors (BadRequestException from ValidationPipe)
-      if (status === HttpStatus.BAD_REQUEST && typeof exceptionResponse === 'object') {
-        const resp = exceptionResponse as any;
-        if (resp.message && Array.isArray(resp.message)) {
-          // Validation error from ValidationPipe
-          status = HttpStatus.UNPROCESSABLE_ENTITY;
-          errorCode = ErrorCode.VAL_422;
+      // Handle validation errors from ValidationPipe
+      // The ValidationPipe may return a BadRequestException with an array
+      // of messages, or the global exception factory may create a
+      // BadRequestException whose status (or response.statusCode) is 422.
+      if (
+        (status === HttpStatus.BAD_REQUEST && typeof exceptionResponse === 'object' && Array.isArray((exceptionResponse as any).message)) ||
+        status === HttpStatus.UNPROCESSABLE_ENTITY ||
+        (typeof exceptionResponse === 'object' && (exceptionResponse as any).statusCode === HttpStatus.UNPROCESSABLE_ENTITY)
+      ) {
+        const resp = typeof exceptionResponse === 'object' ? (exceptionResponse as any) : undefined;
+        errorCode = ErrorCode.VAL_422;
+        if (resp && Array.isArray(resp.message)) {
           message = resp.message[0] || 'Validation failed';
+        } else if (resp && typeof resp.message === 'string') {
+          message = resp.message || 'Validation failed';
+        } else {
+          message = exception.message || 'Validation failed';
+        }
+        status = HttpStatus.UNPROCESSABLE_ENTITY;
+      }
+
+      // Handle generic bad request (non-validation) -> map to 400 errorCode
+      if (status === HttpStatus.BAD_REQUEST) {
+        errorCode = ErrorCode.VAL_400;
+        if (typeof exceptionResponse === 'object') {
+          const resp = exceptionResponse as any;
+          message = resp.message || exception.message || message;
+        } else {
+          message = exception.message || message;
         }
       }
 
