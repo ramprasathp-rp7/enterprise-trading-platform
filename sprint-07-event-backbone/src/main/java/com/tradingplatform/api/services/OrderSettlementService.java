@@ -40,7 +40,8 @@ public class OrderSettlementService {
 
         // Fetch or initialize the Position for this account/instrument pair
         Position position = positionMapper.findByAccountAndInstrument(order.getAccountId(), order.getInstrumentId());
-        if (position == null) {
+        boolean isNewPosition = position == null;
+        if (isNewPosition) {
             // Position doesn't exist yet; create an empty one
             position = Position.empty(order.getAccountId(), order.getInstrumentId());
         }
@@ -75,7 +76,15 @@ public class OrderSettlementService {
             throw new OptimisticLockException("Account", order.getAccountId());
         }
 
-        int positionRowsUpdated = positionMapper.updatePosition(position, newPositionVersion);
+        int positionRowsUpdated;
+        if (isNewPosition) {
+            // First time trading this instrument; insert new position with version 1
+            positionRowsUpdated = positionMapper.insertPosition(position);
+        } else {
+            // Position already exists; update with optimistic lock check
+            positionRowsUpdated = positionMapper.updatePosition(position, newPositionVersion);
+        }
+        
         if (positionRowsUpdated == 0) {
             // Another transaction has modified the position since we read it
             throw new OptimisticLockException("Position", order.getAccountId() + ":" + order.getInstrumentId());
