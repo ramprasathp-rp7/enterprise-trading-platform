@@ -28,12 +28,13 @@ public interface OrderMapper {
             String idempotencyKey);
 
     @ConstructorArgs({
-        @Arg(column = "account_id", javaType = Long.class),
-        @Arg(column = "instrument_id", javaType = Long.class),
-        @Arg(column = "side", javaType = OrderSide.class),
-        @Arg(column = "quantity", javaType = int.class),
-        @Arg(column = "price", javaType = BigDecimal.class),
-        @Arg(column = "idempotency_key", javaType = String.class)
+    @Arg(column = "id", javaType = java.util.UUID.class),          // ← ADD THIS
+    @Arg(column = "account_id", javaType = Long.class),
+    @Arg(column = "instrument_id", javaType = Long.class),
+    @Arg(column = "side", javaType = OrderSide.class),
+    @Arg(column = "quantity", javaType = int.class),
+    @Arg(column = "price", javaType = BigDecimal.class),
+    @Arg(column = "idempotency_key", javaType = String.class)
     })
     @Select("SELECT id, account_id, instrument_id, side, quantity, price, status, executed_price, fee, idempotency_key, created_on " +
             "FROM orders WHERE id = #{id}")

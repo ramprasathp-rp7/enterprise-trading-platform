@@ -47,6 +47,27 @@ public final class Order {
         this.fee = null;
     }
 
+    public Order(UUID id, Long accountId, Long instrumentId, OrderSide side,
+                 int quantity, BigDecimal price, String idempotencyKey) {
+        this.id = Objects.requireNonNull(id, "id");
+        this.accountId = Objects.requireNonNull(accountId, "accountId");
+        this.instrumentId = Objects.requireNonNull(instrumentId, "instrumentId");
+        this.side = Objects.requireNonNull(side, "side");
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("quantity must be greater than zero: " + quantity);
+        }
+        this.quantity = quantity;
+        this.price = Objects.requireNonNull(price, "price");
+        if (price.signum() <= 0) {
+            throw new IllegalArgumentException("price must be greater than zero: " + price);
+        }
+        this.idempotencyKey = Objects.requireNonNull(idempotencyKey, "idempotencyKey");
+        this.createdOn = Instant.now();
+        this.status = OrderStatus.NEW;
+        this.executedPrice = null;
+        this.fee = null;
+    }
+
      public UUID getId() {
         return id;
     }

@@ -43,9 +43,10 @@ public class OrderController {
         accountAccessAuthorizer.assertTokenCanAccess(orderRequest.accountId());
 
         OrderResponse response = orderService.placeOrder(orderRequest);
-        URI location = URI.create("/api/v1/orders/" + response.orderId());
+        String rawUuid = response.orderId().substring(4);  // Strip "ORD-" prefix
+        URI location = URI.create("/api/v1/orders/" + rawUuid);
         return ResponseEntity.created(location).body(response);
-    }
+        }
     
     @DeleteMapping("/{id}")
     public ResponseEntity<OrderResponse> cancelOrder(@PathVariable String id) {

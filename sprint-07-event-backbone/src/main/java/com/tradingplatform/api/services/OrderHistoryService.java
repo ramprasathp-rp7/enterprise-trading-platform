@@ -45,7 +45,10 @@ public class OrderHistoryService {
         // Verify order exists
         getOrderOrThrow(orderId);
 
-        return orderHistoryMapper.findByOrderId(orderId);
+        return orderHistoryMapper.findByOrderId(orderId)
+        .stream()
+        .map(this::addPrefixToOrderStatusChange)  // ← Add this
+        .toList();
     }
     
     /**
@@ -67,7 +70,10 @@ public class OrderHistoryService {
             throw new IllegalArgumentException("fromDate must be before toDate");
         }
         
-        return orderHistoryMapper.findByOrderIdAndDateRange(orderId, from, to);
+        return orderHistoryMapper.findByOrderIdAndDateRange(orderId, from, to)
+        .stream()
+        .map(this::addPrefixToOrderStatusChange)  // ← Add this
+        .toList();
     }
     
     /**
@@ -85,7 +91,10 @@ public class OrderHistoryService {
             throw new IllegalArgumentException("fromDate must be before toDate");
         }
         
-        return orderHistoryMapper.findByAccountIdAndDateRange(accountId, from, to);
+        return orderHistoryMapper.findByAccountIdAndDateRange(accountId, from, to)
+        .stream()
+        .map(this::addPrefixToOrderStatusChange)  // ← Add this
+        .toList();
     }
 
     private Order getOrderOrThrow(UUID orderId) {
@@ -95,4 +104,13 @@ public class OrderHistoryService {
         }
         return order;
     }
+
+    private OrderStatusChange addPrefixToOrderStatusChange(OrderStatusChange change) {
+    return new OrderStatusChange(
+        "ORD-" + change.orderId(),
+        change.timestamp(),
+        change.fromStatus(),
+        change.toStatus()
+    );
+}
 }
