@@ -103,6 +103,37 @@ public class GlobalExceptionHandler {
         );
     }
     
+    // ORD-409: Order not found Maps to HTTP 404 (Not Found)
+    // Per OpenAPI spec: DELETE /api/v1/orders/{id} returns HTTP 404 with ORD-409 error code
+    
+    @ExceptionHandler(OrderNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleOrderNotFound(
+            OrderNotFoundException ex,
+            WebRequest request) {
+        
+        logger.error("Order not found: orderId={}", ex.getOrderId());
+        
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.ORD_409, "The requested order could not be found."),
+            HttpStatus.NOT_FOUND
+        );
+    }
+    
+    // TRANS-404: Transaction not found Maps to HTTP 404 (Not Found)
+    
+    @ExceptionHandler(TransactionNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleTransactionNotFound(
+            TransactionNotFoundException ex,
+            WebRequest request) {
+        
+        logger.error("Transaction not found: {}", ex.getMessage());
+        
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.TRANS_404, "The requested transaction could not be found."),
+            HttpStatus.NOT_FOUND
+        );
+    }
+    
     // ORD-400: Insufficient funds for order Maps to HTTP 400 (Bad Request)
     
     @ExceptionHandler(InsufficientFundsException.class)
@@ -200,16 +231,10 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleValidationException(
             Exception ex,
             WebRequest request) {
-        String message = "Invalid input";
-        if (ex instanceof MethodArgumentNotValidException methodArgumentNotValidException) {
-            FieldError firstError = methodArgumentNotValidException.getBindingResult().getFieldError();
-            if (firstError != null && firstError.getDefaultMessage() != null) {
-                message = firstError.getDefaultMessage();
-            }
-        }
-
+        logger.error("Validation error: {}", ex.getMessage());
+        
         return new ResponseEntity<>(
-            new ErrorResponse(ErrorCode.VAL_422, message),
+            new ErrorResponse(ErrorCode.VAL_422, "Invalid input"),
             HttpStatus.UNPROCESSABLE_ENTITY
         );
     }
@@ -269,7 +294,7 @@ public class GlobalExceptionHandler {
         
         return new ResponseEntity<>(
             new ErrorResponse(ErrorCode.VAL_422, "Invalid input"),
-            HttpStatus.UNPROCESSABLE_ENTITY
+            HttpStatus.METHOD_NOT_ALLOWED
         );
     }
     
@@ -283,7 +308,7 @@ public class GlobalExceptionHandler {
         
         return new ResponseEntity<>(
             new ErrorResponse(ErrorCode.VAL_422, "Invalid input"),
-            HttpStatus.UNPROCESSABLE_ENTITY
+            HttpStatus.NOT_FOUND
         );
     }
     
@@ -310,7 +335,7 @@ public class GlobalExceptionHandler {
         logger.error("Unexpected error occurred", ex);
         
         return new ResponseEntity<>(
-            new ErrorResponse(ErrorCode.VAL_422, "An unexpected error occurred. Please contact support."),
+            new ErrorResponse(ErrorCode.VAL_422, "Invalid input"),
             HttpStatus.INTERNAL_SERVER_ERROR
         );
     }

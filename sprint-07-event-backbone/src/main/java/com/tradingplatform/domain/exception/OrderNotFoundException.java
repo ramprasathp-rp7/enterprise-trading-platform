@@ -11,12 +11,12 @@ public final class OrderNotFoundException extends DomainException {
     private final UUID orderId;
 
     public OrderNotFoundException(String message) {
-        super(com.tradingplatform.domain.enums.ErrorCode.ORD_400, message);
+        super(com.tradingplatform.domain.enums.ErrorCode.ORD_409, message);
         this.orderId = null;
     }
 
     public OrderNotFoundException(UUID orderId, String message) {
-        super(com.tradingplatform.domain.enums.ErrorCode.ORD_400, message);
+        super(com.tradingplatform.domain.enums.ErrorCode.ORD_409, message);
         this.orderId = orderId;
     }
     

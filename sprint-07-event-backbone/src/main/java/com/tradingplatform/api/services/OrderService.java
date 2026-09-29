@@ -12,6 +12,7 @@ import com.tradingplatform.domain.enums.OrderStatus;
 import com.tradingplatform.domain.exception.DuplicateOrderException;
 import com.tradingplatform.domain.exception.OptimisticLockException;
 import com.tradingplatform.domain.exception.OrderNotCancellableException;
+import com.tradingplatform.domain.exception.OrderNotFoundException;
 import com.tradingplatform.domain.model.Account;
 import com.tradingplatform.domain.model.Instrument;
 import com.tradingplatform.domain.model.Order;
@@ -23,7 +24,6 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
-import java.util.NoSuchElementException;
 import java.util.UUID;
 
 @Service
@@ -148,7 +148,7 @@ public class OrderService {
         // Fetch order from database via OrderMapper
         Order order = orderMapper.findOrderById(id);
         if (order == null) {
-            throw new NoSuchElementException("Order not found: " + orderId);
+            throw new OrderNotFoundException(id, "Order not found: " + orderId);
         }
 
         // Fetch instrument for order response
@@ -168,7 +168,7 @@ public class OrderService {
         // Fetch the order first to check if it exists and get account ID
         Order order = orderMapper.findOrderById(id);
         if (order == null) {
-            throw new NoSuchElementException("Order not found: " + orderId);
+            throw new OrderNotFoundException(id, "Order not found: " + orderId);
         }
         
         // Authorize access to this order's account
@@ -184,7 +184,7 @@ public class OrderService {
         // Fetch the cancelled order from database
         Order cancelledOrder = orderMapper.findOrderById(id);
         if (cancelledOrder == null) {
-            throw new NoSuchElementException("Order not found after cancellation: " + orderId);
+            throw new OrderNotFoundException(id, "Order not found after cancellation: " + orderId);
         }
 
         // Fetch instrument for order response

@@ -394,7 +394,7 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().errorCode()).isEqualTo(ErrorCode.VAL_422);
         assertThat(response.getBody().message())
-            .isEqualTo("An unexpected error occurred. Please contact support.");
+            .isEqualTo("Invalid input");
         
         // Verify no stack trace or internal details exposed
         assertThat(response.getBody().message())

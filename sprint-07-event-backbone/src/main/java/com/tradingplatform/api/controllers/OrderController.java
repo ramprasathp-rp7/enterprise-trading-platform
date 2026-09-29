@@ -10,7 +10,6 @@ import com.tradingplatform.domain.dto.OrderStatusChange;
 import com.tradingplatform.domain.dto.OrderResponse;
 import com.tradingplatform.domain.dto.PlaceOrderRequest;
 
-import java.net.URI;
 import java.util.List;
 import java.util.UUID;
 
@@ -43,8 +42,7 @@ public class OrderController {
         accountAccessAuthorizer.assertTokenCanAccess(orderRequest.accountId());
 
         OrderResponse response = orderService.placeOrder(orderRequest);
-        URI location = URI.create("/api/v1/orders/" + response.orderId());
-        return ResponseEntity.created(location).body(response);
+        return ResponseEntity.ok(response);
     }
     
     @DeleteMapping("/{id}")
