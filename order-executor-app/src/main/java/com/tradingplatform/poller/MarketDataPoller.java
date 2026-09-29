@@ -33,8 +33,13 @@ import com.tradingplatform.services.SymbolDiscoveryService;
  * Quota tracking: Shares the same Fauxnance request budget with the fill path (both use QuoteClient).
  * The local quota counter in QuoteClient tracks daily requests and auto-resets at UTC midnight.
  * 
- * Poll schedule can be controlled via POLL_INTERVAL_SECONDS environment variable (default 60s).
- * Minimum interval is enforced at 60 seconds in code.
+ * Configuration (via environment variables or application.properties):
+ * - POLL_INTERVAL_SECONDS: Poll interval in seconds (default: 60). Will be clamped to MIN_POLL_INTERVAL_SECONDS if lower.
+ * - MIN_POLL_INTERVAL_SECONDS: Minimum allowed poll interval in seconds (default: 60). Cannot be configured below this value.
+ * 
+ * Examples:
+ *   export POLL_INTERVAL_SECONDS=30  # Will be enforced to MIN_POLL_INTERVAL_SECONDS if that's higher
+ *   export MIN_POLL_INTERVAL_SECONDS=45  # Override minimum interval requirement
  */
 @Component
 @EnableScheduling
@@ -42,14 +47,13 @@ public class MarketDataPoller {
     private static final Logger logger = LoggerFactory.getLogger(MarketDataPoller.class);
     
     private static final String MARKET_DATA_TOPIC = "market-data";
-    private static final int MIN_POLL_INTERVAL_SECONDS = 60;
-    private static final int DEFAULT_POLL_INTERVAL_SECONDS = 60;
 
     private final SymbolDiscoveryService symbolDiscoveryService;
     private final QuoteClient quoteClient;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
     private final int pollIntervalSeconds;
+    private final int minPollIntervalSeconds;
 
     public MarketDataPoller(
             SymbolDiscoveryService symbolDiscoveryService,
@@ -57,31 +61,34 @@ public class MarketDataPoller {
             KafkaTemplate<String, String> kafkaTemplate,
             ObjectMapper objectMapper,
             @Value("${POLL_INTERVAL_SECONDS:#{T(java.lang.System).getenv('POLL_INTERVAL_SECONDS') != null ? T(java.lang.Integer).parseInt(T(java.lang.System).getenv('POLL_INTERVAL_SECONDS')) : 60}}")
-            int pollIntervalSeconds) {
+            int pollIntervalSeconds,
+            @Value("${MIN_POLL_INTERVAL_SECONDS:60}")
+            int minPollIntervalSeconds) {
         this.symbolDiscoveryService = symbolDiscoveryService;
         this.quoteClient = quoteClient;
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;
+        this.minPollIntervalSeconds = minPollIntervalSeconds;
         
         // Validate and enforce minimum interval
-        if (pollIntervalSeconds < MIN_POLL_INTERVAL_SECONDS) {
+        if (pollIntervalSeconds < minPollIntervalSeconds) {
             logger.warn("Configured poll interval {}s is below minimum {}s; enforcing minimum",
-                    pollIntervalSeconds, MIN_POLL_INTERVAL_SECONDS);
-            this.pollIntervalSeconds = MIN_POLL_INTERVAL_SECONDS;
+                    pollIntervalSeconds, minPollIntervalSeconds);
+            this.pollIntervalSeconds = minPollIntervalSeconds;
         } else {
             this.pollIntervalSeconds = pollIntervalSeconds;
         }
         
-        logger.info("MarketDataPoller initialized with interval: {}s", this.pollIntervalSeconds);
+        logger.info("MarketDataPoller initialized with interval: {}s (min: {}s)", this.pollIntervalSeconds, this.minPollIntervalSeconds);
     }
 
     /**
      * Scheduled method that polls for market data at the configured interval.
-     * The interval is controlled by the fixedRate parameter which is set to match
-     * the configured poll interval in milliseconds.
+     * The interval is read from POLL_INTERVAL_SECONDS (default 60s) and validated against MIN_POLL_INTERVAL_SECONDS.
+     * Both values can be configured via environment variables or application.properties.
      * 
-     * Note: This polls continuously at a fixed rate. The interval itself is validated
-     * at initialization time and cannot be changed at runtime without redeployment.
+     * Note: This polls continuously at a fixed rate. The interval is validated at initialization time.
+     * If configured interval is below the minimum, it will be clamped to the minimum value.
      */
     @Scheduled(fixedDelayString = "${POLL_INTERVAL_SECONDS:60}000")
     public void pollMarketData() {

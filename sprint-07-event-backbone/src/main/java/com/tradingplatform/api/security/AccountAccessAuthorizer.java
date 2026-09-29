@@ -16,9 +16,12 @@ public class AccountAccessAuthorizer {
         }
 
         Object tokenAccountId = jwt.getClaims().get("accountId");
-        if (!(tokenAccountId instanceof Number number) || number.longValue() != requestedAccountId) {
-            long authenticatedAccountId = ((Number) tokenAccountId).longValue();
-            throw new AccountUnauthorizedException(requestedAccountId, authenticatedAccountId);
+        if (!(tokenAccountId instanceof Number number)) {
+            // Either null or not a Number type - reject the token
+            throw new AccountUnauthorizedException(requestedAccountId, null);
+        }
+        if (number.longValue() != requestedAccountId) {
+            throw new AccountUnauthorizedException(requestedAccountId, number.longValue());
         }
     }
 }
