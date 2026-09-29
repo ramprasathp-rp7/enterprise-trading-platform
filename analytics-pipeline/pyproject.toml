@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "trading-analytics-etl"
+version = "0.1.0"
+description = "Incremental analytics ETL: Postgres (orders/accounts/instruments) -> DuckDB star schema (FACT_TRADES + dimensions)"
+requires-python = ">=3.12"
+dependencies = [
+    "psycopg[binary]>=3.1",
+    "duckdb>=1.0.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+]
+
+[project.scripts]
+# Three independently-runnable stages, per the sprint README:
+#   etl-extract   Postgres -> local staging files (dims full snapshot, orders since watermark)
+#   etl-load      staging files -> DuckDB (transform + quality checks + load), advances watermark on success
+#   etl-reconcile compares fact_trades against Postgres for a given day
+etl-extract = "trading_analytics_etl.cli:extract_main"
+etl-load = "trading_analytics_etl.cli:load_main"
+etl-reconcile = "trading_analytics_etl.cli:reconcile_main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
