@@ -1,7 +1,6 @@
-package com.tradingplatform.domain;
+package com.tradingplatform.domain.model;
 
 import com.tradingplatform.domain.enums.AccountStatus;
-import com.tradingplatform.domain.model.Account;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;

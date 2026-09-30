@@ -1,8 +1,8 @@
-package com.tradingplatform.domain;
+package com.tradingplatform.domain.model;
 
 import com.tradingplatform.domain.enums.OrderSide;
 import com.tradingplatform.domain.enums.OrderStatus;
-import com.tradingplatform.domain.model.Order;
+
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;

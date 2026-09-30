@@ -12,7 +12,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -23,21 +22,21 @@ import org.springframework.web.context.request.WebRequest;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-            @ExceptionHandler(AuthenticationException.class)
-            public ResponseEntity<ErrorResponse> handleAuthenticationFailure(
-                    AuthenticationException ex,
-                    WebRequest request) {
-
-                logger.warn("Authentication failed: {}", ex.getClass().getSimpleName());
-
-                return new ResponseEntity<>(
-                    new ErrorResponse(ErrorCode.AUTH_401, "Unauthorised"),
-                    HttpStatus.UNAUTHORIZED
-                );
-            }
-
     
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ErrorResponse> handleAuthenticationFailure(
+            AuthenticationException ex,
+            WebRequest request) {
+
+        logger.warn("Authentication failed: {}", ex.getClass().getSimpleName());
+
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.AUTH_401, "Unauthorised"),
+            HttpStatus.UNAUTHORIZED
+        );
+    }
     
    
     // ACC-404: Account not found Maps to HTTP 404 (Not Found)
@@ -131,6 +130,37 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(
             new ErrorResponse(ErrorCode.TRANS_404, "The requested transaction could not be found."),
             HttpStatus.NOT_FOUND
+        );
+    }
+    
+    // TRANS-400: Invalid transaction Maps to HTTP 400 (Bad Request)
+    
+    @ExceptionHandler(InvalidTransactionException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidTransaction(
+            InvalidTransactionException ex,
+            WebRequest request) {
+        
+        logger.error("Invalid transaction: {}", ex.getMessage());
+        
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.TRANS_400, ex.getMessage()),
+            HttpStatus.BAD_REQUEST
+        );
+    }
+    
+    // TRANS-400: Insufficient funds for withdrawal Maps to HTTP 400 (Bad Request)
+    
+    @ExceptionHandler(InsufficientFundsForWithdrawalException.class)
+    public ResponseEntity<ErrorResponse> handleInsufficientFundsForWithdrawal(
+            InsufficientFundsForWithdrawalException ex,
+            WebRequest request) {
+        
+        logger.error("Insufficient funds for withdrawal: requested={}, available={}", 
+            ex.getRequestedAmount(), ex.getAvailableBalance());
+        
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.TRANS_400, ex.getMessage()),
+            HttpStatus.BAD_REQUEST
         );
     }
     
@@ -235,7 +265,7 @@ public class GlobalExceptionHandler {
         
         return new ResponseEntity<>(
             new ErrorResponse(ErrorCode.VAL_422, "Invalid input"),
-            HttpStatus.UNPROCESSABLE_ENTITY
+            HttpStatus.BAD_REQUEST
         );
     }
     
@@ -332,10 +362,11 @@ public class GlobalExceptionHandler {
             Exception ex,
             WebRequest request) {
         
-        logger.error("Unexpected error occurred", ex);
+        String errorMessage = ex.getMessage() != null ? ex.getMessage() : "Unexpected error";
+        logger.error("Unexpected error: {} - {}", ex.getClass().getSimpleName(), errorMessage, ex);
         
         return new ResponseEntity<>(
-            new ErrorResponse(ErrorCode.VAL_422, "Invalid input"),
+            new ErrorResponse(ErrorCode.VAL_422, "Error: " + errorMessage),
             HttpStatus.INTERNAL_SERVER_ERROR
         );
     }

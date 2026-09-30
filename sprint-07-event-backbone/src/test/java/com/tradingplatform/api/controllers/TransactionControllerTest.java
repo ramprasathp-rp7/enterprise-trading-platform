@@ -1,6 +1,7 @@
 package com.tradingplatform.api.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tradingplatform.api.exception.GlobalExceptionHandler;
 import com.tradingplatform.api.security.AccountAccessAuthorizer;
 import com.tradingplatform.api.services.TransactionService;
 import com.tradingplatform.domain.dto.TransactionHistoryEntry;
@@ -10,7 +11,6 @@ import com.tradingplatform.domain.enums.TransactionAction;
 import com.tradingplatform.domain.enums.TransactionType;
 import com.tradingplatform.domain.exception.AccountNotFoundException;
 import com.tradingplatform.domain.exception.InsufficientFundsForWithdrawalException;
-import com.tradingplatform.domain.exception.InvalidTransactionException;
 import com.tradingplatform.domain.exception.TransactionNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,7 +29,6 @@ import java.util.UUID;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -56,7 +55,7 @@ class TransactionControllerTest {
     void setUp() {
         mockMvc = MockMvcBuilders.standaloneSetup(
             new TransactionController(accountAccessAuthorizer, transactionService)
-        ).build();
+        ).setControllerAdvice(new GlobalExceptionHandler()).build();
         objectMapper = new ObjectMapper();
     }
 
@@ -92,8 +91,6 @@ class TransactionControllerTest {
      */
     @Test
     void depositWithInvalidAmountReturns400() throws Exception {
-        doNothing().when(accountAccessAuthorizer).assertTokenCanAccess(1L);
-
         // Negative amount should be rejected by validation
         TransactionRequest invalidRequest = new TransactionRequest(new BigDecimal("-100.00"));
 
@@ -108,8 +105,6 @@ class TransactionControllerTest {
      */
     @Test
     void depositWithNullAmountReturns400() throws Exception {
-        doNothing().when(accountAccessAuthorizer).assertTokenCanAccess(1L);
-
         mockMvc.perform(post("/api/v1/accounts/1/deposits")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"amount\": null}"))

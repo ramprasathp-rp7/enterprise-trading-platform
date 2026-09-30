@@ -1,7 +1,7 @@
-package com.tradingplatform.domain;
+package com.tradingplatform.domain.model;
 
 import com.tradingplatform.domain.enums.AssetClass;
-import com.tradingplatform.domain.model.Instrument;
+
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
