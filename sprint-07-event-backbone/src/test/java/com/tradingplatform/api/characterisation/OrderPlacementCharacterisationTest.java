@@ -74,6 +74,13 @@ class OrderPlacementCharacterisationTest {
 
         // Add mocks for new dependencies
         var availableBalanceService = mock(com.tradingplatform.services.AvailableBalanceService.class);
+        // Configure mock to return account's cash balance as available balance
+        when(availableBalanceService.getAvailableBalance(anyLong()))
+                .thenAnswer(invocation -> {
+                    // Return the cash balance of the mocked account
+                    Account acc = accountMapper.findByAccountId(invocation.getArgument(0));
+                    return acc != null ? acc.getCashBalance() : BigDecimal.ZERO;
+                });
 
         OrderValidationService validationService =
                 new OrderValidationService(

@@ -114,6 +114,10 @@ class OptimisticLockingTest {
         when(accountMapper.updateAccount(any(Account.class), anyInt())).thenReturn(1);
         
         // Position update FAILS (0 rows due to concurrent modification)
+        when(positionMapper.updatePosition(any(Position.class), anyInt())).thenReturn(0);
+        
+        // Also mock insertPosition to return 0 (insert also fails due to concurrent insert by another thread)
+        when(positionMapper.insertPosition(any(Position.class))).thenReturn(0);
         
         // Act & Assert
         OptimisticLockException ex = assertThrows(

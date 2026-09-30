@@ -84,7 +84,7 @@ public class OrderSettlementService {
                 // the constraint violation will tell us someone beat us to it
                 int positionRowsInserted = positionMapper.insertPosition(position);
                 if (positionRowsInserted == 0) {
-                    throw new IllegalStateException("Failed to insert new position for account " + order.getAccountId() + ", instrument " + order.getInstrumentId());
+                    throw new OptimisticLockException("Position", order.getAccountId() + ":" + order.getInstrumentId());
                 }
             } else {
                 // Existing position but update failed - likely optimistic lock contention

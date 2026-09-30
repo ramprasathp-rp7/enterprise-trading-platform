@@ -265,7 +265,7 @@ public class GlobalExceptionHandler {
         
         return new ResponseEntity<>(
             new ErrorResponse(ErrorCode.VAL_422, "Invalid input"),
-            HttpStatus.BAD_REQUEST
+            HttpStatus.UNPROCESSABLE_ENTITY
         );
     }
     

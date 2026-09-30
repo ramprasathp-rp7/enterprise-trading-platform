@@ -87,7 +87,7 @@ class TransactionControllerTest {
     }
 
     /**
-     * Test deposit with invalid amount returns 400.
+     * Test deposit with invalid amount returns 422.
      */
     @Test
     void depositWithInvalidAmountReturns400() throws Exception {
@@ -97,18 +97,18 @@ class TransactionControllerTest {
         mockMvc.perform(post("/api/v1/accounts/1/deposits")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(invalidRequest)))
-            .andExpect(status().isBadRequest());
+            .andExpect(status().isUnprocessableEntity());
     }
 
     /**
-     * Test deposit with null amount returns 400.
+     * Test deposit with null amount returns 422.
      */
     @Test
     void depositWithNullAmountReturns400() throws Exception {
         mockMvc.perform(post("/api/v1/accounts/1/deposits")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"amount\": null}"))
-            .andExpect(status().isBadRequest());
+            .andExpect(status().isUnprocessableEntity());
     }
 
     /**
