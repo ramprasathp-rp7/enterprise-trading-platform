@@ -42,7 +42,6 @@ export class ConfigurationService {
     const accessTokenLifetime = parseInt(process.env.ACCESS_TOKEN_LIFETIME || '900', 10);
     const refreshTokenLifetime = parseInt(process.env.REFRESH_TOKEN_LIFETIME || '604800', 10);
     const port = parseInt(process.env.PORT || '3000', 10);
-    const authRunMigrations = process.env.AUTH_RUN_MIGRATIONS === 'true';
     const pgPoolMax = parseInt(process.env.PGPOOL_MAX || '10', 10);
 
     const config = {
@@ -61,9 +60,6 @@ export class ConfigurationService {
         poolMax: pgPoolMax,
       },
       port,
-      auth: {
-        runMigrations: authRunMigrations,
-      },
     };
 
     logger.log(`Configuration loaded and validated | port=${port} jwtIssuer=${jwtIssuer} pgHost=${pgHost} pgDatabase=${pgDatabase}`);
@@ -98,7 +94,4 @@ export class ConfigurationService {
     return this.config.port;
   }
 
-  shouldRunMigrations(): boolean {
-    return this.config.auth.runMigrations;
-  }
 }

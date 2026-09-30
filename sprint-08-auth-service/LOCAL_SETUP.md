@@ -20,8 +20,6 @@ cd sprint-03-trade-database
 ./apply.sh              # Creates/initializes enterprise_trading_platform database
 
 # Auth Service database may need initialization
-# If migrations are configured to run at startup (AUTH_RUN_MIGRATIONS=true in .env),
-# the database will be created automatically. Otherwise, you may need to create it:
 psql -h localhost -U postgres -c "CREATE DATABASE identity_access_management;"
 ```
 

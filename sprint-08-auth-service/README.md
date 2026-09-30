@@ -57,7 +57,6 @@ Key variables:
 - `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `AUTH_POSTGRES_DB` - Database connection
 - `ACCESS_TOKEN_LIFETIME` - Seconds (default: 900 = 15 min)
 - `REFRESH_TOKEN_LIFETIME` - Seconds (default: 604800 = 7 days)
-- `AUTH_RUN_MIGRATIONS` - Run migrations on startup (default: false)
 
 ## Project Structure
 
