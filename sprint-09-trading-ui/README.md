@@ -1,59 +1,141 @@
-# Sprint09TradingUi
+# Sprint 09: Enterprise Trading Platform - Angular UI
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.24.
+## Project Overview
 
-## Development server
+Angular 21 standalone components frontend for the Enterprise Trading Platform. Built with signals for state management, generated API clients from OpenAPI contracts, and comprehensive test coverage.
 
-To start a local development server, run:
+**Status**: Production Ready | **Node**: 20.19+ | **Angular**: 21
 
-```bash
-ng serve
-```
+---
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+## Engineering Contract
 
-## Code scaffolding
+This project adheres to 10 fixed requirements:
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+1.   **Angular 21 Workspace** - `npm ci`, `npm run build`, `npm test` all succeed
+2.   **Standalone Components & Signals** - No NgModules, observables stop at HttpClient
+3.   **Sources in `src/`** - Specs as `*.spec.ts` beside implementations
+4.   **Generated API Clients** - Typed clients from contracts, never hand-written
+5.   **Committed Generated Output** - Regenerated on contract change, never edited manually
+6.   **Functional Interceptor** - Registered once, specs for attach and do-not-attach cases
+7.   **Route Guards** - All routes except sign-in protected, redirect with return address
+8.   **Order Ticket Validation** - Validates before submission, renders all error codes
+9.   **Blotter Badges** - Per-status badge distinguishing working from finished orders
+10.  **Playwright E2E Tests** - Environment-driven, two journey scenarios
 
-```bash
-ng generate component component-name
-```
+---
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+## Quick Start
 
-```bash
-ng generate --help
-```
+### Prerequisites
 
-## Building
+- **Node.js** 20.19+, 22.12+, or 24+
+- **npm** 10+
+- Backend services running:
+  - Auth Service: `http://localhost:3000`
+  - Trade API: `http://localhost:8080`
 
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
+### Installation & Build
 
 ```bash
-ng test
+# Install dependencies
+npm ci
+
+# Build application
+npm run build
+
+# Run tests
+npm test
+
+# Generate API clients from contracts
+npm run generate:auth
+npm run generate:trade
 ```
 
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
+### Development Server
 
 ```bash
-ng e2e
+# Start dev server (default: http://localhost:4200)
+npm start
 ```
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+---
 
-## Additional Resources
+## Project Structure
 
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+```
+src/app/
++-- core/                      # Infrastructure 
+|   +-- auth/                  # JWT management, guards, interceptors
+|   +-- services/              # HTTP, logging, error handling
+|   +-- config/                # Environment, API endpoints, constants
+|   +-- interceptors/          # HTTP error handling
+|
++-- features/                  # Business logic by domain
+|   +-- sign-in/                  # User login & registration
+|   |   +-- pages/login/
+|   |   +-- pages/register/
+|   |   +-- components/credential-form/
+|   |   +-- sign-in.service.ts
+|   |   +-- sign-in.store.ts
+|   |   +-- sign-in.models.ts
+|   |
+|   +-- orders/                # Order ticket creation
+|   |   +-- pages/order-ticket/
+|   |   +-- components/order-form/
+|   |   +-- components/symbol-lookup/
+|   |   +-- components/side-selector/
+|   |   +-- components/order-summary/
+|   |   +-- services/order.service.ts
+|   |   +-- services/order-validator.ts
+|   |   +-- orders.store.ts
+|   |   +-- orders.models.ts
+|   |
+|   +-- blotter/               # Order history & tracking
+|   |   +-- pages/blotter/
+|   |   +-- components/order-list/
+|   |   +-- components/order-status-badge/
+|   |   +-- components/order-filters/
+|   |   +-- services/order-history.service.ts
+|   |   +-- services/order-cancel.service.ts
+|   |   +-- blotter.store.ts
+|   |   +-- blotter.models.ts
+|   |
+|   +-- account/               # Account & portfolio view
+|       +-- pages/account-dashboard/
+|       +-- components/account-header/
+|       +-- components/balance-card/
+|       +-- components/positions-table/
+|       +-- services/account.service.ts
+|       +-- account.store.ts
+|       +-- account.models.ts
+|
++-- shared/                    # Reusable components, services, models & utilities
+|   +-- components/
+|   |   +-- common/            # Base UI components
+|   |   |
+|   |   +-- trading/           # Trading-domain components
+|   |
+|   +-- pipes/                 # Data formatting
+|   |
+|   +-- directives/            # Behavioral directives
+|   |
+|   +-- services/              # Business logic services
+|   +-- models/                # Shared type definitions
+|   |
+|   +-- utils/                 # Utility functions & constants
+|   |
+|   +-- shared.module.ts       # NgModule with all exports
+|   +-- index.ts               # Barrel export for easy imports
+|   
+|
++-- layout/                    # Application shell 
+|   +-- shell/                 # Root layout container
+|   +-- navbar/                # Top navigation bar
+|   +-- sidebar/               # Left feature menu
+|   +-- footer/                # Bottom footer
+|
++-- api/generated/             # Generated API clients 
+    +-- auth/                  # Auth service client (from auth-api.yaml)
+    +-- trade/                 # Trade API client (from trade-api.yaml)
+```
