@@ -9,12 +9,14 @@ import {
 } from '@angular/common/http';
 import { AuthInterceptor } from './auth.interceptor';
 import { CoreAuthService } from './core-auth.service';
+import { ApiOriginsConfig } from '../config/api-origins';
 import { JWTClaims } from './auth.models';
 
 describe('AuthInterceptor', () => {
   let httpClient: HttpClient;
   let httpTestingController: HttpTestingController;
   let authService: CoreAuthService;
+  let apiOriginsConfig: ApiOriginsConfig;
 
   const mockJWTClaims: JWTClaims = {
     sub: '8f14e45f-ceea-4c1b-9d3b-1a2b3c4d5e6f',
@@ -38,6 +40,7 @@ describe('AuthInterceptor', () => {
       imports: [HttpClientTestingModule],
       providers: [
         CoreAuthService,
+        ApiOriginsConfig,
         AuthInterceptor,
         { provide: HTTP_INTERCEPTORS, useClass: AuthInterceptor, multi: true },
       ],
@@ -46,6 +49,7 @@ describe('AuthInterceptor', () => {
     httpClient = TestBed.inject(HttpClient);
     httpTestingController = TestBed.inject(HttpTestingController);
     authService = TestBed.inject(CoreAuthService);
+    apiOriginsConfig = TestBed.inject(ApiOriginsConfig);
 
     sessionStorage.clear();
   });
@@ -226,6 +230,99 @@ describe('AuthInterceptor', () => {
       const req = httpTestingController.expectOne('/api/v1/accounts/1');
       expect(req.request.headers.get('Authorization')).toMatch(/^Bearer /);
       req.flush({});
+    });
+  });
+
+  describe('Origin-based bearer token filtering', () => {
+    /**
+     * Test Case 1: Attaches bearer token to platform API request
+     * 
+     * Verifies that when a request is made to a URL with an allowed origin
+     * (configured in apiOriginsConfig), the interceptor attaches the bearer token
+     * to the Authorization header.
+     * 
+     * This test uses relative URLs (e.g., /api/v1/orders) which are same-origin
+     * requests and should always be treated as allowed platform API calls.
+     */
+    it('attaches bearer token to platform API request', () => {
+      const mockUser = {
+        id: '8f14e45f-ceea-4c1b-9d3b-1a2b3c4d5e6f',
+        username: 'priya.menon',
+        accountId: 1,
+        roles: ['CUSTOMER'],
+      };
+
+      authService.setTokens(mockToken, 'refresh-token', mockUser);
+
+      // Request to platform API (relative URL - same-origin, always allowed)
+      httpClient.post('/api/v1/orders', { side: 'BUY', symbol: 'AAPL' }).subscribe(() => {});
+
+      const req = httpTestingController.expectOne('/api/v1/orders');
+      expect(req.request.headers.has('Authorization')).toBe(true);
+      expect(req.request.headers.get('Authorization')).toBe(`Bearer ${mockToken}`);
+      req.flush({ orderId: '123', status: 'NEW' });
+    });
+
+    /**
+     * Test Case 2: Does not attach bearer token to third-party origin request
+     * 
+     * Verifies that when a request is made to a URL with an origin NOT in the
+     * allow-list (e.g., external analytics, CDN), the interceptor does NOT attach
+     * the bearer token, even if one is available.
+     * 
+     * This is the critical security test: we must NOT send tokens to third-party services,
+     * where they could be logged in access logs, error trackers, or analytics pipelines.
+     */
+    it('does not attach bearer token to third-party origin request', () => {
+      const mockUser = {
+        id: '8f14e45f-ceea-4c1b-9d3b-1a2b3c4d5e6f',
+        username: 'priya.menon',
+        accountId: 1,
+        roles: ['CUSTOMER'],
+      };
+
+      authService.setTokens(mockToken, 'refresh-token', mockUser);
+
+      // Request to third-party origin (external analytics service)
+      // This should NOT receive the bearer token
+      const externalUrl = 'http://external-analytics.com/track';
+      httpClient.post(externalUrl, { event: 'page-view' }).subscribe(() => {});
+
+      const req = httpTestingController.expectOne(externalUrl);
+      // Verify NO Authorization header is attached
+      expect(req.request.headers.has('Authorization')).toBe(false);
+      req.flush({});
+    });
+
+    /**
+     * Test Case 3: Does not attach bearer token to unauthenticated auth routes
+     * 
+     * Verifies that public auth endpoints (/auth/login, /auth/register, /auth/refresh)
+     * do not receive bearer tokens, even if one is available.
+     * 
+     * These endpoints either:
+     * - Don't accept Authorization headers (login, register)
+     * - Use a different authentication mechanism (refresh uses refresh token in body)
+     */
+    it('does not attach bearer token to unauthenticated auth routes', () => {
+      const mockUser = {
+        id: '8f14e45f-ceea-4c1b-9d3b-1a2b3c4d5e6f',
+        username: 'priya.menon',
+        accountId: 1,
+        roles: ['CUSTOMER'],
+      };
+
+      authService.setTokens(mockToken, 'refresh-token', mockUser);
+
+      // POST to login endpoint (public, no Authorization header needed)
+      httpClient
+        .post('/auth/login', { username: 'user@example.com', password: 'password' })
+        .subscribe(() => {});
+
+      const req = httpTestingController.expectOne('/auth/login');
+      // Verify NO Authorization header is attached to unauthenticated route
+      expect(req.request.headers.has('Authorization')).toBe(false);
+      req.flush({ accessToken: 'new-token', refreshToken: 'new-refresh' });
     });
   });
 });

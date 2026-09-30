@@ -7,29 +7,51 @@ import {
 } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { CoreAuthService } from './core-auth.service';
+import { ApiOriginsConfig } from '../config/api-origins';
 
 /**
  * Authentication Interceptor
  * 
- * Adds JWT bearer token to all HTTP requests except login/register endpoints.
+ * Attaches JWT bearer token to requests destined for platform APIs only.
+ * Uses an allow-list of origins to prevent accidentally sending tokens to third-party services.
+ * 
+ * Token Attachment Decision Tree:
+ * 1. Is the request origin in the allowed list? (via ApiOriginsConfig)
+ *    - No: Skip token attachment (fail closed)
+ *    - Yes: Continue to step 2
+ * 2. Is this an unauthenticated auth endpoint (login, register, refresh)?
+ *    - Yes: Skip token attachment
+ *    - No: Attach token
+ * 
  * Never logs tokens or credentials.
  */
 @Injectable()
 export class AuthInterceptor implements HttpInterceptor {
-  constructor(private authService: CoreAuthService) {}
+  constructor(
+    private authService: CoreAuthService,
+    private apiOriginsConfig: ApiOriginsConfig
+  ) {}
 
   intercept(
     req: HttpRequest<any>,
     next: HttpHandler
   ): Observable<HttpEvent<any>> {
-    // Don't attach token to auth endpoints that don't require it
-    if (this.shouldSkipTokenAttachment(req)) {
+    // Step 1: Check if the request origin is in the allowed list
+    if (!this.apiOriginsConfig.isAllowedOrigin(req.url)) {
+      // Origin not allowed: skip token attachment
       return next.handle(req);
     }
 
-    // Get current token
+    // Step 2: Check if this is an unauthenticated auth endpoint
+    if (this.isUnauthenticatedAuthRoute(req)) {
+      // This is a public auth endpoint: skip token attachment
+      return next.handle(req);
+    }
+
+    // Step 3: Attach token to this platform API request
     const token = this.authService.accessToken();
     if (!token) {
+      // No token available: proceed without header
       return next.handle(req);
     }
 
@@ -44,14 +66,17 @@ export class AuthInterceptor implements HttpInterceptor {
   }
 
   /**
-   * Determine if this request should skip token attachment
+   * Check if this is an unauthenticated auth endpoint.
    * 
-   * We skip auth endpoints that don't require authentication:
-   * - POST /auth/login (public login)
-   * - POST /auth/register (public registration)
-   * - POST /auth/refresh (refresh token endpoint, uses refresh token in body)
+   * These endpoints don't require (or accept) a bearer token in the Authorization header:
+   * - POST /auth/login (public login endpoint)
+   * - POST /auth/register (public registration endpoint)
+   * - POST /auth/refresh (refresh endpoint uses refresh token in request body, not header)
+   * 
+   * @param req The HTTP request
+   * @returns true if this is an unauthenticated auth route, false otherwise
    */
-  private shouldSkipTokenAttachment(req: HttpRequest<any>): boolean {
+  private isUnauthenticatedAuthRoute(req: HttpRequest<any>): boolean {
     const url = req.url.toLowerCase();
     const method = req.method.toUpperCase();
 
