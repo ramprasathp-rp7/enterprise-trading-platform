@@ -80,16 +80,16 @@ src/app/
 |   |   +-- sign-in.store.ts
 |   |   +-- sign-in.models.ts
 |   |
-|   +-- orders/                # Order ticket creation
+|   +-- order-ticket/          # Order ticket creation
 |   |   +-- pages/order-ticket/
 |   |   +-- components/order-form/
 |   |   +-- components/symbol-lookup/
 |   |   +-- components/side-selector/
 |   |   +-- components/order-summary/
-|   |   +-- services/order.service.ts
-|   |   +-- services/order-validator.ts
-|   |   +-- orders.store.ts
-|   |   +-- orders.models.ts
+|   |   +-- services/order-ticket.service.ts
+|   |   +-- services/order-ticket-validator.ts
+|   |   +-- order-ticket.store.ts
+|   |   +-- order-ticket.models.ts
 |   |
 |   +-- blotter/               # Order history & tracking
 |   |   +-- pages/blotter/
@@ -101,14 +101,15 @@ src/app/
 |   |   +-- blotter.store.ts
 |   |   +-- blotter.models.ts
 |   |
-|   +-- account/               # Account & portfolio view
-|       +-- pages/account-dashboard/
-|       +-- components/account-header/
-|       +-- components/balance-card/
-|       +-- components/positions-table/
-|       +-- services/account.service.ts
-|       +-- account.store.ts
-|       +-- account.models.ts
+|   +-- dashboard/             # Portfolio & analytics dashboard
+|       +-- pages/dashboard/
+|       +-- components/portfolio-header/
+|       +-- components/balance-summary/
+|       +-- components/positions-overview/
+|       +-- components/performance-chart/
+|       +-- services/dashboard.service.ts
+|       +-- dashboard.store.ts
+|       +-- dashboard.models.ts
 |
 +-- shared/                    # Reusable components, services, models & utilities
 |   +-- components/
