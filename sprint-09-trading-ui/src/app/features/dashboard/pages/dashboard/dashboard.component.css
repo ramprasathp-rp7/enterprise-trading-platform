@@ -1,0 +1,11 @@
+/* Dashboard Component Styles */
+
+.dashboard-container {
+  width: 100%;
+  /* TODO: Add layout styles */
+}
+
+/* TODO: Add responsive styles */
+@media (max-width: 768px) {
+  /* TODO: Add mobile styles */
+}
