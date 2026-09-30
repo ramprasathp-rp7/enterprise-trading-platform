@@ -14,6 +14,14 @@ async function bootstrap() {
       logger: new JsonLogger('NestFactory'),
     });
 
+    // Enable CORS for browser requests from UI
+    app.enableCors({
+      origin: ['http://localhost:4200', 'http://localhost:3000'],
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    });
+
     // Global exception filter (must be before pipes)
     app.useGlobalFilters(new AuthExceptionFilter());
 

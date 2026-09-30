@@ -12,7 +12,8 @@ import { AuthModule } from '../auth/auth.module';
     ThrottlerModule.forRoot([
       {
         ttl: 60000, // 60 seconds
-        limit: 5, // 5 attempts per ttl
+        // Higher limit in development for testing; production uses 5
+        limit: process.env.NODE_ENV === 'production' ? 5 : 100,
       },
     ]),
     DatabaseModule,

@@ -1,11 +1,59 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { Router, ActivatedRoute } from '@angular/router';
+import { CredentialFormComponent } from '../../components/credential-form/credential-form.component';
+import { SignInErrorMessageComponent } from '../../components/sign-in-error-message/sign-in-error-message.component';
+import { SignInStore } from '../../sign-in.store';
+import { LoginCredentials } from '../../../../core/auth/auth.models';
 
+/**
+ * Login Page Component
+ * 
+ * Main sign-in page that composes:
+ * - Credential form for username/password input
+ * - Error message display
+ * - Loading state during sign-in
+ * 
+ * Redirects to dashboard on successful login or to returnUrl query param.
+ */
 @Component({
   selector: 'app-login',
   standalone: true,
+  imports: [CommonModule, CredentialFormComponent, SignInErrorMessageComponent],
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.css'],
 })
 export class LoginComponent {
-  // Login page component
+  private store = inject(SignInStore);
+  private router = inject(Router);
+  private route = inject(ActivatedRoute);
+
+  // Expose store signals to template
+  isLoading = this.store.isLoading;
+  error = this.store.error;
+  errorCode = this.store.errorCode;
+  errorMessage = this.store.errorMessage;
+
+  constructor() {}
+
+  /**
+   * Handle form submission
+   */
+  async onSubmit(credentials: LoginCredentials): Promise<void> {
+    const success = await this.store.login(credentials.username, credentials.password);
+
+    if (success) {
+      // Get return URL from query params or default to dashboard
+      const returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/dashboard';
+      this.router.navigateByUrl(returnUrl);
+    }
+  }
+
+  /**
+   * Sign out the user
+   */
+  onSignOut(): void {
+    this.store.logout();
+  }
 }
+
