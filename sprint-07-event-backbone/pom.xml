@@ -86,13 +86,6 @@
         <scope>runtime</scope>
     </dependency>
 
-    <!-- DuckDB JDBC driver for local analytics (used by AnalyticsLoad) -->
-    <dependency>
-      <groupId>org.duckdb</groupId>
-      <artifactId>duckdb_jdbc</artifactId>
-      <version>0.7.1</version>
-    </dependency>
-
     <!-- Jackson support for Java 8 date/time types (java.time.Instant, etc.) -->
     <dependency>
         <groupId>com.fasterxml.jackson.datatype</groupId>
