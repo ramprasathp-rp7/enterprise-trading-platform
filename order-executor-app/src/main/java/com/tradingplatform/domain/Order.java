@@ -68,6 +68,29 @@ public final class Order {
         this.fee = null;
     }
 
+    /**
+     * Reconstruction constructor, for mapping an existing row back from the
+     * database (e.g. OrderMapper/AccountMapper read queries). Unlike the
+     * two constructors above, this does NOT default status/createdOn — a
+     * FILLED order fetched from the DB must come back as FILLED, not NEW,
+     * and with its real created_on, not the moment of this call.
+     */
+    public Order(UUID id, Long accountId, Long instrumentId, OrderSide side, int quantity,
+                 BigDecimal price, String idempotencyKey, Instant createdOn,
+                 OrderStatus status, BigDecimal executedPrice, BigDecimal fee) {
+        this.id = Objects.requireNonNull(id, "id");
+        this.accountId = Objects.requireNonNull(accountId, "accountId");
+        this.instrumentId = Objects.requireNonNull(instrumentId, "instrumentId");
+        this.side = Objects.requireNonNull(side, "side");
+        this.quantity = quantity;
+        this.price = Objects.requireNonNull(price, "price");
+        this.idempotencyKey = Objects.requireNonNull(idempotencyKey, "idempotencyKey");
+        this.createdOn = createdOn;
+        this.status = Objects.requireNonNull(status, "status");
+        this.executedPrice = executedPrice;
+        this.fee = fee;
+    }
+
      public UUID getId() {
         return id;
     }

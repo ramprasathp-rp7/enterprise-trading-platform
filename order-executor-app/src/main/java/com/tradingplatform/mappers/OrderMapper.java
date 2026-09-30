@@ -18,22 +18,27 @@ import com.tradingplatform.enums.OrderStatus;
 public interface OrderMapper {
     @Insert("INSERT INTO orders (id, account_id, instrument_id, side, quantity, price, status, idempotency_key) " +
             "VALUES (#{id}, #{accountId}, #{instrumentId}, #{side}, #{quantity}, #{price}, #{status}, #{idempotencyKey})")
-    int insertOrder(UUID id,
-            long accountId,
-            long instrumentId,
-            OrderSide side,
-            int quantity,
-            BigDecimal price,
-            OrderStatus status,
-            String idempotencyKey);
+    int insertOrder(@Param("id") UUID id,
+            @Param("accountId") long accountId,
+            @Param("instrumentId") long instrumentId,
+            @Param("side") OrderSide side,
+            @Param("quantity") int quantity,
+            @Param("price") BigDecimal price,
+            @Param("status") OrderStatus status,
+            @Param("idempotencyKey") String idempotencyKey);
 
     @ConstructorArgs({
+        @Arg(column = "id", javaType = java.util.UUID.class, id = true),
         @Arg(column = "account_id", javaType = Long.class),
         @Arg(column = "instrument_id", javaType = Long.class),
         @Arg(column = "side", javaType = OrderSide.class),
         @Arg(column = "quantity", javaType = int.class),
         @Arg(column = "price", javaType = BigDecimal.class),
-        @Arg(column = "idempotency_key", javaType = String.class)
+        @Arg(column = "idempotency_key", javaType = String.class),
+        @Arg(column = "created_on", javaType = java.time.Instant.class),
+        @Arg(column = "status", javaType = OrderStatus.class),
+        @Arg(column = "executed_price", javaType = BigDecimal.class),
+        @Arg(column = "fee", javaType = BigDecimal.class)
     })
     @Select("SELECT id, account_id, instrument_id, side, quantity, price, status, executed_price, fee, idempotency_key, created_on " +
             "FROM orders WHERE id = #{id}")
@@ -44,12 +49,17 @@ public interface OrderMapper {
      * Used by AvailableBalanceService to calculate reserved funds for pending orders.
      */
     @ConstructorArgs({
+        @Arg(column = "id", javaType = java.util.UUID.class, id = true),
         @Arg(column = "account_id", javaType = Long.class),
         @Arg(column = "instrument_id", javaType = Long.class),
         @Arg(column = "side", javaType = OrderSide.class),
         @Arg(column = "quantity", javaType = int.class),
         @Arg(column = "price", javaType = BigDecimal.class),
-        @Arg(column = "idempotency_key", javaType = String.class)
+        @Arg(column = "idempotency_key", javaType = String.class),
+        @Arg(column = "created_on", javaType = java.time.Instant.class),
+        @Arg(column = "status", javaType = OrderStatus.class),
+        @Arg(column = "executed_price", javaType = BigDecimal.class),
+        @Arg(column = "fee", javaType = BigDecimal.class)
     })
     @Select("SELECT id, account_id, instrument_id, side, quantity, price, status, executed_price, fee, idempotency_key, created_on " +
             "FROM orders WHERE account_id = #{accountId} AND status = #{status}")
@@ -61,6 +71,6 @@ public interface OrderMapper {
     @Update("UPDATE orders SET status = 'CANCELLED' WHERE id = #{id} AND status = 'NEW'")
     int cancelOrderIfNew(@Param("id") UUID id);
 
-        @Update("UPDATE orders SET status = #{status}, rejected_reason = #{rejectedReason}, executed_price = #{executedPrice}, fee = COALESCE(#{fee}, 0), executed_on = #{executedOn} WHERE id = #{id} AND status = 'NEW'")
-        int updateOrderStatus(@Param("id") UUID id, @Param("status") com.tradingplatform.enums.OrderStatus status, @Param("rejectedReason") String rejectedReason, @Param("executedPrice") BigDecimal executedPrice, @Param("fee") BigDecimal fee, @Param("executedOn") java.time.Instant executedOn);
+    @Update("UPDATE orders SET status = #{status}, rejected_reason = #{rejectedReason}, executed_price = #{executedPrice}, fee = COALESCE(#{fee}, 0), executed_on = #{executedOn} WHERE id = #{id} AND status = 'NEW'")
+    int updateOrderStatus(@Param("id") UUID id, @Param("status") com.tradingplatform.enums.OrderStatus status, @Param("rejectedReason") String rejectedReason, @Param("executedPrice") BigDecimal executedPrice, @Param("fee") BigDecimal fee, @Param("executedOn") java.time.Instant executedOn);
 }
