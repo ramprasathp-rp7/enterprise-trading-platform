@@ -316,18 +316,18 @@ Kafka transactions can give exactly-once between topics. This platform does not 
 
 ## Running Locally
 
-**Setup script:** `scripts/create-kafka-topics.sh`
+**Setup script:** `scripts/kafka-setup.sh`
 
 **Usage:**
 ```bash
 # Create topics (idempotent, safe to run multiple times)
-./scripts/create-kafka-topics.sh
+./scripts/kafka-setup.sh
 
 # With custom broker
-./scripts/create-kafka-topics.sh --bootstrap-server kafka:9092
+./scripts/kafka-setup.sh --bootstrap-server kafka:9092
 
 # Clean and recreate (e.g., after resetting the broker volume)
-./scripts/create-kafka-topics.sh --cleanup
+./scripts/kafka-setup.sh --cleanup
 ```
 
 **Verification:**
@@ -362,7 +362,7 @@ At Sprint 7 review, verify:
    - Same partition count as main topic, 1-day retention
 
 3. ✅ **One command creates the entire setup**, runs without prompting, and is idempotent:
-   - `scripts/create-kafka-topics.sh`
+   - `scripts/kafka-setup.sh`
    - Can be run against a fresh broker or an existing broker
    - Resetting the broker volume and re-running the script recreates all topics in the correct shape
 
@@ -442,7 +442,7 @@ kafka-consumer-groups.sh --bootstrap-server localhost:9092 --group trade-executo
 # Bring down Kafka and Zookeeper
 # Remove the data volumes: docker volume rm kafka_data zookeeper_data
 # Bring up Kafka and Zookeeper
-# Run: ./scripts/create-kafka-topics.sh
+# Run: ./scripts/kafka-setup.sh
 ```
 
 ---

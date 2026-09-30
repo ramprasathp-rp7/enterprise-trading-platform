@@ -172,7 +172,7 @@ public class AccountService {
         Instrument instrument = instrumentMapper.findById(order.getInstrumentId());
         String symbol = instrument != null ? instrument.getSymbol() : "UNKNOWN";
         return new OrderHistoryEntry(
-            order.getId().toString(),
+            "ORD-" + order.getId().toString(),
             order.getAccountId(),
             symbol,
             order.getSide(),

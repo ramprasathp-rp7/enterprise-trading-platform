@@ -7,7 +7,6 @@ import com.tradingplatform.domain.enums.OrderSide;
 import com.tradingplatform.domain.enums.OrderStatus;
 import com.tradingplatform.domain.exception.OptimisticLockException;
 import com.tradingplatform.domain.model.Account;
-import com.tradingplatform.domain.model.Feeable;
 import com.tradingplatform.domain.model.Order;
 import com.tradingplatform.domain.model.Position;
 import org.springframework.stereotype.Service;
@@ -29,10 +28,9 @@ public class OrderSettlementService {
         this.orderMapper = orderMapper;
     }
 
-    public void settle(Order order, BigDecimal executedPrice, Feeable feeable) {
+    public void settle(Order order, BigDecimal executedPrice) {
         Objects.requireNonNull(order, "order");
         Objects.requireNonNull(executedPrice, "executedPrice");
-        Objects.requireNonNull(feeable, "feeable");
 
         // Fetch the Account from the database
         Account acc = accountMapper.findByAccountId(order.getAccountId());
@@ -50,24 +48,19 @@ public class OrderSettlementService {
         // Calculate notional value of the order (price * quantity)
         BigDecimal notional = executedPrice.multiply(BigDecimal.valueOf(order.getQuantity()));
 
-        // Calculate transaction fee based on asset type
-        BigDecimal fee = feeable.calculateFee(notional);
-
-        // Apply settlement based on order side
+        // Apply settlement based on order side (notional only - fees are deducted separately)
         if (order.getSide() == OrderSide.BUY) {
-            // For BUY: debit cash (notional + fee) from account, add holdings to position
-            BigDecimal totalDebit = notional.add(fee);
-            acc.debit(totalDebit);
+            // For BUY: debit cash (notional only) from account, add holdings to position
+            acc.debit(notional);
             position.applyBuy(order.getQuantity(), executedPrice);
         } else {
-            // For SELL: credit cash (notional - fee) to account, remove holdings from position
-            BigDecimal totalCredit = notional.subtract(fee);
-            acc.credit(totalCredit);
+            // For SELL: credit cash (notional only) to account, remove holdings from position
+            acc.credit(notional);
             position.applySell(order.getQuantity());
         }
 
-        // Mark the order as FILLED with the executed price and fee
-        order.markFilled(executedPrice, fee);
+        // Mark the order as FILLED with the executed price (fee deducted separately)
+        order.markFilled(executedPrice);
 
         // Calculate new versions for optimistic locking
         int newAccountVersion = acc.getVersion() + 1;
@@ -84,11 +77,22 @@ public class OrderSettlementService {
 
         int positionRowsUpdated = positionMapper.updatePosition(position, newPositionVersion);
         if (positionRowsUpdated == 0) {
-            // Another transaction has modified the position since we read it
-            throw new OptimisticLockException("Position", order.getAccountId() + ":" + order.getInstrumentId());
+            // Check if this is a NEW position (version was 0)
+            if (position.getVersion() == 0) {
+                // Insert new position (first time this account/instrument pair is settled)
+                // This handles the race condition: if another thread inserted between our check and insert,
+                // the constraint violation will tell us someone beat us to it
+                int positionRowsInserted = positionMapper.insertPosition(position);
+                if (positionRowsInserted == 0) {
+                    throw new OptimisticLockException("Position", order.getAccountId() + ":" + order.getInstrumentId());
+                }
+            } else {
+                // Existing position but update failed - likely optimistic lock contention
+                throw new OptimisticLockException("Position", order.getAccountId() + ":" + order.getInstrumentId());
+            }
         }
 
-        orderMapper.updateOrderStatus(order.getId(), OrderStatus.FILLED, executedPrice, fee);
+        orderMapper.updateOrderStatus(order.getId(), OrderStatus.FILLED, executedPrice);
     }
 }
 

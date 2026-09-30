@@ -32,47 +32,67 @@ public interface AccountMapper {
     Account findByAccountId(@Param("id") Long id);
 
     @ConstructorArgs({
+        @Arg(column = "id", javaType = java.util.UUID.class, id = true),
         @Arg(column = "account_id", javaType = Long.class),
         @Arg(column = "instrument_id", javaType = Long.class),
         @Arg(column = "side", javaType = OrderSide.class),
         @Arg(column = "quantity", javaType = int.class),
         @Arg(column = "price", javaType = java.math.BigDecimal.class),
-        @Arg(column = "idempotency_key", javaType = String.class)
+        @Arg(column = "idempotency_key", javaType = String.class),
+        @Arg(column = "created_on", javaType = java.time.Instant.class),
+        @Arg(column = "status", javaType = OrderStatus.class),
+        @Arg(column = "executed_price", javaType = java.math.BigDecimal.class),
+        @Arg(column = "fee", javaType = java.math.BigDecimal.class)
     })
-    @Select("SELECT id, account_id, instrument_id, side, quantity, price, idempotency_key, created_on, status, executed_price FROM orders WHERE account_id=#{id} ORDER BY created_on DESC")
+    @Select("SELECT id, account_id, instrument_id, side, quantity, price, idempotency_key, created_on, status, executed_price, fee FROM orders WHERE account_id=#{id} ORDER BY created_on DESC")
     List<Order> findOrdersByAccountId(@Param("id") Long id);
 
     @ConstructorArgs({
+        @Arg(column = "id", javaType = java.util.UUID.class, id = true),
         @Arg(column = "account_id", javaType = Long.class),
         @Arg(column = "instrument_id", javaType = Long.class),
         @Arg(column = "side", javaType = OrderSide.class),
         @Arg(column = "quantity", javaType = int.class),
         @Arg(column = "price", javaType = java.math.BigDecimal.class),
-        @Arg(column = "idempotency_key", javaType = String.class)
+        @Arg(column = "idempotency_key", javaType = String.class),
+        @Arg(column = "created_on", javaType = java.time.Instant.class),
+        @Arg(column = "status", javaType = OrderStatus.class),
+        @Arg(column = "executed_price", javaType = java.math.BigDecimal.class),
+        @Arg(column = "fee", javaType = java.math.BigDecimal.class)
     })
-    @Select("SELECT id, account_id, instrument_id, side, quantity, price, idempotency_key, created_on, status, executed_price FROM orders WHERE account_id=#{id} AND status=#{status} ORDER BY created_on DESC")
+    @Select("SELECT id, account_id, instrument_id, side, quantity, price, idempotency_key, created_on, status, executed_price, fee FROM orders WHERE account_id=#{id} AND status=#{status} ORDER BY created_on DESC")
     List<Order> findOrdersByAccountIdAndStatus(@Param("id") Long id, @Param("status") OrderStatus status);
 
     @ConstructorArgs({
+        @Arg(column = "id", javaType = java.util.UUID.class, id = true),
         @Arg(column = "account_id", javaType = Long.class),
         @Arg(column = "instrument_id", javaType = Long.class),
         @Arg(column = "side", javaType = OrderSide.class),
         @Arg(column = "quantity", javaType = int.class),
         @Arg(column = "price", javaType = java.math.BigDecimal.class),
-        @Arg(column = "idempotency_key", javaType = String.class)
+        @Arg(column = "idempotency_key", javaType = String.class),
+        @Arg(column = "created_on", javaType = java.time.Instant.class),
+        @Arg(column = "status", javaType = OrderStatus.class),
+        @Arg(column = "executed_price", javaType = java.math.BigDecimal.class),
+        @Arg(column = "fee", javaType = java.math.BigDecimal.class)
     })
-    @Select("SELECT id, account_id, instrument_id, side, quantity, price, idempotency_key, created_on, status, executed_price FROM orders WHERE account_id=#{id} AND status=#{status} AND created_on BETWEEN #{from} AND #{to} ORDER BY created_on DESC")
+    @Select("SELECT id, account_id, instrument_id, side, quantity, price, idempotency_key, created_on, status, executed_price, fee FROM orders WHERE account_id=#{id} AND status=#{status} AND created_on BETWEEN #{from} AND #{to} ORDER BY created_on DESC")
     List<Order> findOrdersByAccountIdAndStatusAndFromAndTo(@Param("id") Long id, @Param("status") OrderStatus status, @Param("from") Instant from, @Param("to") Instant to);
 
     @ConstructorArgs({
+        @Arg(column = "id", javaType = java.util.UUID.class, id = true),
         @Arg(column = "account_id", javaType = Long.class),
         @Arg(column = "instrument_id", javaType = Long.class),
         @Arg(column = "side", javaType = OrderSide.class),
         @Arg(column = "quantity", javaType = int.class),
         @Arg(column = "price", javaType = java.math.BigDecimal.class),
-        @Arg(column = "idempotency_key", javaType = String.class)
+        @Arg(column = "idempotency_key", javaType = String.class),
+        @Arg(column = "created_on", javaType = java.time.Instant.class),
+        @Arg(column = "status", javaType = OrderStatus.class),
+        @Arg(column = "executed_price", javaType = java.math.BigDecimal.class),
+        @Arg(column = "fee", javaType = java.math.BigDecimal.class)
     })
-    @Select("SELECT id, account_id, instrument_id, side, quantity, price, idempotency_key, created_on, status, executed_price FROM orders WHERE account_id=#{id} AND created_on BETWEEN #{from} AND #{to} ORDER BY created_on DESC")
+    @Select("SELECT id, account_id, instrument_id, side, quantity, price, idempotency_key, created_on, status, executed_price, fee FROM orders WHERE account_id=#{id} AND created_on BETWEEN #{from} AND #{to} ORDER BY created_on DESC")
     List<Order> findOrdersByAccountIdAndFromAndTo(@Param("id") Long id, @Param("from") Instant from, @Param("to") Instant to);
 
     @ConstructorArgs({

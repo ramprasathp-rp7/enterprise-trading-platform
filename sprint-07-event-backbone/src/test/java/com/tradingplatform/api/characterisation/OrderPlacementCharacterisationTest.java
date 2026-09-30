@@ -72,11 +72,23 @@ class OrderPlacementCharacterisationTest {
         accountAccessAuthorizer = mock(AccountAccessAuthorizer.class);
         orderPublisher = mock(OrderPublisher.class);
 
+        // Add mocks for new dependencies
+        var availableBalanceService = mock(com.tradingplatform.services.AvailableBalanceService.class);
+        // Configure mock to return account's cash balance as available balance
+        when(availableBalanceService.getAvailableBalance(anyLong()))
+                .thenAnswer(invocation -> {
+                    // Return the cash balance of the mocked account
+                    Account acc = accountMapper.findByAccountId(invocation.getArgument(0));
+                    return acc != null ? acc.getCashBalance() : BigDecimal.ZERO;
+                });
+
         OrderValidationService validationService =
                 new OrderValidationService(
                         accountMapper,
                         instrumentMapper,
-                        positionMapper
+                        positionMapper,
+                        assetFeeMapper,
+                        availableBalanceService
                 );
 
         OrderSettlementService settlementService =
@@ -86,6 +98,7 @@ class OrderPlacementCharacterisationTest {
                 validationService,
                 settlementService,
                 orderMapper,
+                accountMapper,
                 instrumentMapper,
                 assetFeeMapper,
                 accountAccessAuthorizer,
@@ -192,7 +205,6 @@ class OrderPlacementCharacterisationTest {
         verify(orderMapper, never()).updateOrderStatus(
                 any(UUID.class),
                 any(OrderStatus.class),
-                any(BigDecimal.class),
                 any(BigDecimal.class)
         );
 

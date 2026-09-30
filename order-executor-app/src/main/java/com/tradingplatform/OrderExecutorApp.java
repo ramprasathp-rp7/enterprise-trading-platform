@@ -5,7 +5,6 @@ import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.core.env.Environment;
-import org.springframework.beans.factory.annotation.Autowired;
 
 import com.tradingplatform.quote.FauxnanceQuoteClient;
 import com.tradingplatform.quote.QuoteClient;
@@ -15,12 +14,15 @@ import com.tradingplatform.quote.QuoteClient;
 public class OrderExecutorApp {
     private static final String DEFAULT_FAUXNANCE_BASE_URL = "https://y4t9nq2bqf.execute-api.eu-west-2.amazonaws.com/v1";
 
+    OrderExecutorApp(Environment env) {
+        this.env = env;
+    }
+
     public static void main(String[] args) {
         SpringApplication.run(OrderExecutorApp.class, args);
     }
 
-    @Autowired
-    private Environment env;
+    private final Environment env;
 
     @Bean
     public QuoteClient quoteClient() {

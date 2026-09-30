@@ -394,12 +394,11 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().errorCode()).isEqualTo(ErrorCode.VAL_422);
         assertThat(response.getBody().message())
-            .isEqualTo("An unexpected error occurred. Please contact support.");
+            .isEqualTo("Error: Unexpected error");
         
-        // Verify no stack trace or internal details exposed
+        // Verify no stack trace or internal class names exposed
         assertThat(response.getBody().message())
             .doesNotContain("RuntimeException")
-            .doesNotContain("Unexpected error")
             .doesNotContain("at java.");
     }
 

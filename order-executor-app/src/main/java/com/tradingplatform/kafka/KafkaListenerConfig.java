@@ -48,7 +48,7 @@ public class KafkaListenerConfig {
         // Set concurrency to 3 (matches 3 partitions on orders topic)
         factory.setConcurrency(3);
         // Enable manual acknowledgment: messages only acknowledged after successful processing
-        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL);
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
         return factory;
     }
 

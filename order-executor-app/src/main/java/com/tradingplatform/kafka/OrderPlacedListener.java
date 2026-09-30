@@ -9,6 +9,7 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.dao.DataAccessException;
 import org.springframework.kafka.KafkaException;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -22,6 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import com.tradingplatform.domain.Instrument;
 import com.tradingplatform.domain.Order;
 import com.tradingplatform.enums.OrderSide;
+import com.tradingplatform.enums.OrderStatus;
 import com.tradingplatform.events.EventType;
 import com.tradingplatform.events.MessageEnvelope;
 import com.tradingplatform.events.OrderPlacedPayload;
@@ -69,7 +71,7 @@ public class OrderPlacedListener {
 	}
 
 	@KafkaListener(topics = "orders", groupId = "trade-executor")
-	public void onOrderPlaced(ConsumerRecord<String, String> record) {
+	public void onOrderPlaced(ConsumerRecord<String, String> record, Acknowledgment ack) {
 		MessageEnvelope<OrderPlacedPayload> envelope;
 		try {
 			envelope = objectMapper.readValue(record.value(), new TypeReference<MessageEnvelope<OrderPlacedPayload>>() {});
@@ -77,6 +79,9 @@ public class OrderPlacedListener {
 			logger.warn("Dead-lettering malformed order message: topic={}, partition={}, offset={}, reason={}",
 				record.topic(), record.partition(), record.offset(), ex.getMessage());
 			deadLetter(record, "Malformed JSON: " + ex.getMessage());
+			if (ack != null) {
+				ack.acknowledge();
+			}
 			return;
 		}
 
@@ -84,6 +89,9 @@ public class OrderPlacedListener {
 			logger.warn("Dead-lettering unexpected event type: topic={}, partition={}, offset={}, eventType={}",
 				record.topic(), record.partition(), record.offset(), envelope.eventType());
 			deadLetter(record, "Unexpected event type: " + envelope.eventType());
+			if (ack != null) {
+				ack.acknowledge();
+			}
 			return;
 		}
 
@@ -99,6 +107,9 @@ public class OrderPlacedListener {
 			logger.warn("Dead-lettering order with missing required field: topic={}, partition={}, offset={}, orderId={}",
 				record.topic(), record.partition(), record.offset(), payload == null ? null : payload.orderId());
 			deadLetter(record, "Missing required order field");
+			if (ack != null) {
+				ack.acknowledge();
+			}
 			return;
 		}
 
@@ -109,6 +120,9 @@ public class OrderPlacedListener {
 			logger.warn("Dead-lettering order with invalid order identifier: topic={}, partition={}, offset={}, orderId={}",
 				record.topic(), record.partition(), record.offset(), payload.orderId());
 			deadLetter(record, "Invalid order identifier: " + payload.orderId());
+			if (ack != null) {
+				ack.acknowledge();
+			}
 			return;
 		}
 
@@ -121,18 +135,46 @@ public class OrderPlacedListener {
 			try {
 				processOnce(payload, orderUuid);
 				logger.info("Finished processing order event: orderId={}, accountId={}", payload.orderId(), payload.accountId());
+				if (ack != null) {
+					ack.acknowledge();
+				}
 				return;
 			} catch (NoSuchElementException | IllegalArgumentException ex) {
 				logger.warn("Dead-lettering order after terminal failure: orderId={}, reason={}", payload.orderId(), ex.getMessage());
 				deadLetter(record, ex.getMessage());
+				if (ack != null) {
+					ack.acknowledge();
+				}
 				return;
-			} catch (PricingUnavailableException | DataAccessException | KafkaException ex) {
+			} catch (PricingUnavailableException ex) {
+				// Pricing is a business outcome, not a transient system failure
+				attempts++;
+				if (attempts >= MAX_ATTEMPTS) {
+					logger.warn("Rejecting order after pricing outage: orderId={}, attempts={}, reason={}",
+						payload.orderId(), attempts, ex.getMessage());
+					// Update order to REJECTED instead of dead-lettering
+					orderMapper.updateOrderStatus(orderUuid, OrderStatus.REJECTED, 
+						"Pricing service unavailable: " + ex.getMessage(), null, null, java.time.Instant.now());
+					if (ack != null) {
+						ack.acknowledge();
+					}
+					return;
+				}
 
+				logger.warn("Retrying order after pricing outage: orderId={}, attempt={}/{}, backoffMillis={}, reason={}",
+					payload.orderId(), attempts, MAX_ATTEMPTS, backoffMillis, ex.getMessage());
+				sleep(backoffMillis);
+				backoffMillis = Math.max(backoffMillis + 1L, Math.round(backoffMillis * BACKOFF_MULTIPLIER));
+			} catch (DataAccessException | KafkaException ex) {
+				// These are true transient system failures
 				attempts++;
 				if (attempts >= MAX_ATTEMPTS) {
 					logger.warn("Dead-lettering order after retry budget exhausted: orderId={}, attempts={}, reason={}",
 						payload.orderId(), attempts, ex.getMessage());
 					deadLetter(record, ex.getMessage());
+					if (ack != null) {
+						ack.acknowledge();
+					}
 					return;
 				}
 
@@ -165,7 +207,11 @@ public class OrderPlacedListener {
 			);
 		}
 
-		executorService.process(order);
+		// Extract quoted price and original fee from ORDER_PLACED event
+		java.math.BigDecimal quotedPrice = payload.price();
+		java.math.BigDecimal originalFee = payload.fee();
+        
+		executorService.process(order, quotedPrice, originalFee);
 	}
 
 	private void sleep(long millis) {

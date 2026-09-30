@@ -2,6 +2,7 @@ package com.tradingplatform.api.mappers;
 
 import org.apache.ibatis.annotations.Arg;
 import org.apache.ibatis.annotations.ConstructorArgs;
+import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
@@ -22,4 +23,15 @@ public interface PositionMapper {
 
     @Update("UPDATE positions SET quantity = #{position.quantity}, average_cost = #{position.averageCost}, version = #{newVersion} WHERE account_id = #{position.accountId} AND instrument_id = #{position.instrumentId} AND version = #{position.version}")
     int updatePosition(@Param("position") Position position, @Param("newVersion") int newVersion);
+
+    /**
+     * Insert a new position into the database.
+     * Used when settling an order for the first time on a new (accountId, instrumentId) pair.
+     * Version is set to 1 (new position just created in settlement).
+     *
+     * @param position Position object with quantity and average_cost already calculated
+     * @return Number of rows inserted (1 on success)
+     */
+    @Insert("INSERT INTO positions (account_id, instrument_id, quantity, average_cost, version) VALUES (#{position.accountId}, #{position.instrumentId}, #{position.quantity}, #{position.averageCost}, 1)")
+    int insertPosition(@Param("position") Position position);
 }

@@ -1,5 +1,6 @@
 package com.tradingplatform.api.services;
 
+import com.tradingplatform.api.mappers.AccountMapper;
 import com.tradingplatform.api.mappers.AssetFeeMapper;
 import com.tradingplatform.api.mappers.InstrumentMapper;
 import com.tradingplatform.api.mappers.OrderMapper;
@@ -9,8 +10,10 @@ import com.tradingplatform.domain.dto.OrderResponse;
 import com.tradingplatform.domain.dto.PlaceOrderRequest;
 import com.tradingplatform.domain.enums.OrderStatus;
 import com.tradingplatform.domain.exception.DuplicateOrderException;
+import com.tradingplatform.domain.exception.OptimisticLockException;
 import com.tradingplatform.domain.exception.OrderNotCancellableException;
-import com.tradingplatform.domain.model.AssetFeeStructure;
+import com.tradingplatform.domain.exception.OrderNotFoundException;
+import com.tradingplatform.domain.model.Account;
 import com.tradingplatform.domain.model.Instrument;
 import com.tradingplatform.domain.model.Order;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,7 +24,6 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
-import java.util.NoSuchElementException;
 import java.util.UUID;
 
 @Service
@@ -30,6 +32,7 @@ public class OrderService {
     private final OrderValidationService orderValidationService;
     private final OrderSettlementService orderSettlementService;
     private final OrderMapper orderMapper;
+    private final AccountMapper accountMapper;
     private final InstrumentMapper instrumentMapper;
     private final AssetFeeMapper assetFeeMapper;
     private final AccountAccessAuthorizer accountAccessAuthorizer;
@@ -41,6 +44,7 @@ public class OrderService {
     public OrderService(OrderValidationService orderValidationService, 
                         OrderSettlementService orderSettlementService,
                         OrderMapper orderMapper,
+                        AccountMapper accountMapper,
                         InstrumentMapper instrumentMapper,
                         AssetFeeMapper assetFeeMapper,
                         AccountAccessAuthorizer accountAccessAuthorizer,
@@ -48,6 +52,7 @@ public class OrderService {
         this.orderValidationService = orderValidationService;
         this.orderSettlementService = orderSettlementService;
         this.orderMapper = orderMapper;
+        this.accountMapper = accountMapper;
         this.instrumentMapper = instrumentMapper;
         this.assetFeeMapper = assetFeeMapper;
         this.accountAccessAuthorizer = accountAccessAuthorizer;
@@ -88,16 +93,23 @@ public class OrderService {
         // Check execution mode: SYNC (Sprint 6) or ASYNC (Sprint 7)
         if (executionMode == ExecutionMode.SYNC) {
             // Sprint 6: SYNC execution mode - settle order immediately within the request
-            // Fetch asset fee structure for settlement using asset class from instrument
-            String assetType = instrument.getAssetClass().name();  // EQUITY, FX, or CRYPTO
-            AssetFeeStructure feeStructure = assetFeeMapper.findByAssetType(assetType);
-            if (feeStructure == null) {
-                throw new IllegalStateException("Fee structure not found for asset type: " + assetType);
-            }
-
             // Try to settle the order immediately
             try {
-                orderSettlementService.settle(newOrder, newOrder.getPrice(), feeStructure);
+                orderSettlementService.settle(newOrder, newOrder.getPrice());
+                
+                // ← NEW: Deduct fee (SYNC mode - same transaction as settlement)
+                Account account = accountMapper.findByAccountId(newOrder.getAccountId());
+                BigDecimal fee = newOrder.getFee();
+                if (fee != null && fee.signum() > 0) {
+                    account.debit(fee);
+                    int feeRowsUpdated = accountMapper.updateAccount(account, account.getVersion() + 1);
+                    if (feeRowsUpdated == 0) {
+                        throw new OptimisticLockException("Account", account.getId());
+                    }
+                    // Update order with fee amount for audit trail
+                    orderMapper.updateOrderFee(newOrder.getId(), fee);
+                }
+                
                 // Settlement successful: order is now FILLED
                 // Fetch updated order from DB to confirm status and get executed price
                 Order settledOrder = orderMapper.findOrderById(newOrder.getId());
@@ -105,7 +117,7 @@ public class OrderService {
             } catch (Exception ex) {
                 // Settlement failed (insufficient cash, optimistic lock, etc.)
                 // Mark order as REJECTED in the database
-                orderMapper.updateOrderStatus(newOrder.getId(), OrderStatus.REJECTED, null, null);
+                orderMapper.updateOrderStatus(newOrder.getId(), OrderStatus.REJECTED, null);
                 Order rejectedOrder = orderMapper.findOrderById(newOrder.getId());
                 // Return error response for REJECTED order
                 return buildOrderResponse(rejectedOrder, instrument);
@@ -136,7 +148,7 @@ public class OrderService {
         // Fetch order from database via OrderMapper
         Order order = orderMapper.findOrderById(id);
         if (order == null) {
-            throw new NoSuchElementException("Order not found: " + orderId);
+            throw new OrderNotFoundException(id, "Order not found: " + orderId);
         }
 
         // Fetch instrument for order response
@@ -156,7 +168,7 @@ public class OrderService {
         // Fetch the order first to check if it exists and get account ID
         Order order = orderMapper.findOrderById(id);
         if (order == null) {
-            throw new NoSuchElementException("Order not found: " + orderId);
+            throw new OrderNotFoundException(id, "Order not found: " + orderId);
         }
         
         // Authorize access to this order's account
@@ -172,7 +184,7 @@ public class OrderService {
         // Fetch the cancelled order from database
         Order cancelledOrder = orderMapper.findOrderById(id);
         if (cancelledOrder == null) {
-            throw new NoSuchElementException("Order not found after cancellation: " + orderId);
+            throw new OrderNotFoundException(id, "Order not found after cancellation: " + orderId);
         }
 
         // Fetch instrument for order response

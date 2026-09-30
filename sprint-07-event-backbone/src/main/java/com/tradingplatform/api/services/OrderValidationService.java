@@ -1,6 +1,7 @@
 package com.tradingplatform.api.services;
 
 import com.tradingplatform.api.mappers.AccountMapper;
+import com.tradingplatform.api.mappers.AssetFeeMapper;
 import com.tradingplatform.api.mappers.InstrumentMapper;
 import com.tradingplatform.api.mappers.PositionMapper;
 import com.tradingplatform.domain.dto.PlaceOrderRequest;
@@ -13,9 +14,11 @@ import com.tradingplatform.domain.exception.InsufficientFundsException;
 import com.tradingplatform.domain.exception.InsufficientHoldingsException;
 import com.tradingplatform.domain.exception.InvalidOrderException;
 import com.tradingplatform.domain.model.Account;
+import com.tradingplatform.domain.model.AssetFeeStructure;
 import com.tradingplatform.domain.model.Instrument;
 import com.tradingplatform.domain.model.Order;
 import com.tradingplatform.domain.model.Position;
+import com.tradingplatform.services.AvailableBalanceService;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -39,13 +42,19 @@ public class OrderValidationService {
     private final AccountMapper accountMapper;
     private final InstrumentMapper instrumentMapper;
     private final PositionMapper positionMapper;
+    private final AssetFeeMapper assetFeeMapper;
+    private final AvailableBalanceService availableBalanceService;
 
     public OrderValidationService(AccountMapper accountMapper,
                                  InstrumentMapper instrumentMapper,
-                                 PositionMapper positionMapper) {
+                                 PositionMapper positionMapper,
+                                 AssetFeeMapper assetFeeMapper,
+                                 AvailableBalanceService availableBalanceService) {
         this.accountMapper = accountMapper;
         this.instrumentMapper = instrumentMapper;
         this.positionMapper = positionMapper;
+        this.assetFeeMapper = assetFeeMapper;
+        this.availableBalanceService = availableBalanceService;
     }
 
     public Order validateAndCreateOrder(PlaceOrderRequest request) {
@@ -92,9 +101,17 @@ public class OrderValidationService {
             request.idempotencyKey());
 
         if (side == OrderSide.BUY) {
-            // Rule 6: on a BUY, the cash balance must cover quantity * price.
-            if (!account.canAfford(notional)) {
-                throw reject(order, new InsufficientFundsException(account.getCashBalance(), notional));
+            // Calculate fee based on instrument's asset class
+            String assetType = instrument.getAssetClass().name();
+            AssetFeeStructure feeStructure = assetFeeMapper.findByAssetType(assetType);
+            BigDecimal fee = feeStructure != null ? feeStructure.calculateFee(notional) : BigDecimal.ZERO;
+            order.setFee(fee);  // Store fee for later use in settlement
+            
+            // Rule 6: on a BUY, available balance must cover notional + fee
+            BigDecimal totalNeeded = notional.add(fee);
+            BigDecimal availableBalance = availableBalanceService.getAvailableBalance(account.getId());
+            if (availableBalance.compareTo(totalNeeded) < 0) {
+                throw reject(order, new InsufficientFundsException(availableBalance, totalNeeded));
             }
         } else {
             // Rule 7: on a SELL, the held quantity must be at least the order quantity.

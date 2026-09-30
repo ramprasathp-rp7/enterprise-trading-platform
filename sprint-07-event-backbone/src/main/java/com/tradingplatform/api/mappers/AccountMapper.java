@@ -32,6 +32,7 @@ public interface AccountMapper {
     Account findByAccountId(@Param("id") Long id);
 
     @ConstructorArgs({
+        @Arg(column = "id", javaType = java.util.UUID.class),
         @Arg(column = "account_id", javaType = Long.class),
         @Arg(column = "instrument_id", javaType = Long.class),
         @Arg(column = "side", javaType = OrderSide.class),
@@ -43,6 +44,7 @@ public interface AccountMapper {
     List<Order> findOrdersByAccountId(@Param("id") Long id);
 
     @ConstructorArgs({
+        @Arg(column = "id", javaType = java.util.UUID.class),
         @Arg(column = "account_id", javaType = Long.class),
         @Arg(column = "instrument_id", javaType = Long.class),
         @Arg(column = "side", javaType = OrderSide.class),
@@ -54,6 +56,7 @@ public interface AccountMapper {
     List<Order> findOrdersByAccountIdAndStatus(@Param("id") Long id, @Param("status") OrderStatus status);
 
     @ConstructorArgs({
+        @Arg(column = "id", javaType = java.util.UUID.class),
         @Arg(column = "account_id", javaType = Long.class),
         @Arg(column = "instrument_id", javaType = Long.class),
         @Arg(column = "side", javaType = OrderSide.class),
@@ -65,6 +68,7 @@ public interface AccountMapper {
     List<Order> findOrdersByAccountIdAndStatusAndFromAndTo(@Param("id") Long id, @Param("status") OrderStatus status, @Param("from") Instant from, @Param("to") Instant to);
 
     @ConstructorArgs({
+        @Arg(column = "id", javaType = java.util.UUID.class),
         @Arg(column = "account_id", javaType = Long.class),
         @Arg(column = "instrument_id", javaType = Long.class),
         @Arg(column = "side", javaType = OrderSide.class),

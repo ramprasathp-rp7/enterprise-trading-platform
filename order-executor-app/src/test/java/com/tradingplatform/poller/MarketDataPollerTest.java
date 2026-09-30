@@ -73,7 +73,8 @@ class MarketDataPollerTest {
             quoteClient,
             kafkaTemplate,
             objectMapper,
-            30 // 30 seconds, below minimum of 60
+            30,
+            60
         );
         
         // Verify it was enforced to 60 seconds
@@ -89,7 +90,8 @@ class MarketDataPollerTest {
             quoteClient,
             kafkaTemplate,
             objectMapper,
-            60 // Exactly 60 seconds
+            60,
+            60
         );
         
         assertEquals(60 * 1000L, testPoller.getPollIntervalMillis(), 
@@ -104,7 +106,8 @@ class MarketDataPollerTest {
             quoteClient,
             kafkaTemplate,
             objectMapper,
-            120 // 120 seconds, above minimum
+            120,
+            60
         );
         
         assertEquals(120 * 1000L, testPoller.getPollIntervalMillis(), 
@@ -119,6 +122,7 @@ class MarketDataPollerTest {
             quoteClient,
             kafkaTemplate,
             objectMapper,
+            60,
             60
         );
         
@@ -142,6 +146,7 @@ class MarketDataPollerTest {
             quoteClient,
             kafkaTemplate,
             objectMapper,
+            60,
             60
         );
         
@@ -197,6 +202,7 @@ class MarketDataPollerTest {
             quoteClient,
             kafkaTemplate,
             objectMapper,
+            60,
             60
         );
         
@@ -262,6 +268,7 @@ class MarketDataPollerTest {
             quoteClient,
             kafkaTemplate,
             objectMapper,
+            60,
             60
         );
         
@@ -311,6 +318,7 @@ class MarketDataPollerTest {
             quoteClient,
             kafkaTemplate,
             objectMapper,
+            60,
             60
         );
         

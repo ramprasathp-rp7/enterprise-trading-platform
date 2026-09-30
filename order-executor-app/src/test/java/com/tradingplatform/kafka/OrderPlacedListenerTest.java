@@ -62,12 +62,12 @@ class OrderPlacedListenerTest {
         // provide a no-op TradeEventPublisher to satisfy the constructor
         com.tradingplatform.publisher.TradeEventPublisher noopPublisher = new com.tradingplatform.publisher.TradeEventPublisher(null, objectMapper) {
             @Override
-            public void publishTradeEvent(java.util.UUID orderId, long accountId, com.tradingplatform.enums.OrderStatus status, java.math.BigDecimal executedPrice, String rejectReason, java.time.Instant executedOn) {
+            public void publishTradeEvent(java.util.UUID orderId, long accountId, com.tradingplatform.enums.OrderStatus status, java.math.BigDecimal quotedPrice, java.math.BigDecimal executedPrice, java.math.BigDecimal originalFee, String rejectReason, java.time.Instant executedOn) {
                 // no-op
             }
         };
 
-        executorService = new OrderExecutorService(null, null, null, null, null, null, null, noopPublisher) {
+        executorService = new OrderExecutorService(null, null, null, null, null, null, noopPublisher) {
             private int callCount = 0;
             private final java.util.Queue<java.lang.Throwable> actions = new java.util.ArrayDeque<>();
 
@@ -76,7 +76,7 @@ class OrderPlacedListenerTest {
             public int getCallCount() { return callCount; }
 
             @Override
-            public void process(com.tradingplatform.domain.Order order) throws PricingUnavailableException {
+            public void process(com.tradingplatform.domain.Order order, java.math.BigDecimal quotedPrice, java.math.BigDecimal originalFee) throws PricingUnavailableException {
                 callCount++;
                 java.lang.Throwable t = actions.poll();
                 if (t != null) {
@@ -100,7 +100,7 @@ class OrderPlacedListenerTest {
     void malformedMessageIsDeadLetteredOnFirstAttempt() throws IllegalAccessException, InvocationTargetException, NoSuchMethodException, SecurityException {
         ConsumerRecord<String, String> record = new ConsumerRecord<>("orders", 1, 10L, "1", "{not-json");
 
-        listener.onOrderPlaced(record);
+        listener.onOrderPlaced(record, null);
 
         // executorService is a stub; ensure it was not called
         int calls0 = (int) ((OrderExecutorService)executorService).getClass().getMethod("getCallCount").invoke(executorService);
@@ -127,6 +127,7 @@ class OrderPlacedListenerTest {
                     "BUY",
                     10,
                     new BigDecimal("100.00"),
+                    new BigDecimal("1.00"),
                     "key-1",
                     Instant.parse("2026-09-17T10:15:30Z")
                 )
@@ -134,7 +135,7 @@ class OrderPlacedListenerTest {
         );
         ConsumerRecord<String, String> record = new ConsumerRecord<>("orders", 1, 11L, "42", rawMessage);
 
-        listener.onOrderPlaced(record);
+        listener.onOrderPlaced(record, null);
 
         int calls1 = (int) ((OrderExecutorService)executorService).getClass().getMethod("getCallCount").invoke(executorService);
         org.junit.jupiter.api.Assertions.assertEquals(0, calls1);
@@ -150,7 +151,7 @@ class OrderPlacedListenerTest {
         ConsumerRecord<String, String> record = new ConsumerRecord<>("orders", 1, 12L, "42", rawMessage);
         when(orderMapper.findOrderById(UUID.fromString(orderId))).thenReturn(null);
 
-        listener.onOrderPlaced(record);
+        listener.onOrderPlaced(record, null);
 
         // ensure stub was not called
         int calls2 = (int) ((OrderExecutorService)executorService).getClass().getMethod("getCallCount").invoke(executorService);
@@ -174,6 +175,7 @@ class OrderPlacedListenerTest {
                     "BUY",
                     10,
                     new BigDecimal("100.00"),
+                    new BigDecimal("1.00"),
                     "key-1",
                     Instant.parse("2026-09-17T10:15:30Z")
                 )
@@ -181,7 +183,7 @@ class OrderPlacedListenerTest {
         );
         ConsumerRecord<String, String> record = new ConsumerRecord<>("orders", 1, 13L, "42", rawMessage);
 
-        listener.onOrderPlaced(record);
+        listener.onOrderPlaced(record, null);
 
         int callsX = (int) ((OrderExecutorService)executorService).getClass().getMethod("getCallCount").invoke(executorService);
         org.junit.jupiter.api.Assertions.assertEquals(0, callsX);
@@ -205,7 +207,7 @@ class OrderPlacedListenerTest {
         // schedule a transient failure then success on the stub
         ((OrderExecutorService)executorService).getClass().getMethod("scheduleThrow", java.lang.Throwable.class).invoke(executorService, new PricingUnavailableException("broker unavailable"));
 
-        listener.onOrderPlaced(record);
+        listener.onOrderPlaced(record, null);
 
         // assert stub was invoked twice (retry once)
         int calls = (int) ((OrderExecutorService)executorService).getClass().getMethod("getCallCount").invoke(executorService);
@@ -225,7 +227,7 @@ class OrderPlacedListenerTest {
             new Instrument(100L, "INFY.NS", "Infosys", AssetClass.EQUITY, "INR", true)
         );
         // no scheduled throws; stub will process once
-        listener.onOrderPlaced(record);
+        listener.onOrderPlaced(record, null);
 
         int calls2 = (int) ((OrderExecutorService)executorService).getClass().getMethod("getCallCount").invoke(executorService);
         org.junit.jupiter.api.Assertions.assertEquals(1, calls2);
@@ -246,6 +248,7 @@ class OrderPlacedListenerTest {
                     "BUY",
                     10,
                     new BigDecimal("100.00"),
+                    new BigDecimal("1.00"),
                     "key-1",
                     Instant.parse("2026-09-17T10:15:30Z")
                 )

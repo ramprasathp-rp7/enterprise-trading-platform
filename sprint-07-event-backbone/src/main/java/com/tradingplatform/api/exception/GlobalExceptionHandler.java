@@ -12,7 +12,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -23,21 +22,21 @@ import org.springframework.web.context.request.WebRequest;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-            @ExceptionHandler(AuthenticationException.class)
-            public ResponseEntity<ErrorResponse> handleAuthenticationFailure(
-                    AuthenticationException ex,
-                    WebRequest request) {
-
-                logger.warn("Authentication failed: {}", ex.getClass().getSimpleName());
-
-                return new ResponseEntity<>(
-                    new ErrorResponse(ErrorCode.AUTH_401, "Unauthorised"),
-                    HttpStatus.UNAUTHORIZED
-                );
-            }
-
     
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ErrorResponse> handleAuthenticationFailure(
+            AuthenticationException ex,
+            WebRequest request) {
+
+        logger.warn("Authentication failed: {}", ex.getClass().getSimpleName());
+
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.AUTH_401, "Unauthorised"),
+            HttpStatus.UNAUTHORIZED
+        );
+    }
     
    
     // ACC-404: Account not found Maps to HTTP 404 (Not Found)
@@ -100,6 +99,68 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(
             new ErrorResponse(ErrorCode.INS_404, "The specified instrument is not available for trading."),
             HttpStatus.NOT_FOUND
+        );
+    }
+    
+    // ORD-409: Order not found Maps to HTTP 404 (Not Found)
+    // Per OpenAPI spec: DELETE /api/v1/orders/{id} returns HTTP 404 with ORD-409 error code
+    
+    @ExceptionHandler(OrderNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleOrderNotFound(
+            OrderNotFoundException ex,
+            WebRequest request) {
+        
+        logger.error("Order not found: orderId={}", ex.getOrderId());
+        
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.ORD_409, "The requested order could not be found."),
+            HttpStatus.NOT_FOUND
+        );
+    }
+    
+    // TRANS-404: Transaction not found Maps to HTTP 404 (Not Found)
+    
+    @ExceptionHandler(TransactionNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleTransactionNotFound(
+            TransactionNotFoundException ex,
+            WebRequest request) {
+        
+        logger.error("Transaction not found: {}", ex.getMessage());
+        
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.TRANS_404, "The requested transaction could not be found."),
+            HttpStatus.NOT_FOUND
+        );
+    }
+    
+    // TRANS-400: Invalid transaction Maps to HTTP 400 (Bad Request)
+    
+    @ExceptionHandler(InvalidTransactionException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidTransaction(
+            InvalidTransactionException ex,
+            WebRequest request) {
+        
+        logger.error("Invalid transaction: {}", ex.getMessage());
+        
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.TRANS_400, ex.getMessage()),
+            HttpStatus.BAD_REQUEST
+        );
+    }
+    
+    // TRANS-400: Insufficient funds for withdrawal Maps to HTTP 400 (Bad Request)
+    
+    @ExceptionHandler(InsufficientFundsForWithdrawalException.class)
+    public ResponseEntity<ErrorResponse> handleInsufficientFundsForWithdrawal(
+            InsufficientFundsForWithdrawalException ex,
+            WebRequest request) {
+        
+        logger.error("Insufficient funds for withdrawal: requested={}, available={}", 
+            ex.getRequestedAmount(), ex.getAvailableBalance());
+        
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.TRANS_400, ex.getMessage()),
+            HttpStatus.BAD_REQUEST
         );
     }
     
@@ -200,16 +261,10 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleValidationException(
             Exception ex,
             WebRequest request) {
-        String message = "Invalid input";
-        if (ex instanceof MethodArgumentNotValidException methodArgumentNotValidException) {
-            FieldError firstError = methodArgumentNotValidException.getBindingResult().getFieldError();
-            if (firstError != null && firstError.getDefaultMessage() != null) {
-                message = firstError.getDefaultMessage();
-            }
-        }
-
+        logger.error("Validation error: {}", ex.getMessage());
+        
         return new ResponseEntity<>(
-            new ErrorResponse(ErrorCode.VAL_422, message),
+            new ErrorResponse(ErrorCode.VAL_422, "Invalid input"),
             HttpStatus.UNPROCESSABLE_ENTITY
         );
     }
@@ -269,7 +324,7 @@ public class GlobalExceptionHandler {
         
         return new ResponseEntity<>(
             new ErrorResponse(ErrorCode.VAL_422, "Invalid input"),
-            HttpStatus.UNPROCESSABLE_ENTITY
+            HttpStatus.METHOD_NOT_ALLOWED
         );
     }
     
@@ -283,7 +338,7 @@ public class GlobalExceptionHandler {
         
         return new ResponseEntity<>(
             new ErrorResponse(ErrorCode.VAL_422, "Invalid input"),
-            HttpStatus.UNPROCESSABLE_ENTITY
+            HttpStatus.NOT_FOUND
         );
     }
     
@@ -293,9 +348,9 @@ public class GlobalExceptionHandler {
     private HttpStatus mapErrorCodeToHttpStatus(ErrorCode code) {
         return switch(code) {
             case AUTH_401 -> HttpStatus.UNAUTHORIZED;
-            case ACC_404, INS_404 -> HttpStatus.NOT_FOUND;
+            case ACC_404, INS_404, TRANS_404 -> HttpStatus.NOT_FOUND;
             case ACC_403 -> HttpStatus.FORBIDDEN;
-            case ORD_400 -> HttpStatus.BAD_REQUEST;
+            case ORD_400, TRANS_400 -> HttpStatus.BAD_REQUEST;
             case ORD_409 -> HttpStatus.CONFLICT;
             case VAL_422, INVALID_PREFERENCE -> HttpStatus.UNPROCESSABLE_ENTITY;
         };
@@ -307,10 +362,11 @@ public class GlobalExceptionHandler {
             Exception ex,
             WebRequest request) {
         
-        logger.error("Unexpected error occurred", ex);
+        String errorMessage = ex.getMessage() != null ? ex.getMessage() : "Unexpected error";
+        logger.error("Unexpected error: {} - {}", ex.getClass().getSimpleName(), errorMessage, ex);
         
         return new ResponseEntity<>(
-            new ErrorResponse(ErrorCode.VAL_422, "An unexpected error occurred. Please contact support."),
+            new ErrorResponse(ErrorCode.VAL_422, "Error: " + errorMessage),
             HttpStatus.INTERNAL_SERVER_ERROR
         );
     }

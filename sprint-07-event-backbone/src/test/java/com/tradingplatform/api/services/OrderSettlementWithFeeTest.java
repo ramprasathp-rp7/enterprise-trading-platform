@@ -76,20 +76,17 @@ class OrderSettlementWithFeeTest {
         when(positionMapper.findByAccountAndInstrument(1L, 1L)).thenReturn(position);
         when(accountMapper.updateAccount(any(Account.class), anyInt())).thenReturn(1);
         when(positionMapper.updatePosition(any(Position.class), anyInt())).thenReturn(1);
-        when(orderMapper.updateOrderStatus(any(), any(), any(), any())).thenReturn(1);
+        when(orderMapper.updateOrderStatus(any(), any(), any())).thenReturn(1);
 
         // Act
-        settlementService.settle(buyOrder, new BigDecimal("100.00"), equityFee);
+        settlementService.settle(buyOrder, new BigDecimal("100.00"));
 
         // Assert
-        // Cash should be debited by notional + fee = $10,000 + $6 = $10,006
-        BigDecimal expectedCashAfter = initialBalance.subtract(new BigDecimal("10006.00"));
+        // Cash should be debited by notional only = $10,000
+        // (Fees are deducted separately by FeeDeductionService in ASYNC mode)
+        BigDecimal expectedCashAfter = initialBalance.subtract(new BigDecimal("10000.00"));
         assertEquals(expectedCashAfter, account.getCashBalance(),
-            "Cash should be debited by notional ($10,000) + fee ($6)");
-
-        // Verify fee was passed to order
-        assertEquals(new BigDecimal("6.00"), buyOrder.getFee(),
-            "Order should have fee of $6.00");
+            "Cash should be debited by notional ($10,000) only");
 
         // Verify status is FILLED
         assertEquals(OrderStatus.FILLED, buyOrder.getStatus(),
@@ -124,20 +121,17 @@ class OrderSettlementWithFeeTest {
         when(positionMapper.findByAccountAndInstrument(1L, 1L)).thenReturn(position);
         when(accountMapper.updateAccount(any(Account.class), anyInt())).thenReturn(1);
         when(positionMapper.updatePosition(any(Position.class), anyInt())).thenReturn(1);
-        when(orderMapper.updateOrderStatus(any(), any(), any(), any())).thenReturn(1);
+        when(orderMapper.updateOrderStatus(any(), any(), any())).thenReturn(1);
 
         // Act
-        settlementService.settle(sellOrder, new BigDecimal("100.00"), equityFee);
+        settlementService.settle(sellOrder, new BigDecimal("100.00"));
 
         // Assert
-        // Cash should be credited by notional - fee = $5,000 - $5.50 = $4,994.50
-        BigDecimal expectedCashAfter = initialBalance.add(new BigDecimal("4994.50"));
+        // Cash should be credited by notional only = $5,000
+        // (Fees are deducted separately by FeeDeductionService in ASYNC mode)
+        BigDecimal expectedCashAfter = initialBalance.add(new BigDecimal("5000.00"));
         assertEquals(expectedCashAfter, account.getCashBalance(),
-            "Cash should be credited by notional ($5,000) minus fee ($5.50)");
-
-        // Verify fee was set
-        assertEquals(new BigDecimal("5.50"), sellOrder.getFee(),
-            "Order should have fee of $5.50");
+            "Cash should be credited by notional ($5,000) only");
 
         // Verify status is FILLED
         assertEquals(OrderStatus.FILLED, sellOrder.getStatus(),
@@ -167,19 +161,18 @@ class OrderSettlementWithFeeTest {
         when(positionMapper.findByAccountAndInstrument(1L, 1L)).thenReturn(position);
         when(accountMapper.updateAccount(any(Account.class), anyInt())).thenReturn(1);
         when(positionMapper.updatePosition(any(Position.class), anyInt())).thenReturn(1);
-        when(orderMapper.updateOrderStatus(any(), any(), any(), any())).thenReturn(1);
+        when(orderMapper.updateOrderStatus(any(), any(), any())).thenReturn(1);
 
         // Act
-        settlementService.settle(buyOrder, new BigDecimal("50.00"), fxFee);
+        settlementService.settle(buyOrder, new BigDecimal("50.00"));
 
         // Assert
-        // Notional = 100 * $50 = $5,000
-        // Fee = $2.50 + ($5,000 * 0.00005) = $2.50 + $0.25 = $2.75 (rounded to 2 decimals)
+        // Notional = 100 * $50 = $5,000 (settlement handles notional only)
+        // Fees are deducted separately by FeeDeductionService
         verify(orderMapper, times(1)).updateOrderStatus(
             eq(buyOrder.getId()),
             eq(OrderStatus.FILLED),
-            eq(new BigDecimal("50.00")),
-            eq(new BigDecimal("2.75"))
+            eq(new BigDecimal("50.00"))
         );
     }
 

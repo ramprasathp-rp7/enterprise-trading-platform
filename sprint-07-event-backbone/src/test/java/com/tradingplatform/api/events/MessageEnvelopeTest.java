@@ -43,6 +43,7 @@ public class MessageEnvelopeTest {
                 "BUY",
                 100,
                 new BigDecimal("233.00"),
+                new BigDecimal("2.33"),
                 "client-idempotency-key-123",
                 testTime
         );
@@ -84,10 +85,11 @@ public class MessageEnvelopeTest {
         String side = "BUY";
         Integer quantity = 100;
         BigDecimal price = new BigDecimal("233.00");
+        BigDecimal fee = new BigDecimal("2.33");
         String idempotencyKey = "client-key-123";
 
         OrderPlacedPayload payload = new OrderPlacedPayload(
-                orderId, accountId, symbol, side, quantity, price, idempotencyKey, testTime
+                orderId, accountId, symbol, side, quantity, price, fee, idempotencyKey, testTime
         );
 
         assertEquals(orderId, payload.orderId());
@@ -96,6 +98,7 @@ public class MessageEnvelopeTest {
         assertEquals(side, payload.side());
         assertEquals(quantity, payload.quantity());
         assertEquals(price, payload.price());
+        assertEquals(fee, payload.fee());
         assertEquals(idempotencyKey, payload.idempotencyKey());
         assertEquals(testTime, payload.createdOn());
     }
@@ -112,7 +115,9 @@ public class MessageEnvelopeTest {
                 "BUY",
                 100,
                 new BigDecimal("233.00"),
+                new BigDecimal("233.00"),
                 new BigDecimal("232.71"),
+                new BigDecimal("2.33"),
                 "FILLED",
                 null,
                 new BigDecimal("-23271.00"),
@@ -152,7 +157,9 @@ public class MessageEnvelopeTest {
                 "BUY",
                 100,
                 new BigDecimal("233.00"),
+                new BigDecimal("233.00"),
                 null,  // No executed price on reject
+                new BigDecimal("2.33"),
                 "REJECTED",
                 "INSUFFICIENT_FUNDS",
                 null,  // No cash delta on reject
@@ -186,7 +193,9 @@ public class MessageEnvelopeTest {
                 "BUY",
                 100,
                 new BigDecimal("233.00"),
+                new BigDecimal("233.00"),
                 null,
+                new BigDecimal("2.33"),
                 "CANCELLED",
                 "CANCELLED_BY_CUSTOMER",
                 null,
@@ -212,14 +221,16 @@ public class MessageEnvelopeTest {
         String side = "SELL";
         Integer quantity = 50;
         BigDecimal price = new BigDecimal("140.50");
+        BigDecimal quotedPrice = new BigDecimal("140.50");
         BigDecimal executedPrice = new BigDecimal("140.45");
+        BigDecimal originalFee = new BigDecimal("1.40");
         String status = "FILLED";
         BigDecimal cashDelta = new BigDecimal("7022.50");
         Integer positionQuantityAfter = 100;
         BigDecimal averageCostAfter = new BigDecimal("138.75");
 
         TradeEventPayload payload = new TradeEventPayload(
-                orderId, accountId, symbol, side, quantity, price, executedPrice,
+                orderId, accountId, symbol, side, quantity, price, quotedPrice, executedPrice, originalFee,
                 status, null, cashDelta, positionQuantityAfter, averageCostAfter, testTime
         );
 
@@ -229,7 +240,9 @@ public class MessageEnvelopeTest {
         assertEquals(side, payload.side());
         assertEquals(quantity, payload.quantity());
         assertEquals(price, payload.price());
+        assertEquals(quotedPrice, payload.quotedPrice());
         assertEquals(executedPrice, payload.executedPrice());
+        assertEquals(originalFee, payload.originalFee());
         assertEquals(status, payload.status());
         assertEquals(cashDelta, payload.cashDelta());
         assertEquals(positionQuantityAfter, payload.positionQuantityAfter());
@@ -325,7 +338,7 @@ public class MessageEnvelopeTest {
     public void testEnvelopeContainsAllFiveFields() throws Exception {
         OrderPlacedPayload payload = new OrderPlacedPayload(
                 UUID.randomUUID().toString(), 1L, "AAPL", "BUY", 100,
-                new BigDecimal("233.00"), "key123", testTime
+                new BigDecimal("233.00"), new BigDecimal("2.33"), "key123", testTime
         );
 
         MessageEnvelope<OrderPlacedPayload> envelope = 
@@ -353,7 +366,7 @@ public class MessageEnvelopeTest {
     public void testSchemaVersionDefaultsToOne() {
         OrderPlacedPayload payload = new OrderPlacedPayload(
                 UUID.randomUUID().toString(), 1L, "AAPL", "BUY", 100,
-                new BigDecimal("233.00"), "key123", testTime
+                new BigDecimal("233.00"), new BigDecimal("2.33"), "key123", testTime
         );
 
         MessageEnvelope<OrderPlacedPayload> envelope = 
@@ -366,7 +379,7 @@ public class MessageEnvelopeTest {
     public void testEventIdIsUUID() {
         OrderPlacedPayload payload = new OrderPlacedPayload(
                 UUID.randomUUID().toString(), 1L, "AAPL", "BUY", 100,
-                new BigDecimal("233.00"), "key123", testTime
+                new BigDecimal("233.00"), new BigDecimal("2.33"), "key123", testTime
         );
 
         MessageEnvelope<OrderPlacedPayload> envelope = 
@@ -384,7 +397,7 @@ public class MessageEnvelopeTest {
     public void testFactoryGeneratesUniqueEventIds() {
         OrderPlacedPayload payload = new OrderPlacedPayload(
                 UUID.randomUUID().toString(), 1L, "AAPL", "BUY", 100,
-                new BigDecimal("233.00"), "key123", testTime
+                new BigDecimal("233.00"), new BigDecimal("2.33"), "key123", testTime
         );
 
         MessageEnvelope<OrderPlacedPayload> envelope1 = 
@@ -400,7 +413,7 @@ public class MessageEnvelopeTest {
     public void testGenericFactory() {
         OrderPlacedPayload payload = new OrderPlacedPayload(
                 UUID.randomUUID().toString(), 1L, "AAPL", "BUY", 100,
-                new BigDecimal("233.00"), "key123", testTime
+                new BigDecimal("233.00"), new BigDecimal("2.33"), "key123", testTime
         );
 
         String customEventId = "custom-event-id-123";
