@@ -147,8 +147,6 @@ public class FeeDeductionService {
             
             logger.debug("Fee recalculation: orderId={}, originalFee={}, actualFee={}, executed={}", 
                 orderIdStr, originalFee, actualFee, executedPrice);
-logger.debug("Fee recalculation: orderId={}, originalFee={}, actualFee={}, executed={}", 
-                orderIdStr, originalFee, actualFee, executedPrice);
             
             // Step 8: If no fee to deduct, skip
             if (actualFee == null || actualFee.signum() <= 0) {
@@ -202,6 +200,7 @@ logger.debug("Fee recalculation: orderId={}, originalFee={}, actualFee={}, execu
             
             logger.info("Fee deducted successfully: orderId={}, accountId={}, actualFee={}, originalFee={}, transactionId={}", 
                 orderIdStr, order.getAccountId(), actualFee, originalFee, transactionId);
+
             if (ack != null) {
                 ack.acknowledge();
             }
