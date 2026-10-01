@@ -8,11 +8,13 @@ import {
   isValidTradeableSymbol,
   isValidWholeQuantity,
 } from '../../order-ticket.models';
+import { ErrorAlertComponent } from '../../../../core/errors/error-alert.component';
+import { ProcessedError } from '../../../../core/errors/error-response-handler';
 
 @Component({
   selector: 'app-order-ticket',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ErrorAlertComponent],
   templateUrl: './order-ticket.component.html',
   styleUrls: ['./order-ticket.component.css']
 })
@@ -80,6 +82,26 @@ export class OrderTicketComponent {
     );
   });
 
+  /**
+   * Convert error code and message to ProcessedError for error-alert component
+   * This transforms the internal error state to trader-friendly display format
+   */
+  readonly processedError = computed(() => {
+    const errorCode = this.errorCode();
+    const errorMessage = this.errorMessage();
+
+    if (!errorCode || !errorMessage) {
+      return null;
+    }
+
+    return {
+      code: errorCode,
+      message: errorMessage,
+      isNetworkError: errorCode === 'NETWORK',
+      isUnknownCode: errorCode === 'UNKNOWN',
+    } as ProcessedError;
+  });
+
   async onSubmit(): Promise<void> {
     if (!this.canSubmit()) {
       return;
@@ -91,5 +113,25 @@ export class OrderTicketComponent {
       quantity: Number(this.quantity().trim()),
       price: Number(this.price().trim()),
     });
+  }
+
+  /**
+   * Handle retry: clear form fields and error box
+   */
+  onRetryOrder(): void {
+    // Clear form fields for fresh start
+    this.symbol.set('');
+    this.quantity.set('');
+    this.price.set('');
+    // Clear error from store
+    this.store.clearErrors();
+  }
+
+  /**
+   * Handle dismiss: clear the error alert
+   */
+  onDismissError(): void {
+    // Clear error from store
+    this.store.clearErrors();
   }
 }
