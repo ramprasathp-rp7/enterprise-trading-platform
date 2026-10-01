@@ -1,3 +1,134 @@
 <div class="order-ticket-container">
-  <!-- Order ticket content -->
+  <section class="ticket-card">
+    <header class="ticket-header">
+      <p class="eyebrow">Order Ticket</p>
+      <h1>The order ticket</h1>
+      <p class="intro">
+        Validate before you submit. Quantity is a whole number greater than zero. Price is greater than zero with
+        at most two decimal places. The account field is the one this token says this session may trade, rendered
+        read-only.
+      </p>
+    </header>
+
+    <form class="ticket-form" (ngSubmit)="onSubmit()">
+      <div class="form-group">
+        <label for="accountId">Account</label>
+        <input
+          id="accountId"
+          name="accountId"
+          data-testid="account-input"
+          class="form-control read-only"
+          [value]="accountId() ?? 'No trading account available'"
+          readonly
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="symbol">Instrument</label>
+        <input
+          id="symbol"
+          name="symbol"
+          data-testid="symbol-input"
+          class="form-control"
+          [class.is-invalid]="symbolErrors().length > 0"
+          [ngModel]="symbol()"
+          (ngModelChange)="symbol.set($event)"
+          placeholder="AAPL or INFY.NS"
+        />
+        <div class="invalid-feedback" *ngIf="symbolErrors().length > 0">
+          <div *ngFor="let error of symbolErrors()">{{ error }}</div>
+        </div>
+      </div>
+
+      <div class="split-fields">
+        <div class="form-group">
+          <label for="side">Side</label>
+          <select
+            id="side"
+            name="side"
+            data-testid="side-select"
+            class="form-control"
+            [ngModel]="side()"
+            (ngModelChange)="side.set($event)"
+          >
+            <option *ngFor="let option of sideOptions" [value]="option">{{ option }}</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="quantity">Quantity</label>
+          <input
+            id="quantity"
+            name="quantity"
+            data-testid="quantity-input"
+            class="form-control"
+            [class.is-invalid]="quantityErrors().length > 0"
+            [ngModel]="quantity()"
+            (ngModelChange)="quantity.set($event)"
+            inputmode="numeric"
+            placeholder="100"
+          />
+          <div class="invalid-feedback" *ngIf="quantityErrors().length > 0">
+            <div *ngFor="let error of quantityErrors()">{{ error }}</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="price">Limit price</label>
+          <input
+            id="price"
+            name="price"
+            data-testid="price-input"
+            class="form-control"
+            [class.is-invalid]="priceErrors().length > 0"
+            [ngModel]="price()"
+            (ngModelChange)="price.set($event)"
+            inputmode="decimal"
+            placeholder="245.75"
+          />
+          <div class="invalid-feedback" *ngIf="priceErrors().length > 0">
+            <div *ngFor="let error of priceErrors()">{{ error }}</div>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="submit-button" data-testid="submit-order-btn" [disabled]="!canSubmit()">
+        {{ isSubmitting() ? 'Submitting...' : 'Submit order' }}
+      </button>
+    </form>
+
+    <section class="feedback error" *ngIf="errorMessage() as message" data-testid="order-error">
+      <p class="feedback-title">Order not accepted</p>
+      <p>{{ message }}</p>
+      <p class="feedback-code" *ngIf="errorCode()">Code: {{ errorCode() }}</p>
+    </section>
+
+    <section class="feedback success" *ngIf="submissionResult() as result" data-testid="order-result">
+      <p class="feedback-title">Order submitted</p>
+      <p>Outcome: <strong>{{ result.status }}</strong></p>
+      <p>{{ result.message }}</p>
+      <dl class="result-grid">
+        <div>
+          <dt>Order</dt>
+          <dd>{{ result.orderId }}</dd>
+        </div>
+        <div>
+          <dt>Instrument</dt>
+          <dd>{{ result.symbol }}</dd>
+        </div>
+        <div>
+          <dt>Side</dt>
+          <dd>{{ result.side }}</dd>
+        </div>
+        <div>
+          <dt>Quantity</dt>
+          <dd>{{ result.quantity }}</dd>
+        </div>
+        <div>
+          <dt>Price</dt>
+          <dd>{{ result.price }}</dd>
+        </div>
+      </dl>
+    </section>
+  </section>
 </div>

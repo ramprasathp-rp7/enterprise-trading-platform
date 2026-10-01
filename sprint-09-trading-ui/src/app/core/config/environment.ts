@@ -20,11 +20,12 @@ export const environment = {
   AUTH_SERVICE_URL: 'http://localhost:3000',
 
   /**
-   * Trade API base URL
-   * Default: http://localhost:4000
+    * Trading backend base URL
+    * Event-backbone serves the `/api/v1/*` trade endpoints in local development.
+    * Default: http://localhost:8080
    * Can be overridden in environment-specific files
    */
-  TRADE_API_URL: 'http://localhost:4000',
+    TRADE_API_URL: 'http://localhost:8080',
 
   /**
    * Application name and version
