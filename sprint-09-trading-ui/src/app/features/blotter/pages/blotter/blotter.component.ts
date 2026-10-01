@@ -141,8 +141,12 @@ import { OrderFilters } from '../../blotter.models';
 
     .blotter-content {
       flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
       overflow-y: auto;
-      padding: 20px;
+      overflow-x: auto;
+      width: 100%;
     }
 
     .loading-state {

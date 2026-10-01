@@ -34,7 +34,7 @@ import { OrderStatus } from '../../../../api/generated/trade';
   `,
   styles: [`
     .order-row {
-      border-bottom: 1px solid #ddd;
+      border-bottom: 1px solid #e5e7eb;
     }
 
     .order-row.new-status {
@@ -43,9 +43,12 @@ import { OrderStatus } from '../../../../api/generated/trade';
     }
 
     td {
-      padding: 12px 8px;
-      vertical-align: middle;
+      padding: 12px;
+      vertical-align: top;
       font-size: 0.875rem;
+      white-space: normal;
+      word-wrap: break-word;
+      word-break: break-word;
     }
 
     .order-id {
@@ -71,10 +74,18 @@ import { OrderStatus } from '../../../../api/generated/trade';
       color: #721c24;
     }
 
-    .quantity,
-    .price,
+    .quantity {
+      text-align: center;
+      font-family: monospace;
+    }
+
+    .price {
+      text-align: center;
+      font-family: monospace;
+    }
+
     .executed-price {
-      text-align: right;
+      text-align: center;
       font-family: monospace;
     }
 

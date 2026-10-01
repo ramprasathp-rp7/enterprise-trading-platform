@@ -20,6 +20,8 @@ import { OrderStatus } from '../../../../api/generated/trade';
       border-radius: 4px;
       padding: 16px;
       margin-bottom: 16px;
+      width: 100%;
+      box-sizing: border-box;
     }
 
     .filters-header {
