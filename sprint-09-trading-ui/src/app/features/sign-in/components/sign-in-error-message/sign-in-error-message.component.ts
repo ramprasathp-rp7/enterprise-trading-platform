@@ -6,6 +6,7 @@ import { CommonModule } from '@angular/common';
  * 
  * Displays error messages with readable text.
  * Maps error codes to user-friendly messages.
+ * Only shows when there is an actual error (message is not null).
  */
 @Component({
   selector: 'app-sign-in-error-message',
@@ -29,6 +30,10 @@ export class SignInErrorMessageComponent {
 
   /**
    * Computed property: whether the error message is visible
+   * Only shows when message is not null and not empty
    */
-  isVisible = computed(() => !!this.message());
+  isVisible = computed(() => {
+    const msg = this.message();
+    return msg !== null && msg.length > 0;
+  });
 }

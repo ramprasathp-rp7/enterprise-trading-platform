@@ -1,8 +1,9 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, ActivatedRoute } from '@angular/router';
 import { CredentialFormComponent } from '../../components/credential-form/credential-form.component';
 import { SignInErrorMessageComponent } from '../../components/sign-in-error-message/sign-in-error-message.component';
+import { SignInSuccessMessageComponent } from '../../components/sign-in-success-message/sign-in-success-message.component';
 import { SignInStore } from '../../sign-in.store';
 import { LoginCredentials } from '../../../../core/auth/auth.models';
 
@@ -12,6 +13,7 @@ import { LoginCredentials } from '../../../../core/auth/auth.models';
  * Main sign-in page that composes:
  * - Credential form for username/password input
  * - Error message display
+ * - Success message display
  * - Loading state during sign-in
  * 
  * Redirects to dashboard on successful login or to returnUrl query param.
@@ -19,7 +21,7 @@ import { LoginCredentials } from '../../../../core/auth/auth.models';
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, CredentialFormComponent, SignInErrorMessageComponent],
+  imports: [CommonModule, CredentialFormComponent, SignInErrorMessageComponent, SignInSuccessMessageComponent],
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.css'],
 })
@@ -28,6 +30,9 @@ export class LoginComponent {
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   private readonly defaultReturnUrl = '/dashboard';
+
+  // Track whether login was successful
+  isLoginSuccessful = signal<boolean>(false);
 
   // Expose store signals to template
   isLoading = this.store.isLoading;
@@ -44,6 +49,12 @@ export class LoginComponent {
     const success = await this.store.login(credentials.username, credentials.password);
 
     if (success) {
+      // Show success message for a brief moment before redirecting
+      this.isLoginSuccessful.set(true);
+      
+      // Wait 1 second to let user see the success message
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
       const returnUrl = this.getSafeReturnUrl(this.route.snapshot.queryParams['returnUrl']);
       this.router.navigateByUrl(returnUrl);
     }

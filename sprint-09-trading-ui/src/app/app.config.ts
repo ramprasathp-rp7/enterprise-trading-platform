@@ -3,6 +3,8 @@ import { provideRouter } from '@angular/router';
 import { provideHttpClient, HTTP_INTERCEPTORS, withInterceptorsFromDi } from '@angular/common/http';
 import { routes } from './app.routes';
 import { AuthInterceptor } from './core/auth/auth.interceptor';
+import { CoreAuthService } from './core/auth/core-auth.service';
+import { provideAuthApiConfig } from './core/config/auth-api.config';
 import { provideApi as provideAuthApi } from './api/generated/auth/provide-api';
 import { provideApi as provideTradeApi } from './api/generated/trade/provide-api';
 import { environment } from './core/config/environment';
@@ -18,6 +20,12 @@ export const appConfig: ApplicationConfig = {
       provide: HTTP_INTERCEPTORS,
       useClass: AuthInterceptor,
       multi: true,
+    },
+    // Ensure CoreAuthService is eagerly initialized so signals are set up before any HTTP requests
+    {
+      provide: 'CORE_AUTH_INIT',
+      useFactory: (authService: CoreAuthService) => authService,
+      deps: [CoreAuthService],
     },
   ],
 };
