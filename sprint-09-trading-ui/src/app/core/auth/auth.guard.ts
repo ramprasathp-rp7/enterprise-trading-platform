@@ -21,10 +21,7 @@ export const authGuard: CanActivateFn = (
     return true;
   }
 
-  // Redirect to sign-in with return URL
-  router.navigate(['/sign-in'], {
+  return router.createUrlTree(['/sign-in'], {
     queryParams: { returnUrl: state.url },
   });
-
-  return false;
 };

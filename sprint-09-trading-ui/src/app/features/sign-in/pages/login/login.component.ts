@@ -27,6 +27,7 @@ export class LoginComponent {
   private store = inject(SignInStore);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
+  private readonly defaultReturnUrl = '/dashboard';
 
   // Expose store signals to template
   isLoading = this.store.isLoading;
@@ -43,8 +44,7 @@ export class LoginComponent {
     const success = await this.store.login(credentials.username, credentials.password);
 
     if (success) {
-      // Get return URL from query params or default to dashboard
-      const returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/dashboard';
+      const returnUrl = this.getSafeReturnUrl(this.route.snapshot.queryParams['returnUrl']);
       this.router.navigateByUrl(returnUrl);
     }
   }
@@ -54,6 +54,28 @@ export class LoginComponent {
    */
   onSignOut(): void {
     this.store.logout();
+  }
+
+  private getSafeReturnUrl(candidate: unknown): string {
+    if (
+      typeof candidate !== 'string' ||
+      candidate.length === 0 ||
+      !candidate.startsWith('/') ||
+      candidate.startsWith('//')
+    ) {
+      return this.defaultReturnUrl;
+    }
+
+    try {
+      const parsed = new URL(candidate, window.location.origin);
+      if (parsed.origin !== window.location.origin || !parsed.pathname.startsWith('/')) {
+        return this.defaultReturnUrl;
+      }
+
+      return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    } catch {
+      return this.defaultReturnUrl;
+    }
   }
 }
 

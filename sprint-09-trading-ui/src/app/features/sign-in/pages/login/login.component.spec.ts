@@ -91,6 +91,40 @@ describe('LoginComponent', () => {
 
       expect(router.navigateByUrl).toHaveBeenCalledWith('/order-ticket');
     });
+
+    it('should refuse an off-origin returnUrl and redirect to dashboard', async () => {
+      const activatedRoute = TestBed.inject(ActivatedRoute);
+      (activatedRoute.snapshot.queryParams as any) = {
+        returnUrl: 'https://phishing.example/login-capture',
+      };
+      store.login.mockResolvedValue(true);
+
+      const credentials: LoginCredentials = {
+        username: 'priya.menon',
+        password: 'password123',
+      };
+
+      await component.onSubmit(credentials);
+
+      expect(router.navigateByUrl).toHaveBeenCalledWith('/dashboard');
+    });
+
+    it('should refuse a non-path returnUrl and redirect to dashboard', async () => {
+      const activatedRoute = TestBed.inject(ActivatedRoute);
+      (activatedRoute.snapshot.queryParams as any) = {
+        returnUrl: 'order-ticket',
+      };
+      store.login.mockResolvedValue(true);
+
+      const credentials: LoginCredentials = {
+        username: 'priya.menon',
+        password: 'password123',
+      };
+
+      await component.onSubmit(credentials);
+
+      expect(router.navigateByUrl).toHaveBeenCalledWith('/dashboard');
+    });
   });
 
   describe('Invalid credentials show a readable error', () => {
