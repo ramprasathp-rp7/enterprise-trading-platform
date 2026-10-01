@@ -42,3 +42,7 @@ __screenshots__/
 # System files
 .DS_Store
 Thumbs.db
+
+# NOTE: Generated API clients in src/app/api/generated/ ARE COMMITTED
+# Do not add them to .gitignore. Regenerate and commit when contracts change.
+# This ensures a clean build without Java runtime or network access needed.

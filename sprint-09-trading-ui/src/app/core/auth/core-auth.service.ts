@@ -40,7 +40,31 @@ export class CoreAuthService {
   accessToken = computed(() => this.accessTokenSignal());
   refreshToken = computed(() => this.refreshTokenSignal());
 
-  constructor() {}
+  constructor() {
+    // If token exists in sessionStorage, extract user info from it
+    const accessToken = this.loadAccessToken();
+    if (accessToken) {
+      try {
+        const claims = this.decodeJWT(accessToken);
+        // Extract user info from JWT claims
+        // Try to get username from: username, email prefix, or name field
+        const username = (claims as any).username || 
+                        (claims as any).email?.split('@')[0] ||
+                        (claims as any).name ||
+                        'Trader';
+        
+        const user: AuthState['user'] = {
+          id: claims.sub,
+          username: username,
+          accountId: claims.accountId,
+          roles: claims.roles
+        };
+        this.userSignal.set(user);
+      } catch (error) {
+        console.error('Failed to decode JWT on init:', error);
+      }
+    }
+  }
 
   /**
    * Store tokens and user info after successful login
@@ -51,6 +75,11 @@ export class CoreAuthService {
     user: AuthState['user'],
     expiresIn?: number
   ): void {
+    // Ensure user has a username fallback
+    if (user) {
+      user.username = user.username || 'Trader';
+    }
+    
     this.accessTokenSignal.set(accessToken);
     this.refreshTokenSignal.set(refreshToken);
     this.userSignal.set(user);

@@ -4,10 +4,13 @@ import {
   HttpRequest,
   HttpHandler,
   HttpEvent,
+  HttpErrorResponse,
 } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, throwError } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { CoreAuthService } from './core-auth.service';
 import { ApiOriginsConfig } from '../config/api-origins';
+import { Router } from '@angular/router';
 
 /**
  * Authentication Interceptor
@@ -29,7 +32,8 @@ import { ApiOriginsConfig } from '../config/api-origins';
 export class AuthInterceptor implements HttpInterceptor {
   constructor(
     private authService: CoreAuthService,
-    private apiOriginsConfig: ApiOriginsConfig
+    private apiOriginsConfig: ApiOriginsConfig,
+    private router: Router
   ) {}
 
   intercept(
@@ -62,7 +66,20 @@ export class AuthInterceptor implements HttpInterceptor {
       },
     });
 
-    return next.handle(authenticatedRequest);
+    return next.handle(authenticatedRequest).pipe(
+      catchError((error: HttpErrorResponse) => {
+        // Handle 401 Unauthorized - clear tokens and redirect to login
+        if (error.status === 401) {
+          console.warn('Received 401 Unauthorized response - logging out user');
+          this.authService.clearTokens();
+          this.router.navigate(['/sign-in'], { replaceUrl: true }).catch((navError) => {
+            console.error('Failed to navigate to sign-in:', navError);
+          });
+        }
+
+        return throwError(() => error);
+      })
+    );
   }
 
   /**

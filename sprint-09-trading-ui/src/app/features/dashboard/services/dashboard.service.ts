@@ -1,6 +1,7 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { AccountsService, BalanceResponse, AccountResponse } from '../../../api/generated/trade';
 
 /**
  * Dashboard Service
@@ -10,35 +11,64 @@ import { Observable } from 'rxjs';
   providedIn: 'root'
 })
 export class DashboardService {
-  // TODO: Define API endpoints
-  // private readonly API_BASE = '/api/dashboard';
+  private accountsService = inject(AccountsService);
 
-  constructor(private http: HttpClient) {}
-
-  // TODO: Implement getPortfolioDashboard()
-  // Calls: GET /api/dashboard/portfolio
-  getPortfolioDashboard(): Observable<any> {
-    // TODO: Implement
-    throw new Error('Not implemented');
+  /**
+   * Get account balance information
+   */
+  getBalance(accountId: number): Observable<BalanceResponse> {
+    return this.accountsService.getBalance(accountId);
   }
 
-  // TODO: Implement getPositions()
-  // Calls: GET /api/dashboard/positions
+  /**
+   * Get account details
+   */
+  getAccount(accountId: number): Observable<AccountResponse> {
+    return this.accountsService.getAccount(accountId);
+  }
+
+  /**
+   * Get portfolio dashboard data
+   */
+  getPortfolioDashboard(accountId: number): Observable<any> {
+    // Combine balance and account info
+    return new Observable(observer => {
+      this.getAccount(accountId).subscribe({
+        next: (account) => {
+          this.getBalance(accountId).subscribe({
+            next: (balance) => {
+              observer.next({
+                account,
+                balance
+              });
+              observer.complete();
+            },
+            error: (err) => observer.error(err)
+          });
+        },
+        error: (err) => observer.error(err)
+      });
+    });
+  }
+
+  /**
+   * Get positions
+   */
   getPositions(): Observable<any> {
-    // TODO: Implement
     throw new Error('Not implemented');
   }
 
-  // TODO: Implement getPortfolioPerformance()
-  // Calls: GET /api/dashboard/performance
+  /**
+   * Get portfolio performance
+   */
   getPortfolioPerformance(days: number = 30): Observable<any> {
-    // TODO: Implement
     throw new Error('Not implemented');
   }
 
-  // TODO: Implement refreshDashboard()
+  /**
+   * Refresh dashboard
+   */
   refreshDashboard(): Observable<any> {
-    // TODO: Implement
     throw new Error('Not implemented');
   }
 }

@@ -1,10 +1,82 @@
-<!-- Dashboard Page Template -->
+<!-- Enterprise Trading Dashboard -->
 <div class="dashboard-container">
-  <!-- TODO: Add dashboard header -->
   
-  <!-- TODO: Add portfolio summary section -->
-  
-  <!-- TODO: Add positions section -->
-  
-  <!-- TODO: Add performance charts section -->
+  <!-- Welcome Section -->
+  <div class="welcome-section">
+    <div class="welcome-content">
+      <h1 class="welcome-title">Welcome back, {{ authService.currentUser()?.username || 'Trader' }}</h1>
+      <p class="welcome-subtitle">Trader • {{ currentDate | date: 'EEEE, MMMM d' }}</p>
+    </div>
+  </div>
+
+  <!-- Portfolio Metrics Grid -->
+  <div class="metrics-section">
+    <div class="section-title-bar">
+      <h2 class="section-title">Portfolio Overview</h2>
+    </div>
+    <div class="metrics-grid">
+      @for (stat of portfolioStats(); track stat.title) {
+        <div class="metric-card">
+          <div class="metric-icon" [class]="stat.icon"></div>
+          <div class="metric-content">
+            <div class="metric-label">{{ stat.title }}</div>
+            <div class="metric-value">{{ stat.value }}</div>
+            <div class="metric-change" [class]="'change-' + stat.changeType">
+              <span class="change-direction">{{ stat.changeType === 'positive' ? '▲' : '—' }}</span>
+              <span class="change-pct">{{ stat.change | number:'1.1-2' }}% from yesterday</span>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Recent Activity Section -->
+  <div class="activity-section">
+    <div class="section-title-bar">
+      <h2 class="section-title">Recent Trades</h2>
+      <a href="/blotter" class="section-link">
+        <i class="fas fa-arrow-right"></i> View all
+      </a>
+    </div>
+
+    <!-- Activity Table -->
+    <div class="table-container">
+      <table class="activity-table">
+        <thead>
+          <tr>
+            <th>Symbol</th>
+            <th>Type</th>
+            <th>Quantity</th>
+            <th>Price</th>
+            <th>Time</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (trade of recentTrades(); track trade.id) {
+            <tr class="trade-row">
+              <td class="symbol">
+                <span class="symbol-badge">{{ trade.symbol }}</span>
+              </td>
+              <td class="side" [class]="'side-' + trade.type.toLowerCase()">
+                <i class="fas" [class]="trade.type === 'BUY' ? 'fa-arrow-up' : 'fa-arrow-down'"></i>
+                {{ trade.type }}
+              </td>
+              <td class="qty">{{ trade.quantity | number }}</td>
+              <td class="price">${{ trade.price | number:'1.2-2' }}</td>
+              <td class="time">{{ trade.time }}</td>
+              <td>
+                <span class="status" [class]="'status-' + trade.status.toLowerCase()">
+                  <i class="fas" [class]="getStatusIcon(trade.status)"></i>
+                  {{ trade.status }}
+                </span>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+
 </div>
