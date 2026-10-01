@@ -57,7 +57,8 @@ export class SignInStore {
       })
       .catch((error) => {
         // Handle error response
-        const errorCode = error?.errorCode || 'UNKNOWN';
+        // Extract errorCode from HttpErrorResponse.error.errorCode
+        const errorCode = error?.error?.errorCode || 'UNKNOWN';
         const errorMessage = getErrorMessage(errorCode);
 
         this.errorCodeSignal.set(errorCode);

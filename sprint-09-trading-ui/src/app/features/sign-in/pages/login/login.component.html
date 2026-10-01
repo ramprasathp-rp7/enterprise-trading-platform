@@ -2,7 +2,12 @@
   <div class="login-card">
     <h1 class="login-title">Sign In</h1>
 
-    <!-- Error message display -->
+    <!-- Success message display (shows when login succeeds) -->
+    <app-sign-in-success-message 
+      [isVisible]="isLoginSuccessful()">
+    </app-sign-in-success-message>
+
+    <!-- Error message display (only shows when there's an actual error) -->
     <app-sign-in-error-message 
       [message]="errorMessage()" 
       [errorCode]="errorCode()">
@@ -11,10 +16,11 @@
     <!-- Login form -->
     <app-credential-form 
       (submitAttempt)="onSubmit($event)"
+      [isDisabled]="isLoading()"
       [class.is-loading]="isLoading()">
     </app-credential-form>
 
-    <!-- Loading indicator -->
+    <!-- Loading/Processing indicator -->
     <div *ngIf="isLoading()" class="loading-indicator">
       <div class="spinner"></div>
       <span>Signing in...</span>
