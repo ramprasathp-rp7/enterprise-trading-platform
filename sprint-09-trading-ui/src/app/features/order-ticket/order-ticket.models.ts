@@ -3,6 +3,7 @@
  */
 
 import { OrderResponse, OrderSide } from '../../api/generated/trade';
+import { errorCodeCatalogue } from '../../core/errors/error-codes';
 
 export interface OrderTicketFormValue {
   symbol: string;
@@ -25,8 +26,10 @@ export interface OrderTicketErrorState {
 
 export type OrderTicketResponse = OrderResponse;
 
+/**
+ * Network error message - displayed when service is unreachable (status 0)
+ */
 const NETWORK_ERROR_MESSAGE = 'The service could not be reached. Check whether the API is running and allows this dev-server origin.';
-const UNKNOWN_ERROR_MESSAGE = 'Something unexpected happened. Please try again.';
 
 const TRADEABLE_SYMBOL_PATTERN = /^(?:[A-Z][A-Z0-9]*(?:\.(?:NS|BO))?|FX:[A-Z]{3}\/[A-Z]{3}|X:[A-Z][A-Z0-9-]*)$/;
 const WHOLE_QUANTITY_PATTERN = /^[1-9]\d*$/;
@@ -45,6 +48,10 @@ export function isValidLimitPrice(value: string): boolean {
   return PRICE_PATTERN.test(normalized) && Number(normalized) > 0;
 }
 
+/**
+ * Normalize HTTP error response to OrderTicketErrorState.
+ * Uses the centralized ErrorCodeCatalogue for message mapping.
+ */
 export function normalizeOrderTicketError(error: unknown): OrderTicketErrorState {
   const response = error as {
     status?: number;
@@ -52,6 +59,7 @@ export function normalizeOrderTicketError(error: unknown): OrderTicketErrorState
     errorCode?: string;
   };
 
+  // Network error - service unreachable
   if (response?.status === 0) {
     return {
       errorCode: 'NETWORK',
@@ -59,35 +67,12 @@ export function normalizeOrderTicketError(error: unknown): OrderTicketErrorState
     };
   }
 
+  // Extract error code from API response
   const errorCode = response?.error?.errorCode ?? response?.errorCode ?? 'UNKNOWN';
 
+  // Use centralized error catalogue for trader-friendly message
   return {
     errorCode,
-    message: getOrderTicketErrorMessage(errorCode),
+    message: errorCodeCatalogue.getMessage(errorCode),
   };
-}
-
-function getOrderTicketErrorMessage(errorCode: string): string {
-  switch (errorCode) {
-    case 'ACC-404':
-      return 'The account could not be found.';
-    case 'ACC-403':
-      return 'This account is not active, or is not the one this sign-in may trade.';
-    case 'INS-404':
-      return 'The instrument is not one that can be traded.';
-    case 'ORD-400':
-      return 'There is not enough cash for this order.';
-    case 'ORD-409':
-      return 'There are not enough holdings to sell, or this order has already been placed.';
-    case 'VAL-422':
-      return 'A field is not acceptable.';
-    case 'AUTH-401':
-      return 'The session has expired or the sign-in was refused.';
-    case 'AUTH-409':
-      return 'That username is already taken.';
-    case 'NETWORK':
-      return NETWORK_ERROR_MESSAGE;
-    default:
-      return UNKNOWN_ERROR_MESSAGE;
-  }
 }

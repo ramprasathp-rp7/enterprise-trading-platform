@@ -1,0 +1,44 @@
+@if (error) {
+  <div class="error-container" [ngClass]="getErrorClass()">
+    <div class="error-content">
+      <p class="error-message">{{ error.message }}</p>
+
+      <!-- Show additional context for network errors -->
+      @if (error.isNetworkError) {
+        <div class="error-hint">
+          <small>
+            Try checking your internet connection or reloading the page.
+          </small>
+        </div>
+      }
+
+      <!-- Show code for unknown errors (debugging aid) -->
+      @if (error.isUnknownCode) {
+        <div class="error-hint">
+          <small>
+            Error code: <code>{{ error.code }}</code>
+          </small>
+        </div>
+      }
+
+      <!-- Action buttons based on error type -->
+      <div class="error-actions">
+        @if (shouldShowRetry()) {
+          <button (click)="onRetry()" class="btn btn-primary">
+            Try Again
+          </button>
+        }
+
+        @if (shouldShowSignIn()) {
+          <button (click)="onSignIn()" class="btn btn-primary">
+            Sign In
+          </button>
+        }
+
+        <button (click)="onDismiss()" class="btn btn-secondary">
+          Dismiss
+        </button>
+      </div>
+    </div>
+  </div>
+}

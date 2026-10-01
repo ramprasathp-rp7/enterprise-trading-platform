@@ -47,6 +47,14 @@ export class OrderTicketStore {
     private authService: CoreAuthService
   ) {}
 
+  /**
+   * Clear error state (used when retrying or dismissing errors)
+   */
+  clearErrors(): void {
+    this.errorCodeSignal.set(null);
+    this.errorMessageSignal.set(null);
+  }
+
   submitOrder(input: OrderTicketSubmitInput): Promise<boolean> {
     const accountId = this.accountId();
     if (accountId === null) {

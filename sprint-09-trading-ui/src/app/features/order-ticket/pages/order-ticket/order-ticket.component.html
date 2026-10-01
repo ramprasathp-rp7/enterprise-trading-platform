@@ -97,11 +97,12 @@
       </button>
     </form>
 
-    <section class="feedback error" *ngIf="errorMessage() as message" data-testid="order-error">
-      <p class="feedback-title">Order not accepted</p>
-      <p>{{ message }}</p>
-      <p class="feedback-code" *ngIf="errorCode()">Code: {{ errorCode() }}</p>
-    </section>
+    <!-- Error alert with trader-friendly messages and action buttons -->
+    <app-error-alert 
+      [error]="processedError()"
+      (retry)="onRetryOrder()"
+      (dismiss)="onDismissError()">
+    </app-error-alert>
 
     <section class="feedback success" *ngIf="submissionResult() as result" data-testid="order-result">
       <p class="feedback-title">Order submitted</p>
