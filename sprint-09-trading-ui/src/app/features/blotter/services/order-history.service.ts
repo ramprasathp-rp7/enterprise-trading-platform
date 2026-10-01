@@ -1,4 +1,7 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
+import { Observable } from 'rxjs';
+import { AccountsService } from '../../../api/generated/trade/api/accounts.service';
+import { OrderHistoryEntry } from '../../../api/generated/trade';
 
 /**
  * Order history service
@@ -10,7 +13,13 @@ import { Injectable } from '@angular/core';
   providedIn: 'root',
 })
 export class OrderHistoryService {
-  constructor() {}
+  private accountsApi = inject(AccountsService);
 
-  // Service implementation
+  /**
+   * Fetch order history for an account
+   * Returns orders newest first
+   */
+  getOrderHistory(accountId: number): Observable<OrderHistoryEntry[]> {
+    return this.accountsApi.getOrders(accountId);
+  }
 }

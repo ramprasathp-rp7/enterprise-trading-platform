@@ -1,4 +1,43 @@
-<!-- Order filters template -->
-<div class="filters">
-  <!-- Status filter, Date range filter -->
+<div class="filters-container">
+  <div class="filters-header">
+    <h3>Filters</h3>
+    @if (isFilterActive()) {
+      <button class="clear-button" (click)="onClearFilters()" title="Clear all filters">
+        ✕ Clear
+      </button>
+    }
+  </div>
+
+  <div class="filter-group">
+    <label for="status-filter">Status:</label>
+    <select 
+      id="status-filter"
+      [(ngModel)]="selectedStatus"
+      (change)="onStatusChange()"
+      class="filter-input">
+      <option value="">All Statuses</option>
+      <option [value]="statusOptions.New">NEW</option>
+      <option [value]="statusOptions.Filled">FILLED</option>
+      <option [value]="statusOptions.Rejected">REJECTED</option>
+      <option [value]="statusOptions.Cancelled">CANCELLED</option>
+    </select>
+  </div>
+
+  <div class="filter-group">
+    <label for="symbol-filter">Symbol:</label>
+    <input 
+      id="symbol-filter"
+      type="text"
+      [(ngModel)]="selectedSymbol"
+      (input)="onSymbolChange()"
+      placeholder="e.g., AAPL, GOOGL"
+      class="filter-input"
+      maxlength="10" />
+  </div>
+
+  @if (isFilterActive()) {
+    <div class="filter-info">
+      <small>{{ activeFilterCount() }} filter(s) applied</small>
+    </div>
+  }
 </div>

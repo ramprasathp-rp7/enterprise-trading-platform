@@ -2,10 +2,19 @@
  * Local blotter-related types and interfaces
  */
 
-export interface OrderHistoryEntry {
-  // Order history entry interface
+import { OrderHistoryEntry, OrderStatus } from '../../api/generated/trade';
+
+/**
+ * Order history entry with derived metadata
+ */
+export interface BlotterOrder extends OrderHistoryEntry {
+  // Use OrderHistoryEntry from generated API types
 }
 
+/**
+ * Order filters for blotter display
+ */
 export interface OrderFilters {
-  // Order filters interface
+  status?: OrderStatus;
+  symbol?: string;
 }
