@@ -24,6 +24,7 @@ describe('CredentialFormComponent', () => {
   describe('Empty field validation', () => {
     it('should require username field', () => {
       component.username.set('');
+      component.onUsernameBlur();
       fixture.detectChanges();
 
       expect(component.usernameErrors().length).toBeGreaterThan(0);
@@ -32,6 +33,7 @@ describe('CredentialFormComponent', () => {
 
     it('should require password field', () => {
       component.password.set('');
+      component.onPasswordBlur();
       fixture.detectChanges();
 
       expect(component.passwordErrors().length).toBeGreaterThan(0);
@@ -41,6 +43,7 @@ describe('CredentialFormComponent', () => {
     it('should be invalid when both fields are empty', () => {
       component.username.set('');
       component.password.set('');
+      component.onSubmit();
       fixture.detectChanges();
 
       expect(component.isValid()).toBe(false);
@@ -125,6 +128,7 @@ describe('CredentialFormComponent', () => {
     it('should clear validation errors after reset', () => {
       component.username.set('');
       component.password.set('');
+      component.onSubmit();
       fixture.detectChanges();
 
       expect(component.hasErrors()).toBe(true);
@@ -132,8 +136,9 @@ describe('CredentialFormComponent', () => {
       component.reset();
       fixture.detectChanges();
 
-      expect(component.usernameErrors().length).toBeGreaterThan(0);
-      expect(component.passwordErrors().length).toBeGreaterThan(0);
+      expect(component.usernameErrors().length).toBe(0);
+      expect(component.passwordErrors().length).toBe(0);
+      expect(component.hasErrors()).toBe(false);
     });
   });
 
@@ -141,6 +146,7 @@ describe('CredentialFormComponent', () => {
     it('should disable submit button when form has errors', () => {
       component.username.set('');
       component.password.set('');
+      component.onSubmit();
       fixture.detectChanges();
 
       const button = fixture.nativeElement.querySelector('[data-testid="submit-btn"]');
@@ -180,6 +186,7 @@ describe('CredentialFormComponent', () => {
   describe('CSS classes for styling', () => {
     it('should add is-invalid class to username input when invalid', () => {
       component.username.set('');
+      component.onUsernameBlur();
       fixture.detectChanges();
 
       const usernameInput = fixture.nativeElement.querySelector('[data-testid="username-input"]');
@@ -188,6 +195,7 @@ describe('CredentialFormComponent', () => {
 
     it('should add is-invalid class to password input when invalid', () => {
       component.password.set('');
+      component.onPasswordBlur();
       fixture.detectChanges();
 
       const passwordInput = fixture.nativeElement.querySelector('[data-testid="password-input"]');
