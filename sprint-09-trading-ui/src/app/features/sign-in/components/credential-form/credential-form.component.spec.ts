@@ -48,6 +48,8 @@ describe('CredentialFormComponent', () => {
 
       expect(component.isValid()).toBe(false);
       expect(component.hasErrors()).toBe(true);
+      expect(component.usernameTouched()).toBe(true);
+      expect(component.passwordTouched()).toBe(true);
     });
 
     it('should be valid when both fields have values', () => {

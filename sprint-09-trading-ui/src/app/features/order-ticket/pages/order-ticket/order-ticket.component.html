@@ -33,6 +33,7 @@
           [class.is-invalid]="symbolErrors().length > 0"
           [ngModel]="symbol()"
           (ngModelChange)="symbol.set($event)"
+          (blur)="onSymbolBlur()"
           placeholder="AAPL or INFY.NS"
         />
         <div class="invalid-feedback" *ngIf="symbolErrors().length > 0">
@@ -65,6 +66,7 @@
             [class.is-invalid]="quantityErrors().length > 0"
             [ngModel]="quantity()"
             (ngModelChange)="quantity.set($event)"
+            (blur)="onQuantityBlur()"
             inputmode="numeric"
             placeholder="100"
           />
@@ -83,6 +85,7 @@
             [class.is-invalid]="priceErrors().length > 0"
             [ngModel]="price()"
             (ngModelChange)="price.set($event)"
+            (blur)="onPriceBlur()"
             inputmode="decimal"
             placeholder="245.75"
           />

@@ -14,6 +14,7 @@ describe('OrderTicketComponent', () => {
     submissionResult: ReturnType<typeof signal<any>>;
     errorCode: ReturnType<typeof signal<string | null>>;
     errorMessage: ReturnType<typeof signal<string | null>>;
+    clearErrors: ReturnType<typeof vi.fn>;
     submitOrder: ReturnType<typeof vi.fn>;
   };
 
@@ -24,6 +25,7 @@ describe('OrderTicketComponent', () => {
       submissionResult: signal(null),
       errorCode: signal(null),
       errorMessage: signal(null),
+      clearErrors: vi.fn(),
       submitOrder: vi.fn().mockResolvedValue(true),
     };
 
@@ -48,6 +50,28 @@ describe('OrderTicketComponent', () => {
 
     expect(store.submitOrder).not.toHaveBeenCalled();
     expect(component.quantityErrors()[0]).toContain('whole number greater than zero');
+  });
+
+  it('hides validation errors until a field is touched or submit is attempted', () => {
+    expect(component.symbolErrors()).toEqual([]);
+    expect(component.quantityErrors()).toEqual([]);
+    expect(component.priceErrors()).toEqual([]);
+
+    component.onQuantityBlur();
+    fixture.detectChanges();
+
+    expect(component.quantityErrors()).toContain('Quantity is required.');
+    expect(component.symbolErrors()).toEqual([]);
+    expect(component.priceErrors()).toEqual([]);
+  });
+
+  it('marks all fields touched when submit is attempted with empty values', async () => {
+    await component.onSubmit();
+
+    expect(component.symbolErrors()).toContain('Symbol is required.');
+    expect(component.quantityErrors()).toContain('Quantity is required.');
+    expect(component.priceErrors()).toContain('Price is required.');
+    expect(store.submitOrder).not.toHaveBeenCalled();
   });
 
   it('renders the returned status from a submitted order', () => {

@@ -1,6 +1,6 @@
 import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { OrderListRowComponent } from '../order-list-row/order-list-row.component';
+import { OrderStatusBadgeComponent } from '../order-status-badge/order-status-badge.component';
 import { BlotterOrder } from '../../blotter.models';
 
 /**
@@ -11,7 +11,7 @@ import { BlotterOrder } from '../../blotter.models';
 @Component({
   selector: 'app-order-list',
   standalone: true,
-  imports: [CommonModule, OrderListRowComponent],
+  imports: [CommonModule, OrderStatusBadgeComponent],
   template: `
     @if (orders && orders.length > 0) {
       <div class="order-list-container">
@@ -30,7 +30,16 @@ import { BlotterOrder } from '../../blotter.models';
           </thead>
           <tbody>
             @for (order of orders; track order.orderId) {
-              <app-order-list-row [order]="order"></app-order-list-row>
+              <tr class="order-row" [class.new-status]="order.status === 'NEW'">
+                <td class="order-id">{{ order.orderId }}</td>
+                <td class="symbol">{{ order.symbol }}</td>
+                <td class="side" [class.buy]="order.side === 'BUY'" [class.sell]="order.side === 'SELL'">{{ order.side }}</td>
+                <td class="quantity">{{ order.quantity.toLocaleString() }}</td>
+                <td class="price">{{ formatCurrency(order.price) }}</td>
+                <td class="executed-price" [class.filled]="order.executedPrice !== null && order.executedPrice !== undefined">{{ order.executedPrice != null ? formatCurrency(order.executedPrice) : '—' }}</td>
+                <td class="status"><app-order-status-badge [status]="order.status"></app-order-status-badge></td>
+                <td class="created-on">{{ formatDate(order.createdOn) }}</td>
+              </tr>
             }
           </tbody>
         </table>
@@ -48,7 +57,7 @@ import { BlotterOrder } from '../../blotter.models';
       flex-direction: column;
       min-height: 0;
       overflow: auto;
-      padding: 16px;
+      padding: 16px 12px 0;
       width: 100%;
       box-sizing: border-box;
       max-width: none;
@@ -57,97 +66,91 @@ import { BlotterOrder } from '../../blotter.models';
     .order-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 0.875rem;
+      font-size: 0.8125rem;
       border: 1px solid #e5e7eb;
-      border-radius: 6px;
+      border-radius: 8px;
       background: white;
-      table-layout: auto;
+        table-layout: auto;
       box-sizing: border-box;
+      overflow: hidden;
     }
 
     thead {
-      background-color: #f8fafc;
+      background-color: #ffffff;
       border-bottom: 1px solid #e5e7eb;
       position: sticky;
       top: 0;
       z-index: 10;
-      display: table;
-      width: 100%;
-      table-layout: auto;
     }
 
     thead tr {
-      display: table;
-      width: 100%;
-      table-layout: auto;
-    }
-
-    tbody {
-      display: table;
-      width: 100%;
+      background-color: #f8fafc;
     }
 
     tbody tr {
       border-bottom: 1px solid #e5e7eb;
-      display: table-row;
-      width: 100%;
+      background-color: #ffffff;
+      transition: background-color 0.15s ease;
     }
 
     tbody tr:hover {
-      background-color: #f1f5f9;
+      background-color: #eff6ff;
     }
 
     th, td {
-      padding: 12px;
+      padding: 12px 16px;
       text-align: left;
-      border-right: 1px solid #e5e7eb;
+      border-right: none;
       word-wrap: break-word;
       word-break: break-word;
     }
 
     th {
       font-weight: 600;
-      color: #0f172a;
+      color: #475569;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
       height: 44px;
       vertical-align: middle;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      background-color: transparent;
     }
 
     td {
-      color: #475569;
-      vertical-align: top;
+      color: #0f172a;
+      vertical-align: middle;
       white-space: normal;
       overflow: visible;
     }
 
-    th:last-child, td:last-child {
-      border-right: none;
-    }
-
-    /* Column widths - flexible distribution */
-    th:nth-child(1), td:nth-child(1) { width: 16%; }
-    th:nth-child(2), td:nth-child(2) { width: 8%; }
-    th:nth-child(3), td:nth-child(3) { width: 7%; }
+    th:nth-child(1), td:nth-child(1) { width: 30%; }
+    th:nth-child(2), td:nth-child(2) { width: 10%; }
+    th:nth-child(3), td:nth-child(3) { width: 8%; }
     th:nth-child(4), td:nth-child(4) { width: 8%; }
-    th:nth-child(5), td:nth-child(5) { width: 12%; }
+    th:nth-child(5), td:nth-child(5) { width: 10%; }
     th:nth-child(6), td:nth-child(6) { width: 12%; }
-    th:nth-child(7), td:nth-child(7) { width: 10%; }
-    th:nth-child(8), td:nth-child(8) { width: 27%; }
+    th:nth-child(7), td:nth-child(7) { width: 7%; }
+    th:nth-child(8), td:nth-child(8) { width: 15%; }
 
     th:nth-child(3),
     th:nth-child(4),
     th:nth-child(5),
     th:nth-child(6),
     th:nth-child(7),
-    th:nth-child(8),
     td:nth-child(3),
     td:nth-child(4),
     td:nth-child(5),
     td:nth-child(6),
-    td:nth-child(8) {
+    td:nth-child(7) {
       text-align: center;
+    }
+
+    th:nth-child(8),
+    td:nth-child(8) {
+      text-align: left;
     }
 
     .empty-state {
@@ -164,4 +167,23 @@ import { BlotterOrder } from '../../blotter.models';
 })
 export class OrderListComponent {
   @Input() orders: BlotterOrder[] | null = null;
+
+  formatCurrency(value: number): string {
+    return value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  formatDate(iso: string): string {
+    try {
+      const date = new Date(iso);
+      const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(date.getUTCDate()).padStart(2, '0');
+      const year = date.getUTCFullYear();
+      const hours = String(date.getUTCHours()).padStart(2, '0');
+      const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+      const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+      return `${month}/${day}/${year} ${hours}:${minutes}:${seconds} UTC`;
+    } catch {
+      return '';
+    }
+  }
 }

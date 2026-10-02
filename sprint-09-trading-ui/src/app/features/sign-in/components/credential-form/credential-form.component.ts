@@ -109,6 +109,8 @@ export class CredentialFormComponent {
    */
   onSubmit(): void {
     this.formSubmitted.set(true);
+    this.usernameTouched.set(true);
+    this.passwordTouched.set(true);
 
     if (!this.isValid() || this.isDisabled()) {
       return;

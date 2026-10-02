@@ -15,13 +15,14 @@ import { OrderStatus } from '../../../../api/generated/trade';
   templateUrl: './order-filters.component.html',
   styles: [`
     .filters-container {
-      background-color: #f9f9f9;
-      border: 1px solid #ddd;
-      border-radius: 4px;
+      background-color: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
       padding: 16px;
       margin-bottom: 16px;
       width: 100%;
       box-sizing: border-box;
+      box-shadow: 0 1px 2px rgba(16,24,40,0.03);
     }
 
     .filters-header {
@@ -68,12 +69,14 @@ import { OrderStatus } from '../../../../api/generated/trade';
     }
 
     .filter-input {
-      padding: 8px 12px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      font-size: 0.875rem;
+      padding: 10px 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      font-size: 0.9rem;
       font-family: inherit;
-      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      background: #ffffff;
+      color: #0f172a;
     }
 
     .filter-input:focus {

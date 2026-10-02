@@ -78,8 +78,8 @@ import { OrderFilters } from '../../blotter.models';
       justify-content: space-between;
       align-items: center;
       padding: 20px;
-      border-bottom: 2px solid #ddd;
-      background: #f9f9f9;
+      border-bottom: 2px solid #eee;
+      background: #ffffff;
     }
 
     h1 {

@@ -60,7 +60,7 @@ describe('OrderListComponent', () => {
       component.orders = mockOrders as any;
       fixture.detectChanges();
 
-      const rows = fixture.nativeElement.querySelectorAll('app-order-list-row');
+      const rows = fixture.nativeElement.querySelectorAll('tbody tr');
       expect(rows.length).toBe(3);
     });
 
@@ -68,7 +68,7 @@ describe('OrderListComponent', () => {
       component.orders = mockOrders as any;
       fixture.detectChanges();
 
-      const rows = fixture.nativeElement.querySelectorAll('app-order-list-row');
+      const rows = fixture.nativeElement.querySelectorAll('tbody tr');
       expect(rows.length).toBe(3);
     });
 
@@ -76,8 +76,9 @@ describe('OrderListComponent', () => {
       component.orders = mockOrders as any;
       fixture.detectChanges();
 
-      const rows = fixture.nativeElement.querySelectorAll('app-order-list-row');
+      const rows = fixture.nativeElement.querySelectorAll('tbody tr');
       const hasRejected = mockOrders.some(o => o.status === OrderStatus.Rejected);
+      expect(rows.length).toBe(3);
       expect(hasRejected).toBe(true);
     });
 
@@ -149,7 +150,7 @@ describe('OrderListComponent', () => {
 
       const tbody = fixture.nativeElement.querySelector('tbody');
       expect(tbody).toBeTruthy();
-      const rows = tbody.querySelectorAll('app-order-list-row');
+      const rows = tbody.querySelectorAll('tr');
       expect(rows.length).toBe(mockOrders.length);
     });
   });

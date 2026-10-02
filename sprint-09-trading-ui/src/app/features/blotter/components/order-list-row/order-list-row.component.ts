@@ -17,14 +17,10 @@ import { OrderStatus } from '../../../../api/generated/trade';
       <tr class="order-row" [class.new-status]="order.status === 'NEW'">
         <td class="order-id">{{ order.orderId }}</td>
         <td class="symbol">{{ order.symbol }}</td>
-        <td class="side" [class.buy]="order.side === 'BUY'" [class.sell]="order.side === 'SELL'">
-          {{ order.side }}
-        </td>
+        <td class="side" [class.buy]="order.side === 'BUY'" [class.sell]="order.side === 'SELL'">{{ order.side }}</td>
         <td class="quantity">{{ quantity }}</td>
         <td class="price">{{ price }}</td>
-        <td class="executed-price" [class.filled]="order.executedPrice">
-          {{ executedPrice }}
-        </td>
+        <td class="executed-price" [class.filled]="order.executedPrice">{{ executedPrice }}</td>
         <td class="status">
           <app-order-status-badge [status]="order.status"></app-order-status-badge>
         </td>
@@ -35,16 +31,17 @@ import { OrderStatus } from '../../../../api/generated/trade';
   styles: [`
     .order-row {
       border-bottom: 1px solid #e5e7eb;
+      background-color: #ffffff;
     }
 
     .order-row.new-status {
-      background-color: #f0f8ff;
+      background-color: #eff6ff;
       font-weight: 500;
     }
 
     td {
-      padding: 12px;
-      vertical-align: top;
+      padding: 12px 16px;
+      vertical-align: middle;
       font-size: 0.875rem;
       white-space: normal;
       word-wrap: break-word;
@@ -55,6 +52,9 @@ import { OrderStatus } from '../../../../api/generated/trade';
       font-family: monospace;
       color: #0066cc;
       font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .symbol {
@@ -95,9 +95,10 @@ import { OrderStatus } from '../../../../api/generated/trade';
     }
 
     .created-on {
-      text-align: center;
-      color: #666;
+      text-align: left;
+      color: #64748b;
       font-size: 0.8rem;
+      font-family: 'Courier New', monospace;
     }
 
     .status {
