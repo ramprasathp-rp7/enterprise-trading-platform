@@ -25,6 +25,10 @@ export class OrderTicketComponent {
   readonly side = signal<OrderSide>(OrderSide.Buy);
   readonly quantity = signal<string>('');
   readonly price = signal<string>('');
+  readonly symbolTouched = signal<boolean>(false);
+  readonly quantityTouched = signal<boolean>(false);
+  readonly priceTouched = signal<boolean>(false);
+  readonly formSubmitted = signal<boolean>(false);
   readonly sideOptions = [OrderSide.Buy, OrderSide.Sell] as const;
 
   readonly accountId = this.store.accountId;
@@ -33,8 +37,16 @@ export class OrderTicketComponent {
   readonly errorCode = this.store.errorCode;
   readonly errorMessage = this.store.errorMessage;
 
+  readonly isSymbolValidationVisible = computed(() => this.symbolTouched() || this.formSubmitted());
+  readonly isQuantityValidationVisible = computed(() => this.quantityTouched() || this.formSubmitted());
+  readonly isPriceValidationVisible = computed(() => this.priceTouched() || this.formSubmitted());
+
   readonly symbolErrors = computed(() => {
     const value = this.symbol().trim().toUpperCase();
+    if (!this.isSymbolValidationVisible()) {
+      return [];
+    }
+
     if (!value) {
       return ['Symbol is required.'];
     }
@@ -48,6 +60,10 @@ export class OrderTicketComponent {
 
   readonly quantityErrors = computed(() => {
     const value = this.quantity().trim();
+    if (!this.isQuantityValidationVisible()) {
+      return [];
+    }
+
     if (!value) {
       return ['Quantity is required.'];
     }
@@ -61,6 +77,10 @@ export class OrderTicketComponent {
 
   readonly priceErrors = computed(() => {
     const value = this.price().trim();
+    if (!this.isPriceValidationVisible()) {
+      return [];
+    }
+
     if (!value) {
       return ['Price is required.'];
     }
@@ -72,12 +92,24 @@ export class OrderTicketComponent {
     return [];
   });
 
+  readonly isFormValid = computed(() => {
+    const symbol = this.symbol().trim().toUpperCase();
+    const quantity = this.quantity().trim();
+    const price = this.price().trim();
+
+    return (
+      !!symbol &&
+      isValidTradeableSymbol(symbol) &&
+      !!quantity &&
+      isValidWholeQuantity(quantity) &&
+      !!price &&
+      isValidLimitPrice(price)
+    );
+  });
+
   readonly canSubmit = computed(() => {
     return (
       this.accountId() !== null &&
-      this.symbolErrors().length === 0 &&
-      this.quantityErrors().length === 0 &&
-      this.priceErrors().length === 0 &&
       !this.isSubmitting()
     );
   });
@@ -103,7 +135,12 @@ export class OrderTicketComponent {
   });
 
   async onSubmit(): Promise<void> {
-    if (!this.canSubmit()) {
+    this.formSubmitted.set(true);
+    this.symbolTouched.set(true);
+    this.quantityTouched.set(true);
+    this.priceTouched.set(true);
+
+    if (!this.canSubmit() || !this.isFormValid()) {
       return;
     }
 
@@ -123,6 +160,10 @@ export class OrderTicketComponent {
     this.symbol.set('');
     this.quantity.set('');
     this.price.set('');
+    this.symbolTouched.set(false);
+    this.quantityTouched.set(false);
+    this.priceTouched.set(false);
+    this.formSubmitted.set(false);
     // Clear error from store
     this.store.clearErrors();
   }
@@ -133,5 +174,17 @@ export class OrderTicketComponent {
   onDismissError(): void {
     // Clear error from store
     this.store.clearErrors();
+  }
+
+  onSymbolBlur(): void {
+    this.symbolTouched.set(true);
+  }
+
+  onQuantityBlur(): void {
+    this.quantityTouched.set(true);
+  }
+
+  onPriceBlur(): void {
+    this.priceTouched.set(true);
   }
 }
