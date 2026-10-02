@@ -1,0 +1,456 @@
+openapi: 3.1.0
+
+info:
+  title: Transactions REST API
+  version: 1.0.0
+  summary: Deposit, withdrawal and transaction history for the Enterprise Trading Platform.
+  description: |
+    Binding contract for the Sprint 7 Event Backbone service. Implement it exactly. The Angular UI
+    generates its typed client from this file, so a field renamed here is a compile error there.
+
+    ## Identifiers
+
+    `accountId` means the numeric surrogate key `ACCOUNTS.id` everywhere in this contract: in the
+    path parameter and in the JWT `accountId` claim.
+
+    ## Transaction Types
+
+    Transactions capture all fund movements and trading activities:
+    - DEPOSIT: Cash deposit from external source
+    - WITHDRAW: Cash withdrawal to external destination
+    - FEE: Platform, exchange or trading fee
+    - BUY: Purchase of securities
+    - SELL: Sale of securities
+
+    ## Action Types
+
+    Each transaction has an action type indicating the cash flow:
+    - CREDIT: Cash increases (deposits, sales)
+    - DEBIT: Cash decreases (withdrawals, fees, purchases)
+
+    ## Authentication
+
+    Every `/api/v1/**` route requires a valid signed JWT in the `Authorization` header. A missing,
+    malformed, expired or wrongly signed token is `AUTH-401`, 401. A valid token whose `accountId`
+    claim does not match the account being addressed is `ACC-403`, 403: a token proves who you are,
+    not what you may reach.
+
+  contact:
+    name: Enterprise Trading Platform, programme materials
+  license:
+    name: Instructional use only
+
+servers:
+  - url: http://localhost:8080
+    description: Local development, run from Docker Compose
+  - url: http://event-backbone:8080
+    description: Service name inside the Docker Compose network
+
+tags:
+  - name: Transactions
+    description: Deposits, withdrawals and transaction history.
+
+security:
+  - bearerAuth: []
+
+paths:
+  /api/v1/accounts/{accountId}/deposits:
+    post:
+      tags: [Transactions]
+      operationId: deposit
+      summary: Deposit funds into account
+      description: |
+        Records a deposit transaction and increases the cash balance. The transaction is
+        persisted to the database and published to the `transactions` Kafka topic.
+      parameters:
+        - $ref: '#/components/parameters/AccountIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionRequest'
+            examples:
+              example:
+                summary: Deposit $1000.00
+                value:
+                  amount: 1000.00
+      responses:
+        '201':
+          description: Deposit recorded successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+              examples:
+                success:
+                  value:
+                    transactionId: txn-550e8400-e29b-41d4-a716-446655440000
+                    accountId: 1
+                    transactionType: DEPOSIT
+                    actionType: CREDIT
+                    amount: 1000.00
+                    createdOn: '2026-10-02T14:30:00Z'
+        '400':
+          description: Invalid request. Amount must be positive.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidAmount:
+                  value:
+                    errorCode: VAL-422
+                    message: Amount must be greater than zero
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '403':
+          $ref: '#/components/responses/AccountNotActive'
+        '404':
+          description: Account not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                notFound:
+                  value:
+                    errorCode: ACC-404
+                    message: Account not found
+
+  /api/v1/accounts/{accountId}/withdrawals:
+    post:
+      tags: [Transactions]
+      operationId: withdraw
+      summary: Withdraw funds from account
+      description: |
+        Records a withdrawal transaction and decreases the cash balance. Validates that
+        sufficient funds are available. The transaction is persisted and published to the
+        `transactions` Kafka topic.
+      parameters:
+        - $ref: '#/components/parameters/AccountIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionRequest'
+            examples:
+              example:
+                summary: Withdraw $500.00
+                value:
+                  amount: 500.00
+      responses:
+        '201':
+          description: Withdrawal recorded successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+              examples:
+                success:
+                  value:
+                    transactionId: txn-550e8400-e29b-41d4-a716-446655440001
+                    accountId: 1
+                    transactionType: WITHDRAW
+                    actionType: DEBIT
+                    amount: 500.00
+                    createdOn: '2026-10-02T14:35:00Z'
+        '400':
+          description: Invalid request. Amount must be positive and available funds insufficient.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidAmount:
+                  value:
+                    errorCode: VAL-422
+                    message: Amount must be greater than zero
+                insufficientFunds:
+                  value:
+                    errorCode: ACC-400
+                    message: Insufficient funds for withdrawal
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '403':
+          $ref: '#/components/responses/AccountNotActive'
+        '404':
+          description: Account not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                notFound:
+                  value:
+                    errorCode: ACC-404
+                    message: Account not found
+
+  /api/v1/accounts/{accountId}/transactions/{transactionId}:
+    get:
+      tags: [Transactions]
+      operationId: getTransaction
+      summary: Get a single transaction
+      description: |
+        Retrieves a specific transaction by its ID. The transaction must belong to the
+        authenticated account.
+      parameters:
+        - $ref: '#/components/parameters/AccountIdPath'
+        - name: transactionId
+          in: path
+          required: true
+          description: The transaction UUID, without any display prefix.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Transaction details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionHistoryEntry'
+              examples:
+                success:
+                  value:
+                    transactionId: txn-550e8400-e29b-41d4-a716-446655440000
+                    transactionType: DEPOSIT
+                    actionType: CREDIT
+                    amount: 1000.00
+                    createdOn: '2026-10-02T14:30:00Z'
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '403':
+          $ref: '#/components/responses/AccountNotActive'
+        '404':
+          description: Account or transaction not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                notFound:
+                  value:
+                    errorCode: TXN-404
+                    message: Transaction not found
+
+  /api/v1/accounts/{accountId}/transactions:
+    get:
+      tags: [Transactions]
+      operationId: getTransactionHistory
+      summary: Get transaction history
+      description: |
+        Retrieves transaction history for the account with optional filtering by type and date range.
+        Results are sorted by creation time in descending order (most recent first).
+      parameters:
+        - $ref: '#/components/parameters/AccountIdPath'
+        - name: type
+          in: query
+          required: false
+          description: Filter by transaction type
+          schema:
+            type: string
+            enum: [DEPOSIT, WITHDRAW, FEE, BUY, SELL]
+        - name: from
+          in: query
+          required: false
+          description: Filter transactions from this ISO 8601 date (inclusive)
+          schema:
+            type: string
+            format: date-time
+            example: '2026-10-01T00:00:00Z'
+        - name: to
+          in: query
+          required: false
+          description: Filter transactions until this ISO 8601 date (inclusive)
+          schema:
+            type: string
+            format: date-time
+            example: '2026-10-02T23:59:59Z'
+      responses:
+        '200':
+          description: List of transactions, sorted by creation time descending.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TransactionHistoryEntry'
+              examples:
+                success:
+                  value:
+                    - transactionId: txn-550e8400-e29b-41d4-a716-446655440001
+                      transactionType: WITHDRAW
+                      actionType: DEBIT
+                      amount: 500.00
+                      createdOn: '2026-10-02T14:35:00Z'
+                    - transactionId: txn-550e8400-e29b-41d4-a716-446655440000
+                      transactionType: DEPOSIT
+                      actionType: CREDIT
+                      amount: 1000.00
+                      createdOn: '2026-10-02T14:30:00Z'
+                empty:
+                  value: []
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '403':
+          $ref: '#/components/responses/AccountNotActive'
+        '404':
+          description: Account not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                notFound:
+                  value:
+                    errorCode: ACC-404
+                    message: Account not found
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    AccountIdPath:
+      name: accountId
+      in: path
+      required: true
+      description: The numeric surrogate key for the account (from JWT claim)
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+
+  schemas:
+    TransactionRequest:
+      type: object
+      required: [amount]
+      properties:
+        amount:
+          type: number
+          format: double
+          minimum: 0.01
+          description: Amount in USD. Must be greater than zero.
+          example: 1000.00
+
+    TransactionResponse:
+      type: object
+      required: [transactionId, accountId, transactionType, actionType, amount, createdOn]
+      properties:
+        transactionId:
+          type: string
+          format: uuid
+          description: Unique transaction identifier
+          example: txn-550e8400-e29b-41d4-a716-446655440000
+        accountId:
+          type: integer
+          format: int64
+          description: Account numeric surrogate key
+          example: 1
+        orderId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Order ID if this transaction is linked to a trade (optional, for BUY/SELL)
+          example: ord-550e8400-e29b-41d4-a716-446655440000
+        transactionType:
+          type: string
+          enum: [DEPOSIT, WITHDRAW, FEE, BUY, SELL]
+          description: Type of transaction
+          example: DEPOSIT
+        actionType:
+          type: string
+          enum: [DEBIT, CREDIT]
+          description: Direction of cash flow
+          example: CREDIT
+        amount:
+          type: number
+          format: double
+          description: Amount in USD
+          example: 1000.00
+        createdOn:
+          type: string
+          format: date-time
+          description: Transaction timestamp in ISO 8601 format
+          example: '2026-10-02T14:30:00Z'
+
+    TransactionHistoryEntry:
+      type: object
+      required: [transactionId, transactionType, actionType, amount, createdOn]
+      properties:
+        transactionId:
+          type: string
+          format: uuid
+          description: Unique transaction identifier
+          example: txn-550e8400-e29b-41d4-a716-446655440000
+        transactionType:
+          type: string
+          enum: [DEPOSIT, WITHDRAW, FEE, BUY, SELL]
+          description: Type of transaction
+          example: DEPOSIT
+        actionType:
+          type: string
+          enum: [DEBIT, CREDIT]
+          description: Direction of cash flow
+          example: CREDIT
+        amount:
+          type: number
+          format: double
+          description: Amount in USD
+          example: 1000.00
+        createdOn:
+          type: string
+          format: date-time
+          description: Transaction timestamp in ISO 8601 format
+          example: '2026-10-02T14:30:00Z'
+
+    ErrorResponse:
+      type: object
+      required: [errorCode, message]
+      properties:
+        errorCode:
+          type: string
+          description: Machine-readable error code
+          example: ACC-404
+        message:
+          type: string
+          description: Human-readable error message
+          example: Account not found
+
+  responses:
+    Unauthorised:
+      description: Missing, malformed, expired or incorrectly signed JWT token.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            missing:
+              value:
+                errorCode: AUTH-401
+                message: Unauthorized
+            expired:
+              value:
+                errorCode: AUTH-401
+                message: Token expired
+
+    AccountNotActive:
+      description: Account exists but is not in ACTIVE status, or token account does not match.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            inactive:
+              value:
+                errorCode: ACC-403
+                message: Account is not active
+            mismatch:
+              value:
+                errorCode: ACC-403
+                message: Account access denied

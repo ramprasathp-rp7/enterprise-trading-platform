@@ -49,6 +49,18 @@ export class SidebarComponent {
       description: 'View all orders'
     },
     {
+      label: 'Transactions',
+      route: '/transactions',
+      icon: 'fas fa-money-bill-transfer',
+      description: 'Deposit & withdraw'
+    },
+    {
+      label: 'Transaction History',
+      route: '/transaction-history',
+      icon: 'fas fa-clock-rotate-left',
+      description: 'View all transactions'
+    },
+    {
       label: 'Positions',
       route: '/positions',
       icon: 'fas fa-layer-group',
