@@ -1,0 +1,90 @@
+<div class="transaction-actions-container">
+  <div class="welcome-section">
+    <div class="welcome-content">
+      <h1 class="welcome-title">Transactions</h1>
+      <p class="welcome-subtitle">Create deposits and withdrawals</p>
+    </div>
+  </div>
+
+  <div class="transaction-shell">
+    @if (error()) {
+      <div class="alert alert-error">
+        <div class="alert-content">
+          <i class="fas fa-exclamation-circle"></i>
+          <div>
+            <strong>{{ error()?.errorCode }}</strong>
+            <p>{{ error()?.message }}</p>
+          </div>
+        </div>
+        <button class="alert-close" (click)="dismissError()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    }
+
+    @if (showSuccess()) {
+      <div class="alert alert-success success-toast" role="status" aria-live="polite">
+        <div class="alert-content">
+          <span class="success-icon-wrap">
+            <i class="fas fa-circle-check"></i>
+          </span>
+          <div>
+            <strong>Transaction Completed</strong>
+            <p>{{ getSuccessMessage() }}</p>
+          </div>
+        </div>
+      </div>
+    }
+
+    <div class="actions-grid compact-actions">
+      <div class="action-card compact-card unified-card">
+        <div class="card-header compact-header unified-header">
+          <i class="fas fa-arrows-rotate card-icon compact-icon"></i>
+          <div>
+            <h3>{{ getTransactionTitle() }}</h3>
+            <p>{{ getTransactionDescription() }}</p>
+          </div>
+        </div>
+
+        <div class="form-group compact-form-group">
+          <label for="transaction-type">Transaction Type</label>
+          <select
+            id="transaction-type"
+            class="form-input compact-input"
+            [value]="transactionType()"
+            (change)="onTransactionTypeChange($any($event.target).value)"
+            [disabled]="loading()"
+          >
+            <option value="deposit">Credit (Deposit)</option>
+            <option value="withdraw">Debit (Withdraw)</option>
+          </select>
+        </div>
+
+        <div class="form-group compact-form-group">
+          <label for="transaction-amount">Amount (USD)</label>
+          <input
+            id="transaction-amount"
+            type="number"
+            [ngModel]="amount()"
+            (ngModelChange)="amount.set($event)"
+            placeholder="0.00"
+            min="0.01"
+            step="0.01"
+            class="form-input compact-input"
+            [disabled]="loading()"
+          />
+        </div>
+
+        <div class="form-actions compact-actions-row unified-actions-row">
+          <button
+            class="btn-primary compact-btn"
+            (click)="onSubmit()"
+            [disabled]="!amount() || amount()! <= 0 || loading()"
+          >
+            <i class="fas fa-check"></i> {{ getActionLabel() }} Funds
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

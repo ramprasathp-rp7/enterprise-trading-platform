@@ -68,6 +68,24 @@ export const routes: Routes = [
           ),
         data: { title: 'Account' },
       },
+      {
+        path: 'transactions',
+        canActivateChild: [canActivateChildGuard],
+        loadComponent: () =>
+          import('./features/transactions/pages/transaction-actions/transaction-actions.component').then(
+            (m) => m.TransactionActionsComponent
+          ),
+        data: { title: 'Transactions' },
+      },
+      {
+        path: 'transaction-history',
+        canActivateChild: [canActivateChildGuard],
+        loadComponent: () =>
+          import('./features/transactions/pages/transactions/transactions.component').then(
+            (m) => m.TransactionsComponent
+          ),
+        data: { title: 'Transaction History' },
+      },
     ],
   },
   
