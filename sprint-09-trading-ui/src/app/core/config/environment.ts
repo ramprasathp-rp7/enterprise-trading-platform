@@ -1,40 +1,25 @@
 /**
- * Application configuration
+ * Development environment configuration
  * 
- * Environment-specific settings:
- * - API base URLs (auth-service, trade-api)
- * - JWT settings (secret, algorithm, lifetime)
- * - Feature flags
- * - Logging levels
- * 
- * For environment-specific overrides, use Angular's ng build --configuration option
- * with environment files (e.g., environment.production.ts)
+ * This is the default configuration used during `ng serve` and `npm start`.
+ * For production builds, Angular replaces this entire file with environment.production.ts
  */
 
+import { baseEnvironment } from './environment.base';
+
 export const environment = {
+  ...baseEnvironment,
+  
   /**
-   * Auth Service base URL
-   * Default: http://localhost:3000
-   * Can be overridden in environment-specific files
+   * Development Auth Service URL
+   * Points to local Auth Service instance
    */
   AUTH_SERVICE_URL: 'http://localhost:3000',
-
+  
   /**
-    * Trading backend base URL
-    * Event-backbone serves the `/api/v1/*` trade endpoints in local development.
-    * Default: http://localhost:8080
-   * Can be overridden in environment-specific files
+   * Development Trade API URL
+   * Event-backbone serves the `/api/v1/*` trade endpoints in local development.
+   * Points to local Trade API instance
    */
-    TRADE_API_URL: 'http://localhost:8080',
-
-  /**
-   * Application name and version
-   */
-  APP_NAME: 'Trading UI',
-  APP_VERSION: '1.0.0',
-
-  /**
-   * Feature flags
-   */
-  ENABLE_ANALYTICS: true,
-};
+  TRADE_API_URL: 'http://localhost:8080',
+} as const;
