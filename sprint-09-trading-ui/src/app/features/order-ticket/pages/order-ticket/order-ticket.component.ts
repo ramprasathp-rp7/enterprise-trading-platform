@@ -141,14 +141,17 @@ export class OrderTicketComponent implements OnDestroy {
       const error = this.processedError();
       const result = this.submissionResult();
 
-      if (!error && !result) {
+      if (error) {
         this.clearDismissTimer();
         return;
       }
 
-      const nextKey = error
-        ? `error:${error.code ?? ''}:${error.message ?? ''}`
-        : `success:${result?.orderId ?? ''}:${result?.status ?? ''}:${result?.message ?? ''}`;
+      if (!result) {
+        this.clearDismissTimer();
+        return;
+      }
+
+      const nextKey = `success:${result?.orderId ?? ''}:${result?.status ?? ''}:${result?.message ?? ''}`;
 
       if (this.dismissTimer && this.dismissMessageKey === nextKey) {
         return;
@@ -158,7 +161,6 @@ export class OrderTicketComponent implements OnDestroy {
       this.dismissMessageKey = nextKey;
 
       this.dismissTimer = setTimeout(() => {
-        this.store.clearErrors();
         this.store.clearSubmissionResult();
         this.dismissTimer = null;
         this.dismissMessageKey = null;

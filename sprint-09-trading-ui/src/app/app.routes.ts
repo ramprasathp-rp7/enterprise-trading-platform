@@ -56,8 +56,8 @@ export const routes: Routes = [
         path: 'positions',
         canActivateChild: [canActivateChildGuard],
         loadComponent: () =>
-          import('./features/blotter/pages/blotter/blotter.component').then(
-            (m) => m.BlotterComponent
+          import('./features/positions/pages/positions/positions.component').then(
+            (m) => m.PositionsComponent
           ),
         data: { title: 'Positions' },
       },

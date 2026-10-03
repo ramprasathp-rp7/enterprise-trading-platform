@@ -65,12 +65,6 @@ export class SidebarComponent {
       route: '/positions',
       icon: 'fas fa-layer-group',
       description: 'Active positions'
-    },
-    {
-      label: 'Account',
-      route: '/account',
-      icon: 'fas fa-user-circle',
-      description: 'Profile & settings'
     }
   ];
 

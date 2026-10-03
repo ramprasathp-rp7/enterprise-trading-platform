@@ -281,7 +281,6 @@
   text-align: center;
 }
 
-.activity-table th.col-quantity,
 .activity-table th.col-price {
   text-align: right;
 }
@@ -306,16 +305,16 @@
 }
 
 .activity-table .symbol {
-  font-weight: 600;
+  font-weight: 500;
   font-family: inherit;
 }
 
 .symbol-badge {
-  background: #f0f4f8;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-weight: 600;
-  font-size: 12px;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  font-weight: 500;
+  font-size: inherit;
 }
 
 .activity-table .side {
@@ -339,7 +338,10 @@
   text-align: center;
 }
 
-.cell-quantity,
+.cell-quantity {
+  text-align: center;
+}
+
 .cell-price {
   text-align: right;
 }
@@ -353,7 +355,7 @@
 }
 
 .activity-table .qty {
-  text-align: right;
+  text-align: center;
   font-weight: 700;
   font-family: 'Courier New', monospace;
   font-size: 13px;

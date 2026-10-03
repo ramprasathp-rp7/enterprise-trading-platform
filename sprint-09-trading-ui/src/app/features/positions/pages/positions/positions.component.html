@@ -1,0 +1,72 @@
+<div class="positions-container">
+  <div class="welcome-section">
+    <h1 class="welcome-title">Positions</h1>
+    <p class="welcome-subtitle">Current holdings by instrument</p>
+  </div>
+
+  @if (error()) {
+    <div class="alert alert-error">
+      <strong>Unable to load positions</strong>
+      <p>{{ error() }}</p>
+    </div>
+  }
+
+  <section class="history-section">
+    <div class="section-header">
+      <h2 class="section-title">Positions</h2>
+    </div>
+
+    <div class="table-wrapper">
+      <table class="transactions-table">
+        <colgroup>
+          <col class="col-symbol" />
+          <col class="col-quantity" />
+          <col class="col-cost" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th class="col-symbol">Symbol</th>
+            <th class="col-quantity">Quantity</th>
+            <th class="col-cost">Average Cost</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (loading()) {
+            <tr>
+              <td colspan="3">
+                <div class="loading-state">
+                  <div class="spinner"></div>
+                  <p>Loading positions...</p>
+                </div>
+              </td>
+            </tr>
+          } @else if (positions().length === 0) {
+            <tr>
+              <td colspan="3">
+                <div class="empty-state">
+                  <i class="fas fa-inbox"></i>
+                  <p>No active positions</p>
+                  <small>Fill orders to create holdings</small>
+                </div>
+              </td>
+            </tr>
+          } @else {
+            @for (position of positions(); track position.symbol) {
+              <tr class="transaction-row">
+                <td class="cell-symbol symbol-cell">{{ position.symbol }}</td>
+                <td class="cell-quantity amount">{{ formatNumber(position.quantity, 0) }}</td>
+                <td class="cell-cost amount">{{ formatNumber(position.averageCost, 2) }}</td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+    <div class="summary-footer">
+      <div class="summary-stat">
+        <span class="stat-label">Total Positions:</span>
+        <span class="stat-value">{{ positions().length }}</span>
+      </div>
+    </div>
+  </section>
+</div>
