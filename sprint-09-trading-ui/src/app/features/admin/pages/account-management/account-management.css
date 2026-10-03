@@ -427,6 +427,11 @@
   text-align: center;
 }
 
+.orders-table .cell-status {
+  overflow: visible;
+  text-overflow: clip;
+}
+
 .orders-table .cell-quantity,
 .orders-table .cell-price,
 .orders-table .cell-executed,
