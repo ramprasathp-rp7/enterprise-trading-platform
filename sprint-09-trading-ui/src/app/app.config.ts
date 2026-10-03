@@ -1,6 +1,7 @@
 import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient, HTTP_INTERCEPTORS, withInterceptorsFromDi } from '@angular/common/http';
+import { provideCharts, withDefaultRegisterables } from 'ng2-charts';
 import { routes } from './app.routes';
 import { AuthInterceptor } from './core/auth/auth.interceptor';
 import { CoreAuthService } from './core/auth/core-auth.service';
@@ -14,6 +15,7 @@ export const appConfig: ApplicationConfig = {
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
     provideHttpClient(withInterceptorsFromDi()),
+    provideCharts(withDefaultRegisterables()), 
     provideAuthApi(environment.AUTH_SERVICE_URL),
     provideTradeApi(environment.TRADE_API_URL),
     {

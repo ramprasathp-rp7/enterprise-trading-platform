@@ -219,6 +219,42 @@ export class CoreAuthService {
     }
   }
 
+  /**
+   * Get the primary role of the current user
+   */
+  getUserRole(): string | null {
+    const user = this.currentUser();
+    if (!user || !user.roles || user.roles.length === 0) {
+      return null;
+    }
+    return user.roles[0];
+  }
+
+  /**
+   * Check if current user has a specific role
+   */
+  hasRole(role: string): boolean {
+    const user = this.currentUser();
+    if (!user || !user.roles) {
+      return false;
+    }
+    return user.roles.includes(role);
+  }
+
+  /**
+   * Check if current user is an admin
+   */
+  isAdmin(): boolean {
+    return this.hasRole('ADMIN');
+  }
+
+  /**
+   * Get dashboard route based on user role
+   */
+  getDashboardRoute(): string {
+    return this.isAdmin() ? '/admin/analytics' : '/dashboard';
+  }
+
   private resolveUsernameFromClaims(claims: JWTClaims): string | null {
     const rawUsername = (claims as any).username;
     const preferredUsername = (claims as any).preferred_username;
