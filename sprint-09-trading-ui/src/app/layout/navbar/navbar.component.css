@@ -281,18 +281,16 @@
   border: none;
   text-align: left;
   cursor: pointer;
-  font-size: 13px;
-  color: #0f172a;
-  font-family: 'Manrope', 'Segoe UI', sans-serif;
+  font-size: 10px;
+  color: #000000;
+  font-family: inherit;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   transition: background-color 0.2s;
   display: flex;
   align-items: center;
   gap: 12px;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.75);
-}
-
-.profile-menu-item:last-child {
   border-bottom: none;
 }
 

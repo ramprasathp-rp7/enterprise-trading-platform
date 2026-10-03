@@ -20,7 +20,7 @@ import { CommonModule } from '@angular/common';
 export class FooterComponent {
   currentYear = new Date().getFullYear();
   version = '1.0.0';
-  systemStatus = 'Operational';
+  systemStatus = 'LIVE';
 
   footerLinks = [
     { label: 'Documentation', href: '#' },
