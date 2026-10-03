@@ -35,6 +35,10 @@
 
   <!-- Positions allocation bar inserted under Portfolio Overview cards -->
   <div class="metrics-allocation">
+    <div class="section-title-bar">
+      <h2 class="section-title">Your Portfolio Holdings</h2>
+      <a routerLink="/positions" class="section-link">→ View all</a>
+    </div>
     <app-positions-overview [accountId]="authService.currentUser()?.accountId"></app-positions-overview>
   </div>
 

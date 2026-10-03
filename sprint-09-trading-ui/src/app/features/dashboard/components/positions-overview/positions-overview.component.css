@@ -41,3 +41,25 @@
 .alloc-status { font-size: 13px; color: var(--color-text-secondary); padding-top:8px }
 .alloc-status .error { color: #dc2626 }
 .hover-label { font-size: 13px; color: var(--color-text-primary); padding-top:6px; font-weight:600 }
+
+/* Holdings detail layout */
+.section-header { display:flex; justify-content:space-between; align-items:center; gap:12px }
+.section-header .section-title { margin:0 }
+.section-header .view-all { color: var(--color-primary); text-decoration:none; font-weight:700 }
+
+.holdings-detail { display:flex; gap:18px; margin-top:14px; align-items:stretch }
+.holdings-detail-wrapper { margin-bottom: 22px; }
+.top-card { flex: 0 0 360px; background: var(--color-surface); border-radius: 10px; padding: 14px; box-shadow: var(--shadow-sm); border:1px solid var(--color-border); display:flex; align-items:center }
+.top-card-inner { width:100% }
+.top-symbol { font-size: 20px; font-weight:700; color: var(--color-text-primary); margin-bottom:8px }
+.top-metrics { display:flex; gap:10px; align-items:center }
+.top-metrics .metric { display:flex; flex-direction:column }
+.top-metrics .label { font-size:12px; color:var(--color-text-secondary) }
+.top-metrics .value { font-size:16px; font-weight:700; color:var(--color-text-primary) }
+
+.mini-table { flex:1; background: transparent }
+.mini-table table { width:100%; border-collapse: collapse; background: var(--color-surface); border-radius:8px; overflow:hidden; border:1px solid var(--color-border); box-shadow: var(--shadow-xs) }
+.mini-table th, .mini-table td { padding:12px 14px; text-align:left; border-bottom:1px solid rgba(226,232,240,0.7); font-size:13px }
+.mini-table thead th { background: transparent; font-weight:700 }
+.mini-table tbody tr { transition: background 120ms ease }
+.mini-table tbody tr:hover { background: rgba(15,23,42,0.03) }

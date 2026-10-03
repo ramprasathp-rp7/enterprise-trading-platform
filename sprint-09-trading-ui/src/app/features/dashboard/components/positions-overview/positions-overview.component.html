@@ -24,3 +24,43 @@
   </div>
 </div>
 
+<!-- Holdings detail area: top holding card (left) + compact table (right) -->
+<div class="holdings-detail-wrapper">
+  <div class="holdings-detail">
+    <div class="top-card" *ngIf="topHolding() as top">
+      <div class="top-card-inner">
+        <div class="top-symbol">{{ top.symbol }}</div>
+        <div class="top-metrics">
+          <div class="metric">
+            <div class="label">Quantity</div>
+            <div class="value">{{ top.quantity }}</div>
+          </div>
+          <div class="metric">
+            <div class="label">Avg Cost</div>
+            <div class="value">{{ formatAmount(top.averageCost,2) }}</div>
+          </div>
+          <div class="metric">
+            <div class="label">Notional</div>
+            <div class="value">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mini-table">
+      <table>
+        <thead>
+          <tr><th>Symbol</th><th>Qty</th><th>Avg Cost</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let p of tableHoldings() | slice:0:4">
+            <td>{{ p.symbol }}</td>
+            <td>{{ p.quantity }}</td>
+            <td>{{ formatAmount(p.averageCost,2) }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+

@@ -70,6 +70,7 @@
 
 .metrics-allocation {
   padding: 8px 36px 0 36px; /* align with metrics-section padding */
+  margin-bottom: 18px; /* space between holdings and next section */
 }
 
 .metrics-section {

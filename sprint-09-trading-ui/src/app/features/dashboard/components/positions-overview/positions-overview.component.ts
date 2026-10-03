@@ -1,5 +1,6 @@
 import { Component, OnInit, inject, signal, computed, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
 import { AccountsService, PositionResponse } from '../../../../api/generated/trade';
 
 interface AllocationSegment {
@@ -16,7 +17,7 @@ interface AllocationSegment {
 @Component({
   selector: 'app-positions-overview',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterModule],
   templateUrl: './positions-overview.component.html',
   styleUrls: ['./positions-overview.component.css']
 })
@@ -65,6 +66,40 @@ export class PositionsOverviewComponent implements OnInit {
   readonly totalQuantity = computed(() => this.positions().reduce((s,p) => s + (p.quantity || 0), 0));
   // Hover label state
   hoverLabel: string | null = null;
+
+  // Top holding (most quantity) and rest list
+  readonly topHolding = computed(() => {
+    const pos = this.positions();
+    if (!pos || pos.length === 0) return null as PositionResponse | null;
+    return [...pos].sort((a,b) => (b.quantity || 0) - (a.quantity || 0))[0];
+  });
+
+  readonly otherHoldings = computed(() => {
+    const pos = this.positions();
+    if (!pos || pos.length <= 1) return [] as PositionResponse[];
+    return [...pos].sort((a,b) => (b.quantity || 0) - (a.quantity || 0)).slice(1);
+  });
+
+  // Combined array for table (top holding first)
+  readonly tableHoldings = computed(() => {
+    const top = this.topHolding();
+    const others = this.otherHoldings();
+    if (!top) return others;
+    return [top, ...others];
+  });
+
+  readonly topFour = computed(() => {
+    const pos = this.positions();
+    if (!pos || pos.length === 0) return [] as PositionResponse[];
+    return [...pos].sort((a,b) => (b.quantity || 0) - (a.quantity || 0)).slice(0,4);
+  });
+
+  // Convenience: tableRows limited to 4 for compact display
+  readonly tableRows = computed(() => this.tableHoldings().slice(0,4));
+
+  formatAmount(value: number, digits: number = 2): string {
+    return new Intl.NumberFormat('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(value);
+  }
 
   ngOnInit(): void {
     const idFromWindow = (window as any)['__CURRENT_ACCOUNT_ID__'] || null;
