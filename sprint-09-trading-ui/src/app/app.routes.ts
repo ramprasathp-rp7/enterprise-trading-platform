@@ -2,12 +2,14 @@ import { Routes } from '@angular/router';
 import { ShellComponent } from './layout/shell/shell.component';
 import { LoginComponent } from './features/sign-in/pages/login/login.component';
 import { authGuard, canActivateChildGuard } from './core/auth/auth.guard';
+import { unauthenticatedGuard } from './core/auth/unauthenticated.guard';
 
 export const routes: Routes = [
   // Sign-in route (public, no auth required)
   {
     path: 'sign-in',
     component: LoginComponent,
+    canActivate: [unauthenticatedGuard],
     data: { title: 'Sign In' },
   },
   

@@ -3,15 +3,20 @@ package com.tradingplatform.api.services;
 import com.tradingplatform.api.mappers.AccountMapper;
 import com.tradingplatform.api.mappers.OrderMapper;
 import com.tradingplatform.api.mappers.PositionMapper;
+import com.tradingplatform.api.mappers.TransactionMapper;
 import com.tradingplatform.domain.enums.OrderSide;
 import com.tradingplatform.domain.enums.OrderStatus;
+import com.tradingplatform.domain.enums.TransactionAction;
+import com.tradingplatform.domain.enums.TransactionType;
 import com.tradingplatform.domain.exception.OptimisticLockException;
 import com.tradingplatform.domain.model.Account;
 import com.tradingplatform.domain.model.Order;
 import com.tradingplatform.domain.model.Position;
+import com.tradingplatform.domain.model.Transaction;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -21,11 +26,16 @@ public class OrderSettlementService {
     private final AccountMapper accountMapper;
     private final PositionMapper positionMapper;
     private final OrderMapper orderMapper;
+    private final TransactionMapper transactionMapper;
 
-    public OrderSettlementService(AccountMapper accountMapper, PositionMapper positionMapper, OrderMapper orderMapper) {
+    public OrderSettlementService(AccountMapper accountMapper,
+                                  PositionMapper positionMapper,
+                                  OrderMapper orderMapper,
+                                  TransactionMapper transactionMapper) {
         this.accountMapper = accountMapper;
         this.positionMapper = positionMapper;
         this.orderMapper = orderMapper;
+        this.transactionMapper = transactionMapper;
     }
 
     public void settle(Order order, BigDecimal executedPrice) {
@@ -91,6 +101,23 @@ public class OrderSettlementService {
                 throw new OptimisticLockException("Position", order.getAccountId() + ":" + order.getInstrumentId());
             }
         }
+
+        TransactionType transactionType = order.getSide() == OrderSide.BUY
+            ? TransactionType.BUY
+            : TransactionType.SELL;
+        TransactionAction transactionAction = order.getSide() == OrderSide.BUY
+            ? TransactionAction.DEBIT
+            : TransactionAction.CREDIT;
+        Transaction settlementTransaction = new Transaction(
+            UUID.randomUUID(),
+            order.getAccountId(),
+            order.getId(),
+            transactionType,
+            transactionAction,
+            notional,
+            Instant.now()
+        );
+        transactionMapper.insertTransaction(settlementTransaction);
 
         orderMapper.updateOrderStatus(order.getId(), OrderStatus.FILLED, executedPrice);
     }

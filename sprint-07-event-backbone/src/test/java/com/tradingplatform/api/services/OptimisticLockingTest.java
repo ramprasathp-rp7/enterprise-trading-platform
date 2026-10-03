@@ -3,6 +3,7 @@ package com.tradingplatform.api.services;
 import com.tradingplatform.api.mappers.AccountMapper;
 import com.tradingplatform.api.mappers.OrderMapper;
 import com.tradingplatform.api.mappers.PositionMapper;
+import com.tradingplatform.api.mappers.TransactionMapper;
 import com.tradingplatform.domain.enums.AccountStatus;
 import com.tradingplatform.domain.enums.OrderSide;
 import com.tradingplatform.domain.exception.OptimisticLockException;
@@ -40,12 +41,15 @@ class OptimisticLockingTest {
     @Mock
     private OrderMapper orderMapper;
 
+    @Mock
+    private TransactionMapper transactionMapper;
+
     private OrderSettlementService settlementService;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        settlementService = new OrderSettlementService(accountMapper, positionMapper, orderMapper);
+        settlementService = new OrderSettlementService(accountMapper, positionMapper, orderMapper, transactionMapper);
     }
 
     /**
@@ -81,6 +85,7 @@ class OptimisticLockingTest {
         // Assert: All three were updated (cash, position, order)
         verify(accountMapper, times(1)).updateAccount(any(Account.class), anyInt());
         verify(positionMapper, times(1)).updatePosition(any(Position.class), anyInt());
+        verify(transactionMapper, times(1)).insertTransaction(any());
         verify(orderMapper, times(1)).updateOrderStatus(any(), any(), any());
     }
 
@@ -131,6 +136,7 @@ class OptimisticLockingTest {
         // In real transaction: @Transactional would rollback both updates
         verify(accountMapper, times(1)).updateAccount(any(Account.class), anyInt());
         verify(positionMapper, times(1)).updatePosition(any(Position.class), anyInt());
+        verify(transactionMapper, never()).insertTransaction(any());
         // Note: orderMapper.updateOrderStatus is NOT called because position failed
         verify(orderMapper, never()).updateOrderStatus(any(), any(), any());
     }

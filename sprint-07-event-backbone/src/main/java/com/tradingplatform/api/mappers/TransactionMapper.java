@@ -112,4 +112,16 @@ public interface TransactionMapper {
             "ORDER BY created_on DESC")
     List<Transaction> findByAccountIdAndTransactionType(@Param("accountId") Long accountId,
                                                         @Param("transactionType") TransactionType transactionType);
+
+    /**
+     * Checks if a transaction already exists for a given order and transaction type.
+     * Used for idempotent processing of replayed ORDER_FILLED events.
+     *
+     * @param orderId the order ID
+     * @param transactionType the transaction type to check
+     * @return true if matching transaction exists, false otherwise
+     */
+    @Select("SELECT COUNT(1) > 0 FROM transactions WHERE order_id = #{orderId} AND transaction_type = #{transactionType}")
+    boolean existsByOrderIdAndTransactionType(@Param("orderId") UUID orderId,
+                                              @Param("transactionType") TransactionType transactionType);
 }

@@ -7,12 +7,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.lang.reflect.Method;
 import java.time.Instant;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
 /**
  * Unit tests for TransactionMapper.
@@ -178,5 +181,21 @@ class TransactionMapperTest {
             assertNotNull(action);
             assertNotNull(action.name());
         }
+    }
+
+    /**
+     * Verify mapper exposes idempotency helper used by ORDER_FILLED consumer.
+     */
+    @Test
+    void mapperDeclaresExistsByOrderIdAndTransactionType() throws Exception {
+        Method method = TransactionMapper.class.getMethod(
+            "existsByOrderIdAndTransactionType",
+            UUID.class,
+            TransactionType.class
+        );
+
+        assertNotNull(method);
+        assertSame(boolean.class, method.getReturnType());
+        assertArrayEquals(new Class<?>[] { UUID.class, TransactionType.class }, method.getParameterTypes());
     }
 }

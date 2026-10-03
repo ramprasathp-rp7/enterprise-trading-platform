@@ -64,7 +64,7 @@
                 {{ trade.type }}
               </td>
               <td class="qty">{{ trade.quantity | number }}</td>
-              <td class="price">${{ trade.price | number:'1.2-2' }}</td>
+              <td class="price">{{ trade.price | number:'1.2-2' }}</td>
               <td class="time">{{ trade.time }}</td>
               <td>
                 <span class="status" [class]="'status-' + trade.status.toLowerCase()">

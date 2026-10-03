@@ -14,84 +14,87 @@ import { OrderStatus } from '../../../../api/generated/trade';
   imports: [CommonModule, FormsModule],
   templateUrl: './order-filters.component.html',
   styles: [`
-    .filters-container {
-      background-color: #ffffff;
-      border: 1px solid #e5e7eb;
-      border-radius: 6px;
-      padding: 16px;
-      margin-bottom: 16px;
-      width: 100%;
-      box-sizing: border-box;
-      box-shadow: 0 1px 2px rgba(16,24,40,0.03);
-    }
-
-    .filters-header {
+    .history-controls {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      margin-bottom: 12px;
-    }
-
-    h3 {
-      margin: 0;
-      font-size: 0.95rem;
-      color: #333;
-      font-weight: 600;
-    }
-
-    .clear-button {
-      background-color: #e9ecef;
-      border: 1px solid #dee2e6;
-      border-radius: 4px;
-      padding: 6px 12px;
-      font-size: 0.75rem;
-      cursor: pointer;
-      transition: background-color 0.2s ease;
-      color: #495057;
-      font-weight: 500;
-    }
-
-    .clear-button:hover {
-      background-color: #dee2e6;
+      gap: 12px;
+      flex-wrap: nowrap;
+      overflow-x: auto;
     }
 
     .filter-group {
       display: flex;
-      flex-direction: column;
-      gap: 6px;
-      margin-bottom: 12px;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: nowrap;
+    }
+
+    .id-search-group {
+      gap: 8px;
     }
 
     label {
-      font-size: 0.85rem;
-      font-weight: 500;
-      color: #495057;
+      font-size: 13px;
+      font-weight: 600;
+      color: #64748b;
+      white-space: nowrap;
     }
 
-    .filter-input {
-      padding: 10px 12px;
-      border: 1px solid #e5e7eb;
+    .filter-select {
+      padding: 8px 12px;
+      border: 1px solid #e2e8f0;
       border-radius: 6px;
-      font-size: 0.9rem;
-      font-family: inherit;
-      transition: border-color 0.15s ease, box-shadow 0.15s ease;
-      background: #ffffff;
+      font-size: 13px;
       color: #0f172a;
+      background: white;
+      cursor: pointer;
+      transition: all 0.2s;
     }
 
-    .filter-input:focus {
+    .filter-select:hover {
+      border-color: #cbd5e1;
+    }
+
+    .filter-select:focus {
       outline: none;
-      border-color: #0066cc;
-      box-shadow: 0 0 4px rgba(0, 102, 204, 0.2);
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
     }
 
-    .filter-info {
-      padding: 8px;
-      background-color: #e8f4f8;
-      border-left: 3px solid #0066cc;
-      border-radius: 2px;
-      font-size: 0.8rem;
-      color: #004f99;
+    .id-search-input {
+      min-width: 280px;
+      width: 320px;
+      padding: 8px 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 13px;
+      color: #0f172a;
+      background: #ffffff;
+    }
+
+    .id-search-input::placeholder {
+      color: #94a3b8;
+    }
+
+    .id-search-input:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+
+    .clear-search-btn {
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
+      color: #334155;
+      border-radius: 6px;
+      padding: 7px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .clear-search-btn:hover {
+      background: #f1f5f9;
     }
   `],
 })

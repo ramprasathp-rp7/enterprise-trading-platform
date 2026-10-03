@@ -144,6 +144,39 @@ public class FeeDeductionService {
             String assetType = instrument.getAssetClass().name();
             AssetFeeStructure feeStructure = assetFeeMapper.findByAssetType(assetType);
             BigDecimal actualFee = (feeStructure != null) ? feeStructure.calculateFee(actualNotional) : BigDecimal.ZERO;
+
+            // Step 7.1: Record BUY/SELL settlement transaction if missing.
+            // This is required when settlement is performed by order-executor service.
+            TransactionType settlementType = order.getSide().name().equals("BUY")
+                ? TransactionType.BUY
+                : TransactionType.SELL;
+            TransactionAction settlementAction = settlementType == TransactionType.BUY
+                ? TransactionAction.DEBIT
+                : TransactionAction.CREDIT;
+            if (!transactionMapper.existsByOrderIdAndTransactionType(orderUuid, settlementType)) {
+                Transaction settlementTransaction = new Transaction(
+                    UUID.randomUUID(),
+                    order.getAccountId(),
+                    orderUuid,
+                    settlementType,
+                    settlementAction,
+                    actualNotional,
+                    payload.executedOn() != null ? payload.executedOn() : Instant.now()
+                );
+                transactionMapper.insertTransaction(settlementTransaction);
+                logger.info("Settlement transaction recorded: orderId={}, accountId={}, type={}, amount={}",
+                    orderIdStr, order.getAccountId(), settlementType, actualNotional);
+            }
+
+            // If fee transaction already exists, this ORDER_FILLED event was already processed.
+            // Skip fee debit to avoid charging fees twice on event replay.
+            if (transactionMapper.existsByOrderIdAndTransactionType(orderUuid, TransactionType.FEE)) {
+                logger.info("Fee transaction already exists, skipping duplicate fee deduction: orderId={}", orderIdStr);
+                if (ack != null) {
+                    ack.acknowledge();
+                }
+                return;
+            }
             
             logger.debug("Fee recalculation: orderId={}, originalFee={}, actualFee={}, executed={}", 
                 orderIdStr, originalFee, actualFee, executedPrice);
@@ -197,7 +230,6 @@ public class FeeDeductionService {
                 Instant.now()
             );
             transactionMapper.insertTransaction(feeTransaction);
-            
             logger.info("Fee deducted successfully: orderId={}, accountId={}, actualFee={}, originalFee={}, transactionId={}", 
                 orderIdStr, order.getAccountId(), actualFee, originalFee, transactionId);
 

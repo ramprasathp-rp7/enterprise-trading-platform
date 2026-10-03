@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { OrderSide } from '../../../../api/generated/trade';
@@ -8,18 +8,19 @@ import {
   isValidTradeableSymbol,
   isValidWholeQuantity,
 } from '../../order-ticket.models';
-import { ErrorAlertComponent } from '../../../../core/errors/error-alert.component';
 import { ProcessedError } from '../../../../core/errors/error-response-handler';
 
 @Component({
   selector: 'app-order-ticket',
   standalone: true,
-  imports: [CommonModule, FormsModule, ErrorAlertComponent],
+  imports: [CommonModule, FormsModule],
   templateUrl: './order-ticket.component.html',
   styleUrls: ['./order-ticket.component.css']
 })
-export class OrderTicketComponent {
+export class OrderTicketComponent implements OnDestroy {
   private store = inject(OrderTicketStore);
+  private dismissTimer: ReturnType<typeof setTimeout> | null = null;
+  private dismissMessageKey: string | null = null;
 
   readonly symbol = signal<string>('');
   readonly side = signal<OrderSide>(OrderSide.Buy);
@@ -134,6 +135,36 @@ export class OrderTicketComponent {
     } as ProcessedError;
   });
 
+  constructor() {
+    effect(() => {
+      const error = this.processedError();
+      const result = this.submissionResult();
+
+      if (!error && !result) {
+        this.clearDismissTimer();
+        return;
+      }
+
+      const nextKey = error
+        ? `error:${error.code ?? ''}:${error.message ?? ''}`
+        : `success:${result?.orderId ?? ''}:${result?.status ?? ''}:${result?.message ?? ''}`;
+
+      if (this.dismissTimer && this.dismissMessageKey === nextKey) {
+        return;
+      }
+
+      this.clearDismissTimer();
+      this.dismissMessageKey = nextKey;
+
+      this.dismissTimer = setTimeout(() => {
+        this.store.clearErrors();
+        this.store.clearSubmissionResult();
+        this.dismissTimer = null;
+        this.dismissMessageKey = null;
+      }, 5000);
+    });
+  }
+
   async onSubmit(): Promise<void> {
     this.formSubmitted.set(true);
     this.symbolTouched.set(true);
@@ -150,6 +181,7 @@ export class OrderTicketComponent {
       quantity: Number(this.quantity().trim()),
       price: Number(this.price().trim()),
     });
+
   }
 
   /**
@@ -164,6 +196,7 @@ export class OrderTicketComponent {
     this.quantityTouched.set(false);
     this.priceTouched.set(false);
     this.formSubmitted.set(false);
+    this.clearDismissTimer();
     // Clear error from store
     this.store.clearErrors();
   }
@@ -172,8 +205,21 @@ export class OrderTicketComponent {
    * Handle dismiss: clear the error alert
    */
   onDismissError(): void {
+    this.clearDismissTimer();
     // Clear error from store
     this.store.clearErrors();
+  }
+
+  ngOnDestroy(): void {
+    this.clearDismissTimer();
+  }
+
+  private clearDismissTimer(): void {
+    if (this.dismissTimer) {
+      clearTimeout(this.dismissTimer);
+      this.dismissTimer = null;
+    }
+    this.dismissMessageKey = null;
   }
 
   onSymbolBlur(): void {

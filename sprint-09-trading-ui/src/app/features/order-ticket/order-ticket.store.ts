@@ -55,6 +55,13 @@ export class OrderTicketStore {
     this.errorMessageSignal.set(null);
   }
 
+  /**
+   * Clear successful submission result (used by UI auto-dismiss)
+   */
+  clearSubmissionResult(): void {
+    this.submissionResultSignal.set(null);
+  }
+
   submitOrder(input: OrderTicketSubmitInput): Promise<boolean> {
     const accountId = this.accountId();
     if (accountId === null) {

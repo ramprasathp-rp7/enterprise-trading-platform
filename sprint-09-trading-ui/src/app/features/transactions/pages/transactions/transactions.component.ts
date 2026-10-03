@@ -67,8 +67,8 @@ export class TransactionsComponent implements OnInit {
    */
   formatCurrency(amount: number): string {
     return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(amount);
   }
 

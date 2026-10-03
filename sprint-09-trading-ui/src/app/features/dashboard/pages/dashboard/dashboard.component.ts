@@ -52,24 +52,24 @@ export class DashboardComponent implements OnInit {
     return [
       {
         title: 'Total Portfolio Value',
-        value: this.formatCurrency(cashBalance || 0), // TODO: Add position values
+        value: this.formatAmount(cashBalance || 0), // TODO: Add position values
         change: 2.5,
         changeType: 'positive' as const,
         icon: 'fas fa-wallet'
       },
       {
         title: 'Today\'s Profit/Loss',
-        value: this.formatCurrency(12450), // TODO: Calculate from trades
+        value: this.formatAmount(12450), // TODO: Calculate from trades
         change: 1.2,
         changeType: 'positive' as const,
         icon: 'fas fa-chart-line'
       },
       {
         title: 'Available Cash',
-        value: this.formatCurrency(cashBalance || 0),
+        value: this.formatAmount(cashBalance || 0),
         change: 0,
         changeType: 'neutral' as const,
-        icon: 'fas fa-dollar-sign'
+        icon: 'fas fa-piggy-bank'
       }
     ];
   });
@@ -126,10 +126,10 @@ export class DashboardComponent implements OnInit {
     }
   }
 
-  private formatCurrency(value: number): string {
-    return '$' + value.toLocaleString('en-US', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
+  private formatAmount(value: number): string {
+    return value.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
     });
   }
 

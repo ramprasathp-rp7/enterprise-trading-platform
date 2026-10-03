@@ -3,6 +3,7 @@ package com.tradingplatform.api.services;
 import com.tradingplatform.api.mappers.AccountMapper;
 import com.tradingplatform.api.mappers.OrderMapper;
 import com.tradingplatform.api.mappers.PositionMapper;
+import com.tradingplatform.api.mappers.TransactionMapper;
 import com.tradingplatform.domain.enums.AccountStatus;
 import com.tradingplatform.domain.enums.OrderSide;
 import com.tradingplatform.domain.enums.OrderStatus;
@@ -40,12 +41,15 @@ class OrderSettlementWithFeeTest {
     @Mock
     private OrderMapper orderMapper;
 
+    @Mock
+    private TransactionMapper transactionMapper;
+
     private OrderSettlementService settlementService;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        settlementService = new OrderSettlementService(accountMapper, positionMapper, orderMapper);
+        settlementService = new OrderSettlementService(accountMapper, positionMapper, orderMapper, transactionMapper);
     }
 
     /**
@@ -87,6 +91,8 @@ class OrderSettlementWithFeeTest {
         BigDecimal expectedCashAfter = initialBalance.subtract(new BigDecimal("10000.00"));
         assertEquals(expectedCashAfter, account.getCashBalance(),
             "Cash should be debited by notional ($10,000) only");
+
+        verify(transactionMapper, times(1)).insertTransaction(any());
 
         // Verify status is FILLED
         assertEquals(OrderStatus.FILLED, buyOrder.getStatus(),
@@ -133,6 +139,8 @@ class OrderSettlementWithFeeTest {
         assertEquals(expectedCashAfter, account.getCashBalance(),
             "Cash should be credited by notional ($5,000) only");
 
+        verify(transactionMapper, times(1)).insertTransaction(any());
+
         // Verify status is FILLED
         assertEquals(OrderStatus.FILLED, sellOrder.getStatus(),
             "Order should be FILLED");
@@ -174,6 +182,7 @@ class OrderSettlementWithFeeTest {
             eq(OrderStatus.FILLED),
             eq(new BigDecimal("50.00"))
         );
+        verify(transactionMapper, times(1)).insertTransaction(any());
     }
 
     /**

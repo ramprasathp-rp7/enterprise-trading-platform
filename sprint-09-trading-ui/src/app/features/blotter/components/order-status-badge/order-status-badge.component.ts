@@ -23,40 +23,47 @@ import { OrderStatus } from '../../../../api/generated/trade';
   `,
   styles: [`
     .status-badge {
-      display: inline-block;
-      padding: 4px 12px;
-      border-radius: 12px;
-      font-size: 0.875rem;
-      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
       white-space: nowrap;
+      overflow: visible;
+      text-overflow: clip;
+      max-width: none;
     }
 
     /* NEW - Blue (working state) */
     .status-new {
-      background-color: #d1ecf1;
-      color: #0c5460;
-      border: 1px solid #bee5eb;
+      background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+      color: #1d4ed8;
+      border: 1px solid rgba(37, 99, 235, 0.2);
     }
 
     /* FILLED - Green */
     .status-filled {
-      background-color: #d4edda;
-      color: #155724;
-      border: 1px solid #c3e6cb;
+      background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+      color: #065f46;
+      border: 1px solid rgba(5, 150, 105, 0.2);
     }
 
     /* REJECTED - Red (uses pattern to avoid color-blind issues) */
     .status-rejected {
-      background-color: #f8d7da;
-      color: #721c24;
-      border: 1px solid #f5c6cb;
+      background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+      color: #991b1b;
+      border: 1px solid rgba(220, 38, 38, 0.2);
     }
 
     /* CANCELLED - Gray */
     .status-cancelled {
-      background-color: #e2e3e5;
-      color: #383d41;
-      border: 1px solid #d6d8db;
+      background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+      color: #334155;
+      border: 1px solid rgba(100, 116, 139, 0.22);
     }
   `],
 })

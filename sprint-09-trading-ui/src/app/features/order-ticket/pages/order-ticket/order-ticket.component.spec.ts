@@ -15,6 +15,7 @@ describe('OrderTicketComponent', () => {
     errorCode: ReturnType<typeof signal<string | null>>;
     errorMessage: ReturnType<typeof signal<string | null>>;
     clearErrors: ReturnType<typeof vi.fn>;
+    clearSubmissionResult: ReturnType<typeof vi.fn>;
     submitOrder: ReturnType<typeof vi.fn>;
   };
 
@@ -26,6 +27,7 @@ describe('OrderTicketComponent', () => {
       errorCode: signal(null),
       errorMessage: signal(null),
       clearErrors: vi.fn(),
+      clearSubmissionResult: vi.fn(),
       submitOrder: vi.fn().mockResolvedValue(true),
     };
 
@@ -86,7 +88,7 @@ describe('OrderTicketComponent', () => {
     });
     fixture.detectChanges();
 
-    const result = fixture.nativeElement.querySelector('[data-testid="order-result"]');
+    const result = fixture.nativeElement.querySelector('[data-testid="order-result-message"]');
     expect(result).toBeTruthy();
     expect(result.textContent).toContain('NEW');
     expect(result.textContent).toContain('Order accepted and queued.');
