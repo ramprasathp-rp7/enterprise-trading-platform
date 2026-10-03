@@ -33,6 +33,11 @@
     </div>
   </div>
 
+  <!-- Positions allocation bar inserted under Portfolio Overview cards -->
+  <div class="metrics-allocation">
+    <app-positions-overview [accountId]="authService.currentUser()?.accountId"></app-positions-overview>
+  </div>
+
   <!-- Recent Activity Section -->
   <div class="activity-section">
     <div class="section-title-bar">

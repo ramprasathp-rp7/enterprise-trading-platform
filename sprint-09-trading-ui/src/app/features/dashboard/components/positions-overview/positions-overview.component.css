@@ -1,1 +1,43 @@
 /* Positions overview styles */
+.allocation-bar-wrapper {
+	display: block;
+	padding: 6px 0 12px 0;
+	max-width: 100%; /* allow bar to span full available width */
+	margin: 0; /* align with parent padding */
+	box-sizing: border-box;
+}
+
+.allocation-bar {
+	flex: 1 1 auto;
+	height: 34px; /* a bit larger for visibility */
+	display: flex;
+	border-radius: 8px;
+	overflow: hidden;
+	box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+	border: 1px solid rgba(15,23,42,0.06);
+	width: 100%;
+}
+
+.allocation-bar .segment {
+  height: 100%;
+  cursor: pointer;
+  transition: transform 120ms ease, filter 120ms ease;
+  min-width: 6px; /* keep tiny segments visible */
+}
+
+.allocation-bar .segment { border-right: 1px solid rgba(255,255,255,0.06) }
+
+.allocation-bar .segment:hover {
+	transform: scaleY(1.06);
+	filter: brightness(1.05);
+}
+
+.allocation-bar .segment.empty { opacity: 0.6 }
+
+.allocation-legend .legend-toggle { display:none }
+
+.holdings-list { display:none }
+
+.alloc-status { font-size: 13px; color: var(--color-text-secondary); padding-top:8px }
+.alloc-status .error { color: #dc2626 }
+.hover-label { font-size: 13px; color: var(--color-text-primary); padding-top:6px; font-weight:600 }

@@ -68,6 +68,10 @@
   padding: 0 36px;
 }
 
+.metrics-allocation {
+  padding: 8px 36px 0 36px; /* align with metrics-section padding */
+}
+
 .metrics-section {
   padding-bottom: 24px;
 }
