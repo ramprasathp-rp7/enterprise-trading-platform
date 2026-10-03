@@ -7,6 +7,7 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * Mapper interface for AssetFeeStructure persistence.
@@ -34,4 +35,17 @@ public interface AssetFeeMapper {
     })
     @Select("SELECT asset_type, flat_fee, percentage_fee FROM assets WHERE asset_type = #{assetType}")
     AssetFeeStructure findByAssetType(@Param("assetType") String assetType);
+
+    /**
+     * Finds all AssetFeeStructures.
+     *
+     * @return List of all AssetFeeStructures ordered by asset type
+     */
+    @ConstructorArgs({
+        @Arg(column = "asset_type", javaType = String.class),
+        @Arg(column = "flat_fee", javaType = BigDecimal.class),
+        @Arg(column = "percentage_fee", javaType = BigDecimal.class)
+    })
+    @Select("SELECT asset_type, flat_fee, percentage_fee FROM assets ORDER BY asset_type ASC")
+    List<AssetFeeStructure> findAll();
 }
