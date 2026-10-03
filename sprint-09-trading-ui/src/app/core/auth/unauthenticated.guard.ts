@@ -13,8 +13,8 @@ export const unauthenticatedGuard: CanActivateFn = () => {
   const router = inject(Router);
 
   if (authService.isAuthenticated()) {
-    // User is already logged in, redirect to dashboard
-    router.navigate(['/dashboard']);
+    // User is already logged in, redirect to role-appropriate dashboard
+    router.navigateByUrl(authService.getDashboardRoute());
     return false;
   }
 

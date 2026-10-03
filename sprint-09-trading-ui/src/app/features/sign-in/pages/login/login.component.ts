@@ -59,7 +59,12 @@ export class LoginComponent {
       
       // Check for explicit returnUrl first
       const returnUrl = this.route.snapshot.queryParams['returnUrl'];
-      if (returnUrl && this.isSafeUrl(returnUrl)) {
+      const shouldUseReturnUrl =
+        returnUrl &&
+        this.isSafeUrl(returnUrl) &&
+        !(this.authService.isAdmin() && this.isCustomerDashboardReturnUrl(returnUrl));
+
+      if (shouldUseReturnUrl) {
         this.router.navigateByUrl(returnUrl);
       } else {
         // Otherwise use role-based dashboard route
@@ -117,6 +122,10 @@ export class LoginComponent {
     } catch {
       return false;
     }
+  }
+
+  private isCustomerDashboardReturnUrl(candidate: string): boolean {
+    return candidate === '/dashboard' || candidate.startsWith('/dashboard?') || candidate.startsWith('/dashboard#');
   }
 }
 
