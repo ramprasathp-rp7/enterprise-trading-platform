@@ -101,7 +101,7 @@ export class DashboardComponent implements OnInit {
         type: order.side as 'BUY' | 'SELL',
         quantity: order.quantity,
         price: order.price,
-        time: this.formatTime(new Date(order.createdOn)),
+        time: this.formatDateTime(order.createdOn),
         status: this.mapOrderStatus(order.status) as 'EXECUTED' | 'PENDING' | 'CANCELLED'
       }));
   });
@@ -144,11 +144,48 @@ export class DashboardComponent implements OnInit {
     });
   }
 
-  private formatTime(date: Date): string {
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const seconds = String(date.getSeconds()).padStart(2, '0');
-    return `${hours}:${minutes}:${seconds}`;
+  private formatDateTime(value: string | number | null | undefined): string {
+    if (value === null || value === undefined) {
+      return '';
+    }
+
+    const raw = String(value).trim();
+    if (!raw) {
+      return '';
+    }
+
+    const numericPattern = /^-?\d+(\.\d+)?$/;
+    if (numericPattern.test(raw)) {
+      const numericValue = Number(raw);
+      if (Number.isFinite(numericValue)) {
+        const epochMs = Math.abs(numericValue) < 1e12 ? numericValue * 1000 : numericValue;
+        const epochDate = new Date(epochMs);
+        if (!Number.isNaN(epochDate.getTime())) {
+          return epochDate.toLocaleString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+          });
+        }
+      }
+    }
+
+    const parsedDate = new Date(raw);
+    if (!Number.isNaN(parsedDate.getTime())) {
+      return parsedDate.toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      });
+    }
+
+    return raw;
   }
 
   private mapOrderStatus(status: string): string {

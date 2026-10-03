@@ -106,6 +106,15 @@
 	padding-left: 4px;
 }
 
+.top-eyebrow {
+	margin: 0 0 6px 0;
+	font-size: 11px;
+	font-weight: 700;
+	color: #64748b;
+	text-transform: uppercase;
+	letter-spacing: 0.3px;
+}
+
 .top-symbol {
 	margin: 0 0 10px 0;
 	font-size: 20px;
@@ -143,6 +152,7 @@
 .top-metrics .value {
 	font-size: 15px;
 	font-weight: 700;
+	font-family: 'Courier New', monospace;
 	color: #0f172a;
 }
 
@@ -185,17 +195,34 @@
 }
 
 .mini-table thead th:nth-child(2),
-.mini-table thead th:nth-child(3),
-.mini-table tbody td:nth-child(2),
-.mini-table tbody td:nth-child(3) {
+.mini-table tbody td:nth-child(2) {
 	text-align: center;
 	font-size: 13px;
 	color: #1e293b;
 }
 
+.mini-table thead th:nth-child(3),
+.mini-table tbody td:nth-child(3) {
+	text-align: right;
+	font-size: 13px;
+	color: #1e293b;
+}
+
+.mini-table tbody td:nth-child(2),
+.mini-table tbody td:nth-child(3) {
+	font-family: 'Courier New', monospace;
+	font-weight: 700;
+}
+
 .mini-table thead th:nth-child(1),
 .mini-table tbody td:nth-child(1) {
 	text-align: left;
+}
+
+.col-right-center {
+	display: inline-block;
+	min-width: 90px;
+	text-align: center;
 }
 
 .mini-table tbody tr {

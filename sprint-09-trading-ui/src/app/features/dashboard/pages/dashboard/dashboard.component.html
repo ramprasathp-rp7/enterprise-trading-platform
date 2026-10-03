@@ -86,7 +86,7 @@
               </td>
               <td class="cell-quantity qty">{{ trade.quantity | number }}</td>
               <td class="cell-price price">{{ trade.price | number:'1.2-2' }}</td>
-              <td class="cell-time time">{{ trade.time }}</td>
+              <td class="cell-time"><span class="time-value">{{ trade.time }}</span></td>
               <td class="cell-status">
                 <span class="status" [class]="'status-' + trade.status.toLowerCase()">
                   <i class="fas" [class]="getStatusIcon(trade.status)"></i>

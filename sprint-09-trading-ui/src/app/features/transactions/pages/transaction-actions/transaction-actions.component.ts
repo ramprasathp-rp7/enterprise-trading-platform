@@ -128,13 +128,48 @@ export class TransactionActionsComponent implements OnDestroy {
     return amount !== undefined ? this.formatAmount(amount) : 'N/A';
   }
 
-  getCreatedOnLabel(value: string | null | undefined): string {
-    if (!value) {
+  getCreatedOnLabel(value: string | number | null | undefined): string {
+    if (value === null || value === undefined) {
       return 'N/A';
     }
 
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+    const raw = String(value).trim();
+    if (!raw) {
+      return 'N/A';
+    }
+
+    const numericPattern = /^-?\d+(\.\d+)?$/;
+    if (numericPattern.test(raw)) {
+      const numericValue = Number(raw);
+      if (Number.isFinite(numericValue)) {
+        const epochMs = Math.abs(numericValue) < 1e12 ? numericValue * 1000 : numericValue;
+        const epochDate = new Date(epochMs);
+        if (!Number.isNaN(epochDate.getTime())) {
+          return epochDate.toLocaleString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+          });
+        }
+      }
+    }
+
+    const parsedDate = new Date(raw);
+    if (!Number.isNaN(parsedDate.getTime())) {
+      return parsedDate.toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      });
+    }
+
+    return raw;
   }
 
   private formatAmount(value: number): string {

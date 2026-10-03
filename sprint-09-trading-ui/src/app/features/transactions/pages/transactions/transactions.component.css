@@ -534,6 +534,12 @@
   text-align: center;
 }
 
+.cell-datetime {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
 .action-badge {
   display: inline-flex;
   align-items: center;
@@ -558,18 +564,16 @@
   border: 1px solid rgba(220, 38, 38, 0.2);
 }
 
-.timestamp {
-  font-size: 13px;
-  color: #64748b;
-  font-family: 'Courier New', monospace;
-}
-
-.cell-ellipsis {
+.timestamp-value {
   display: inline-block;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  vertical-align: bottom;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(100, 116, 139, 0.08);
+  color: #475569;
+  font-size: 13px;
+  font-family: 'Courier New', monospace;
+  font-weight: 500;
+  white-space: normal;
 }
 
 .transaction-id code {
@@ -721,7 +725,7 @@
   }
 
   .type-badge,
-  .timestamp,
+  .timestamp-value,
   .transaction-id {
     font-size: 12px;
   }

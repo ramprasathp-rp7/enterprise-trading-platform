@@ -103,9 +103,38 @@ export class TransactionsComponent implements OnInit {
   /**
    * Format date for display
    */
-  formatDate(dateString: string): string {
-    try {
-      return new Date(dateString).toLocaleString('en-US', {
+  formatDate(dateString: string | number | null | undefined): string {
+    if (dateString === null || dateString === undefined) {
+      return '';
+    }
+
+    const raw = String(dateString).trim();
+    if (!raw) {
+      return '';
+    }
+
+    const numericPattern = /^-?\d+(\.\d+)?$/;
+    if (numericPattern.test(raw)) {
+      const numericValue = Number(raw);
+      if (Number.isFinite(numericValue)) {
+        const epochMs = Math.abs(numericValue) < 1e12 ? numericValue * 1000 : numericValue;
+        const epochDate = new Date(epochMs);
+        if (!Number.isNaN(epochDate.getTime())) {
+          return epochDate.toLocaleString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+          });
+        }
+      }
+    }
+
+    const parsedDate = new Date(raw);
+    if (!Number.isNaN(parsedDate.getTime())) {
+      return parsedDate.toLocaleString('en-US', {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
@@ -113,8 +142,8 @@ export class TransactionsComponent implements OnInit {
         minute: '2-digit',
         second: '2-digit',
       });
-    } catch {
-      return dateString;
     }
+
+    return raw;
   }
 }

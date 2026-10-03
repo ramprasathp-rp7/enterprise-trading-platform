@@ -29,6 +29,7 @@
   <div class="holdings-detail">
     <div class="top-card" *ngIf="topHolding() as top">
       <div class="top-card-inner">
+        <div class="top-eyebrow">Highest Holdings</div>
         <div class="top-symbol">{{ top.symbol }}</div>
         <div class="top-metrics">
           <div class="metric">
@@ -50,13 +51,13 @@
     <div class="mini-table">
       <table>
         <thead>
-          <tr><th>Symbol</th><th>Qty</th><th>Avg Cost</th></tr>
+          <tr><th>Symbol</th><th>Qty</th><th><span class="col-right-center">Avg Cost</span></th></tr>
         </thead>
         <tbody>
           <tr *ngFor="let p of tableHoldings() | slice:0:4">
             <td>{{ p.symbol }}</td>
             <td>{{ p.quantity }}</td>
-            <td>{{ formatAmount(p.averageCost,2) }}</td>
+            <td><span class="col-right-center">{{ formatAmount(p.averageCost,2) }}</span></td>
           </tr>
         </tbody>
       </table>
