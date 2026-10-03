@@ -55,7 +55,7 @@
               <tr class="transaction-row">
                 <td class="cell-symbol symbol-cell">{{ position.symbol }}</td>
                 <td class="cell-quantity amount">{{ formatNumber(position.quantity, 0) }}</td>
-                <td class="cell-cost amount">{{ formatNumber(position.averageCost, 2) }}</td>
+                <td class="cell-cost"><span class="amount">{{ formatNumber(position.averageCost, 2) }}</span></td>
               </tr>
             }
           }

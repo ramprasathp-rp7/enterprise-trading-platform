@@ -134,6 +134,10 @@
 
 .transactions-table th.col-quantity,
 .transactions-table th.col-cost {
+  text-align: center;
+}
+
+.transactions-table th.col-cost {
   text-align: right;
 }
 
@@ -175,13 +179,22 @@
 .amount {
   font-family: 'Courier New', monospace;
   font-weight: 700;
-  text-align: right;
   color: #1e293b;
 }
 
 .cell-quantity,
 .cell-cost {
   text-align: right;
+}
+
+.cell-quantity {
+  text-align: center;
+}
+
+.cell-cost .amount {
+  display: inline-block;
+  min-width: 110px;
+  text-align: center;
 }
 
 .loading-state {

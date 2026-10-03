@@ -461,7 +461,7 @@
 }
 
 .transactions-table th.col-amount {
-  text-align: right;
+  text-align: center;
 }
 
 .transactions-table th.col-action {
@@ -522,12 +522,12 @@
 .amount {
   font-family: 'Courier New', monospace;
   font-weight: 700;
-  text-align: right;
+  text-align: center;
   color: #1e293b;
 }
 
 .cell-amount {
-  text-align: right;
+  text-align: center;
 }
 
 .cell-action {
