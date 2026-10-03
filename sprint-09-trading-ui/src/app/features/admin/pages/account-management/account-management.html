@@ -1,0 +1,167 @@
+<div class="admin-page">
+  <!-- Header -->
+  <div class="page-header">
+    <h1>Account Management</h1>
+    <p class="subtitle">Search and view detailed account information</p>
+  </div>
+
+  <!-- Messages -->
+  <div *ngIf="successMessage()" class="alert alert-success">
+    <i class="fas fa-check-circle"></i> {{ successMessage() }}
+  </div>
+  <div *ngIf="errorMessage()" class="alert alert-error">
+    <i class="fas fa-exclamation-circle"></i> {{ errorMessage() }}
+  </div>
+
+  <!-- Search Section -->
+  <div class="search-section">
+    <div class="search-controls">
+      <input
+        type="number"
+        placeholder="Account ID (numeric)"
+        [(ngModel)]="searchAccountId"
+        (keyup.enter)="lookupAccount()"
+        class="search-input"
+        [disabled]="loading()"
+      />
+      <button (click)="lookupAccount()" class="btn btn-primary" [disabled]="loading()">
+        <i class="fas fa-search"></i> Look up
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading()" class="loading-container">
+    <i class="fas fa-spinner fa-spin"></i>
+    <p>Loading account details...</p>
+  </div>
+
+  <!-- Account Details Card -->
+  <div *ngIf="!loading() && accountDetails()" class="account-card">
+    <div class="card-header">
+      <div class="account-title">
+        <span class="account-id">{{ accountDetails()!.accountId }}</span>
+        <span class="account-name">{{ accountDetails()!.holderName }}</span>
+        <span class="status-badge" [class]="'status-' + accountDetails()!.status.toLowerCase()">
+          ● {{ accountDetails()!.status }}
+        </span>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="info-row">
+        <div class="info-item">
+          <label>Internal ID</label>
+          <span>{{ accountDetails()!.id }}</span>
+        </div>
+        <div class="info-item">
+          <label>Cash Balance</label>
+          <span class="balance">{{ formatCurrency(accountDetails()!.cashBalance) }}</span>
+        </div>
+      </div>
+      <div class="info-row">
+        <div class="info-item">
+          <label>Last Updated</label>
+          <span>{{ formatDate(accountDetails()!.lastUpdated) }}</span>
+        </div>
+        <div class="info-item">
+          <label>Version</label>
+          <span>{{ accountDetails()!.version }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs Section -->
+  <div *ngIf="!loading() && accountDetails()" class="tabs-section">
+    <div class="tabs-header">
+      <button
+        (click)="setActiveTab('positions')"
+        [class.active]="activeTab() === 'positions'"
+        class="tab-button"
+      >
+        Positions
+      </button>
+      <button
+        (click)="setActiveTab('orders')"
+        [class.active]="activeTab() === 'orders'"
+        class="tab-button"
+      >
+        Orders
+      </button>
+    </div>
+
+    <!-- Positions Tab -->
+    <div *ngIf="activeTab() === 'positions'" class="tab-content">
+      <div *ngIf="positions().length > 0; else noPositions" class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Symbol</th>
+              <th>Quantity</th>
+              <th>Average Cost</th>
+              <th>Total Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let pos of positions()">
+              <td class="symbol">{{ pos.symbol }}</td>
+              <td>{{ pos.quantity }}</td>
+              <td>{{ formatCurrency(pos.averageCost) }}</td>
+              <td>{{ formatCurrency(pos.quantity * pos.averageCost) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <ng-template #noPositions>
+        <div class="empty-state">
+          <i class="fas fa-inbox"></i>
+          <p>No positions found</p>
+        </div>
+      </ng-template>
+    </div>
+
+    <!-- Orders Tab -->
+    <div *ngIf="activeTab() === 'orders'" class="tab-content">
+      <div *ngIf="orders().length > 0; else noOrders" class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Order ID</th>
+              <th>Symbol</th>
+              <th>Side</th>
+              <th>Quantity</th>
+              <th>Price</th>
+              <th>Executed Price</th>
+              <th>Status</th>
+              <th>Created</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let order of orders()">
+              <td class="order-id">{{ order.orderId }}</td>
+              <td class="symbol">{{ order.symbol }}</td>
+              <td [class]="'side-' + order.side.toLowerCase()">{{ order.side }}</td>
+              <td>{{ order.quantity }}</td>
+              <td>{{ formatCurrency(order.price) }}</td>
+              <td>{{ order.executedPrice ? formatCurrency(order.executedPrice) : '-' }}</td>
+              <td><span class="status-badge" [class]="'status-' + order.status.toLowerCase()">{{ order.status }}</span></td>
+              <td>{{ formatDate(order.createdOn) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <ng-template #noOrders>
+        <div class="empty-state">
+          <i class="fas fa-inbox"></i>
+          <p>No orders found</p>
+        </div>
+      </ng-template>
+    </div>
+  </div>
+
+  <!-- Initial State -->
+  <div *ngIf="!loading() && !accountDetails()" class="empty-state">
+    <i class="fas fa-search"></i>
+    <p>Enter an account ID to search</p>
+  </div>
+</div>
