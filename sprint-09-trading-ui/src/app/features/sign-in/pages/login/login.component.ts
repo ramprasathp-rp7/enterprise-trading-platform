@@ -6,6 +6,7 @@ import { SignInErrorMessageComponent } from '../../components/sign-in-error-mess
 import { SignInSuccessMessageComponent } from '../../components/sign-in-success-message/sign-in-success-message.component';
 import { SignInStore } from '../../sign-in.store';
 import { LoginCredentials } from '../../../../core/auth/auth.models';
+import { CoreAuthService } from '../../../../core/auth/core-auth.service';
 
 /**
  * Login Page Component
@@ -29,6 +30,7 @@ export class LoginComponent {
   private store = inject(SignInStore);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
+  private authService = inject(CoreAuthService);
   private readonly defaultReturnUrl = '/dashboard';
 
   // Track whether login was successful
@@ -55,8 +57,15 @@ export class LoginComponent {
       // Wait 1 second to let user see the success message
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      const returnUrl = this.getSafeReturnUrl(this.route.snapshot.queryParams['returnUrl']);
-      this.router.navigateByUrl(returnUrl);
+      // Check for explicit returnUrl first
+      const returnUrl = this.route.snapshot.queryParams['returnUrl'];
+      if (returnUrl && this.isSafeUrl(returnUrl)) {
+        this.router.navigateByUrl(returnUrl);
+      } else {
+        // Otherwise use role-based dashboard route
+        const dashboardRoute = this.authService.getDashboardRoute();
+        this.router.navigateByUrl(dashboardRoute);
+      }
     }
   }
 
@@ -86,6 +95,27 @@ export class LoginComponent {
       return `${parsed.pathname}${parsed.search}${parsed.hash}`;
     } catch {
       return this.defaultReturnUrl;
+    }
+  }
+
+  /**
+   * Check if a URL is safe to navigate to (same origin, absolute path)
+   */
+  private isSafeUrl(candidate: unknown): boolean {
+    if (
+      typeof candidate !== 'string' ||
+      candidate.length === 0 ||
+      !candidate.startsWith('/') ||
+      candidate.startsWith('//')
+    ) {
+      return false;
+    }
+
+    try {
+      const parsed = new URL(candidate, window.location.origin);
+      return parsed.origin === window.location.origin && parsed.pathname.startsWith('/');
+    } catch {
+      return false;
     }
   }
 }
