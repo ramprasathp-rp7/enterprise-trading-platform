@@ -234,7 +234,19 @@ export class AdminAnalyticsComponent {
     this.dateRange.set(range);
   }
 
+  onDateRangeSelectChange(range: string): void {
+    if (range === '7d' || range === '30d' || range === '90d') {
+      this.onDateRangeChange(range);
+    }
+  }
+
   onGroupByChange(group: 'DAY' | 'WEEK' | 'MONTH'): void {
     this.groupBy.set(group);
+  }
+
+  onGroupBySelectChange(group: string): void {
+    if (group === 'DAY' || group === 'WEEK' || group === 'MONTH') {
+      this.onGroupByChange(group);
+    }
   }
 }

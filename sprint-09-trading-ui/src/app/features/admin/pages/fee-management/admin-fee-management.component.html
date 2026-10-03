@@ -22,12 +22,18 @@
   <div *ngIf="!isLoading() && assetFees().length > 0" class="table-section">
     <div class="table-container">
       <table class="fee-table">
+        <colgroup>
+          <col class="col-asset" />
+          <col class="col-flat" />
+          <col class="col-percentage" />
+          <col class="col-component" />
+        </colgroup>
         <thead>
           <tr>
             <th>Asset Class</th>
-            <th>Flat Fee</th>
-            <th>Percentage Fee</th>
-            <th>Total Fee Component</th>
+            <th class="th-number th-flat">Flat Fee</th>
+            <th class="th-number th-percentage">Percentage Fee</th>
+            <th class="th-component">Total Fee Component</th>
           </tr>
         </thead>
         <tbody>
@@ -36,10 +42,10 @@
               <i [class]="getAssetIcon(fee.assetType)" class="asset-icon"></i>
               <span>{{ formatAssetClass(fee.assetType) }}</span>
             </td>
-            <td class="number">{{ formatCurrency(fee.flatFee) }}</td>
-            <td class="number">{{ (fee.percentageFee * 100).toFixed(4) }}%</td>
-            <td class="number description">
-              <small>Flat + (Volume × Percentage)</small>
+            <td class="number td-flat">{{ formatCurrency(fee.flatFee) }}</td>
+            <td class="number td-percentage">{{ (fee.percentageFee * 100).toFixed(4) }}%</td>
+            <td class="fee-component">
+              Flat + (Volume × Percentage)
             </td>
           </tr>
         </tbody>

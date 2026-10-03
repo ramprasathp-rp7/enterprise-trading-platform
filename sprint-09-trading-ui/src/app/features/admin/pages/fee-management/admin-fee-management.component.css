@@ -1,33 +1,52 @@
-/* Admin Fee Management Styles */
+/* Admin fee management aligned to customer transactions/order-ticket theme */
 
-.fee-management-container {
-  padding: 24px;
-  max-width: 1000px;
-  margin: 0 auto;
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 
-/* Header */
+.fee-management-container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  padding: 24px 36px;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(14, 165, 233, 0.11), transparent 45%),
+    radial-gradient(circle at 92% 92%, rgba(37, 99, 235, 0.08), transparent 40%),
+    linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+}
+
 .page-header {
-  margin-bottom: 24px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.65);
 }
 
 .page-header h1 {
-  font-size: 28px;
-  font-weight: 600;
-  color: var(--color-text-primary);
   margin: 0 0 8px 0;
+  font-size: 30px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.6px;
+  line-height: 1.2;
 }
 
 .subtitle {
-  color: var(--color-text-secondary);
   margin: 0;
+  font-size: 15px;
+  color: #64748b;
+  font-weight: 500;
 }
 
-/* Alerts */
 .alert {
-  padding: 12px 16px;
+  padding: 14px 16px;
   border-radius: 8px;
-  margin-bottom: 16px;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -35,79 +54,103 @@
 }
 
 .alert-error {
-  background-color: #f8d7da;
-  color: #721c24;
-  border-color: #f5c6cb;
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  color: #991b1b;
+  border-color: rgba(220, 38, 38, 0.2);
 }
 
-/* Loading */
-.loading-container {
-  text-align: center;
-  padding: 60px 24px;
-  color: var(--color-text-secondary);
-}
-
-.loading-container i {
-  font-size: 32px;
-  margin-bottom: 16px;
-  display: block;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-/* Table Section */
 .table-section {
-  background-color: var(--color-background-primary);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  overflow: hidden;
+  flex: 1;
+  min-height: 0;
 }
 
 .table-container {
-  overflow-x: auto;
+  background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 14px;
+  overflow: auto;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.08);
 }
 
 .fee-table {
   width: 100%;
+  min-width: 760px;
   border-collapse: collapse;
+  table-layout: fixed;
   font-size: 13px;
 }
 
+.fee-table col.col-asset {
+  width: 37%;
+}
+
+.fee-table col.col-flat {
+  width: 15%;
+}
+
+.fee-table col.col-percentage {
+  width: 18%;
+}
+
+.fee-table col.col-component {
+  width: 30%;
+}
+
 .fee-table thead {
-  background-color: var(--color-background-secondary);
-  border-bottom: 1px solid var(--color-border);
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-bottom: 2px solid rgba(226, 232, 240, 0.6);
 }
 
 .fee-table th {
-  padding: 12px 16px;
+  padding: 14px 18px;
   text-align: left;
-  font-weight: 600;
-  color: var(--color-text-primary);
-  font-size: 11px;
+  font-weight: 800;
+  color: #0f172a;
+  font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.45px;
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+  box-shadow: inset 0 -1px 0 rgba(203, 213, 225, 0.85);
 }
 
-.fee-table tbody tr {
-  border-bottom: 1px solid var(--color-border);
-  transition: background-color 0.2s;
+.fee-table th.th-number {
+  text-align: center;
 }
 
-.fee-table tbody tr:hover {
-  background-color: var(--color-background-secondary);
+.fee-table th.th-component {
+  text-align: center;
+  padding-right: 0;
 }
 
 .fee-table td {
-  padding: 14px 16px;
-  color: var(--color-text-primary);
+  padding: 14px 18px;
+  color: #0f172a;
+  vertical-align: middle;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fee-table tbody tr {
+  border-bottom: 1px solid rgba(226, 232, 240, 0.4);
+  transition: all 0.15s ease;
+}
+
+.fee-table tbody tr:hover {
+  background-color: rgba(37, 99, 235, 0.02);
+}
+
+.fee-table tbody tr:nth-child(even) {
+  background-color: rgba(241, 245, 249, 0.4);
+}
+
+.fee-table tbody tr:nth-child(even):hover {
+  background-color: rgba(37, 99, 235, 0.03);
 }
 
 .asset-type {
-  font-weight: 500;
+  font-weight: 600;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -115,198 +158,84 @@
 
 .asset-icon {
   font-size: 16px;
-  color: var(--color-primary-600);
+  color: #2563eb;
 }
 
 .number {
-  text-align: right;
+  text-align: center;
   font-family: 'Courier New', monospace;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.td-flat,
+.td-percentage,
+.th-flat,
+.th-percentage {
+  text-align: center;
 }
 
 .description {
-  font-size: 12px;
-  color: var(--color-text-secondary);
   text-align: center;
+  color: #64748b;
+  font-size: 12px;
 }
 
-/* Empty State */
+.fee-component {
+  text-align: center;
+  padding-right: 0;
+  font-family: inherit;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.loading-container,
 .empty-state {
-  text-align: center;
-  padding: 80px 24px;
-  color: var(--color-text-secondary);
-}
-
-.empty-state i {
-  font-size: 48px;
-  margin-bottom: 16px;
-  display: block;
-  opacity: 0.5;
-}
-
-.empty-state p {
-  margin: 0;
-  font-size: 14px;
-}
-
-.btn-primary {
-  background: #2563eb;
-  color: #ffffff;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: #1d4ed8;
-  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
-}
-
-.btn-secondary {
-  background: #e5e7eb;
-  color: #475569;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: #d1d5db;
-}
-
-.btn-sm {
-  padding: 6px 10px;
-  font-size: 11px;
-}
-
-.btn i {
-  font-size: 12px;
-}
-
-/* ===== LOADING STATE ===== */
-.loading-container {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 12px;
-  padding: 48px 24px;
-  color: #9ca3af;
+  padding: 60px 24px;
+  color: #64748b;
+  text-align: center;
 }
 
 .loading-container i {
   font-size: 32px;
+  color: #2563eb;
   animation: spin 1s linear infinite;
 }
 
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
-/* ===== EMPTY STATE ===== */
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 48px 24px;
-  color: #9ca3af;
-  text-align: center;
-}
-
 .empty-state i {
-  font-size: 32px;
+  font-size: 44px;
   color: #cbd5e1;
+  opacity: 0.8;
 }
 
-/* ===== INFO SECTION ===== */
-.info-section {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
-  padding: 24px 24px;
-  flex-shrink: 0;
-}
-
-@media (max-width: 768px) {
-  .info-section {
-    grid-template-columns: 1fr;
-  }
-}
-
-.info-card {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 16px;
-}
-
-.info-title {
-  margin: 0 0 12px 0;
-  font-size: 14px;
+.empty-state p {
+  margin: 0;
+  font-size: 15px;
   font-weight: 600;
   color: #0f172a;
 }
 
-.info-content {
-  font-size: 13px;
-  color: #475569;
-  line-height: 1.6;
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
-.info-content p {
-  margin: 8px 0;
-}
-
-.info-content ul {
-  margin: 0;
-  padding-left: 0;
-  list-style: none;
-}
-
-.info-content li {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 0;
-}
-
-.info-content li i {
-  color: #2563eb;
-  flex-shrink: 0;
-  width: 16px;
-  text-align: center;
-}
-
-.info-content strong {
-  color: #0f172a;
-}
-
-/* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
-  .welcome-title {
-    font-size: 24px;
+  .fee-management-container {
+    padding: 20px;
   }
 
-  .fee-table {
-    font-size: 12px;
+  .page-header h1 {
+    font-size: 26px;
   }
 
   .fee-table th,
   .fee-table td {
-    padding: 8px;
-  }
-
-  .asset-badge-row {
-    gap: 6px;
-  }
-
-  .actions {
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .btn {
-    width: 100%;
-    justify-content: center;
+    padding: 10px 12px;
   }
 }

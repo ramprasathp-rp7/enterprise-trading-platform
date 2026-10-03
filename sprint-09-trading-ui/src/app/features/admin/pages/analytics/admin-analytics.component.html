@@ -8,69 +8,28 @@
     </div>
   </div>
 
-  <!-- Controls Section -->
-  <div class="controls-section">
-    <div class="filter-group">
-      <div class="filter-item">
-        <label class="filter-label">Date Range</label>
-        <div class="button-group">
-          <button
-            class="filter-button"
-            [class.active]="dateRange() === '7d'"
-            (click)="onDateRangeChange('7d')"
-          >
-            7 Days
-          </button>
-          <button
-            class="filter-button"
-            [class.active]="dateRange() === '30d'"
-            (click)="onDateRangeChange('30d')"
-          >
-            30 Days
-          </button>
-          <button
-            class="filter-button"
-            [class.active]="dateRange() === '90d'"
-            (click)="onDateRangeChange('90d')"
-          >
-            90 Days
-          </button>
-        </div>
-      </div>
-
-      <div class="filter-item">
-        <label class="filter-label">Group By</label>
-        <div class="button-group">
-          <button
-            class="filter-button"
-            [class.active]="groupBy() === 'DAY'"
-            (click)="onGroupByChange('DAY')"
-          >
-            Daily
-          </button>
-          <button
-            class="filter-button"
-            [class.active]="groupBy() === 'WEEK'"
-            (click)="onGroupByChange('WEEK')"
-          >
-            Weekly
-          </button>
-          <button
-            class="filter-button"
-            [class.active]="groupBy() === 'MONTH'"
-            (click)="onGroupByChange('MONTH')"
-          >
-            Monthly
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- Key Metrics Section -->
   <div class="metrics-section">
     <div class="section-title-bar">
       <h2 class="section-title">Key Metrics</h2>
+      <div class="metrics-controls" aria-label="Analytics filters">
+        <label class="compact-filter">
+          <span>Date Range</span>
+          <select [ngModel]="dateRange()" (ngModelChange)="onDateRangeSelectChange($event)">
+            <option value="7d">7 Days</option>
+            <option value="30d">30 Days</option>
+            <option value="90d">90 Days</option>
+          </select>
+        </label>
+        <label class="compact-filter">
+          <span>Group By</span>
+          <select [ngModel]="groupBy()" (ngModelChange)="onGroupBySelectChange($event)">
+            <option value="DAY">Daily</option>
+            <option value="WEEK">Weekly</option>
+            <option value="MONTH">Monthly</option>
+          </select>
+        </label>
+      </div>
     </div>
     <div class="metrics-grid">
       <div class="metric-card">

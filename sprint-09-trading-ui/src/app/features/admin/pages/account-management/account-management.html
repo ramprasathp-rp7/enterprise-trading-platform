@@ -42,10 +42,10 @@
       <div class="account-title">
         <span class="account-id">{{ accountDetails()!.accountId }}</span>
         <span class="account-name">{{ accountDetails()!.holderName }}</span>
-        <span class="status-badge" [class]="'status-' + accountDetails()!.status.toLowerCase()">
-          ● {{ accountDetails()!.status }}
-        </span>
       </div>
+      <span class="account-status" [class]="'account-status status-' + accountDetails()!.status.toLowerCase()">
+        {{ accountDetails()!.status }}
+      </span>
     </div>
     <div class="card-body">
       <div class="info-row">
@@ -93,21 +93,27 @@
     <!-- Positions Tab -->
     <div *ngIf="activeTab() === 'positions'" class="tab-content">
       <div *ngIf="positions().length > 0; else noPositions" class="table-container">
-        <table class="data-table">
+        <table class="data-table positions-table">
+          <colgroup>
+            <col class="col-pos-symbol" />
+            <col class="col-pos-quantity" />
+            <col class="col-pos-avg-cost" />
+            <col class="col-pos-total-value" />
+          </colgroup>
           <thead>
             <tr>
-              <th>Symbol</th>
-              <th>Quantity</th>
-              <th>Average Cost</th>
-              <th>Total Value</th>
+              <th class="th-pos-symbol">Symbol</th>
+              <th class="th-pos-quantity">Quantity</th>
+              <th class="th-pos-avg-cost">Average Cost</th>
+              <th class="th-pos-total-value">Total Value</th>
             </tr>
           </thead>
           <tbody>
             <tr *ngFor="let pos of positions()">
-              <td class="symbol">{{ pos.symbol }}</td>
-              <td>{{ pos.quantity }}</td>
-              <td>{{ formatCurrency(pos.averageCost) }}</td>
-              <td>{{ formatCurrency(pos.quantity * pos.averageCost) }}</td>
+              <td class="symbol cell-pos-symbol">{{ pos.symbol }}</td>
+              <td class="cell-pos-quantity">{{ pos.quantity }}</td>
+              <td class="cell-pos-avg-cost">{{ formatAmount(pos.averageCost) }}</td>
+              <td class="cell-pos-total-value">{{ formatAmount(pos.quantity * pos.averageCost) }}</td>
             </tr>
           </tbody>
         </table>
@@ -123,29 +129,39 @@
     <!-- Orders Tab -->
     <div *ngIf="activeTab() === 'orders'" class="tab-content">
       <div *ngIf="orders().length > 0; else noOrders" class="table-container">
-        <table class="data-table">
+        <table class="data-table orders-table">
+          <colgroup>
+            <col class="col-order-id" />
+            <col class="col-symbol" />
+            <col class="col-side" />
+            <col class="col-quantity" />
+            <col class="col-price" />
+            <col class="col-executed" />
+            <col class="col-status" />
+            <col class="col-created" />
+          </colgroup>
           <thead>
             <tr>
-              <th>Order ID</th>
-              <th>Symbol</th>
-              <th>Side</th>
-              <th>Quantity</th>
-              <th>Price</th>
-              <th>Executed Price</th>
-              <th>Status</th>
-              <th>Created</th>
+              <th class="th-order-id">Order ID</th>
+              <th class="th-symbol">Symbol</th>
+              <th class="th-side">Side</th>
+              <th class="th-quantity">Quantity</th>
+              <th class="th-price">Price</th>
+              <th class="th-executed">Executed Price</th>
+              <th class="th-status">Status</th>
+              <th class="th-created">Created</th>
             </tr>
           </thead>
           <tbody>
             <tr *ngFor="let order of orders()">
-              <td class="order-id">{{ order.orderId }}</td>
-              <td class="symbol">{{ order.symbol }}</td>
-              <td [class]="'side-' + order.side.toLowerCase()">{{ order.side }}</td>
-              <td>{{ order.quantity }}</td>
-              <td>{{ formatCurrency(order.price) }}</td>
-              <td>{{ order.executedPrice ? formatCurrency(order.executedPrice) : '-' }}</td>
-              <td><span class="status-badge" [class]="'status-' + order.status.toLowerCase()">{{ order.status }}</span></td>
-              <td>{{ formatDate(order.createdOn) }}</td>
+              <td class="order-id cell-order-id" [title]="order.orderId"><code>{{ order.orderId }}</code></td>
+              <td class="symbol cell-symbol">{{ order.symbol }}</td>
+              <td class="cell-side" [class]="'side-' + order.side.toLowerCase()">{{ order.side }}</td>
+              <td class="cell-quantity">{{ order.quantity }}</td>
+              <td class="cell-price">{{ formatAmount(order.price) }}</td>
+              <td class="cell-executed">{{ order.executedPrice ? formatAmount(order.executedPrice) : '-' }}</td>
+              <td class="cell-status"><span class="status-badge order-status" [class]="'status-' + order.status.toLowerCase()">{{ order.status }}</span></td>
+              <td class="cell-created" [title]="formatDate(order.createdOn)"><span class="created-value">{{ formatDate(order.createdOn) }}</span></td>
             </tr>
           </tbody>
         </table>
