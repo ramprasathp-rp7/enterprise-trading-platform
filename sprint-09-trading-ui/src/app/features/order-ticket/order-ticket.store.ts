@@ -1,4 +1,6 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, computed, effect, signal } from '@angular/core';
+import { Subscription } from 'rxjs';
+import { AccountsService } from '../../api/generated/trade';
 import { CoreAuthService } from '../../core/auth/core-auth.service';
 import {
   normalizeOrderTicketError,
@@ -19,11 +21,15 @@ export class OrderTicketStore {
   private readonly submissionResultSignal = signal<OrderTicketResponse | null>(null);
   private readonly errorCodeSignal = signal<string | null>(null);
   private readonly errorMessageSignal = signal<string | null>(null);
+  private readonly accountDisplayIdSignal = signal<string | null>(null);
+  private accountLookupSubscription: Subscription | null = null;
+  private lastFetchedAccountId: number | null = null;
 
   isSubmitting = computed(() => this.isSubmittingSignal());
   submissionResult = computed(() => this.submissionResultSignal());
   errorCode = computed(() => this.errorCodeSignal());
   errorMessage = computed(() => this.errorMessageSignal());
+  accountDisplayId = computed(() => this.accountDisplayIdSignal());
   accountId = computed(() => {
     const currentUser = this.authService.currentUser();
     if (currentUser) {
@@ -44,8 +50,36 @@ export class OrderTicketStore {
 
   constructor(
     private orderTicketService: OrderTicketService,
-    private authService: CoreAuthService
-  ) {}
+    private authService: CoreAuthService,
+    private accountsService: AccountsService
+  ) {
+    effect(() => {
+      const accountId = this.accountId();
+
+      if (accountId === null) {
+        this.accountDisplayIdSignal.set(null);
+        this.lastFetchedAccountId = null;
+        this.accountLookupSubscription?.unsubscribe();
+        this.accountLookupSubscription = null;
+        return;
+      }
+
+      if (this.lastFetchedAccountId === accountId && this.accountDisplayIdSignal()) {
+        return;
+      }
+
+      this.lastFetchedAccountId = accountId;
+      this.accountLookupSubscription?.unsubscribe();
+      this.accountLookupSubscription = this.accountsService.getAccount(accountId).subscribe({
+        next: (account) => {
+          this.accountDisplayIdSignal.set(account.accountId || null);
+        },
+        error: () => {
+          this.accountDisplayIdSignal.set(null);
+        },
+      });
+    });
+  }
 
   /**
    * Clear error state (used when retrying or dismissing errors)

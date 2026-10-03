@@ -3,9 +3,11 @@
   
   <!-- Welcome Section -->
   <div class="welcome-section">
-    <div class="welcome-content">
-      <h1 class="welcome-title">Welcome back, {{ authService.currentUser()?.username || 'Trader' }}</h1>
-      <p class="welcome-subtitle">Trader • {{ currentDate | date: 'EEEE, MMMM d' }}</p>
+    <div class="welcome-row">
+      <div class="welcome-content">
+        <h1 class="welcome-title">Welcome back, {{ authService.currentUser()?.username || 'User' }}</h1>
+        <p class="welcome-subtitle">{{ accountDisplayId() || 'N/A' }} • {{ currentDate | date: 'EEEE, MMMM d' }}</p>
+      </div>
     </div>
   </div>
 
@@ -35,7 +37,7 @@
   <div class="activity-section">
     <div class="section-title-bar">
       <h2 class="section-title">Recent Trades</h2>
-      <a href="/blotter" class="section-link">
+      <a routerLink="/blotter" class="section-link">
         <i class="fas fa-arrow-right"></i> View all
       </a>
     </div>
@@ -43,30 +45,40 @@
     <!-- Activity Table -->
     <div class="table-container">
       <table class="activity-table">
+        <colgroup>
+          <col class="col-symbol" />
+          <col class="col-type" />
+          <col class="col-quantity" />
+          <col class="col-price" />
+          <col class="col-time" />
+          <col class="col-status" />
+        </colgroup>
         <thead>
           <tr>
-            <th>Symbol</th>
-            <th>Type</th>
-            <th>Quantity</th>
-            <th>Price</th>
-            <th>Time</th>
-            <th>Status</th>
+            <th class="col-symbol">Symbol</th>
+            <th class="col-type">Type</th>
+            <th class="col-quantity">Quantity</th>
+            <th class="col-price">Price</th>
+            <th class="col-time">Time</th>
+            <th class="col-status">Status</th>
           </tr>
         </thead>
         <tbody>
           @for (trade of recentTrades(); track trade.id) {
             <tr class="trade-row">
-              <td class="symbol">
+              <td class="cell-symbol symbol">
                 <span class="symbol-badge">{{ trade.symbol }}</span>
               </td>
-              <td class="side" [class]="'side-' + trade.type.toLowerCase()">
-                <i class="fas" [class]="trade.type === 'BUY' ? 'fa-arrow-up' : 'fa-arrow-down'"></i>
-                {{ trade.type }}
+              <td class="cell-type">
+                <span class="side" [class]="'side-' + trade.type.toLowerCase()">
+                  <i class="fas" [class]="trade.type === 'BUY' ? 'fa-arrow-up' : 'fa-arrow-down'"></i>
+                  {{ trade.type }}
+                </span>
               </td>
-              <td class="qty">{{ trade.quantity | number }}</td>
-              <td class="price">{{ trade.price | number:'1.2-2' }}</td>
-              <td class="time">{{ trade.time }}</td>
-              <td>
+              <td class="cell-quantity qty">{{ trade.quantity | number }}</td>
+              <td class="cell-price price">{{ trade.price | number:'1.2-2' }}</td>
+              <td class="cell-time time">{{ trade.time }}</td>
+              <td class="cell-status">
                 <span class="status" [class]="'status-' + trade.status.toLowerCase()">
                   <i class="fas" [class]="getStatusIcon(trade.status)"></i>
                   {{ trade.status }}

@@ -13,6 +13,7 @@ import { JWTClaims, JWT, AuthState } from './auth.models';
 export class CoreAuthService {
   private readonly ACCESS_TOKEN_KEY = 'access_token';
   private readonly REFRESH_TOKEN_KEY = 'refresh_token';
+  private readonly USERNAME_KEY = 'auth_username';
 
   // Signals for authentication state
   private readonly accessTokenSignal = signal<string | null>(this.loadAccessToken());
@@ -46,12 +47,8 @@ export class CoreAuthService {
     if (accessToken) {
       try {
         const claims = this.decodeJWT(accessToken);
-        // Extract user info from JWT claims
-        // Try to get username from: username, email prefix, or name field
-        const username = (claims as any).username || 
-                        (claims as any).email?.split('@')[0] ||
-                        (claims as any).name ||
-                        'Trader';
+        // Extract user info from JWT claims without forcing generic role labels as username.
+        const username = this.resolveUsernameFromClaims(claims) || this.loadStoredUsername() || 'User';
         
         const user: AuthState['user'] = {
           id: claims.sub,
@@ -75,14 +72,18 @@ export class CoreAuthService {
     user: AuthState['user'],
     expiresIn?: number
   ): void {
-    // Ensure user has a username fallback
-    if (user) {
-      user.username = user.username || 'Trader';
-    }
-    
     this.accessTokenSignal.set(accessToken);
     this.refreshTokenSignal.set(refreshToken);
-    this.userSignal.set(user);
+    if (user) {
+      const resolvedUsername = user.username || this.loadStoredUsername() || this.resolveUsernameFromAccessToken(accessToken) || 'User';
+      this.userSignal.set({
+        ...user,
+        username: resolvedUsername
+      });
+      this.storeUsername(resolvedUsername);
+    } else {
+      this.userSignal.set(user);
+    }
     this.errorSignal.set(null);
     this.errorCodeSignal.set(null);
 
@@ -104,6 +105,7 @@ export class CoreAuthService {
     // Remove from sessionStorage
     sessionStorage.removeItem(this.ACCESS_TOKEN_KEY);
     sessionStorage.removeItem(this.REFRESH_TOKEN_KEY);
+    sessionStorage.removeItem(this.USERNAME_KEY);
   }
 
   /**
@@ -189,5 +191,45 @@ export class CoreAuthService {
    */
   private loadRefreshToken(): string | null {
     return sessionStorage.getItem(this.REFRESH_TOKEN_KEY);
+  }
+
+  private loadStoredUsername(): string | null {
+    return sessionStorage.getItem(this.USERNAME_KEY);
+  }
+
+  private storeUsername(username: string | null): void {
+    if (!username || !username.trim()) {
+      sessionStorage.removeItem(this.USERNAME_KEY);
+      return;
+    }
+
+    sessionStorage.setItem(this.USERNAME_KEY, username.trim());
+  }
+
+  private resolveUsernameFromAccessToken(accessToken: string | null): string | null {
+    if (!accessToken) {
+      return null;
+    }
+
+    try {
+      const claims = this.decodeJWT(accessToken);
+      return this.resolveUsernameFromClaims(claims);
+    } catch {
+      return null;
+    }
+  }
+
+  private resolveUsernameFromClaims(claims: JWTClaims): string | null {
+    const rawUsername = (claims as any).username;
+    const preferredUsername = (claims as any).preferred_username;
+    const emailPrefix = (claims as any).email?.split('@')[0];
+    const name = (claims as any).name;
+
+    const candidates = [rawUsername, preferredUsername, emailPrefix, name]
+      .filter((candidate): candidate is string => !!candidate && candidate.trim().length > 0)
+      .map((candidate) => candidate.trim());
+
+    const nonGeneric = candidates.find((candidate) => !/^trader$/i.test(candidate));
+    return nonGeneric || null;
   }
 }

@@ -10,6 +10,7 @@ describe('OrderTicketComponent', () => {
   let fixture: ComponentFixture<OrderTicketComponent>;
   let store: {
     accountId: ReturnType<typeof signal<number | null>>;
+    accountDisplayId: ReturnType<typeof signal<string | null>>;
     isSubmitting: ReturnType<typeof signal<boolean>>;
     submissionResult: ReturnType<typeof signal<any>>;
     errorCode: ReturnType<typeof signal<string | null>>;
@@ -22,6 +23,7 @@ describe('OrderTicketComponent', () => {
   beforeEach(async () => {
     store = {
       accountId: signal(101),
+      accountDisplayId: signal('CUST-000101'),
       isSubmitting: signal(false),
       submissionResult: signal(null),
       errorCode: signal(null),

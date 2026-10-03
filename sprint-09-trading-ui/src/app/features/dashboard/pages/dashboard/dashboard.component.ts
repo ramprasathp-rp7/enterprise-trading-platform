@@ -1,5 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
 import { CoreAuthService } from '../../../../core/auth/core-auth.service';
 import { BlotterStore } from '../../../blotter/blotter.store';
 import { DashboardService } from '../../services/dashboard.service';
@@ -30,7 +31,7 @@ interface RecentTrade {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterModule],
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.css']
 })
@@ -45,6 +46,11 @@ export class DashboardComponent implements OnInit {
   private accountSignal = signal<any>(null);
 
   // Portfolio stats - computed from real data
+  accountDisplayId = computed(() => {
+    const account = this.accountSignal();
+    return account?.accountId || null;
+  });
+
   portfolioStats = computed(() => {
     const account = this.accountSignal();
     const cashBalance = this.cashBalanceSignal();

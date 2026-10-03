@@ -33,6 +33,7 @@ export class OrderTicketComponent implements OnDestroy {
   readonly sideOptions = [OrderSide.Buy, OrderSide.Sell] as const;
 
   readonly accountId = this.store.accountId;
+  readonly accountDisplayId = this.store.accountDisplayId;
   readonly isSubmitting = this.store.isSubmitting;
   readonly submissionResult = this.store.submissionResult;
   readonly errorCode = this.store.errorCode;

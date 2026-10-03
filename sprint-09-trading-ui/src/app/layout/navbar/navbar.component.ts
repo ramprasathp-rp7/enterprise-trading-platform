@@ -1,9 +1,10 @@
-import { Component, OnInit, OnDestroy, signal } from '@angular/core';
+import { Component, signal, HostListener, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
-import { Subject, interval } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { Subscription } from 'rxjs';
 import { CoreAuthService } from '../../core/auth/core-auth.service';
+import { SignInStore } from '../../features/sign-in/sign-in.store';
+import { AccountsService } from '../../api/generated/trade';
 
 /**
  * Navigation Bar Component
@@ -21,44 +22,29 @@ import { CoreAuthService } from '../../core/auth/core-auth.service';
   templateUrl: './navbar.component.html',
   styleUrls: ['./navbar.component.css'],
 })
-export class NavbarComponent implements OnInit, OnDestroy {
-  currentDateTime = signal<string>('');
+export class NavbarComponent {
+  accountDisplayId = signal<string | null>(null);
   isProfileMenuOpen = false;
-  private destroy$ = new Subject<void>();
+  private accountLookupSubscription: Subscription | null = null;
 
   constructor(
     public authService: CoreAuthService,
-    private router: Router
+    private router: Router,
+    private signInStore: SignInStore,
+    private elementRef: ElementRef<HTMLElement>,
+    private accountsService: AccountsService
   ) {}
 
   ngOnInit(): void {
-    this.updateDateTime();
-    // Update time every second
-    interval(1000)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(() => this.updateDateTime());
+    this.updateAccountDisplayId();
   }
 
   ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
+    this.accountLookupSubscription?.unsubscribe();
   }
 
-  private updateDateTime(): void {
-    const now = new Date();
-    const options: Intl.DateTimeFormatOptions = {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false
-    };
-    this.currentDateTime.set(now.toLocaleDateString('en-US', options));
-  }
-
-  toggleProfileMenu(): void {
+  toggleProfileMenu(event?: MouseEvent): void {
+    event?.stopPropagation();
     this.isProfileMenuOpen = !this.isProfileMenuOpen;
   }
 
@@ -66,28 +52,40 @@ export class NavbarComponent implements OnInit, OnDestroy {
     this.isProfileMenuOpen = false;
   }
 
-  async logout(): Promise<void> {
-    // Confirm logout action
-    if (!confirm('Are you sure you want to logout?')) {
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    if (!this.isProfileMenuOpen) {
       return;
     }
-    
-    this.closeProfileMenu();
-    
-    try {
-      // Clear authentication tokens and state immediately
-      this.authService.clearTokens();
-      
-      // Give signals time to update
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Use window.location for a hard reload to ensure guard re-evaluation
-      // This is more reliable than router.navigate for logout
-      window.location.href = '/sign-in';
-    } catch (error) {
-      console.error('Logout error:', error);
-      // Fallback to hard redirect
-      window.location.href = '/sign-in';
+
+    const target = event.target as Node | null;
+    if (target && !this.elementRef.nativeElement.contains(target)) {
+      this.closeProfileMenu();
     }
+  }
+
+  logout(): void {
+    this.closeProfileMenu();
+    this.signInStore.logout();
+    this.router.navigateByUrl('/sign-in');
+  }
+
+  private updateAccountDisplayId(): void {
+    const numericAccountId = this.authService.currentUser()?.accountId;
+
+    if (!numericAccountId) {
+      this.accountDisplayId.set(null);
+      return;
+    }
+
+    this.accountLookupSubscription?.unsubscribe();
+    this.accountLookupSubscription = this.accountsService.getAccount(numericAccountId).subscribe({
+      next: (account) => {
+        this.accountDisplayId.set(account.accountId || null);
+      },
+      error: () => {
+        this.accountDisplayId.set(null);
+      },
+    });
   }
 }

@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
+import { AccountsService } from '../../api/generated/trade';
 import { OrderSide } from '../../api/generated/trade';
 import { CoreAuthService } from '../../core/auth/core-auth.service';
 import { OrderTicketStore } from './order-ticket.store';
@@ -9,6 +10,7 @@ import { OrderTicketService } from './services/order-ticket.service';
 describe('OrderTicketStore', () => {
   let store: OrderTicketStore;
   let orderTicketService: { placeOrder: ReturnType<typeof vi.fn> };
+  let accountsService: { getAccount: ReturnType<typeof vi.fn> };
   let authService: {
     currentUser: ReturnType<typeof vi.fn>;
     accessToken: ReturnType<typeof vi.fn>;
@@ -18,6 +20,20 @@ describe('OrderTicketStore', () => {
   beforeEach(() => {
     orderTicketService = {
       placeOrder: vi.fn(),
+    };
+
+    accountsService = {
+      getAccount: vi.fn(() =>
+        of({
+          id: 101,
+          accountId: 'CUST-000101',
+          holderName: 'Priya Menon',
+          cashBalance: 0,
+          status: 'ACTIVE',
+          version: 1,
+          lastUpdated: new Date().toISOString(),
+        })
+      ),
     };
 
     authService = {
@@ -31,6 +47,7 @@ describe('OrderTicketStore', () => {
         OrderTicketStore,
         { provide: OrderTicketService, useValue: orderTicketService },
         { provide: CoreAuthService, useValue: authService },
+        { provide: AccountsService, useValue: accountsService },
       ],
     });
 

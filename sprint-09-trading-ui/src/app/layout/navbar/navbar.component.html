@@ -17,12 +17,6 @@
       
       <!-- Quick Actions Icons -->
       <div class="navbar-actions">
-        <!-- Notifications -->
-        <button class="action-icon" title="Notifications">
-          <i class="fas fa-bell"></i>
-          <span class="notification-badge">3</span>
-        </button>
-
         <!-- Market Status -->
         <button class="action-icon market-status" title="Market Status">
           <i class="fas fa-circle"></i>
@@ -43,23 +37,16 @@
       <!-- Divider -->
       <div class="navbar-divider"></div>
 
-      <!-- Date/Time -->
-      <div class="datetime-display">
-        <i class="fas fa-clock"></i>
-        <span>{{ currentDateTime() }}</span>
-      </div>
-
       <!-- User Profile -->
       <div class="user-profile-container">
         <button 
           class="user-profile-button"
-          (click)="toggleProfileMenu()"
-          (blur)="closeProfileMenu()"
+          (click)="toggleProfileMenu($event)"
         >
           <div class="user-avatar">{{ (authService.currentUser()?.username || 'U')?.charAt(0)?.toUpperCase() || 'U' }}</div>
           <div class="user-info">
             <div class="user-name">{{ authService.currentUser()?.username || 'User' }}</div>
-            <div class="user-role">Trader</div>
+            <div class="user-role">Acct {{ accountDisplayId() || 'N/A' }}</div>
           </div>
           <i class="fas fa-chevron-down"></i>
         </button>
@@ -70,7 +57,7 @@
             <div class="profile-menu-avatar">{{ (authService.currentUser()?.username || 'U')?.charAt(0)?.toUpperCase() || 'U' }}</div>
             <div class="profile-menu-details">
               <div class="profile-menu-name">{{ authService.currentUser()?.username || 'User' }}</div>
-              <div class="profile-menu-email">Account ID: {{ authService.currentUser()?.accountId }}</div>
+              <div class="profile-menu-email">Account ID: {{ accountDisplayId() || 'N/A' }}</div>
             </div>
           </div>
           <div class="profile-menu-divider"></div>

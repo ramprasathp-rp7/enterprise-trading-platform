@@ -1,11 +1,13 @@
 /* Navbar Styles - Light Theme */
 .navbar {
-  background-color: #ffffff;
-  border-bottom: 1px solid #e5e7eb;
+  background:
+    radial-gradient(circle at 12% -20%, rgba(14, 165, 233, 0.12), transparent 45%),
+    linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.85);
   height: 70px;
   position: relative;
   z-index: 100;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
   display: flex;
   align-items: center;
   flex-shrink: 0;
@@ -17,7 +19,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 24px;
+  padding: 0 28px;
   gap: 32px;
 }
 
@@ -35,9 +37,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
   color: white;
-  border-radius: 8px;
+  border-radius: 12px;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.28);
   font-size: 22px;
   flex-shrink: 0;
 }
@@ -68,11 +71,11 @@
 
 .action-icon {
   position: relative;
-  width: 32px;
-  height: 32px;
-  border: none;
-  background-color: transparent;
-  border-radius: 6px;
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  background-color: rgba(255, 255, 255, 0.9);
+  border-radius: 10px;
   color: #64748b;
   cursor: pointer;
   display: flex;
@@ -85,10 +88,10 @@
 }
 
 .action-icon:hover {
-  background-color: transparent;
-  border-color: transparent;
+  background-color: #f8fbff;
+  border-color: #bfdbfe;
   color: #2563eb;
-  box-shadow: none;
+  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.15);
 }
 
 .notification-badge {
@@ -137,24 +140,10 @@
 /* Navbar Divider */
 .navbar-divider {
   width: 1px;
-  height: 24px;
-  background-color: #e5e7eb;
+  height: 26px;
+  background-color: rgba(203, 213, 225, 0.9);
   flex-shrink: 0;
 }
-
-.datetime-display {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: #475569;
-  font-family: 'Courier New', monospace;
-  font-weight: 500;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.datetime-display i { font-size: 14px; color: #2563eb; }
 
 .user-profile-container {
   position: relative;
@@ -167,9 +156,9 @@
   align-items: center;
   gap: 8px;
   padding: 6px 12px;
-  background-color: #f1f5f9;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
+  background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 10px;
   color: #0f172a;
   cursor: pointer;
   transition: all 0.2s;
@@ -177,8 +166,9 @@
 }
 
 .user-profile-button:hover {
-  background-color: #e0e7ff;
-  border-color: #2563eb;
+  background: linear-gradient(145deg, #f8fbff 0%, #eff6ff 100%);
+  border-color: #93c5fd;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.15);
 }
 
 .user-avatar {
@@ -204,13 +194,16 @@
 
 .user-name {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   color: #0f172a;
+  font-family: 'Courier New', monospace;
 }
 
 .user-role {
   font-size: 11px;
   color: #475569;
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
 }
 
 .profile-menu {
@@ -218,10 +211,10 @@
   top: 100%;
   right: 0;
   margin-top: 8px;
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(170deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 12px;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.16);
   min-width: 260px;
   z-index: 1000;
   overflow: hidden;
@@ -232,8 +225,13 @@
   align-items: center;
   gap: 12px;
   padding: 16px;
-  background-color: #f8fafc;
-  border-bottom: 1px solid #e5e7eb;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.profile-menu-divider {
+  height: 1px;
+  background: rgba(226, 232, 240, 0.9);
 }
 
 .profile-menu-avatar {
@@ -259,14 +257,17 @@
 
 .profile-menu-name {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   color: #0f172a;
+  font-family: 'Courier New', monospace;
 }
 
 .profile-menu-email {
   font-size: 12px;
   color: #475569;
   word-break: break-all;
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
 }
 
 .profile-menu-items {
@@ -282,11 +283,13 @@
   cursor: pointer;
   font-size: 13px;
   color: #0f172a;
+  font-family: 'Manrope', 'Segoe UI', sans-serif;
+  font-weight: 600;
   transition: background-color 0.2s;
   display: flex;
   align-items: center;
   gap: 12px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.75);
 }
 
 .profile-menu-item:last-child {
@@ -294,13 +297,15 @@
 }
 
 .profile-menu-item:hover {
-  background-color: #f8fafc;
+  background-color: #f1f5f9;
   color: #2563eb;
 }
 
 .profile-menu-item i {
   width: 16px;
   font-size: 14px;
+  display: inline-block;
+  text-align: center;
 }
 
 @media (max-width: 768px) {
@@ -310,10 +315,6 @@
 
   .brand-text {
     font-size: 16px;
-  }
-
-  .datetime-display {
-    display: none;
   }
 
   .user-info {
