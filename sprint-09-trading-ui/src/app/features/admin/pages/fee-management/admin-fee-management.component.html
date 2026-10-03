@@ -1,0 +1,55 @@
+<!-- Admin Fee Management -->
+<div class="fee-management-container">
+  <!-- Header Section -->
+  <div class="page-header">
+    <h1>Fee Management</h1>
+    <p class="subtitle">View asset class trading fees</p>
+  </div>
+
+  <!-- Error Message -->
+  <div *ngIf="errorMessage()" class="alert alert-error">
+    <i class="fas fa-exclamation-circle"></i>
+    {{ errorMessage() }}
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading()" class="loading-container">
+    <i class="fas fa-spinner fa-spin"></i>
+    <p>Loading fees...</p>
+  </div>
+
+  <!-- Fee Table -->
+  <div *ngIf="!isLoading() && assetFees().length > 0" class="table-section">
+    <div class="table-container">
+      <table class="fee-table">
+        <thead>
+          <tr>
+            <th>Asset Class</th>
+            <th>Flat Fee</th>
+            <th>Percentage Fee</th>
+            <th>Total Fee Component</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let fee of assetFees()">
+            <td class="asset-type">
+              <i [class]="getAssetIcon(fee.assetType)" class="asset-icon"></i>
+              <span>{{ formatAssetClass(fee.assetType) }}</span>
+            </td>
+            <td class="number">{{ formatCurrency(fee.flatFee) }}</td>
+            <td class="number">{{ (fee.percentageFee * 100).toFixed(4) }}%</td>
+            <td class="number description">
+              <small>Flat + (Volume × Percentage)</small>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Empty State -->
+  <div *ngIf="!isLoading() && assetFees().length === 0" class="empty-state">
+    <i class="fas fa-inbox"></i>
+    <p>No fees found</p>
+  </div>
+</div>

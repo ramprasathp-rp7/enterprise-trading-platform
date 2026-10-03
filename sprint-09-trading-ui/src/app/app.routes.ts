@@ -1,9 +1,14 @@
 import { Routes } from '@angular/router';
 import { ShellComponent } from './layout/shell/shell.component';
+import { AdminShell } from './layout/admin-shell/admin-shell';
 import { LoginComponent } from './features/sign-in/pages/login/login.component';
 import { authGuard, canActivateChildGuard } from './core/auth/auth.guard';
 import { unauthenticatedGuard } from './core/auth/unauthenticated.guard';
-
+import { adminGuard } from './core/auth/admin.guard';
+import { AdminAnalyticsComponent } from './features/admin/pages/analytics/admin-analytics.component';
+import { AdminFeeManagementComponent } from './features/admin/pages/fee-management/admin-fee-management.component';
+import { AdminAccountManagementComponent } from './features/admin/pages/account-management/account-management';
+import { AdminUserRegistrationComponent } from './features/admin/pages/user-registration/user-registration';
 export const routes: Routes = [
   // Sign-in route (public, no auth required)
   {
@@ -12,7 +17,7 @@ export const routes: Routes = [
     canActivate: [unauthenticatedGuard],
     data: { title: 'Sign In' },
   },
-  
+
   // Protected routes - all under Shell layout with auth guard
   {
     path: '',
@@ -90,7 +95,41 @@ export const routes: Routes = [
       },
     ],
   },
-  
+
+  // Admin routes - wrapped in AdminShell with admin-specific sidebar
+  {
+    path: 'admin',
+    component: AdminShell,
+    canActivate: [adminGuard],
+    children: [
+      {
+        path: 'analytics',
+        component: AdminAnalyticsComponent,
+        data: { title: 'Admin Analytics' },
+      },
+      {
+        path: 'accounts',
+        component: AdminAccountManagementComponent,
+        data: { title: 'Account Management' },
+      },
+      {
+        path: 'register',
+        component: AdminUserRegistrationComponent,
+        data: { title: 'Register User' },
+      },
+      {
+        path: 'fees',
+        component: AdminFeeManagementComponent,
+        data: { title: 'Fee Management' },
+      },
+      {
+        path: '',
+        redirectTo: 'analytics',
+        pathMatch: 'full',
+      },
+    ],
+  },
+
   // Wildcard route redirects to dashboard
   {
     path: '**',
