@@ -5,7 +5,7 @@
   <div class="welcome-section">
     <div class="welcome-row">
       <div class="welcome-content">
-        <h1 class="welcome-title">Welcome back, {{ authService.currentUser()?.username || 'User' }}</h1>
+        <h1 class="welcome-title">Welcome back, {{ accountDisplayName() || 'User' }}</h1>
         <p class="welcome-subtitle">{{ accountDisplayId() || 'N/A' }} • {{ currentDate | date: 'EEEE, MMMM d' }}</p>
       </div>
     </div>

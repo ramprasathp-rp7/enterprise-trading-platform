@@ -51,6 +51,10 @@ export class DashboardComponent implements OnInit {
     const account = this.accountSignal();
     return account?.accountId || null;
   });
+  accountDisplayName = computed(() => {
+    const account = this.accountSignal();
+    return account?.holderName || null;
+  });
 
   portfolioStats = computed(() => {
     const account = this.accountSignal();
