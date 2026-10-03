@@ -54,7 +54,7 @@ export class CoreAuthService {
           id: claims.sub,
           username: username,
           accountId: claims.accountId,
-          roles: claims.roles
+          roles: this.resolveRolesFromClaims(claims)
         };
         this.userSignal.set(user);
       } catch (error) {
@@ -76,9 +76,15 @@ export class CoreAuthService {
     this.refreshTokenSignal.set(refreshToken);
     if (user) {
       const resolvedUsername = user.username || this.loadStoredUsername() || this.resolveUsernameFromAccessToken(accessToken) || 'User';
+      const normalizedRoles = (user.roles || [])
+        .filter((role): role is string => typeof role === 'string')
+        .map((role) => this.normalizeRole(role))
+        .filter((role) => role.length > 0);
+
       this.userSignal.set({
         ...user,
-        username: resolvedUsername
+        username: resolvedUsername,
+        roles: normalizedRoles
       });
       this.storeUsername(resolvedUsername);
     } else {
@@ -128,7 +134,27 @@ export class CoreAuthService {
    * Update user info
    */
   setUser(user: AuthState['user']): void {
-    this.userSignal.set(user);
+    if (!user) {
+      this.userSignal.set(user);
+      return;
+    }
+
+    const normalizedRoles = (user.roles || [])
+      .filter((role): role is string => typeof role === 'string')
+      .map((role) => this.normalizeRole(role))
+      .filter((role) => role.length > 0);
+
+    this.userSignal.set({
+      ...user,
+      roles: normalizedRoles,
+    });
+  }
+
+  /**
+   * Extract and normalize role names from JWT claims.
+   */
+  extractRolesFromClaims(claims: JWTClaims): string[] {
+    return this.resolveRolesFromClaims(claims);
   }
 
   /**
@@ -227,7 +253,7 @@ export class CoreAuthService {
     if (!user || !user.roles || user.roles.length === 0) {
       return null;
     }
-    return user.roles[0];
+    return this.normalizeRole(user.roles[0]);
   }
 
   /**
@@ -238,7 +264,8 @@ export class CoreAuthService {
     if (!user || !user.roles) {
       return false;
     }
-    return user.roles.includes(role);
+    const expectedRole = this.normalizeRole(role);
+    return user.roles.some((existingRole) => this.normalizeRole(existingRole) === expectedRole);
   }
 
   /**
@@ -267,5 +294,37 @@ export class CoreAuthService {
 
     const nonGeneric = candidates.find((candidate) => !/^trader$/i.test(candidate));
     return nonGeneric || null;
+  }
+
+  private resolveRolesFromClaims(claims: JWTClaims): string[] {
+    const directRoles = this.collectRolesFromSource((claims as any).roles);
+    const roleClaim = this.collectRolesFromSource((claims as any).role);
+    const authorities = this.collectRolesFromSource((claims as any).authorities);
+    const scope = this.collectRolesFromSource((claims as any).scope);
+
+    const merged = [...directRoles, ...roleClaim, ...authorities, ...scope]
+      .map((role) => this.normalizeRole(role))
+      .filter((role) => role.length > 0);
+
+    return Array.from(new Set(merged));
+  }
+
+  private collectRolesFromSource(source: unknown): string[] {
+    if (Array.isArray(source)) {
+      return source.filter((item): item is string => typeof item === 'string');
+    }
+
+    if (typeof source === 'string') {
+      return source
+        .split(/[\s,]+/)
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0);
+    }
+
+    return [];
+  }
+
+  private normalizeRole(role: string): string {
+    return role.trim().toUpperCase().replace(/^ROLE_/, '');
   }
 }

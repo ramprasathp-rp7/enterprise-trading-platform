@@ -52,7 +52,7 @@ export class SignInService {
             id: claims.sub,
             username: loginRequest.username,
             accountId: claims.accountId,
-            roles: (claims.roles || []) as any[], // JWT roles are strings, cast to match UserResponse type
+            roles: this.coreAuthService.extractRolesFromClaims(claims) as any[],
             createdOn: new Date().toISOString(),
           };
           this.coreAuthService.setTokens(
