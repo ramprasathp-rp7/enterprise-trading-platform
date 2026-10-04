@@ -39,6 +39,7 @@ describe('BlotterComponent', () => {
   beforeEach(async () => {
     mockBlotterStore = {
       orders: vi.fn(() => mockOrders),
+      filteredOrders: vi.fn(() => mockOrders),
       isLoading: vi.fn(() => false),
       isPolling: vi.fn(() => true),
       pollAttempts: vi.fn(() => 5),

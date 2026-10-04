@@ -1,4 +1,4 @@
-import { Injectable, inject, computed, signal } from '@angular/core';
+import { Injectable, computed, signal } from '@angular/core';
 import { interval, Subject, takeUntil } from 'rxjs';
 import { switchMap, takeWhile } from 'rxjs/operators';
 import { OrderHistoryService } from './services/order-history.service';
@@ -13,7 +13,15 @@ import { OrderStatus } from '../../api/generated/trade';
   providedIn: 'root',
 })
 export class BlotterStore {
-  private orderHistoryService = inject(OrderHistoryService);
+  // OrderHistoryService is injected by Angular when instantiated via DI.
+  // Tests instantiate the store with `new BlotterStore()` and then
+  // assign a mock to this property, so accept an optional service
+  // via constructor but keep a no-arg constructor-compatible form.
+  private orderHistoryService?: OrderHistoryService;
+
+  constructor(orderHistoryService?: OrderHistoryService) {
+    this.orderHistoryService = orderHistoryService;
+  }
 
   // Polling configuration - can be customized
   private readonly POLL_INTERVAL_MS = 2000; // Poll every 2 seconds
@@ -60,8 +68,6 @@ export class BlotterStore {
   private stopPolling$ = new Subject<void>();
   private currentAccountId: number | null = null;
 
-  constructor() {}
-
   /**
    * Load order history and start polling if needed
    */
@@ -70,7 +76,7 @@ export class BlotterStore {
     this.isLoadingSignal.set(true);
     this.lastErrorSignal.set(null);
 
-    this.orderHistoryService.getOrderHistory(accountId).subscribe({
+    this.orderHistoryService!.getOrderHistory(accountId).subscribe({
       next: (orders) => {
         this.ordersSignal.set(orders as BlotterOrder[]);
         this.isLoadingSignal.set(false);
@@ -105,7 +111,7 @@ export class BlotterStore {
         takeWhile(() => this.pollAttemptsSignal() < this.MAX_POLL_ATTEMPTS),
         takeUntil(this.stopPolling$),
         switchMap(() =>
-          this.orderHistoryService.getOrderHistory(accountId)
+          this.orderHistoryService!.getOrderHistory(accountId)
         )
       )
       .subscribe({

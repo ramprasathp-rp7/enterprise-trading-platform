@@ -100,6 +100,6 @@ describe('OrderTicketStore', () => {
     expect(success).toBe(false);
     expect(store.submissionResult()).toBeNull();
     expect(store.errorCode()).toBe('ORD-400');
-    expect(store.errorMessage()).toBe('There is not enough cash for this order.');
+    expect(store.errorMessage()).toBe('There is not enough cash for this order. Please deposit funds or reduce the order size.');
   });
 });

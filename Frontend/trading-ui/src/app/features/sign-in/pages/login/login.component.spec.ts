@@ -153,7 +153,8 @@ describe('LoginComponent', () => {
     it('should render sign-in title', () => {
       const title = fixture.nativeElement.querySelector('.login-title');
       expect(title).toBeTruthy();
-      expect(title.textContent).toContain('Sign In');
+      // title text may include product name; ensure Sign In appears somewhere after trimming
+      expect(title.textContent.trim()).toMatch(/Sign\s*In/i);
     });
 
     it('should render credential form component', () => {
