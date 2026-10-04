@@ -4,318 +4,99 @@
   <div class="welcome-section">
     <div class="welcome-content">
       <h1 class="welcome-title">Analytics Dashboard</h1>
-      <p class="welcome-subtitle">Enterprise trading metrics and insights • {{ currentDate | date: 'EEEE, MMMM d' }}</p>
+      <p class="welcome-subtitle">System-wide trading metrics derived from complete order and transaction history</p>
     </div>
   </div>
+
+  <!-- Controls Section -->
+  <div class="controls-section">
+    <div class="filter-group">
+      <label for="dateRange">Date Range</label>
+      <select 
+        id="dateRange"
+        [ngModel]="dateRange()" 
+        (ngModelChange)="dateRange.set($any($event))"
+        class="filter-select"
+      >
+        <option value="7d">Last 7 Days</option>
+        <option value="30d">Last 30 Days</option>
+        <option value="90d">Last 90 Days</option>
+        <option value="all-time">All Time</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  @if (isLoading()) {
+    <div class="loading-container">
+      <div class="spinner"></div>
+      <p>Loading analytics data...</p>
+    </div>
+  }
+
+  <!-- Error State -->
+  @if (errorMessage()) {
+    <div class="error-message">
+      <i class="fas fa-exclamation-circle"></i>
+      {{ errorMessage() }}
+    </div>
+  }
 
   <!-- Key Metrics Section -->
-  <div class="metrics-section">
-    <div class="section-title-bar">
+  @if (!isLoading()) {
+    <div class="metrics-section">
       <h2 class="section-title">Key Metrics</h2>
-      <div class="metrics-controls" aria-label="Analytics filters">
-        <label class="compact-filter">
-          <span>Date Range</span>
-          <select [ngModel]="dateRange()" (ngModelChange)="onDateRangeSelectChange($event)">
-            <option value="7d">7 Days</option>
-            <option value="30d">30 Days</option>
-            <option value="90d">90 Days</option>
-          </select>
-        </label>
-        <label class="compact-filter">
-          <span>Group By</span>
-          <select [ngModel]="groupBy()" (ngModelChange)="onGroupBySelectChange($event)">
-            <option value="DAY">Daily</option>
-            <option value="WEEK">Weekly</option>
-            <option value="MONTH">Monthly</option>
-          </select>
-        </label>
-      </div>
-    </div>
-    <div class="metrics-grid">
-      <div class="metric-card">
-        <div class="metric-icon">
-          <i class="fas fa-chart-bar"></i>
-        </div>
-        <div class="metric-content">
-          <div class="metric-label">Total Orders</div>
-          <div class="metric-value">{{ formatNumber(totalVolume()) }}</div>
-          <div class="metric-change change-neutral">
-            <span class="change-pct">All periods</span>
+      
+      <div class="metrics-grid">
+        <!-- Total Orders Card -->
+        <div class="metric-card">
+          <div class="metric-header">
+            <div class="metric-icon orders-icon">
+              <i class="fas fa-list-check"></i>
+            </div>
+            <h3 class="metric-title">Total Orders</h3>
           </div>
+          <div class="metric-value-large">{{ totalOrders() }}</div>
+          <p class="metric-description">Orders placed during selected period</p>
         </div>
-      </div>
 
-      <div class="metric-card">
-        <div class="metric-icon">
-          <i class="fas fa-dollar-sign"></i>
-        </div>
-        <div class="metric-content">
-          <div class="metric-label">Total Trade Value</div>
-          <div class="metric-value">{{ formatCurrency(totalTradeValue()) }}</div>
-          <div class="metric-change change-neutral">
-            <span class="change-pct">Across period</span>
+        <!-- Total Trade Value Card -->
+        <div class="metric-card">
+          <div class="metric-header">
+            <div class="metric-icon trades-icon">
+              <i class="fas fa-dollar-sign"></i>
+            </div>
+            <h3 class="metric-title">Total Trade Value</h3>
           </div>
+          <div class="metric-value-large">{{ formatCurrency(totalTradeValue()) }}</div>
+          <p class="metric-description">Sum of all BUY and SELL transactions</p>
         </div>
-      </div>
 
-      <div class="metric-card">
-        <div class="metric-icon">
-          <i class="fas fa-percent"></i>
-        </div>
-        <div class="metric-content">
-          <div class="metric-label">Average Fill Rate</div>
-          <div class="metric-value">{{ formatPercent(averageFillRate()) }}</div>
-          <div class="metric-change change-neutral">
-            <span class="change-pct">Orders filled</span>
+        <!-- Total Fee Value Card -->
+        <div class="metric-card">
+          <div class="metric-header">
+            <div class="metric-icon fees-icon">
+              <i class="fas fa-receipt"></i>
+            </div>
+            <h3 class="metric-title">Total Fee Value</h3>
           </div>
+          <div class="metric-value-large">{{ formatCurrency(totalFeeValue()) }}</div>
+          <p class="metric-description">Platform and trading fees collected</p>
         </div>
-      </div>
 
-      <div class="metric-card">
-        <div class="metric-icon">
-          <i class="fas fa-users"></i>
-        </div>
-        <div class="metric-content">
-          <div class="metric-label">Active Accounts</div>
-          <div class="metric-value">{{ topAccounts().length }}</div>
-          <div class="metric-change change-neutral">
-            <span class="change-pct">Top traders</span>
+        <!-- Fill Rate Card -->
+        <div class="metric-card">
+          <div class="metric-header">
+            <div class="metric-icon fillrate-icon">
+              <i class="fas fa-percent"></i>
+            </div>
+            <h3 class="metric-title">Fill Rate</h3>
           </div>
+          <div class="metric-value-large">{{ formatPercent(fillRate()) }}</div>
+          <p class="metric-description">Percentage of orders successfully filled</p>
         </div>
       </div>
     </div>
-  </div>
-
-  <!-- Charts Section -->
-  <div class="charts-section">
-    <div class="section-title-bar">
-      <h2 class="section-title">Trade Volume Trend</h2>
-    </div>
-    <div class="chart-container">
-      @if (isLoading()) {
-        <div class="loading-spinner">
-          <i class="fas fa-spinner"></i>
-          <p>Loading chart data...</p>
-        </div>
-      } @else if (tradeVolumeData().length > 0) {
-        <canvas
-          baseChart
-          type="line"
-          [data]="volumeChartData()"
-          [options]="lineChartOptions"
-          class="chart-element"
-        ></canvas>
-      } @else {
-        <div class="empty-state">
-          <i class="fas fa-inbox"></i>
-          <p>No data available for the selected period</p>
-        </div>
-      }
-    </div>
-  </div>
-
-  <!-- Fill Rate Chart Section -->
-  <div class="charts-section">
-    <div class="section-title-bar">
-      <h2 class="section-title">Fill Rate by Date</h2>
-    </div>
-    <div class="chart-container">
-      @if (isLoading()) {
-        <div class="loading-spinner">
-          <i class="fas fa-spinner"></i>
-          <p>Loading chart data...</p>
-        </div>
-      } @else if (fillRateData().length > 0) {
-        <canvas
-          baseChart
-          type="bar"
-          [data]="fillRateChartData()"
-          [options]="barChartOptions"
-          class="chart-element"
-        ></canvas>
-      } @else {
-        <div class="empty-state">
-          <i class="fas fa-inbox"></i>
-          <p>No data available</p>
-        </div>
-      }
-    </div>
-  </div>
-
-  <!-- Accounts Chart Section -->
-  <div class="charts-section">
-    <div class="section-title-bar">
-      <h2 class="section-title">Top 10 Accounts by Order Count</h2>
-    </div>
-    <div class="chart-container">
-      @if (isLoading()) {
-        <div class="loading-spinner">
-          <i class="fas fa-spinner"></i>
-          <p>Loading chart data...</p>
-        </div>
-      } @else if (topAccounts().length > 0) {
-        <canvas
-          baseChart
-          type="bar"
-          [data]="accountsChartData()"
-          [options]="barChartOptions"
-          class="chart-element"
-        ></canvas>
-      } @else {
-        <div class="empty-state">
-          <i class="fas fa-inbox"></i>
-          <p>No account data available</p>
-        </div>
-      }
-    </div>
-  </div>
-
-  <!-- Exposure Chart Section -->
-  <div class="charts-section">
-    <div class="section-title-bar">
-      <h2 class="section-title">Trade Exposure by Instrument</h2>
-    </div>
-    <div class="chart-container">
-      @if (isLoading()) {
-        <div class="loading-spinner">
-          <i class="fas fa-spinner"></i>
-          <p>Loading chart data...</p>
-        </div>
-      } @else if (topInstruments().length > 0) {
-        <canvas
-          baseChart
-          type="doughnut"
-          [data]="exposureChartData()"
-          [options]="pieChartOptions"
-          class="chart-element"
-        ></canvas>
-      } @else {
-        <div class="empty-state">
-          <i class="fas fa-inbox"></i>
-          <p>No exposure data available</p>
-        </div>
-      }
-    </div>
-  </div>
-
-  <!-- Fill Rate Section -->
-  <div class="metrics-section">
-    <div class="section-title-bar">
-      <h2 class="section-title">Fill Rate Analysis</h2>
-    </div>
-    <div class="table-container">
-      @if (fillRateData().length > 0) {
-        <table class="analytics-table">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Total Orders</th>
-              <th>Filled Orders</th>
-              <th>Fill Rate</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (item of fillRateData().slice(0, 10); track item.date) {
-              <tr>
-                <td class="date">{{ item.date }}</td>
-                <td class="number">{{ formatNumber(item.totalOrders) }}</td>
-                <td class="number">{{ formatNumber(item.filledOrders) }}</td>
-                <td>
-                  <span class="fill-rate-badge" [class]="getStatusColor(item.fillRate)">
-                    {{ formatPercent(item.fillRate) }}
-                  </span>
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      } @else if (isLoading()) {
-        <div class="loading-message">Loading fill rate data...</div>
-      } @else {
-        <div class="empty-message">No fill rate data available</div>
-      }
-    </div>
-  </div>
-
-  <!-- Top Active Accounts Section -->
-  <div class="metrics-section">
-    <div class="section-title-bar">
-      <h2 class="section-title">Top Active Accounts</h2>
-    </div>
-    <div class="table-container">
-      @if (topAccounts().length > 0) {
-        <table class="analytics-table">
-          <thead>
-            <tr>
-              <th>Account ID</th>
-              <th>Holder Name</th>
-              <th>Order Count</th>
-              <th>Total Trade Value</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (account of topAccounts(); track account.accountId) {
-              <tr>
-                <td class="account-id">
-                  <span class="account-badge">{{ account.accountId }}</span>
-                </td>
-                <td class="name">{{ account.holderName }}</td>
-                <td class="number">{{ formatNumber(account.orderCount) }}</td>
-                <td class="number currency">{{ formatCurrency(account.totalTradeValue) }}</td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      } @else if (isLoading()) {
-        <div class="loading-message">Loading account data...</div>
-      } @else {
-        <div class="empty-message">No account data available</div>
-      }
-    </div>
-  </div>
-
-  <!-- Exposure by Instrument Section -->
-  <div class="metrics-section">
-    <div class="section-title-bar">
-      <h2 class="section-title">Exposure by Instrument</h2>
-    </div>
-    <div class="table-container">
-      @if (topInstruments().length > 0) {
-        <table class="analytics-table">
-          <thead>
-            <tr>
-              <th>Symbol</th>
-              <th>Asset Class</th>
-              <th>Buy Volume</th>
-              <th>Sell Volume</th>
-              <th>Net Exposure</th>
-              <th>Total Value</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (item of topInstruments(); track item.symbol) {
-              <tr>
-                <td class="symbol">
-                  <span class="symbol-badge">{{ item.symbol }}</span>
-                </td>
-                <td class="asset-class">
-                  <span class="asset-badge">{{ item.assetClass }}</span>
-                </td>
-                <td class="number buy-volume">{{ formatNumber(item.buyVolume) }}</td>
-                <td class="number sell-volume">{{ formatNumber(item.sellVolume) }}</td>
-                <td class="number" [class]="item.netExposure > 0 ? 'positive' : 'negative'">
-                  {{ item.netExposure > 0 ? '+' : '' }}{{ formatNumber(item.netExposure) }}
-                </td>
-                <td class="number currency">{{ formatCurrency(item.totalValue) }}</td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      } @else if (isLoading()) {
-        <div class="loading-message">Loading exposure data...</div>
-      } @else {
-        <div class="empty-message">No exposure data available</div>
-      }
-    </div>
-  </div>
+  }
 </div>
+

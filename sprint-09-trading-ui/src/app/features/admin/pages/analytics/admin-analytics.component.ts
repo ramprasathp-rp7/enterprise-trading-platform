@@ -1,27 +1,25 @@
 import { Component, inject, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { BaseChartDirective } from 'ng2-charts';
-import { ChartConfiguration } from 'chart.js';
 import { firstValueFrom } from 'rxjs';
 import { AdminService } from '../../services/admin.service';
 import {
-  TradeVolumeData,
-  FillRateData,
-  AccountActivityData,
-  ExposureData,
-} from '../../admin.models';
+  OrderStatusChange,
+  TransactionHistoryEntry,
+} from '../../../../api/generated/admin';
 
 /**
  * Admin Analytics Dashboard Component
- * Shows key trading metrics, fill rates, active accounts, and exposure
- *
- * Requires provideCharts(withDefaultRegisterables()) in app.config.ts
+ * Shows key trading metrics derived from complete order and transaction history:
+ * - Total Orders
+ * - Total Trade Value (sum of BUY + SELL transactions)
+ * - Total Fee Value (sum of FEE transactions)
+ * - Fill Rate (percentage of orders with FILLED status)
  */
 @Component({
   selector: 'app-admin-analytics',
   standalone: true,
-  imports: [CommonModule, FormsModule, BaseChartDirective],
+  imports: [CommonModule, FormsModule],
   templateUrl: './admin-analytics.component.html',
   styleUrls: ['./admin-analytics.component.css'],
 })
@@ -29,177 +27,120 @@ export class AdminAnalyticsComponent {
   private adminService = inject(AdminService);
 
   // Filter controls
-  dateRange = signal<'7d' | '30d' | '90d'>('30d');
-  groupBy = signal<'DAY' | 'WEEK' | 'MONTH'>('DAY');
-  selectedAssetClass = signal<string>('');
+  dateRange = signal<'7d' | '30d' | '90d' | 'all-time'>('30d');
 
   // Data signals
-  tradeVolumeData = signal<TradeVolumeData[]>([]);
-  fillRateData = signal<FillRateData[]>([]);
-  accountActivityData = signal<AccountActivityData[]>([]);
-  exposureData = signal<ExposureData[]>([]);
+  orderHistory = signal<OrderStatusChange[]>([]);
+  transactionHistory = signal<TransactionHistoryEntry[]>([]);
   isLoading = signal(false);
+  errorMessage = signal<string>('');
 
-  // Guards against stale responses overwriting newer ones
-  private requestId = 0;
-
-  // Computed aggregated metrics
-  totalVolume = computed(() =>
-    this.tradeVolumeData().reduce((sum, item) => sum + item.volume, 0)
-  );
-
-  totalTradeValue = computed(() =>
-    this.tradeVolumeData().reduce((sum, item) => sum + item.value, 0)
-  );
-
-  averageFillRate = computed(() => {
-    const data = this.fillRateData();
-    if (data.length === 0) return 0;
-    const totalFillRate = data.reduce((sum, item) => sum + item.fillRate, 0);
-    return totalFillRate / data.length;
+  // Computed metrics from order and transaction history
+  totalOrders = computed(() => {
+    const orders = this.orderHistory();
+    // Count unique initial orders (from_status IS NULL = initial state)
+    const initialOrders = new Set(
+      orders.filter((o) => o.fromStatus === null).map((o) => o.orderId)
+    );
+    return initialOrders.size;
   });
 
-  topAccounts = computed(() => this.accountActivityData().slice(0, 10));
+  totalTradeValue = computed(() => {
+    // Sum of all BUY and SELL transaction amounts
+    return this.transactionHistory()
+      .filter((t) => t.transactionType === 'BUY' || t.transactionType === 'SELL')
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+  });
 
-  // Copy before sorting so the source signal's array is not mutated
-  topInstruments = computed(() =>
-    [...this.exposureData()]
-      .sort((a, b) => b.totalValue - a.totalValue)
-      .slice(0, 10)
-  );
+  totalFeeValue = computed(() => {
+    // Sum of all FEE transaction amounts
+    return this.transactionHistory()
+      .filter((t) => t.transactionType === 'FEE')
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+  });
 
-  // Chart data
-  volumeChartData = computed(() => ({
-    labels: this.tradeVolumeData().map((d) => d.date),
-    datasets: [
-      {
-        label: 'Trade Volume',
-        data: this.tradeVolumeData().map((d) => d.volume),
-        borderColor: '#3b82f6',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-        borderWidth: 2,
-        tension: 0.4,
-        fill: true,
-      },
-    ],
-  }));
-
-  fillRateChartData = computed(() => ({
-    labels: this.fillRateData().map((d) => d.date),
-    datasets: [
-      {
-        label: 'Fill Rate %',
-        data: this.fillRateData().map((d) => d.fillRate * 100),
-        backgroundColor: '#10b981',
-        borderColor: '#059669',
-        borderWidth: 1,
-      },
-    ],
-  }));
-
-  accountsChartData = computed(() => ({
-    labels: this.topAccounts().map((a) => a.accountId),
-    datasets: [
-      {
-        label: 'Order Count',
-        data: this.topAccounts().map((a) => a.orderCount),
-        backgroundColor: '#8b5cf6',
-        borderColor: '#7c3aed',
-        borderWidth: 1,
-      },
-    ],
-  }));
-
-  exposureChartData = computed(() => ({
-    labels: this.topInstruments().map((i) => i.symbol),
-    datasets: [
-      {
-        label: 'Exposure Value',
-        data: this.topInstruments().map((i) => i.totalValue),
-        backgroundColor: [
-          '#ec4899', '#f59e0b', '#14b8a6', '#06b6d4', '#6366f1',
-          '#f97316', '#84cc16', '#0ea5e9', '#d946ef', '#14b8a6',
-        ],
-      },
-    ],
-  }));
-
-  lineChartOptions: ChartConfiguration['options'] = {
-    responsive: true,
-    maintainAspectRatio: true,
-    plugins: { legend: { display: true } },
-    scales: { y: { beginAtZero: true } },
-  };
-
-  barChartOptions: ChartConfiguration['options'] = {
-    responsive: true,
-    maintainAspectRatio: true,
-    plugins: { legend: { display: true } },
-    scales: { y: { beginAtZero: true } },
-  };
-
-  pieChartOptions: ChartConfiguration['options'] = {
-    responsive: true,
-    maintainAspectRatio: true,
-    plugins: { legend: { position: 'bottom' } },
-  };
-
-  currentDate = new Date();
+  fillRate = computed(() => {
+    const orders = this.orderHistory();
+    const filledOrders = new Set(
+      orders
+        .filter((o) => o.toStatus === 'FILLED')
+        .map((o) => o.orderId)
+    );
+    const uniqueOrders = new Set(orders.map((o) => o.orderId));
+    
+    if (uniqueOrders.size === 0) return 0;
+    return (filledOrders.size / uniqueOrders.size) * 100;
+  });
 
   constructor() {
-    // Runs once on creation, then again whenever dateRange, groupBy
-    // or selectedAssetClass changes (so no separate ngOnInit load is needed).
+    // Load analytics data when date range changes
     effect(() => {
       const range = this.dateRange();
-      const group = this.groupBy();
-      const assetClass = this.selectedAssetClass();
-      this.loadAnalyticsData(range, group, assetClass);
+      this.loadAnalyticsData(range);
     });
   }
 
-  private loadAnalyticsData(
-    range: '7d' | '30d' | '90d',
-    groupBy: 'DAY' | 'WEEK' | 'MONTH',
-    assetClass: string
-  ): void {
-    const endDate = new Date();
-    const startDate = new Date();
+  private loadAnalyticsData(range: '7d' | '30d' | '90d' | 'all-time'): void {
+    let fromDate: string | undefined;
+    let toDate: string | undefined;
 
-    // Calculate start date based on range
-    if (range === '7d') {
-      startDate.setDate(startDate.getDate() - 7);
-    } else if (range === '30d') {
-      startDate.setMonth(startDate.getMonth() - 1);
-    } else {
-      startDate.setMonth(startDate.getMonth() - 3);
+    // Only calculate dates for specific ranges, not for 'all-time'
+    if (range !== 'all-time') {
+      const endDate = new Date();
+      const startDate = new Date();
+
+      // Calculate start date based on range
+      if (range === '7d') {
+        startDate.setDate(startDate.getDate() - 7);
+      } else if (range === '30d') {
+        startDate.setMonth(startDate.getMonth() - 1);
+      } else {
+        startDate.setMonth(startDate.getMonth() - 3);
+      }
+
+      fromDate = startDate.toISOString();
+      toDate = endDate.toISOString();
     }
 
-    const currentRequest = ++this.requestId;
     this.isLoading.set(true);
+    this.errorMessage.set('');
 
-    // Load all analytics data in parallel
+    console.log('Loading analytics data for date range:', range, { fromDate, toDate });
+
+    // Load order and transaction history in parallel
     Promise.all([
-      firstValueFrom(this.adminService.getTradeVolume(startDate, endDate, groupBy)),
-      firstValueFrom(this.adminService.getFillRate(startDate, endDate, groupBy)),
-      firstValueFrom(this.adminService.getActiveAccounts(10)),
-      firstValueFrom(this.adminService.getExposure(assetClass || undefined)),
+      firstValueFrom(
+        this.adminService.getCompleteOrderHistory(fromDate, toDate)
+      ),
+      firstValueFrom(
+        this.adminService.getCompleteTransactionHistory(fromDate, toDate)
+      ),
     ])
-      .then(([volumes, fillRates, accounts, exposure]) => {
-        // Ignore responses from superseded requests
-        if (currentRequest !== this.requestId) return;
-        this.tradeVolumeData.set(volumes || []);
-        this.fillRateData.set(fillRates || []);
-        this.accountActivityData.set(accounts || []);
-        this.exposureData.set(exposure || []);
+      .then(async ([orders, transactions]) => {
+        console.log('Analytics data loaded successfully:', { orders, transactions });
+        
+        if (!transactions || transactions.length === 0) {
+          console.warn('No transactions found in date range. Trying without date range...');
+          // Try fetching all transactions without date filter
+          const allTransactions = await firstValueFrom(
+            this.adminService.getCompleteTransactionHistory()
+          );
+          console.log('All transactions (no filter):', allTransactions);
+          this.orderHistory.set(orders || []);
+          this.transactionHistory.set(allTransactions || []);
+        } else {
+          this.orderHistory.set(orders || []);
+          this.transactionHistory.set(transactions || []);
+        }
+        
+        this.isLoading.set(false);
       })
       .catch((error) => {
-        if (currentRequest !== this.requestId) return;
         console.error('Failed to load analytics data:', error);
-      })
-      .finally(() => {
-        if (currentRequest === this.requestId) {
-          this.isLoading.set(false);
-        }
+        this.errorMessage.set(
+          'Failed to load analytics data. Please try again.'
+        );
+        this.isLoading.set(false);
       });
   }
 
@@ -207,46 +148,16 @@ export class AdminAnalyticsComponent {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  }
-
-  formatNumber(value: number): string {
-    return new Intl.NumberFormat('en-US', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(value);
   }
 
   formatPercent(value: number): string {
-    return (value * 100).toFixed(2) + '%';
-  }
-
-  getStatusColor(fillRate: number): string {
-    if (fillRate >= 0.8) return 'status-excellent';
-    if (fillRate >= 0.6) return 'status-good';
-    if (fillRate >= 0.4) return 'status-fair';
-    return 'status-poor';
-  }
-
-  onDateRangeChange(range: '7d' | '30d' | '90d'): void {
-    this.dateRange.set(range);
-  }
-
-  onDateRangeSelectChange(range: string): void {
-    if (range === '7d' || range === '30d' || range === '90d') {
-      this.onDateRangeChange(range);
-    }
-  }
-
-  onGroupByChange(group: 'DAY' | 'WEEK' | 'MONTH'): void {
-    this.groupBy.set(group);
-  }
-
-  onGroupBySelectChange(group: string): void {
-    if (group === 'DAY' || group === 'WEEK' || group === 'MONTH') {
-      this.onGroupByChange(group);
-    }
+    return new Intl.NumberFormat('en-US', {
+      style: 'percent',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value / 100);
   }
 }

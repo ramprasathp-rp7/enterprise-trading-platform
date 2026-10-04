@@ -2,7 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { AdminService } from '../../services/admin.service';
-import { AssetFee } from '../../admin.models';
+import { FeeStructureResponse } from '../../../../api/generated/admin';
 
 /**
  * Admin Fee Management Component
@@ -19,7 +19,7 @@ export class AdminFeeManagementComponent implements OnInit {
   private adminService = inject(AdminService);
 
   // State
-  assetFees = signal<AssetFee[]>([]);
+  assetFees = signal<FeeStructureResponse[]>([]);
   isLoading = signal(false);
   errorMessage = signal<string>('');
 
@@ -33,11 +33,11 @@ export class AdminFeeManagementComponent implements OnInit {
     this.isLoading.set(true);
     this.errorMessage.set('');
     this.adminService.getAssetFees().subscribe({
-      next: (fees) => {
+      next: (fees: FeeStructureResponse[]) => {
         this.assetFees.set(fees);
         this.isLoading.set(false);
       },
-      error: (error) => {
+      error: (error: any) => {
         console.error('Failed to load fees:', error);
         this.errorMessage.set('Failed to load fees. Please try again.');
         this.isLoading.set(false);

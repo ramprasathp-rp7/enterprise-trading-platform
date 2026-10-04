@@ -1,7 +1,9 @@
 import { Component, OnInit, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { firstValueFrom } from 'rxjs';
 import { AdminService } from '../../services/admin.service';
+import { AccountsService } from '../../../../api/generated/trade';
 import { AccountDetails, Position, Order } from '../../admin.models';
 
 @Component({
@@ -13,6 +15,7 @@ import { AccountDetails, Position, Order } from '../../admin.models';
 })
 export class AdminAccountManagementComponent implements OnInit {
   private adminService = inject(AdminService);
+  private accountsService = inject(AccountsService);
 
   searchAccountId = signal<string>('');
   accountDetails = signal<AccountDetails | null>(null);
@@ -35,34 +38,74 @@ export class AdminAccountManagementComponent implements OnInit {
 
     this.loading.set(true);
     this.errorMessage.set('');
+    this.successMessage.set('');
     this.accountDetails.set(null);
     this.positions.set([]);
     this.orders.set([]);
 
-    this.adminService.getAccountDetails(accountId).subscribe({
-      next: (data) => {
-        this.accountDetails.set(data);
-        this.loadAccountData(accountId);
-        this.loading.set(false);
-      },
-      error: (err) => {
-        this.errorMessage.set('Account not found');
-        console.error(err);
-        this.loading.set(false);
-      },
-    });
+    this.loadAccountData(accountId);
   }
 
   private loadAccountData(accountId: number): void {
-    this.adminService.getAccountPositions(accountId).subscribe({
-      next: (data) => this.positions.set(data),
-      error: (err) => console.error('Failed to load positions:', err),
-    });
-
-    this.adminService.getAccountOrders(accountId).subscribe({
-      next: (data) => this.orders.set(data),
-      error: (err) => console.error('Failed to load orders:', err),
-    });
+    Promise.all([
+      firstValueFrom(this.accountsService.getAccount(accountId)),
+      firstValueFrom(this.accountsService.getPositions(accountId)),
+      firstValueFrom(this.accountsService.getOrders(accountId)),
+    ])
+      .then(([account, positions, orders]) => {
+        console.log('Account data loaded:', { account, positions, orders });
+        
+        // Map account response to AccountDetails model
+        if (account) {
+          this.accountDetails.set({
+            id: account.id,
+            accountId: account.accountId,
+            holderName: account.holderName,
+            cashBalance: Number(account.cashBalance),
+            status: account.status as 'ACTIVE' | 'SUSPENDED' | 'CLOSED',
+            version: account.version,
+            lastUpdated: new Date(account.lastUpdated),
+          });
+        }
+        
+        // Map position responses - PositionResponse has: accountId, symbol, quantity, averageCost
+        if (positions) {
+          this.positions.set(
+            positions.map((p) => ({
+              accountId: p.accountId,
+              symbol: p.symbol,
+              quantity: Number(p.quantity),
+              averageCost: Number(p.averageCost),
+            }))
+          );
+        }
+        
+        // Map order responses - OrderHistoryEntry has all required fields
+        if (orders) {
+          this.orders.set(
+            orders.map((o) => ({
+              orderId: o.orderId,
+              accountId: o.accountId,
+              symbol: o.symbol,
+              side: o.side as 'BUY' | 'SELL',
+              quantity: Number(o.quantity),
+              price: Number(o.price),
+              executedPrice: o.executedPrice ? Number(o.executedPrice) : undefined,
+              status: o.status as 'PENDING' | 'FILLED' | 'PARTIALLY_FILLED' | 'REJECTED' | 'CANCELLED',
+              idempotencyKey: o.idempotencyKey || '',
+              createdOn: new Date(o.createdOn),
+            }))
+          );
+        }
+        
+        this.loading.set(false);
+        this.successMessage.set('Account data loaded successfully');
+      })
+      .catch((error) => {
+        console.error('Failed to load account data:', error);
+        this.loading.set(false);
+        this.errorMessage.set('Failed to load account data. Please try again.');
+      });
   }
 
   setActiveTab(tab: 'positions' | 'orders'): void {

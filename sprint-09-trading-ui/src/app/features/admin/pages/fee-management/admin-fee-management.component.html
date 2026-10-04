@@ -24,16 +24,14 @@
       <table class="fee-table">
         <colgroup>
           <col class="col-asset" />
-          <col class="col-flat" />
-          <col class="col-percentage" />
-          <col class="col-component" />
+          <col class="col-flat-fee" />
+          <col class="col-percentage-fee" />
         </colgroup>
         <thead>
           <tr>
             <th>Asset Class</th>
-            <th class="th-number th-flat">Flat Fee</th>
-            <th class="th-number th-percentage">Percentage Fee</th>
-            <th class="th-component">Total Fee Component</th>
+            <th class="th-number">Flat Fee</th>
+            <th class="th-number">Percentage Fee</th>
           </tr>
         </thead>
         <tbody>
@@ -42,11 +40,8 @@
               <i [class]="getAssetIcon(fee.assetType)" class="asset-icon"></i>
               <span>{{ formatAssetClass(fee.assetType) }}</span>
             </td>
-            <td class="number td-flat">{{ formatCurrency(fee.flatFee) }}</td>
-            <td class="number td-percentage">{{ (fee.percentageFee * 100).toFixed(4) }}%</td>
-            <td class="fee-component">
-              Flat + (Volume × Percentage)
-            </td>
+            <td class="number">{{ formatCurrency(fee.flatFee) }}</td>
+            <td class="number">{{ (fee.percentageFee * 100).toFixed(2) }}%</td>
           </tr>
         </tbody>
       </table>
