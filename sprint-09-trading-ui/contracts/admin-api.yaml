@@ -1,0 +1,363 @@
+openapi: 3.1.0
+
+info:
+  title: Admin REST API
+  version: 1.0.0
+  summary: System-wide audit, compliance and admin operations for the Enterprise Trading Platform.
+  description: |
+    Binding contract for the Sprint 7 Event Backbone admin endpoints. Implement it exactly. The Angular UI
+    generates its typed client from this file, so a field renamed here is a compile error there.
+
+    ## Authentication
+
+    All `/api/v1/admin/**` routes require a valid signed JWT in the `Authorization` header with
+    the `ADMIN` role. A missing, malformed, expired or wrongly signed token is `AUTH-401`, 401.
+    A valid token without the `ADMIN` role is `AUTH-403`, 403.
+
+    ## Use Cases
+
+    These endpoints provide system-wide audit trails and compliance reporting for operators:
+    - Complete order history across all accounts with status transitions
+    - Complete transaction history across all accounts
+    - Asset fee structure configuration and auditing
+
+  contact:
+    name: Enterprise Trading Platform, programme materials
+  license:
+    name: Instructional use only
+
+servers:
+  - url: http://localhost:8080
+    description: Local development, run from Docker Compose
+  - url: http://event-backbone:8080
+    description: Service name inside the Docker Compose network
+
+tags:
+  - name: Admin - Audit & Compliance
+    description: System-wide order and transaction history for audit and compliance reporting.
+  - name: Admin - Configuration
+    description: Asset class fee structures and system configuration.
+
+security:
+  - bearerAuth: []
+
+paths:
+  /api/v1/admin/orders/history:
+    get:
+      tags: [Admin - Audit & Compliance]
+      operationId: getCompleteOrderHistory
+      summary: Get complete order history across all accounts
+      description: |
+        Retrieves the complete order status change history for all accounts, useful for
+        system-wide audit trails and compliance reporting. Each order's complete lifecycle
+        is captured: from initial creation (status NULL → NEW) through all status transitions
+        to the final state.
+
+        Sorted newest-first by timestamp. When multiple changes have the same timestamp,
+        transition records (from_status NOT NULL) are returned before initial state records
+        (from_status IS NULL).
+
+        Supports optional date range filtering for time-bounded audit queries.
+      parameters:
+        - name: from
+          in: query
+          description: Start date (inclusive, ISO 8601 format). Optional.
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          description: End date (inclusive, ISO 8601 format). Optional.
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Complete order history retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrderStatusChange'
+              examples:
+                success:
+                  value:
+                    - orderId: ORD-550e8400-e29b-41d4-a716-446655440000
+                      timestamp: '2026-10-03T15:30:00Z'
+                      fromStatus: null
+                      toStatus: NEW
+                    - orderId: ORD-550e8400-e29b-41d4-a716-446655440000
+                      timestamp: '2026-10-03T15:35:00Z'
+                      fromStatus: NEW
+                      toStatus: FILLED
+                    - orderId: ORD-660e8400-e29b-41d4-a716-446655440001
+                      timestamp: '2026-10-03T16:00:00Z'
+                      fromStatus: null
+                      toStatus: NEW
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '403':
+          $ref: '#/components/responses/AdminAccessDenied'
+
+  /api/v1/admin/transactions:
+    get:
+      tags: [Admin - Audit & Compliance]
+      operationId: getCompleteTransactionHistory
+      summary: Get complete transaction history across all accounts
+      description: |
+        Retrieves the complete transaction history for all accounts, useful for
+        system-wide audit trails and compliance reporting. Includes deposits, withdrawals,
+        trading fees, and order settlements across all accounts.
+
+        Sorted newest-first by creation time.
+
+        Supports optional date range filtering for time-bounded audit queries.
+      parameters:
+        - name: from
+          in: query
+          description: Start date (inclusive, ISO 8601 format). Optional.
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          description: End date (inclusive, ISO 8601 format). Optional.
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Complete transaction history retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TransactionHistoryEntry'
+              examples:
+                success:
+                  value:
+                    - transactionId: txn-550e8400-e29b-41d4-a716-446655440000
+                      transactionType: DEPOSIT
+                      actionType: CREDIT
+                      amount: 10000.00
+                      createdOn: '2026-10-03T10:00:00Z'
+                    - transactionId: txn-550e8400-e29b-41d4-a716-446655440001
+                      transactionType: BUY
+                      actionType: DEBIT
+                      amount: 5000.00
+                      createdOn: '2026-10-03T11:30:00Z'
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '403':
+          $ref: '#/components/responses/AdminAccessDenied'
+
+  /api/v1/admin/fees:
+    get:
+      tags: [Admin - Configuration]
+      operationId: getAllFees
+      summary: Get all asset fee structures
+      description: |
+        Retrieves fee configuration for all asset classes. Used for auditing platform fees
+        and ensuring consistent fee application across the system.
+      responses:
+        '200':
+          description: All fee structures retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FeeStructureResponse'
+              examples:
+                success:
+                  value:
+                    - assetType: EQUITY
+                      feePercentage: 0.001
+                      minimumFee: 1.00
+                      maximumFee: 1000.00
+                    - assetType: FOREX
+                      feePercentage: 0.0005
+                      minimumFee: 0.50
+                      maximumFee: 500.00
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '403':
+          $ref: '#/components/responses/AdminAccessDenied'
+
+  /api/v1/admin/fees/{assetType}:
+    get:
+      tags: [Admin - Configuration]
+      operationId: getFeeByAssetType
+      summary: Get fee structure for a specific asset type
+      description: |
+        Retrieves fee configuration for a specific asset class. Used for auditing and
+        verifying fee calculation for a particular asset type.
+      parameters:
+        - name: assetType
+          in: path
+          description: The asset type (e.g., EQUITY, FOREX)
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Fee structure retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeeStructureResponse'
+              examples:
+                success:
+                  value:
+                    assetType: EQUITY
+                    feePercentage: 0.001
+                    minimumFee: 1.00
+                    maximumFee: 1000.00
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '403':
+          $ref: '#/components/responses/AdminAccessDenied'
+        '404':
+          description: Asset type not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                notFound:
+                  value:
+                    errorCode: ASS-404
+                    message: Asset type not found
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    OrderStatusChange:
+      type: object
+      description: Represents one immutable status transition entry for an order.
+      required:
+        - orderId
+        - timestamp
+        - toStatus
+      properties:
+        orderId:
+          type: string
+          description: Order identifier with ORD- prefix (e.g., ORD-550e8400-e29b-41d4-a716-446655440000)
+          pattern: '^ORD-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+        timestamp:
+          type: string
+          format: date-time
+          description: When the status change occurred.
+        fromStatus:
+          type: string
+          enum: [NEW, FILLED, REJECTED, CANCELLED, null]
+          nullable: true
+          description: Previous status. NULL for the initial state (order creation).
+        toStatus:
+          type: string
+          enum: [NEW, FILLED, REJECTED, CANCELLED]
+          description: New status after the transition.
+
+    TransactionHistoryEntry:
+      type: object
+      description: Represents a single transaction in the audit history.
+      required:
+        - transactionId
+        - transactionType
+        - actionType
+        - amount
+        - createdOn
+      properties:
+        transactionId:
+          type: string
+          format: uuid
+          description: Unique transaction identifier
+        transactionType:
+          type: string
+          enum: [DEPOSIT, WITHDRAW, FEE, BUY, SELL]
+          description: Type of transaction
+        actionType:
+          type: string
+          enum: [CREDIT, DEBIT]
+          description: Cash flow direction
+        amount:
+          type: number
+          format: decimal
+          description: Transaction amount in account currency
+        createdOn:
+          type: string
+          format: date-time
+          description: When the transaction was recorded
+
+    FeeStructureResponse:
+      type: object
+      description: Fee configuration for an asset class.
+      required:
+        - assetType
+        - flatFee
+        - percentageFee
+      properties:
+        assetType:
+          type: string
+          description: Asset class identifier (e.g., EQUITY, FOREX)
+        flatFee:
+          type: number
+          format: decimal
+          description: Flat fee amount per transaction in account currency
+        percentageFee:
+          type: number
+          format: decimal
+          description: Percentage fee as a decimal (e.g., 0.001 = 0.1%, already in percentage form, no division by 100 needed)
+
+    ErrorResponse:
+      type: object
+      required:
+        - errorCode
+        - message
+      properties:
+        errorCode:
+          type: string
+          description: Machine-readable error code
+        message:
+          type: string
+          description: Human-readable error message
+
+  responses:
+    Unauthorised:
+      description: Missing, malformed or expired authentication token.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            noToken:
+              value:
+                errorCode: AUTH-401
+                message: Authentication required
+            expiredToken:
+              value:
+                errorCode: AUTH-401
+                message: Token expired
+
+    AdminAccessDenied:
+      description: Valid token but lacking ADMIN role.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            noAdminRole:
+              value:
+                errorCode: AUTH-403
+                message: Admin access required

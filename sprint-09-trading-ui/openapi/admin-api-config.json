@@ -1,0 +1,12 @@
+{
+  "inputSpec": "./contracts/admin-api.yaml",
+  "outputDir": "./src/app/api/generated/admin",
+  "generatorName": "typescript-angular",
+  "skipValidateSpec": true,
+  "validateSpec": false,
+  "packageName": "api.admin",
+  "additionalProperties": {
+    "apiModulePrefix": "AdminApi",
+    "ngVersion": "21.0.0"
+  }
+}
