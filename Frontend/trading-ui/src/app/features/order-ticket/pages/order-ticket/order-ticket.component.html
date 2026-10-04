@@ -7,7 +7,7 @@
   </div>
 
   <div class="ticket-message-stack" *ngIf="processedError() || submissionResult()">
-    <section class="ticket-message ticket-message-error" *ngIf="processedError() as error" data-testid="order-rejected-message">
+    <section class="ticket-message ticket-message-error" role="alert" *ngIf="processedError() as error" data-testid="order-rejected-message">
       <div class="message-header-row">
         <p class="message-title">Order rejected</p>
         <span class="message-code" *ngIf="error.code">{{ error.code }}</span>
@@ -19,9 +19,9 @@
       </div>
     </section>
 
-    <section class="ticket-message ticket-message-success" *ngIf="submissionResult() as result" data-testid="order-result-message">
+    <section class="ticket-message ticket-message-success" [attr.role]="result.status === 'REJECTED' ? 'alert' : null" *ngIf="submissionResult() as result" data-testid="order-result-message">
       <div class="message-header-row">
-        <p class="message-title">Order placed</p>
+        <p class="message-title">{{ result.status === 'NEW' ? 'Accepted and working' : result.status === 'REJECTED' ? 'Order rejected' : 'Order placed' }}</p>
         <span class="message-pill">{{ result.status }}</span>
       </div>
       <p class="message-body">{{ result.message }}</p>
@@ -85,6 +85,7 @@
           (ngModelChange)="symbol.set($event)"
           (blur)="onSymbolBlur()"
           placeholder="AAPL or INFY.NS"
+          maxlength="20"
         />
         <div class="invalid-feedback" *ngIf="symbolErrors().length > 0">
           <div *ngFor="let error of symbolErrors()">{{ error }}</div>

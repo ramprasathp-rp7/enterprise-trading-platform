@@ -151,6 +151,13 @@ export class OrderTicketComponent implements OnDestroy {
         return;
       }
 
+      // Keep NEW (in-flight/accepted) visible until status updates
+      if (result.status === 'NEW') {
+        this.clearDismissTimer();
+        this.dismissMessageKey = null;
+        return;
+      }
+
       const nextKey = `success:${result?.orderId ?? ''}:${result?.status ?? ''}:${result?.message ?? ''}`;
 
       if (this.dismissTimer && this.dismissMessageKey === nextKey) {
