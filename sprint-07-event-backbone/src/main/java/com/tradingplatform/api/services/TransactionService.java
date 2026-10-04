@@ -195,6 +195,39 @@ public class TransactionService {
     }
 
     /**
+     * Get all transactions across all accounts (admin only).
+     * Used for system-wide audit trails and compliance reporting.
+     * 
+     * @return list of all transactions (newest first)
+     */
+    public List<TransactionHistoryEntry> getAllTransactions() {
+        return transactionMapper.findAllTransactions()
+                .stream()
+                .map(this::mapToTransactionHistoryEntry)
+                .toList();
+    }
+    
+    /**
+     * Get all transactions across all accounts within a date range (admin only).
+     * Used for system-wide audit trails and compliance reporting.
+     * 
+     * @param from start timestamp (inclusive)
+     * @param to end timestamp (inclusive)
+     * @return list of transactions within range (newest first)
+     */
+    public List<TransactionHistoryEntry> getAllTransactions(Instant from, Instant to) {
+        // Validate date range
+        if (from.isAfter(to)) {
+            throw new IllegalArgumentException("fromDate must be before toDate");
+        }
+        
+        return transactionMapper.findAllTransactionsByDateRange(from, to)
+                .stream()
+                .map(this::mapToTransactionHistoryEntry)
+                .toList();
+    }
+
+    /**
      * Maps Transaction domain model to TransactionResponse DTO.
      */
     private TransactionResponse mapToTransactionResponse(Transaction transaction) {

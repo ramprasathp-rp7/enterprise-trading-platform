@@ -124,4 +124,45 @@ public interface TransactionMapper {
     @Select("SELECT COUNT(1) > 0 FROM transactions WHERE order_id = #{orderId} AND transaction_type = #{transactionType}")
     boolean existsByOrderIdAndTransactionType(@Param("orderId") UUID orderId,
                                               @Param("transactionType") TransactionType transactionType);
+    
+    /**
+     * Retrieves all transactions across all accounts (admin only).
+     * Used for system-wide auditing and compliance reporting.
+     *
+     * @return list of all transactions ordered by creation time (most recent first)
+     */
+    @ConstructorArgs({
+        @Arg(column = "account_id", javaType = Long.class),
+        @Arg(column = "order_id", javaType = UUID.class),
+        @Arg(column = "transaction_type", javaType = TransactionType.class),
+        @Arg(column = "action_type", javaType = TransactionAction.class),
+        @Arg(column = "amount", javaType = java.math.BigDecimal.class),
+        @Arg(column = "created_on", javaType = Instant.class),
+        @Arg(column = "transaction_id", javaType = UUID.class)
+    })
+    @Select("SELECT transaction_id, account_id, order_id, transaction_type, action_type, amount, created_on " +
+            "FROM transactions ORDER BY created_on DESC")
+    List<Transaction> findAllTransactions();
+    
+    /**
+     * Retrieves all transactions within a date range across all accounts (admin only).
+     * Used for system-wide auditing and compliance reporting.
+     *
+     * @param from the start date (inclusive)
+     * @param to the end date (inclusive)
+     * @return list of transactions ordered by creation time (most recent first)
+     */
+    @ConstructorArgs({
+        @Arg(column = "account_id", javaType = Long.class),
+        @Arg(column = "order_id", javaType = UUID.class),
+        @Arg(column = "transaction_type", javaType = TransactionType.class),
+        @Arg(column = "action_type", javaType = TransactionAction.class),
+        @Arg(column = "amount", javaType = java.math.BigDecimal.class),
+        @Arg(column = "created_on", javaType = Instant.class),
+        @Arg(column = "transaction_id", javaType = UUID.class)
+    })
+    @Select("SELECT transaction_id, account_id, order_id, transaction_type, action_type, amount, created_on " +
+            "FROM transactions WHERE created_on BETWEEN #{from} AND #{to} ORDER BY created_on DESC")
+    List<Transaction> findAllTransactionsByDateRange(@Param("from") Instant from,
+                                                      @Param("to") Instant to);
 }

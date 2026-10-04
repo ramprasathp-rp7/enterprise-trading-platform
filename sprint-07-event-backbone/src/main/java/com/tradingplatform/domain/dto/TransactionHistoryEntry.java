@@ -1,5 +1,6 @@
 package com.tradingplatform.domain.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.tradingplatform.domain.enums.TransactionAction;
 import com.tradingplatform.domain.enums.TransactionType;
 import jakarta.validation.constraints.Digits;
@@ -29,6 +30,7 @@ public record TransactionHistoryEntry(
     BigDecimal amount,
 
     @NotNull(message = "createdOn cannot be null")
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'", timezone = "UTC")
     Instant createdOn
 ) {
 }

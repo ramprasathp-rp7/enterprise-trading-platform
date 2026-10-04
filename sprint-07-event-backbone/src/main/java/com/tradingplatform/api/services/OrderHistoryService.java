@@ -105,6 +105,39 @@ public class OrderHistoryService {
         return order;
     }
 
+    /**
+     * Get complete order history across all accounts (admin only).
+     * Used for system-wide audit trails and compliance reporting.
+     * 
+     * @return list of all status transitions (newest first)
+     */
+    public List<OrderStatusChange> getAllOrderHistory() {
+        return orderHistoryMapper.findAllOrderHistory()
+            .stream()
+            .map(this::addPrefixToOrderStatusChange)
+            .toList();
+    }
+    
+    /**
+     * Get complete order history across all accounts within a date range (admin only).
+     * Used for system-wide audit trails and compliance reporting.
+     * 
+     * @param from start timestamp (inclusive)
+     * @param to end timestamp (inclusive)
+     * @return list of status transitions within range (newest first)
+     */
+    public List<OrderStatusChange> getAllOrderHistory(Instant from, Instant to) {
+        // Validate date range
+        if (from.isAfter(to)) {
+            throw new IllegalArgumentException("fromDate must be before toDate");
+        }
+        
+        return orderHistoryMapper.findAllOrderHistoryByDateRange(from, to)
+            .stream()
+            .map(this::addPrefixToOrderStatusChange)
+            .toList();
+    }
+
     private OrderStatusChange addPrefixToOrderStatusChange(OrderStatusChange change) {
     return new OrderStatusChange(
         "ORD-" + change.orderId(),
