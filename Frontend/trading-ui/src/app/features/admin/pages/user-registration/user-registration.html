@@ -1,0 +1,114 @@
+<div class="registration-container">
+  <div class="welcome-section">
+    <div class="welcome-content">
+      <h1 class="welcome-title">Register User</h1>
+      <p class="welcome-subtitle">Create platform credentials and map user access roles</p>
+    </div>
+  </div>
+
+  <div class="registration-flash-stack">
+    <div *ngIf="successMessage()" class="alert alert-success" role="status" aria-live="polite">
+      <i class="fas fa-check-circle"></i>
+      {{ successMessage() }}
+    </div>
+
+    <div *ngIf="errorMessage()" class="alert alert-error" role="alert" aria-live="assertive">
+      <i class="fas fa-exclamation-circle"></i>
+      {{ errorMessage() }}
+    </div>
+  </div>
+
+  <div class="registration-shell">
+    <div class="registration-card">
+      <p class="eyebrow">Admin Access</p>
+      <h1>Register New User</h1>
+      <p class="description">Add a new user to the system.</p>
+
+      <form [formGroup]="form" (ngSubmit)="onSubmit()" class="form">
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input
+            id="username"
+            type="text"
+            formControlName="username"
+            placeholder="johndoe"
+            class="form-input"
+          />
+          <span *ngIf="form.get('username')?.hasError('required')" class="error">
+            Username is required
+          </span>
+          <span *ngIf="form.get('username')?.hasError('minlength')" class="error">
+            Username must be at least 3 characters
+          </span>
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password (min 12 characters)</label>
+          <div class="password-input">
+            <input
+              id="password"
+              [type]="showPassword() ? 'text' : 'password'"
+              formControlName="password"
+              placeholder="Enter secure password"
+              class="form-input"
+            />
+            <button
+              type="button"
+              (click)="togglePassword()"
+              class="toggle-password"
+              title="Toggle password visibility"
+            >
+              <i [class]="showPassword() ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+            </button>
+          </div>
+          <span *ngIf="form.get('password')?.hasError('required')" class="error">
+            Password is required
+          </span>
+          <span *ngIf="form.get('password')?.hasError('minlength')" class="error">
+            Password must be at least 12 characters
+          </span>
+        </div>
+
+        <div class="form-group">
+          <label for="accountId">Account ID</label>
+          <input
+            id="accountId"
+            type="number"
+            formControlName="accountId"
+            placeholder="Enter account ID"
+            class="form-input"
+          />
+          <span *ngIf="form.get('accountId')?.hasError('required')" class="error">
+            Account ID is required
+          </span>
+        </div>
+
+        <div class="form-group">
+          <label>Assign Roles</label>
+          <div class="checkbox-group">
+            <label class="checkbox">
+              <input
+                type="checkbox"
+                value="ADMIN"
+                (change)="$any($event.target).checked ? form.get('roles')?.value.push('ADMIN') : form.get('roles')?.setValue(form.get('roles')?.value.filter(r => r !== 'ADMIN'))"
+              />
+              <span>Admin</span>
+            </label>
+            <label class="checkbox">
+              <input type="checkbox" value="CUSTOMER" [checked]="true" disabled />
+              <span>Customer (default)</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" [disabled]="loading()" class="btn btn-primary">
+            <span *ngIf="!loading()">Register User</span>
+            <span *ngIf="loading()"><i class="fas fa-spinner fa-spin"></i> Registering...</span>
+          </button>
+          <button type="reset" class="btn btn-secondary">Clear</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

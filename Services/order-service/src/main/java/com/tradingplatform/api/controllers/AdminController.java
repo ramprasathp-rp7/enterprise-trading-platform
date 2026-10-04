@@ -1,0 +1,139 @@
+package com.tradingplatform.api.controllers;
+
+import com.tradingplatform.api.services.OrderHistoryService;
+import com.tradingplatform.api.services.TransactionService;
+import com.tradingplatform.api.services.FeeService;
+import com.tradingplatform.domain.dto.OrderStatusChange;
+import com.tradingplatform.domain.dto.TransactionHistoryEntry;
+import com.tradingplatform.domain.dto.FeeStructureResponse;
+
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * Admin Audit & Compliance Controller
+ * Centralized endpoints for system-wide administration, auditing, and compliance.
+ * Requires admin authorization.
+ * 
+ * Provides:
+ * - Complete order history and transaction records across all accounts
+ * - Asset fee structure management
+ * - Compliance reporting and auditing
+ */
+@RestController
+@RequestMapping("/api/v1/admin")
+public class AdminController {
+    
+    private final OrderHistoryService orderHistoryService;
+    private final TransactionService transactionService;
+    private final FeeService feeService;
+    
+    public AdminController(OrderHistoryService orderHistoryService,
+                          TransactionService transactionService,
+                          FeeService feeService) {
+        this.orderHistoryService = orderHistoryService;
+        this.transactionService = transactionService;
+        this.feeService = feeService;
+    }
+    
+    /**
+     * Retrieve complete order history across all accounts (admin only).
+     * GET /api/v1/admin/orders/history
+     * 
+     * Supports optional date range filtering for time-bounded audit queries.
+     * Returns all order status changes (creation → transitions → final state) 
+     * sorted newest-first.
+     *
+     * @param from optional start date (inclusive, ISO 8601 format)
+     * @param to optional end date (inclusive, ISO 8601 format)
+     * @return list of order status changes across all accounts
+     */
+    @GetMapping("/orders/history")
+    public ResponseEntity<List<OrderStatusChange>> getCompleteOrderHistory(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Optional<OffsetDateTime> from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Optional<OffsetDateTime> to) {
+        
+        // Convert OffsetDateTime to Instant
+        Optional<Instant> fromInstant = from.map(OffsetDateTime::toInstant);
+        Optional<Instant> toInstant = to.map(OffsetDateTime::toInstant);
+        
+        List<OrderStatusChange> history;
+        
+        if (fromInstant.isPresent() && toInstant.isPresent()) {
+            history = orderHistoryService.getAllOrderHistory(fromInstant.get(), toInstant.get());
+        } else {
+            history = orderHistoryService.getAllOrderHistory();
+        }
+        
+        return ResponseEntity.ok(history);
+    }
+    
+    /**
+     * Retrieve complete transaction history across all accounts (admin only).
+     * GET /api/v1/admin/transactions
+     * 
+     * Supports optional date range filtering for time-bounded compliance queries.
+     * Returns all transactions (deposits, withdrawals, order settlements) 
+     * sorted newest-first.
+     *
+     * @param from optional start date (inclusive, ISO 8601 format)
+     * @param to optional end date (inclusive, ISO 8601 format)
+     * @return list of all transactions across all accounts
+     */
+    @GetMapping("/transactions")
+    public ResponseEntity<List<TransactionHistoryEntry>> getCompleteTransactionHistory(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Optional<OffsetDateTime> from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Optional<OffsetDateTime> to) {
+        
+        // Convert OffsetDateTime to Instant
+        Optional<Instant> fromInstant = from.map(OffsetDateTime::toInstant);
+        Optional<Instant> toInstant = to.map(OffsetDateTime::toInstant);
+        
+        List<TransactionHistoryEntry> history;
+        
+        if (fromInstant.isPresent() && toInstant.isPresent()) {
+            history = transactionService.getAllTransactions(fromInstant.get(), toInstant.get());
+        } else {
+            history = transactionService.getAllTransactions();
+        }
+        
+        return ResponseEntity.ok(history);
+    }
+    
+    /**
+     * Retrieve all asset fee structures (admin only).
+     * GET /api/v1/admin/fees
+     * 
+     * Returns fee configuration for all asset classes.
+     *
+     * @return list of all fee structures
+     */
+    @GetMapping("/fees")
+    public ResponseEntity<List<FeeStructureResponse>> getAllFees() {
+        List<FeeStructureResponse> fees = feeService.getAllFees();
+        return ResponseEntity.ok(fees);
+    }
+    
+    /**
+     * Retrieve fee structure for a specific asset type (admin only).
+     * GET /api/v1/admin/fees/{assetType}
+     * 
+     * @param assetType the asset type (e.g., "EQUITY", "FOREX")
+     * @return the fee structure for the asset type
+     */
+    @GetMapping("/fees/{assetType}")
+    public ResponseEntity<FeeStructureResponse> getFeeByAssetType(@PathVariable String assetType) {
+        FeeStructureResponse fee = feeService.getFeeByAssetType(assetType);
+        return ResponseEntity.ok(fee);
+    }
+}

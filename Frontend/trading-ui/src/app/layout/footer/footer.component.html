@@ -1,0 +1,24 @@
+<!-- Professional Footer Component -->
+<footer class="footer">
+  <div class="footer-content">
+    <div class="footer-left">
+      <span class="copyright">&copy; {{ currentYear }} Enterprise Trading Platform</span>
+      <div class="footer-links">
+        <a *ngFor="let link of footerLinks" [href]="link.href" class="footer-link">
+          {{ link.label }}
+        </a>
+      </div>
+    </div>
+
+    <div class="footer-center">
+      <div class="system-status">
+        <span class="status-indicator" [class.status-operational]="systemStatus === 'LIVE'"></span>
+        <span class="status-text">{{ systemStatus }}</span>
+      </div>
+    </div>
+
+    <div class="footer-right">
+      <span class="version">v{{ version }}</span>
+    </div>
+  </div>
+</footer>

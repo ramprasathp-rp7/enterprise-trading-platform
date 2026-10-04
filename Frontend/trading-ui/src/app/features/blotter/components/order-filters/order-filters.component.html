@@ -1,0 +1,35 @@
+<div class="history-controls">
+  <div class="filter-group">
+    <label for="status-filter">Filter by Status:</label>
+    <select
+      id="status-filter"
+      [(ngModel)]="selectedStatus"
+      (change)="onStatusChange()"
+      class="filter-select"
+    >
+      <option value="">All</option>
+      <option [value]="statusOptions.New">NEW</option>
+      <option [value]="statusOptions.Filled">FILLED</option>
+      <option [value]="statusOptions.Rejected">REJECTED</option>
+      <option [value]="statusOptions.Cancelled">CANCELLED</option>
+    </select>
+  </div>
+
+  <div class="filter-group id-search-group">
+    <label for="symbol-filter">Filter by Symbol:</label>
+    <input
+      id="symbol-filter"
+      type="text"
+      [(ngModel)]="selectedSymbol"
+      (input)="onSymbolChange()"
+      placeholder="Enter symbol (e.g., AAPL)"
+      class="id-search-input"
+      maxlength="10"
+    />
+    @if (isFilterActive()) {
+      <button class="clear-search-btn" (click)="onClearFilters()" type="button" title="Clear all filters">
+        Clear
+      </button>
+    }
+  </div>
+</div>

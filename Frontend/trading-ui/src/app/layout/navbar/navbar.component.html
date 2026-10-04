@@ -1,0 +1,79 @@
+<!-- Enterprise Trading Platform Navbar -->
+<nav class="navbar">
+  <div class="navbar-container">
+    <!-- Logo and Brand -->
+    <div class="navbar-brand">
+      <div class="brand-icon">
+        <i class="fas fa-chart-line"></i>
+      </div>
+      <div class="brand-text">Enterprise Trading Platform</div>
+    </div>
+
+    <!-- Spacer -->
+    <div class="navbar-spacer"></div>
+
+    <!-- Right Section: Actions and User -->
+    <div class="navbar-right">
+      
+      <!-- Quick Actions Icons -->
+      <div class="navbar-actions">
+        <!-- Search -->
+        <button class="action-icon" title="Search">
+          <i class="fas fa-search"></i>
+        </button>
+
+        <!-- Settings -->
+        <button class="action-icon" title="Settings">
+          <i class="fas fa-cog"></i>
+        </button>
+      </div>
+
+      <!-- Divider -->
+      <div class="navbar-divider"></div>
+
+      <!-- User Profile -->
+      <div class="user-profile-container">
+        <button 
+          class="user-profile-button"
+          (click)="toggleProfileMenu($event)"
+        >
+          <div class="user-avatar">{{ (authService.currentUser()?.username || 'U')?.charAt(0)?.toUpperCase() || 'U' }}</div>
+          <div class="user-info">
+            <div class="user-name">{{ authService.currentUser()?.username || 'User' }}</div>
+            <div class="user-role">Acct {{ accountDisplayId() || 'N/A' }}</div>
+          </div>
+          <i class="fas fa-chevron-down"></i>
+        </button>
+
+        <!-- Profile Dropdown Menu -->
+        <div class="profile-menu" *ngIf="isProfileMenuOpen">
+          <div class="profile-menu-header">
+            <div class="profile-menu-avatar">{{ (authService.currentUser()?.username || 'U')?.charAt(0)?.toUpperCase() || 'U' }}</div>
+            <div class="profile-menu-details">
+              <div class="profile-menu-name">{{ authService.currentUser()?.username || 'User' }}</div>
+              <div class="profile-menu-email">Account ID: {{ accountDisplayId() || 'N/A' }}</div>
+            </div>
+          </div>
+          <div class="profile-menu-divider"></div>
+          <button class="profile-menu-item">
+            <i class="fas fa-user-circle"></i>
+            Profile Settings
+          </button>
+          <button class="profile-menu-item">
+            <i class="fas fa-sliders-h"></i>
+            Preferences
+          </button>
+          <button class="profile-menu-item">
+            <i class="fas fa-file-download"></i>
+            Download Reports
+          </button>
+          <div class="profile-menu-divider"></div>
+          <button class="profile-menu-item logout" (click)="logout()">
+            <i class="fas fa-sign-out-alt"></i>
+            Logout
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav>

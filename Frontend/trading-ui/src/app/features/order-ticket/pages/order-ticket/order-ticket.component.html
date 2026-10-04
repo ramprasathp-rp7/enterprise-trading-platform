@@ -1,0 +1,155 @@
+<div class="order-ticket-container">
+  <div class="welcome-section">
+    <div class="welcome-content">
+      <h1 class="welcome-title">Order Ticket</h1>
+      <p class="welcome-subtitle">Place your order</p>
+    </div>
+  </div>
+
+  <div class="ticket-message-stack" *ngIf="processedError() || submissionResult()">
+    <section class="ticket-message ticket-message-error" *ngIf="processedError() as error" data-testid="order-rejected-message">
+      <div class="message-header-row">
+        <p class="message-title">Order rejected</p>
+        <span class="message-code" *ngIf="error.code">{{ error.code }}</span>
+      </div>
+      <p class="message-body">{{ error.message }}</p>
+      <div class="message-actions">
+        <button type="button" class="message-action secondary" (click)="onRetryOrder()">Retry</button>
+        <button type="button" class="message-action ghost" (click)="onDismissError()">Dismiss</button>
+      </div>
+    </section>
+
+    <section class="ticket-message ticket-message-success" *ngIf="submissionResult() as result" data-testid="order-result-message">
+      <div class="message-header-row">
+        <p class="message-title">Order placed</p>
+        <span class="message-pill">{{ result.status }}</span>
+      </div>
+      <p class="message-body">{{ result.message }}</p>
+      <dl class="message-meta-grid">
+        <div>
+          <dt>Order</dt>
+          <dd>{{ result.orderId }}</dd>
+        </div>
+        <div>
+          <dt>Instrument</dt>
+          <dd>{{ result.symbol }}</dd>
+        </div>
+        <div>
+          <dt>Side</dt>
+          <dd>{{ result.side }}</dd>
+        </div>
+        <div>
+          <dt>Quantity</dt>
+          <dd>{{ result.quantity }}</dd>
+        </div>
+        <div>
+          <dt>Price</dt>
+          <dd>{{ result.price }}</dd>
+        </div>
+      </dl>
+    </section>
+  </div>
+
+  <div class="ticket-shell">
+    <section class="ticket-card">
+      <header class="ticket-header">
+        <p class="eyebrow">Order Ticket</p>
+        <h1>Place an order</h1>
+        <p class="intro">
+          Enter how many units you want and the price per unit, then
+          place your order when you are ready. Double-check your details before submitting. 
+      </header>
+
+      <form class="ticket-form" (ngSubmit)="onSubmit()">
+      <div class="form-group">
+        <label for="accountId">Account</label>
+        <input
+          id="accountId"
+          name="accountId"
+          data-testid="account-input"
+          class="form-control read-only"
+          [value]="accountDisplayId() ?? 'No trading account available'"
+          readonly
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="symbol">Instrument</label>
+        <input
+          id="symbol"
+          name="symbol"
+          data-testid="symbol-input"
+          class="form-control"
+          [class.is-invalid]="symbolErrors().length > 0"
+          [ngModel]="symbol()"
+          (ngModelChange)="symbol.set($event)"
+          (blur)="onSymbolBlur()"
+          placeholder="AAPL or INFY.NS"
+        />
+        <div class="invalid-feedback" *ngIf="symbolErrors().length > 0">
+          <div *ngFor="let error of symbolErrors()">{{ error }}</div>
+        </div>
+      </div>
+
+      <div class="split-fields">
+        <div class="form-group">
+          <label for="side">Side</label>
+          <select
+            id="side"
+            name="side"
+            data-testid="side-select"
+            class="form-control"
+            [ngModel]="side()"
+            (ngModelChange)="side.set($event)"
+          >
+            <option *ngFor="let option of sideOptions" [value]="option">{{ option }}</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="quantity">Quantity</label>
+          <input
+            id="quantity"
+            name="quantity"
+            data-testid="quantity-input"
+            class="form-control"
+            [class.is-invalid]="quantityErrors().length > 0"
+            [ngModel]="quantity()"
+            (ngModelChange)="quantity.set($event)"
+            (blur)="onQuantityBlur()"
+            inputmode="numeric"
+            placeholder="100"
+          />
+          <div class="invalid-feedback" *ngIf="quantityErrors().length > 0">
+            <div *ngFor="let error of quantityErrors()">{{ error }}</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="price">Limit price</label>
+          <input
+            id="price"
+            name="price"
+            data-testid="price-input"
+            class="form-control"
+            [class.is-invalid]="priceErrors().length > 0"
+            [ngModel]="price()"
+            (ngModelChange)="price.set($event)"
+            (blur)="onPriceBlur()"
+            inputmode="decimal"
+            placeholder="245.75"
+          />
+          <div class="invalid-feedback" *ngIf="priceErrors().length > 0">
+            <div *ngFor="let error of priceErrors()">{{ error }}</div>
+          </div>
+        </div>
+      </div>
+
+        <button type="submit" class="submit-button" data-testid="submit-order-btn" [disabled]="!canSubmit()">
+          {{ isSubmitting() ? 'Submitting...' : 'Submit order' }}
+        </button>
+      </form>
+
+    </section>
+  </div>
+</div>

@@ -1,0 +1,140 @@
+<!-- Transactions Page -->
+<div class="transactions-container">
+  
+  <!-- Welcome Header -->
+  <div class="welcome-section">
+    <div class="welcome-content">
+      <h1 class="welcome-title">Transaction History</h1>
+      <p class="welcome-subtitle">View and filter your complete transaction activity</p>
+    </div>
+  </div>
+
+  <!-- Error Alert -->
+  @if (error()) {
+    <div class="alert alert-error">
+      <div class="alert-content">
+        <i class="fas fa-exclamation-circle"></i>
+        <div>
+          <strong>{{ error()?.errorCode }}</strong>
+          <p>{{ error()?.message }}</p>
+        </div>
+      </div>
+      <button class="alert-close" (click)="dismissError()">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+  }
+
+  <!-- Transaction History Section -->
+  <div class="history-section">
+    <div class="section-header">
+      <h2 class="section-title">Transaction History</h2>
+      <div class="history-controls">
+        <div class="filter-group">
+          <label for="type-filter">Filter by Type:</label>
+          <select
+            id="type-filter"
+            [(ngModel)]="selectedTypeFilter"
+            class="filter-select"
+          >
+            @for (type of transactionTypes; track type) {
+              <option [value]="type">{{ type }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="filter-group id-search-group">
+          <label for="id-filter">Search by ID:</label>
+          <input
+            id="id-filter"
+            type="text"
+            class="id-search-input"
+            placeholder="Enter full or partial transaction ID"
+            [ngModel]="transactionIdQuery()"
+            (ngModelChange)="transactionIdQuery.set($event || '')"
+          />
+          @if (transactionIdQuery()) {
+            <button class="clear-search-btn" type="button" (click)="clearTransactionIdQuery()">Clear</button>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- Transactions Table -->
+    <div class="table-wrapper">
+      <table class="transactions-table">
+        <colgroup>
+          <col class="col-type" />
+          <col class="col-amount" />
+          <col class="col-action" />
+          <col class="col-datetime" />
+          <col class="col-id" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th class="col-type">Type</th>
+            <th class="col-amount">Amount</th>
+            <th class="col-action">Action</th>
+            <th class="col-datetime">Date & Time</th>
+            <th class="col-id">ID</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (loading()) {
+            <tr>
+              <td colspan="5">
+                <div class="loading-state">
+                  <div class="spinner"></div>
+                  <p>Loading transactions...</p>
+                </div>
+              </td>
+            </tr>
+          } @else if (getFilteredTransactions().length === 0) {
+            <tr>
+              <td colspan="5">
+                <div class="empty-state">
+                  <i class="fas fa-inbox"></i>
+                  <p>No transactions found</p>
+                  <small>Start by depositing or withdrawing funds</small>
+                </div>
+              </td>
+            </tr>
+          } @else {
+            @for (transaction of getFilteredTransactions(); track transaction.transactionId) {
+              <tr class="transaction-row">
+                <td class="cell-type">
+                  <div class="type-badge">
+                    <i [class]="'fas fa-' + getTypeIcon(transaction.transactionType)"></i>
+                    <span class="type-label">{{ transaction.transactionType }}</span>
+                  </div>
+                </td>
+                <td class="cell-amount amount">
+                  {{ formatCurrency(transaction.amount) }}
+                </td>
+                <td class="cell-action">
+                  <span class="action-badge" [class]="getActionClass(transaction.actionType)">
+                    {{ transaction.actionType }}
+                  </span>
+                </td>
+                <td class="cell-datetime" [title]="formatDate(transaction.createdOn)">
+                  <span class="timestamp-value">{{ formatDate(transaction.createdOn) }}</span>
+                </td>
+                <td class="cell-id transaction-id" [title]="transaction.transactionId">
+                  <code>{{ transaction.transactionId }}</code>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <div class="summary-footer">
+      <div class="summary-stat">
+        <span class="stat-label">Total Transactions:</span>
+        <span class="stat-value">{{ getFilteredTransactions().length }}</span>
+      </div>
+    </div>
+  </div>
+
+</div>

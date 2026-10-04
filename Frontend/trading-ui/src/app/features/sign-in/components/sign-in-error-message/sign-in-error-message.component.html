@@ -1,0 +1,5 @@
+<div *ngIf="isVisible()" class="alert alert-danger" role="alert">
+  <div class="error-message">{{ message() }}</div>
+  <div class="error-code" *ngIf="errorCode()" title="Error code">{{ errorCode() }}</div>
+</div>
+

@@ -1,0 +1,102 @@
+<!-- Admin Analytics Dashboard -->
+<div class="analytics-container">
+  <!-- Welcome Section -->
+  <div class="welcome-section">
+    <div class="welcome-content">
+      <h1 class="welcome-title">Analytics Dashboard</h1>
+      <p class="welcome-subtitle">System-wide trading metrics derived from complete order and transaction history</p>
+    </div>
+  </div>
+
+  <!-- Controls Section -->
+  <div class="controls-section">
+    <div class="filter-group">
+      <label for="dateRange">Date Range</label>
+      <select 
+        id="dateRange"
+        [ngModel]="dateRange()" 
+        (ngModelChange)="dateRange.set($any($event))"
+        class="filter-select"
+      >
+        <option value="7d">Last 7 Days</option>
+        <option value="30d">Last 30 Days</option>
+        <option value="90d">Last 90 Days</option>
+        <option value="all-time">All Time</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  @if (isLoading()) {
+    <div class="loading-container">
+      <div class="spinner"></div>
+      <p>Loading analytics data...</p>
+    </div>
+  }
+
+  <!-- Error State -->
+  @if (errorMessage()) {
+    <div class="error-message">
+      <i class="fas fa-exclamation-circle"></i>
+      {{ errorMessage() }}
+    </div>
+  }
+
+  <!-- Key Metrics Section -->
+  @if (!isLoading()) {
+    <div class="metrics-section">
+      <h2 class="section-title">Key Metrics</h2>
+      
+      <div class="metrics-grid">
+        <!-- Total Orders Card -->
+        <div class="metric-card">
+          <div class="metric-header">
+            <div class="metric-icon orders-icon">
+              <i class="fas fa-list-check"></i>
+            </div>
+            <h3 class="metric-title">Total Orders</h3>
+          </div>
+          <div class="metric-value-large">{{ totalOrders() }}</div>
+          <p class="metric-description">Orders placed during selected period</p>
+        </div>
+
+        <!-- Total Trade Value Card -->
+        <div class="metric-card">
+          <div class="metric-header">
+            <div class="metric-icon trades-icon">
+              <i class="fas fa-dollar-sign"></i>
+            </div>
+            <h3 class="metric-title">Total Trade Value</h3>
+          </div>
+          <div class="metric-value-large">{{ formatCurrency(totalTradeValue()) }}</div>
+          <p class="metric-description">Sum of all BUY and SELL transactions</p>
+        </div>
+
+        <!-- Total Fee Value Card -->
+        <div class="metric-card">
+          <div class="metric-header">
+            <div class="metric-icon fees-icon">
+              <i class="fas fa-receipt"></i>
+            </div>
+            <h3 class="metric-title">Total Fee Value</h3>
+          </div>
+          <div class="metric-value-large">{{ formatCurrency(totalFeeValue()) }}</div>
+          <p class="metric-description">Platform and trading fees collected</p>
+        </div>
+
+        <!-- Fill Rate Card -->
+        <div class="metric-card">
+          <div class="metric-header">
+            <div class="metric-icon fillrate-icon">
+              <i class="fas fa-percent"></i>
+            </div>
+            <h3 class="metric-title">Fill Rate</h3>
+          </div>
+          <div class="metric-value-large">{{ formatPercent(fillRate()) }}</div>
+          <p class="metric-description">Percentage of orders successfully filled</p>
+        </div>
+      </div>
+    </div>
+  }
+</div>
+

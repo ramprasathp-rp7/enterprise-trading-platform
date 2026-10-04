@@ -1,0 +1,138 @@
+import { Routes } from '@angular/router';
+import { ShellComponent } from './layout/shell/shell.component';
+import { AdminShell } from './layout/admin-shell/admin-shell';
+import { LoginComponent } from './features/sign-in/pages/login/login.component';
+import { authGuard, canActivateChildGuard } from './core/auth/auth.guard';
+import { unauthenticatedGuard } from './core/auth/unauthenticated.guard';
+import { adminGuard } from './core/auth/admin.guard';
+import { AdminAnalyticsComponent } from './features/admin/pages/analytics/admin-analytics.component';
+import { AdminFeeManagementComponent } from './features/admin/pages/fee-management/admin-fee-management.component';
+import { AdminAccountManagementComponent } from './features/admin/pages/account-management/account-management';
+import { AdminUserRegistrationComponent } from './features/admin/pages/user-registration/user-registration';
+export const routes: Routes = [
+  // Sign-in route (public, no auth required)
+  {
+    path: 'sign-in',
+    component: LoginComponent,
+    canActivate: [unauthenticatedGuard],
+    data: { title: 'Sign In' },
+  },
+
+  // Protected routes - all under Shell layout with auth guard
+  {
+    path: '',
+    component: ShellComponent,
+    canActivate: [authGuard],
+    children: [
+      // Default route redirects to dashboard
+      {
+        path: '',
+        redirectTo: 'dashboard',
+        pathMatch: 'full',
+      },
+      {
+        path: 'dashboard',
+        canActivateChild: [canActivateChildGuard],
+        loadComponent: () =>
+          import('./features/dashboard/pages/dashboard/dashboard.component').then(
+            (m) => m.DashboardComponent
+          ),
+        data: { title: 'Dashboard' },
+      },
+      {
+        path: 'order-ticket',
+        canActivateChild: [canActivateChildGuard],
+        loadComponent: () =>
+          import('./features/order-ticket/pages/order-ticket/order-ticket.component').then(
+            (m) => m.OrderTicketComponent
+          ),
+        data: { title: 'Place Order' },
+      },
+      {
+        path: 'blotter',
+        canActivateChild: [canActivateChildGuard],
+        loadComponent: () =>
+          import('./features/blotter/pages/blotter/blotter.component').then(
+            (m) => m.BlotterComponent
+          ),
+        data: { title: 'Order Blotter' },
+      },
+      {
+        path: 'positions',
+        canActivateChild: [canActivateChildGuard],
+        loadComponent: () =>
+          import('./features/positions/pages/positions/positions.component').then(
+            (m) => m.PositionsComponent
+          ),
+        data: { title: 'Positions' },
+      },
+      {
+        path: 'account',
+        canActivateChild: [canActivateChildGuard],
+        loadComponent: () =>
+          import('./features/dashboard/pages/dashboard/dashboard.component').then(
+            (m) => m.DashboardComponent
+          ),
+        data: { title: 'Account' },
+      },
+      {
+        path: 'transactions',
+        canActivateChild: [canActivateChildGuard],
+        loadComponent: () =>
+          import('./features/transactions/pages/transaction-actions/transaction-actions.component').then(
+            (m) => m.TransactionActionsComponent
+          ),
+        data: { title: 'Transactions' },
+      },
+      {
+        path: 'transaction-history',
+        canActivateChild: [canActivateChildGuard],
+        loadComponent: () =>
+          import('./features/transactions/pages/transactions/transactions.component').then(
+            (m) => m.TransactionsComponent
+          ),
+        data: { title: 'Transaction History' },
+      },
+    ],
+  },
+
+  // Admin routes - wrapped in AdminShell with admin-specific sidebar
+  {
+    path: 'admin',
+    component: AdminShell,
+    canActivate: [adminGuard],
+    children: [
+      {
+        path: 'analytics',
+        component: AdminAnalyticsComponent,
+        data: { title: 'Admin Analytics' },
+      },
+      {
+        path: 'accounts',
+        component: AdminAccountManagementComponent,
+        data: { title: 'Account Management' },
+      },
+      {
+        path: 'register',
+        component: AdminUserRegistrationComponent,
+        data: { title: 'Register User' },
+      },
+      {
+        path: 'fees',
+        component: AdminFeeManagementComponent,
+        data: { title: 'Fee Management' },
+      },
+      {
+        path: '',
+        redirectTo: 'analytics',
+        pathMatch: 'full',
+      },
+    ],
+  },
+
+  // Wildcard route redirects to dashboard
+  {
+    path: '**',
+    redirectTo: '/dashboard',
+  },
+];

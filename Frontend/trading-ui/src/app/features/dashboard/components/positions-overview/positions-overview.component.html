@@ -1,0 +1,67 @@
+<!-- Positions Overview Template -->
+<div class="positions-overview">
+  <div class="allocation-bar-wrapper" role="img" aria-label="Portfolio allocation bar">
+    <div class="allocation-bar" title="Portfolio allocation">
+        <!-- Render allocation segments dynamically -->
+        <ng-container *ngIf="allocation().length > 0; else emptyAlloc">
+          <div *ngFor="let seg of allocation()" class="segment"
+            [attr.title]="seg.symbol + ' — ' + (seg.percentage | number:'1.0-1') + '%'"
+            [style.flex-basis]="seg.percentage + '%'"
+            [style.background]="seg.color"></div>
+        </ng-container>
+        <ng-template #emptyAlloc>
+          <div class="segment empty" style="flex-basis:100%; background: rgba(15,23,42,0.04);"></div>
+        </ng-template>
+    </div>
+      <div class="allocation-legend">
+        <div class="alloc-status">
+          <span *ngIf="loading()">Loading holdings…</span>
+          <span *ngIf="!loading() && error()" class="error">{{ error() }}</span>
+          <span *ngIf="!loading() && !error()">{{ positionsCount() }} holdings • {{ totalQuantity() }} units</span>
+        </div>
+      
+      </div>
+  </div>
+</div>
+
+<!-- Holdings detail area: top holding card (left) + compact table (right) -->
+<div class="holdings-detail-wrapper">
+  <div class="holdings-detail">
+    <div class="top-card" *ngIf="topHolding() as top">
+      <div class="top-card-inner">
+        <div class="top-eyebrow">Highest Holdings</div>
+        <div class="top-symbol">{{ top.symbol }}</div>
+        <div class="top-metrics">
+          <div class="metric">
+            <div class="label">Quantity</div>
+            <div class="value">{{ top.quantity }}</div>
+          </div>
+          <div class="metric">
+            <div class="label">Avg Cost</div>
+            <div class="value">{{ formatAmount(top.averageCost,2) }}</div>
+          </div>
+          <div class="metric">
+            <div class="label">Notional</div>
+            <div class="value">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mini-table">
+      <table>
+        <thead>
+          <tr><th>Symbol</th><th>Qty</th><th><span class="col-right-center">Avg Cost</span></th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let p of tableHoldings() | slice:0:4">
+            <td>{{ p.symbol }}</td>
+            <td>{{ p.quantity }}</td>
+            <td><span class="col-right-center">{{ formatAmount(p.averageCost,2) }}</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+

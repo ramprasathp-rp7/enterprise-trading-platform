@@ -1,0 +1,52 @@
+<aside class="sidebar" [class.collapsed]="isCollapsed">
+  <div class="sidebar-header">
+    <h3 class="sidebar-title">Admin</h3>
+    <button 
+      class="toggle-button" 
+      (click)="toggleSidebar()"
+      aria-label="Toggle sidebar"
+      title="Toggle sidebar"
+    >
+      <i class="fas fa-bars"></i>
+    </button>
+  </div>
+
+  <nav class="sidebar-nav">
+    <ul class="nav-menu">
+      <li *ngFor="let item of navigationItems" class="nav-item">
+        <a 
+          [routerLink]="item.route"
+          routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: true }"
+          class="nav-link"
+          (click)="closeSidebar()"
+        >
+          <span class="nav-icon">
+            <i [class]="item.icon"></i>
+          </span>
+          <div class="nav-content">
+            <span class="nav-label">{{ item.label }}</span>
+            <span class="nav-description" *ngIf="!isCollapsed">{{ item.description }}</span>
+          </div>
+        </a>
+      </li>
+    </ul>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="footer-content">
+      <span class="footer-text" *ngIf="!isCollapsed">Admin v1.0</span>
+      <i class="fas fa-gear footer-icon" *ngIf="isCollapsed"></i>
+    </div>
+  </div>
+</aside>
+
+<button
+  *ngIf="isCollapsed"
+  class="sidebar-reopen-button"
+  (click)="toggleSidebar()"
+  aria-label="Reopen sidebar"
+  title="Reopen sidebar"
+>
+  <i class="fas fa-chevron-right"></i>
+</button>
