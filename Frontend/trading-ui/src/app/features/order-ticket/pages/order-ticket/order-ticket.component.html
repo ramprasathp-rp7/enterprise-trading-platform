@@ -2,7 +2,7 @@
   <header class="page-header">
     <div class="page-heading">
       <h1 class="page-title">Order Ticket</h1>
-      <p class="page-subtitle">Place a limit order against your trading account</p>
+      <p class="page-subtitle">Search an instrument, review its chart and place a limit order</p>
     </div>
     <div class="page-actions">
       <a routerLink="/blotter" class="btn btn-secondary"><i class="fas fa-list-ul"></i> Order blotter</a>
@@ -24,13 +24,23 @@
 
   </div>
 
-  <div class="page-split">
+  <app-instrument-search
+    class="ticket-search"
+    placeholder="Search instruments to trade, e.g. AAPL or Infosys"
+    (selected)="onInstrumentSelected($event)"
+  />
+
+  <div class="trade-layout">
+    <!-- Instrument details + chart (follows the instrument in the ticket) -->
+    <app-instrument-panel [symbol]="symbol()" />
+
+    <aside class="trade-rail">
     <!-- Order entry -->
     <section class="panel ticket-card">
       <header class="panel-header">
         <div>
           <h2 class="panel-title">Place an order</h2>
-          <p class="panel-subtitle">Enter the units and the limit price per unit, then review the summary before submitting.</p>
+          <p class="panel-subtitle">Limit order · enter units and price per unit</p>
         </div>
       </header>
 
@@ -187,6 +197,7 @@
           </div>
         </dl>
       </div>
+    </aside>
     </aside>
   </div>
 </div>

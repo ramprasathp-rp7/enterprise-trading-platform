@@ -1,4 +1,5 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -10,11 +11,14 @@ import {
   isValidWholeQuantity,
 } from '../../order-ticket.models';
 import { ProcessedError } from '../../../../core/errors/error-response-handler';
+import { Instrument } from '../../../instruments/instrument.models';
+import { InstrumentSearchComponent } from '../../../instruments/components/instrument-search/instrument-search.component';
+import { InstrumentPanelComponent } from '../../../instruments/components/instrument-panel/instrument-panel.component';
 
 @Component({
   selector: 'app-order-ticket',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, InstrumentSearchComponent, InstrumentPanelComponent],
   templateUrl: './order-ticket.component.html',
   styleUrls: ['./order-ticket.component.css']
 })
@@ -22,6 +26,7 @@ export class OrderTicketComponent implements OnInit {
   private store = inject(OrderTicketStore);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
+  private destroyRef = inject(DestroyRef);
 
   readonly symbol = signal<string>('');
   readonly side = signal<OrderSide>(OrderSide.Buy);
@@ -149,24 +154,43 @@ export class OrderTicketComponent implements OnInit {
   });
 
   /**
-   * Prefill from query params, e.g. /order-ticket?symbol=AAPL&side=SELL
-   * (used by the Buy/Sell actions on the Positions holdings table).
+   * Prefill from query params and keep following them, e.g.
+   * /order-ticket?symbol=AAPL&side=SELL&from=holding (Positions → Buy/Sell) or
+   * /order-ticket?symbol=AAPL (navbar instrument search).
    */
   ngOnInit(): void {
-    const params = this.route.snapshot.queryParamMap;
+    this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
+      const symbol = (params.get('symbol') ?? '').trim().toUpperCase().slice(0, 20);
+      if (symbol) {
+        this.symbol.set(symbol);
+        this.symbolTouched.set(true);
+        // The "from your holding" hint only applies when opened from a holding
+        this.prefilledFrom.set(params.get('from') === 'holding' ? symbol : null);
+      }
 
-    const symbol = (params.get('symbol') ?? '').trim().toUpperCase().slice(0, 20);
-    if (symbol) {
-      this.symbol.set(symbol);
-      this.symbolTouched.set(true);
-      this.prefilledFrom.set(symbol);
-    }
+      const side = (params.get('side') ?? '').trim().toUpperCase();
+      const matchingSide = this.sideOptions.find((option) => option === side);
+      if (matchingSide) {
+        this.side.set(matchingSide);
+      }
+    });
+  }
 
-    const side = (params.get('side') ?? '').trim().toUpperCase();
-    const matchingSide = this.sideOptions.find((option) => option === side);
-    if (matchingSide) {
-      this.side.set(matchingSide);
-    }
+  /**
+   * An instrument picked from the search bar: fill the ticket, keep the URL in
+   * sync (so a reload keeps the selection) and move on to the quantity.
+   */
+  onInstrumentSelected(instrument: Instrument): void {
+    this.symbol.set(instrument.symbol);
+    this.symbolTouched.set(true);
+    this.prefilledFrom.set(null);
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { symbol: instrument.symbol, from: null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+    queueMicrotask(() => (document.getElementById('quantity') as HTMLInputElement | null)?.focus());
   }
 
   async onSubmit(): Promise<void> {

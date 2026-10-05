@@ -99,8 +99,8 @@ describe('PositionsComponent', () => {
     const sell = fixture.nativeElement.querySelectorAll('[data-testid="holding-sell-btn"]');
     expect(buy.length).toBe(2);
     expect(sell.length).toBe(2);
-    expect(buy[0].getAttribute('href')).toBe('/order-ticket?symbol=AAPL&side=BUY');
-    expect(sell[1].getAttribute('href')).toBe('/order-ticket?symbol=MSFT&side=SELL');
+    expect(buy[0].getAttribute('href')).toBe('/order-ticket?symbol=AAPL&side=BUY&from=holding');
+    expect(sell[1].getAttribute('href')).toBe('/order-ticket?symbol=MSFT&side=SELL&from=holding');
     expect(buy[0].getAttribute('aria-label')).toBe('Buy AAPL');
   });
 

@@ -7,6 +7,53 @@
   overflow: hidden;
 }
 
+/* Trade view: instrument details + chart on the left, ticket on the right */
+.trade-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 400px;
+  gap: var(--stack-gap);
+  align-items: start;
+}
+
+.trade-rail {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--stack-gap);
+}
+
+/* The rail is narrow: stack paired fields and tighten spacing so Submit stays in view */
+.trade-rail .ticket-form {
+  gap: 16px;
+}
+
+.trade-rail .field-row {
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.trade-rail .form-footer {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  padding-top: 16px;
+}
+
+.trade-rail .submit-button {
+  width: 100%;
+}
+
+@media (max-width: 1180px) {
+  .trade-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .trade-rail {
+    position: static;
+  }
+}
+
 .ticket-form {
   display: flex;
   flex-direction: column;

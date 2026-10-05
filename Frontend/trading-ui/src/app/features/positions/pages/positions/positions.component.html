@@ -106,14 +106,14 @@
                     <a
                       class="btn btn-sm trade-btn buy"
                       routerLink="/order-ticket"
-                      [queryParams]="{ symbol: position.symbol, side: 'BUY' }"
+                      [queryParams]="{ symbol: position.symbol, side: 'BUY', from: 'holding' }"
                       [attr.aria-label]="'Buy ' + position.symbol"
                       data-testid="holding-buy-btn"
                     ><i class="fas fa-arrow-up"></i> Buy</a>
                     <a
                       class="btn btn-sm trade-btn sell"
                       routerLink="/order-ticket"
-                      [queryParams]="{ symbol: position.symbol, side: 'SELL' }"
+                      [queryParams]="{ symbol: position.symbol, side: 'SELL', from: 'holding' }"
                       [attr.aria-label]="'Sell ' + position.symbol"
                       data-testid="holding-sell-btn"
                     ><i class="fas fa-arrow-down"></i> Sell</a>

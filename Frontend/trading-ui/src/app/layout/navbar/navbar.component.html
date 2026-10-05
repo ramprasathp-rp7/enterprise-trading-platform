@@ -33,10 +33,20 @@
           <i class="fas" [class.fa-sun]="themeService.isDark()" [class.fa-moon]="!themeService.isDark()"></i>
         </button>
 
-        <!-- Search -->
-        <button class="action-icon" title="Search">
-          <i class="fas fa-search"></i>
-        </button>
+        <!-- Instrument search (customers only: trading pages are customer routes) -->
+        @if (canSearch()) {
+          <button
+            type="button"
+            class="action-icon search-toggle"
+            title="Search instruments (Ctrl+K)"
+            aria-label="Search instruments"
+            aria-haspopup="dialog"
+            data-testid="instrument-search-btn"
+            (click)="openSearch()"
+          >
+            <i class="fas fa-search"></i>
+          </button>
+        }
 
         <!-- Settings -->
         <button class="action-icon" title="Settings">
@@ -92,3 +102,10 @@
     </div>
   </div>
 </nav>
+
+@if (searchOpen()) {
+  <!-- Loaded on first use to keep the initial bundle small -->
+  @defer {
+    <app-instrument-search-dialog (selected)="openInstrument($event)" (closed)="closeSearch()" />
+  }
+}
