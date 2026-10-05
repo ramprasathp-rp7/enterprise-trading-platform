@@ -45,8 +45,22 @@ export class AdminUserRegistrationComponent implements OnInit, OnDestroy {
     this.clearMessageTimer();
   }
 
+  /** A field is shown as invalid only once the admin has left it or tried to submit */
+  isInvalid(field: string): boolean {
+    const control = this.form.get(field);
+    return !!control && control.invalid && control.touched;
+  }
+
+  /** Show a specific validation message under the same rule as isInvalid() */
+  showError(field: string, error: string): boolean {
+    const control = this.form.get(field);
+    return !!control && control.touched && control.hasError(error);
+  }
+
   onSubmit(): void {
     if (this.form.invalid) {
+      // Reveal every field's error now that a submit was attempted
+      this.form.markAllAsTouched();
       this.showErrorMessage('Please fill all required fields correctly');
       return;
     }

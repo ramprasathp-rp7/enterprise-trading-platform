@@ -5,14 +5,19 @@ import { PositionsOverviewComponent } from '../../components/positions-overview/
 import { CoreAuthService } from '../../../../core/auth/core-auth.service';
 import { BlotterStore } from '../../../blotter/blotter.store';
 import { DashboardService } from '../../services/dashboard.service';
+import { OrderStatus, PositionResponse } from '../../../../api/generated/trade';
 import { computed } from '@angular/core';
 
 interface StatCard {
   title: string;
-  value: string | number;
-  change: number;
-  changeType: 'positive' | 'negative' | 'neutral';
+  /** Display value; '—' while the figure is still loading */
+  value: string;
+  /** One line of context under the value */
+  caption: string;
   icon: string;
+  /** Where the card takes you */
+  link: string;
+  linkLabel: string;
 }
 
 interface RecentTrade {
@@ -45,6 +50,8 @@ export class DashboardComponent implements OnInit {
   // Real-time portfolio data signals
   private cashBalanceSignal = signal<number>(0);
   private accountSignal = signal<any>(null);
+  /** Null until the holdings panel has loaded positions */
+  private positionsSignal = signal<PositionResponse[] | null>(null);
 
   // Portfolio stats - computed from real data
   accountDisplayId = computed(() => {
@@ -56,34 +63,49 @@ export class DashboardComponent implements OnInit {
     return account?.holderName || null;
   });
 
-  portfolioStats = computed(() => {
-    const account = this.accountSignal();
+  /** Headline figures, all from real account data */
+  portfolioStats = computed<StatCard[]>(() => {
     const cashBalance = this.cashBalanceSignal();
+    const positions = this.positionsSignal();
+    const openOrders = (this.blotterStore.orders() ?? []).filter((o) => o.status === OrderStatus.New).length;
+    const holdingsCost = positions?.reduce((sum, p) => sum + (p.quantity || 0) * (p.averageCost || 0), 0) ?? null;
 
     return [
       {
-        title: 'Total Portfolio Value',
-        value: this.formatAmount(cashBalance || 0), // TODO: Add position values
-        change: 2.5,
-        changeType: 'positive' as const,
-        icon: 'fas fa-wallet'
-      },
-      {
-        title: 'Today\'s Profit/Loss',
-        value: this.formatAmount(12450), // TODO: Calculate from trades
-        change: 1.2,
-        changeType: 'positive' as const,
-        icon: 'fas fa-chart-line'
-      },
-      {
-        title: 'Available Cash',
+        title: 'Cash balance',
         value: this.formatAmount(cashBalance || 0),
-        change: 0,
-        changeType: 'neutral' as const,
-        icon: 'fas fa-piggy-bank'
-      }
+        caption: 'Available to trade',
+        icon: 'fas fa-wallet',
+        link: '/transactions',
+        linkLabel: 'Deposit or withdraw',
+      },
+      {
+        title: 'Holdings at cost',
+        value: holdingsCost === null ? '—' : this.formatAmount(holdingsCost),
+        caption:
+          positions === null
+            ? 'Loading holdings…'
+            : positions.length === 0
+              ? 'No open positions'
+              : `${positions.length} open position${positions.length === 1 ? '' : 's'}`,
+        icon: 'fas fa-layer-group',
+        link: '/positions',
+        linkLabel: 'View positions',
+      },
+      {
+        title: 'Open orders',
+        value: String(openOrders),
+        caption: openOrders === 0 ? 'Nothing awaiting execution' : 'Awaiting execution',
+        icon: 'fas fa-hourglass-half',
+        link: '/blotter',
+        linkLabel: 'Open order blotter',
+      },
     ];
   });
+
+  onPositionsLoaded(positions: PositionResponse[]): void {
+    this.positionsSignal.set(positions);
+  }
 
   // Get recent trades from blotter store - real data
   recentTrades = computed(() => {

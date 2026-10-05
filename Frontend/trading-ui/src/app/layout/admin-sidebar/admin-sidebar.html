@@ -4,10 +4,11 @@
     <button 
       class="toggle-button" 
       (click)="toggleSidebar()"
-      aria-label="Toggle sidebar"
-      title="Toggle sidebar"
+      [attr.aria-label]="isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+      [attr.aria-expanded]="!isCollapsed"
+      [title]="isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
     >
-      <i class="fas fa-bars"></i>
+      <i class="fas" [class.fa-angles-left]="!isCollapsed" [class.fa-angles-right]="isCollapsed"></i>
     </button>
   </div>
 
@@ -19,6 +20,8 @@
           routerLinkActive="active"
           [routerLinkActiveOptions]="{ exact: true }"
           class="nav-link"
+          [attr.title]="isCollapsed ? item.label : null"
+          [attr.aria-label]="isCollapsed ? item.label : null"
           (click)="closeSidebar()"
         >
           <span class="nav-icon">

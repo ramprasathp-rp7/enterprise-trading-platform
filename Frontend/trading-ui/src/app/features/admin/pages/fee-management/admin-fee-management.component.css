@@ -11,9 +11,19 @@
   min-width: 560px;
 }
 
-.fee-table col.col-asset { width: 46%; }
-.fee-table col.col-flat-fee { width: 27%; }
-.fee-table col.col-percentage-fee { width: 27%; }
+/* Three evenly spaced columns */
+.fee-table col.col-asset,
+.fee-table col.col-flat-fee,
+.fee-table col.col-percentage-fee {
+  width: calc(100% / 3);
+}
+
+/* Centre the fee columns so the three columns read as evenly spaced
+   (fees share one format, so their digits still line up) */
+.fee-table th.num,
+.fee-table td.num {
+  text-align: center;
+}
 
 .asset-type {
   display: inline-flex;

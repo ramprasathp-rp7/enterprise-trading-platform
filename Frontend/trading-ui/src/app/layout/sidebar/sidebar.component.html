@@ -2,26 +2,33 @@
 <aside class="sidebar" [class.collapsed]="isCollapsed">
   <!-- Sidebar Header -->
   <div class="sidebar-header">
-    <h3 class="sidebar-title">Navigation</h3>
+    <h3 class="sidebar-title">{{ navSections[0].title }}</h3>
     <button 
       class="toggle-button" 
       (click)="toggleSidebar()"
-      aria-label="Toggle sidebar"
-      title="Toggle sidebar"
+      [attr.aria-label]="isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+      [attr.aria-expanded]="!isCollapsed"
+      [title]="isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
     >
-      <i class="fas fa-bars"></i>
+      <i class="fas" [class.fa-angles-left]="!isCollapsed" [class.fa-angles-right]="isCollapsed"></i>
     </button>
   </div>
 
   <!-- Navigation Menu -->
   <nav class="sidebar-nav">
-    <ul class="nav-menu">
-      <li *ngFor="let item of navigationItems" class="nav-item">
+    <ng-container *ngFor="let section of navSections; let first = first">
+    @if (!first) {
+      <p class="nav-section" [attr.aria-hidden]="isCollapsed">{{ section.title }}</p>
+    }
+    <ul class="nav-menu" [attr.aria-label]="section.title">
+      <li *ngFor="let item of section.items" class="nav-item">
         <a 
           [routerLink]="item.route"
           routerLinkActive="active"
           [routerLinkActiveOptions]="{ paths: 'exact', queryParams: 'ignored', matrixParams: 'ignored', fragment: 'ignored' }"
           class="nav-link"
+          [attr.title]="isCollapsed ? item.label : null"
+          [attr.aria-label]="isCollapsed ? item.label : null"
           (click)="closeSidebar()"
         >
           <span class="nav-icon">
@@ -38,6 +45,7 @@
         </a>
       </li>
     </ul>
+    </ng-container>
   </nav>
 
   <!-- Sidebar Footer -->

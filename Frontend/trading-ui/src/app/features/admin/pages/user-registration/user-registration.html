@@ -35,13 +35,14 @@
             id="username"
             type="text"
             formControlName="username"
+              [class.is-invalid]="isInvalid('username')"
             placeholder="johndoe"
             class="form-input"
           />
-          <span *ngIf="form.get('username')?.hasError('required')" class="error">
+          <span *ngIf="showError('username', 'required')" class="error">
             Username is required
           </span>
-          <span *ngIf="form.get('username')?.hasError('minlength')" class="error">
+          <span *ngIf="showError('username', 'minlength')" class="error">
             Username must be at least 3 characters
           </span>
         </div>
@@ -53,6 +54,7 @@
               id="password"
               [type]="showPassword() ? 'text' : 'password'"
               formControlName="password"
+              [class.is-invalid]="isInvalid('password')"
               placeholder="At least 12 characters"
               class="form-input"
             />
@@ -65,10 +67,10 @@
               <i [class]="showPassword() ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
             </button>
           </div>
-          <span *ngIf="form.get('password')?.hasError('required')" class="error">
+          <span *ngIf="showError('password', 'required')" class="error">
             Password is required
           </span>
-          <span *ngIf="form.get('password')?.hasError('minlength')" class="error">
+          <span *ngIf="showError('password', 'minlength')" class="error">
             Password must be at least 12 characters
           </span>
         </div>
@@ -79,10 +81,11 @@
             id="accountId"
             type="number"
             formControlName="accountId"
+              [class.is-invalid]="isInvalid('accountId')"
             placeholder="Enter account ID"
             class="form-input"
           />
-          <span *ngIf="form.get('accountId')?.hasError('required')" class="error">
+          <span *ngIf="showError('accountId', 'required')" class="error">
             Account ID is required
           </span>
         </div>

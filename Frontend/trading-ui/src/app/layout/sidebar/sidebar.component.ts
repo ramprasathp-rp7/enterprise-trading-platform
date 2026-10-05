@@ -9,6 +9,13 @@ interface NavItem {
   description: string;
   badge?: string;
   badgeClass?: string;
+  /** Sidebar group the item belongs to */
+  section: 'Trading' | 'Funds';
+}
+
+interface NavSection {
+  title: NavItem['section'];
+  items: NavItem[];
 }
 
 /**
@@ -34,39 +41,51 @@ export class SidebarComponent {
       label: 'Dashboard',
       route: '/dashboard',
       icon: 'fas fa-chart-line',
-      description: 'Overview & analytics'
+      description: 'Overview & analytics',
+      section: 'Trading'
     },
     {
       label: 'Place Order',
       route: '/order-ticket',
       icon: 'fas fa-edit',
-      description: 'Create new trades'
+      description: 'Search & trade instruments',
+      section: 'Trading'
     },
     {
       label: 'Order Blotter',
       route: '/blotter',
       icon: 'fas fa-list-ul',
-      description: 'View all orders'
+      description: 'Track your orders',
+      section: 'Trading'
     },
     {
       label: 'Transactions',
       route: '/transactions',
       icon: 'fas fa-money-bill-transfer',
-      description: 'Deposit & withdraw'
+      description: 'Deposit & withdraw',
+      section: 'Funds'
     },
     {
       label: 'Transaction History',
       route: '/transaction-history',
       icon: 'fas fa-clock-rotate-left',
-      description: 'View all transactions'
+      description: 'Statements & activity',
+      section: 'Funds'
     },
     {
       label: 'Positions',
       route: '/positions',
       icon: 'fas fa-layer-group',
-      description: 'Active positions'
+      description: 'Holdings & statements',
+      section: 'Trading'
     }
   ];
+
+  /** Items grouped for display: Trading first, then Funds (order within a group is preserved) */
+  readonly navSections: NavSection[] = (['Trading', 'Funds'] as const).map((title) => ({
+    title,
+    items: this.navigationItems.filter((item) => item.section === title),
+  }));
 
   toggleSidebar(): void {
     this.isCollapsed = !this.isCollapsed;

@@ -59,14 +59,42 @@ describe('DashboardComponent', () => {
     expect(fixture.nativeElement.querySelector('.page-title').textContent).toContain('Welcome back, Rahul Kumar');
   });
 
-  it('shows the cash balance in the portfolio and cash KPI cards', async () => {
+  it('shows real KPIs: cash balance, holdings at cost and open orders, each linking onward', async () => {
     await create();
 
     const stats = component.portfolioStats();
-    expect(stats.map((s) => s.title)).toEqual(['Total Portfolio Value', "Today's Profit/Loss", 'Available Cash']);
+    expect(stats.map((s) => s.title)).toEqual(['Cash balance', 'Holdings at cost', 'Open orders']);
     expect(stats[0].value).toBe('48,250.75');
-    expect(stats[2].value).toBe('48,250.75');
-    expect(fixture.nativeElement.querySelectorAll('.metric-card').length).toBe(3);
+    // the holdings panel (mocked) loaded no positions; one of the mocked orders is NEW
+    expect(stats[1]).toEqual(expect.objectContaining({ value: '0.00', caption: 'No open positions' }));
+    expect(stats[2]).toEqual(expect.objectContaining({ value: '1', caption: 'Awaiting execution' }));
+
+    const cards = fixture.nativeElement.querySelectorAll('a.metric-card');
+    expect(cards.length).toBe(3);
+    expect(Array.from(cards).map((c: any) => c.getAttribute('href'))).toEqual(['/transactions', '/positions', '/blotter']);
+  });
+
+  it('shows "—" for holdings until positions load, then their cost basis', async () => {
+    await create();
+
+    (component as any).positionsSignal.set(null);
+    expect(component.portfolioStats()[1]).toEqual(expect.objectContaining({ value: '—', caption: 'Loading holdings…' }));
+
+    component.onPositionsLoaded([
+      { symbol: 'AAPL', quantity: 10, averageCost: 100 } as any,
+      { symbol: 'MSFT', quantity: 2, averageCost: 250.5 } as any,
+    ]);
+    expect(component.portfolioStats()[1]).toEqual(expect.objectContaining({ value: '1,501.00', caption: '2 open positions' }));
+
+    component.onPositionsLoaded([{ symbol: 'AAPL', quantity: 1, averageCost: 1 } as any]);
+    expect(component.portfolioStats()[1].caption).toBe('1 open position');
+  });
+
+  it('says nothing is pending when there are no NEW orders', async () => {
+    blotterStore.orders.set([orders[0]]);
+    await create();
+
+    expect(component.portfolioStats()[2]).toEqual(expect.objectContaining({ value: '0', caption: 'Nothing awaiting execution' }));
   });
 
   it('maps the three most recent orders to trades with display statuses', async () => {
@@ -115,7 +143,7 @@ describe('DashboardComponent', () => {
     await create();
 
     expect(consoleError).toHaveBeenCalledTimes(2);
-    expect(component.portfolioStats()[2].value).toBe('0.00');
+    expect(component.portfolioStats()[0].value).toBe('0.00');
     expect(component.accountDisplayId()).toBeNull();
     consoleError.mockRestore();
   });
@@ -127,7 +155,7 @@ describe('DashboardComponent', () => {
     component.refreshDashboard();
 
     expect(blotterStore.loadOrderHistory).toHaveBeenCalledTimes(2);
-    expect(component.portfolioStats()[2].value).toBe('100.00');
+    expect(component.portfolioStats()[0].value).toBe('100.00');
   });
 
   it('refreshDashboard does nothing without an account', async () => {

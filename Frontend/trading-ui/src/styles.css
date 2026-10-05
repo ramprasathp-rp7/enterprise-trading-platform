@@ -20,37 +20,50 @@ i[class*=" fab"] {
 
 :root {
   /* ---- Ink (text) ---- */
-  --ink-900: #0b1324;
-  --ink-700: #334155;
-  --ink-500: #64748b;
-  --ink-400: #94a3b8;
+  /* All text tokens meet WCAG AA (4.5:1) on every surface below; ink-400 is for placeholders/decoration */
+  --ink-900: #0a1122;
+  --ink-700: #2d3a4f;
+  --ink-500: #546078;
+  --ink-400: #7d889c;
 
   /* ---- Surfaces ---- */
-  --canvas: #f3f5f9;               /* app background behind cards */
+  --canvas: #edf0f6;               /* app background behind cards */
   --surface: #ffffff;              /* cards, panels, inputs */
-  --surface-muted: #f8fafc;        /* table headers, panel headers */
-  --surface-sunken: #eef2f7;       /* segmented controls, wells */
-  --surface-hover: #f5f8ff;        /* row / item hover */
-  --line: #e5e9f0;                 /* default borders & dividers */
-  --line-strong: #d2d9e4;          /* default control borders */
-  --line-hover: #b9c3d2;           /* hovered control borders */
+  --surface-muted: #f7f9fc;        /* table headers, panel headers */
+  --surface-sunken: #eef2f8;       /* segmented controls, wells */
+  --surface-hover: #f3f6ff;        /* row / item hover */
+  --line: #e2e7ef;                 /* default borders & dividers */
+  --line-strong: #cfd7e3;          /* default control borders */
+  --line-hover: #b3bfd0;           /* hovered control borders */
 
   /* ---- Brand ---- */
   --brand: #2563eb;
-  --brand-strong: #1d4ed8;         /* brand text on light surfaces */
+  --brand-strong: #1e40af;         /* brand text on light surfaces */
   --brand-hover: #1d4ed8;          /* primary button hover fill */
-  --brand-soft: #eef3ff;
-  --brand-ring: rgba(37, 99, 235, 0.18);
-  --brand-gradient: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  --brand-soft: #edf2ff;
+  --brand-ring: rgba(37, 99, 235, 0.2);
+  --brand-gradient: linear-gradient(135deg, #2563eb 0%, #5b3fd9 100%);
+
+  /* ---- Futuristic accents (decorative only, never body text) ---- */
+  --accent: #06b6d4;
+  --accent-gradient: linear-gradient(90deg, #22d3ee 0%, #6366f1 100%);
+  --glow: 0 0 0 1px rgba(37, 99, 235, 0.08), 0 8px 28px rgba(37, 99, 235, 0.16);
+  --glass: rgba(255, 255, 255, 0.72);
+  --glass-line: rgba(255, 255, 255, 0.9);
+  --panel-edge: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --app-bg:
+    radial-gradient(1200px 600px at 85% -10%, rgba(99, 102, 241, 0.10), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(6, 182, 212, 0.10), transparent 60%),
+    var(--canvas);
 
   /* ---- Semantic ---- */
-  --positive: #0f8a4f;
+  --positive: #0f7a46;
   --positive-soft: #e7f6ee;
   --positive-line: #b7e4ca;
-  --negative: #d1343b;
+  --negative: #c62d34;
   --negative-soft: #fdeded;
   --negative-line: #f5c2c4;
-  --warning: #b45309;
+  --warning: #a14a06;
   --warning-soft: #fff5e5;
   --warning-line: #fbd8a5;
   --info: #1d4ed8;
@@ -77,10 +90,10 @@ i[class*=" fab"] {
   --r-pill: 999px;
 
   /* ---- Elevation ---- */
-  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 16px rgba(16, 24, 40, 0.05);
-  --shadow-raised: 0 2px 6px rgba(16, 24, 40, 0.06), 0 14px 36px rgba(16, 24, 40, 0.10);
-  --shadow-pop: 0 24px 56px rgba(16, 24, 40, 0.18);
-  --shadow-brand: 0 6px 18px rgba(37, 99, 235, 0.28);
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04), 0 6px 20px rgba(16, 24, 40, 0.06);
+  --shadow-raised: 0 2px 6px rgba(16, 24, 40, 0.06), 0 18px 40px rgba(16, 24, 40, 0.12);
+  --shadow-pop: 0 24px 60px rgba(16, 24, 40, 0.2);
+  --shadow-brand: 0 8px 24px rgba(79, 70, 229, 0.32);
 
   color-scheme: light;
 
@@ -95,6 +108,8 @@ i[class*=" fab"] {
   /* ---- Typography ---- */
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-mono: 'JetBrains Mono', 'SFMono-Regular', Menlo, Consolas, monospace;
+  /* Display face for titles and headline numbers */
+  --font-display: 'Space Grotesk', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
   /* ---- Motion ---- */
   --ease: cubic-bezier(0.2, 0, 0, 1);
@@ -182,39 +197,49 @@ i[class*=" fab"] {
    =========================================================================== */
 
 :root[data-theme="dark"] {
-  --ink-900: #e6ebf3;
-  --ink-700: #b4bfcf;
-  --ink-500: #8a96a8;
-  --ink-400: #667386;
+  --ink-900: #f1f5fb;
+  --ink-700: #c3ccda;
+  --ink-500: #95a1b5;
+  --ink-400: #6f7b90;
 
-  --canvas: #0b1120;
-  --surface: #121a2b;
-  --surface-muted: #172135;
-  --surface-sunken: #1c2740;
-  --surface-hover: #19243b;
-  --line: #233049;
-  --line-strong: #2f3d5a;
-  --line-hover: #44557c;
+  --canvas: #04060b;
+  --surface: #0b0f19;
+  --surface-muted: #0f1522;
+  --surface-sunken: #141b2b;
+  --surface-hover: #121a2b;
+  --line: #1a2233;
+  --line-strong: #263149;
+  --line-hover: #36435f;
 
-  --brand: #3b82f6;
-  --brand-strong: #8bb8ff;
+  --brand: #6ea0ff;
+  --brand-strong: #9cc0ff;
   --brand-hover: #2563eb;
-  --brand-soft: rgba(59, 130, 246, 0.15);
-  --brand-ring: rgba(96, 165, 250, 0.32);
+  --brand-soft: rgba(79, 140, 255, 0.14);
+  --brand-ring: rgba(110, 160, 255, 0.35);
+
+  --accent: #22d3ee;
+  --glow: 0 0 0 1px rgba(110, 160, 255, 0.18), 0 10px 32px rgba(79, 70, 229, 0.28);
+  --glass: rgba(11, 15, 25, 0.68);
+  --glass-line: rgba(255, 255, 255, 0.06);
+  --panel-edge: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  --app-bg:
+    radial-gradient(1100px 600px at 90% -10%, rgba(99, 102, 241, 0.16), transparent 60%),
+    radial-gradient(900px 520px at -10% 110%, rgba(34, 211, 238, 0.10), transparent 60%),
+    var(--canvas);
 
   --positive: #34d399;
   --positive-soft: rgba(52, 211, 153, 0.12);
   --positive-line: rgba(52, 211, 153, 0.32);
   --positive-ink: #6ee7b7;
-  --negative: #f87171;
-  --negative-soft: rgba(248, 113, 113, 0.12);
+  --negative: #fb7185;
+  --negative-soft: rgba(251, 113, 133, 0.12);
   --negative-line: rgba(248, 113, 113, 0.34);
   --negative-ink: #fca5a5;
   --warning: #fbbf24;
   --warning-soft: rgba(251, 191, 36, 0.12);
   --warning-line: rgba(251, 191, 36, 0.32);
-  --info: #8bb8ff;
-  --info-soft: rgba(59, 130, 246, 0.15);
+  --info: #9cc0ff;
+  --info-soft: rgba(79, 140, 255, 0.14);
   --info-line: rgba(96, 165, 250, 0.34);
   --neutral: #a3b0c2;
   --neutral-soft: rgba(148, 163, 184, 0.12);
@@ -223,15 +248,17 @@ i[class*=" fab"] {
   --violet-soft: rgba(139, 92, 246, 0.16);
 
   --invalid-bg: rgba(248, 113, 113, 0.06);
-  --disabled-bg: #24304a;
-  --disabled-ink: #6b7a90;
-  --scrollbar: #2f3d5a;
-  --scrollbar-hover: #44557c;
+  --disabled-bg: #1b2335;
+  --disabled-ink: #6f7b90;
+  --scrollbar: #263149;
+  --scrollbar-hover: #36435f;
 
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35), 0 4px 16px rgba(0, 0, 0, 0.22);
-  --shadow-raised: 0 2px 6px rgba(0, 0, 0, 0.4), 0 14px 36px rgba(0, 0, 0, 0.35);
-  --shadow-pop: 0 24px 56px rgba(0, 0, 0, 0.55);
-  --shadow-brand: 0 6px 18px rgba(37, 99, 235, 0.35);
+  /* Black shadows vanish on a near-black page, so depth comes from a blue glow
+     (with a small dark contact shadow underneath) */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.6), 0 6px 20px rgba(37, 99, 235, 0.1);
+  --shadow-raised: 0 2px 6px rgba(0, 0, 0, 0.6), 0 12px 32px rgba(37, 99, 235, 0.16);
+  --shadow-pop: 0 2px 8px rgba(0, 0, 0, 0.6), 0 20px 48px rgba(37, 99, 235, 0.24);
+  --shadow-brand: 0 8px 28px rgba(91, 63, 217, 0.45);
 
   color-scheme: dark;
 }
@@ -270,7 +297,8 @@ html {
 }
 
 body {
-  background-color: var(--canvas);
+  background: var(--app-bg);
+  background-attachment: fixed;
   color: var(--ink-900);
   font-family: var(--font-sans);
   font-size: 14px;
@@ -352,6 +380,33 @@ table {
 *::-webkit-scrollbar-thumb:hover { background-color: var(--scrollbar-hover); }
 
 /* ============================================================================
+   DISPLAY TYPOGRAPHY
+   Titles and headline figures use the display face; body copy stays Inter.
+   =========================================================================== */
+
+.page-title,
+.panel-title,
+.brand-name,
+.login-title,
+.brand-copy h2,
+.hero-title,
+.metric-value,
+.metric-value-large,
+.stat-value,
+.top-symbol,
+.instrument-header .symbol,
+.price-row .last,
+.confirmation-amount,
+.summary-total dd {
+  font-family: var(--font-display);
+  font-feature-settings: 'tnum', 'ss01';
+}
+
+.page-title {
+  letter-spacing: -0.03em;
+}
+
+/* ============================================================================
    PAGE LAYOUT
    Every routed screen is a `.page`: a scrolling canvas whose direct children
    share one max-width and one left edge, so blocks never drift out of line.
@@ -367,7 +422,7 @@ table {
   overflow-y: auto;
   overflow-x: hidden;
   padding: var(--page-pad-y) var(--page-pad-x) 40px;
-  background: var(--canvas);
+  background: transparent;
 }
 
 .page > * {
@@ -375,6 +430,18 @@ table {
   max-width: var(--page-max);
   margin-inline: auto;
   flex-shrink: 0;
+}
+
+/* Content rises in on page load, block by block */
+@media (prefers-reduced-motion: no-preference) {
+  .page > * {
+    animation: rise-in 360ms var(--ease) both;
+  }
+
+  .page > *:nth-child(2) { animation-delay: 40ms; }
+  .page > *:nth-child(3) { animation-delay: 80ms; }
+  .page > *:nth-child(4) { animation-delay: 120ms; }
+  .page > *:nth-child(n + 5) { animation-delay: 160ms; }
 }
 
 .page-header {
@@ -446,7 +513,7 @@ table {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow-card), var(--panel-edge);
   overflow: hidden;
 }
 
@@ -539,6 +606,7 @@ table {
 }
 
 .stat-tile {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -546,7 +614,18 @@ table {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow-card), var(--panel-edge);
+  overflow: hidden;
+}
+
+/* Thin accent line along the top of summary tiles */
+.stat-tile::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: var(--accent-gradient);
+  opacity: 0.7;
 }
 
 .stat-label {
@@ -867,18 +946,21 @@ select.form-input,
 }
 
 .btn-primary {
-  background: var(--brand);
+  background: var(--brand-gradient);
   color: #ffffff;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  border: 0;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: var(--brand-hover);
+  background: var(--brand-gradient);
   color: #ffffff;
+  filter: brightness(1.08);
   box-shadow: var(--shadow-brand);
 }
 
 .btn-primary:disabled {
+  filter: none;
   background: var(--disabled-bg);
   color: var(--disabled-ink);
   box-shadow: none;

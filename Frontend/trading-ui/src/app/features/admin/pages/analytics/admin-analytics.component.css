@@ -30,6 +30,21 @@
   transition: box-shadow var(--t-base), transform var(--t-base), border-color var(--t-base);
 }
 
+/* Thin accent line along the top of KPI cards */
+.metric-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.metric-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: var(--accent-gradient);
+  opacity: 0.7;
+}
+
 .metric-card:hover {
   border-color: var(--line-strong);
   box-shadow: var(--shadow-raised);

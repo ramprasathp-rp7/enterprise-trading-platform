@@ -4,7 +4,7 @@
   display: grid;
   grid-template-columns: minmax(380px, 5fr) 7fr;
   min-height: 100vh;
-  background: var(--canvas);
+  background: var(--app-bg);
 }
 
 /* ===== BRAND PANEL ===== */
