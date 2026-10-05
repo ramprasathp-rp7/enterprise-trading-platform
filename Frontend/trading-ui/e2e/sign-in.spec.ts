@@ -11,12 +11,13 @@ import { test, expect } from '@playwright/test';
  * 4. Sign-out clears the session
  */
 
-// Read credentials from environment variables
-const AUTH_USERNAME = process.env.AUTH_USERNAME || 'test_user_1';
-const AUTH_PASSWORD = process.env.AUTH_PASSWORD || 'Test@Password1';
-const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 'http://localhost:3000';
-const UI_BASE_URL = process.env.UI_BASE_URL || 'http://localhost:4200';
-const TEST_ACCOUNT_ID = process.env.TEST_ACCOUNT_ID || 1;
+// Read credentials from environment variables.
+// Prefer the shared E2E_* names from the repo root .env file.
+const E2E_USERNAME = process.env.E2E_USERNAME || process.env.AUTH_USERNAME || 'test_user_1';
+const E2E_PASSWORD = process.env.E2E_PASSWORD || process.env.AUTH_PASSWORD || 'Test@Password1';
+const E2E_AUTH_API = process.env.E2E_AUTH_API || process.env.AUTH_SERVICE_URL || 'http://localhost:3000';
+const E2E_BASE_URL = process.env.E2E_BASE_URL || process.env.UI_BASE_URL || 'http://localhost:4200';
+const E2E_ACCOUNT_ID = process.env.E2E_ACCOUNT_ID || process.env.TEST_ACCOUNT_ID || '1';
 
 // Increase timeout for all tests due to external Auth Service latency
 test.setTimeout(60000);
@@ -30,20 +31,20 @@ test.beforeAll(async () => {
     console.log(`\n${'='.repeat(70)}`);
     console.log(`🚀 GLOBAL E2E TEST SETUP`);
     console.log(`${'='.repeat(70)}`);
-    console.log(`Auth Service: ${AUTH_SERVICE_URL}`);
-    console.log(`UI Base URL: ${UI_BASE_URL}`);
-    console.log(`Test Username: ${AUTH_USERNAME}`);
-    console.log(`Test Account ID: ${TEST_ACCOUNT_ID}`);
+    console.log(`Auth Service: ${E2E_AUTH_API}`);
+    console.log(`UI Base URL: ${E2E_BASE_URL}`);
+    console.log(`Test Username: ${E2E_USERNAME}`);
+    console.log(`Test Account ID: ${E2E_ACCOUNT_ID}`);
     
     console.log(`\n📝 Attempting to register test user...`);
     
-    const registerResponse = await fetch(`${AUTH_SERVICE_URL}/auth/register`, {
+    const registerResponse = await fetch(`${E2E_AUTH_API}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        username: AUTH_USERNAME,
-        password: AUTH_PASSWORD,
-        accountId: TEST_ACCOUNT_ID,
+        username: E2E_USERNAME,
+        password: E2E_PASSWORD,
+        accountId: E2E_ACCOUNT_ID,
         roles: ['CUSTOMER'],
       }),
     });
@@ -80,15 +81,15 @@ test.describe('Sign-In Flow E2E', () => {
     });
     
     // Navigate to login page
-    await page.goto(`${UI_BASE_URL}/sign-in`);
+    await page.goto(`${E2E_BASE_URL}/sign-in`);
   });
 
   test('should sign in with valid credentials and redirect to dashboard', async ({ page }) => {
     // Fill in username
-    await page.fill('[data-testid="username-input"]', AUTH_USERNAME);
+    await page.fill('[data-testid="username-input"]', E2E_USERNAME);
     
     // Fill in password
-    await page.fill('[data-testid="password-input"]', AUTH_PASSWORD);
+    await page.fill('[data-testid="password-input"]', E2E_PASSWORD);
     
     // Submit form
     await page.click('[data-testid="submit-btn"]');
@@ -112,8 +113,8 @@ test.describe('Sign-In Flow E2E', () => {
 
   test('should store access token in sessionStorage after login', async ({ page }) => {
     // Fill in credentials
-    await page.fill('[data-testid="username-input"]', AUTH_USERNAME);
-    await page.fill('[data-testid="password-input"]', AUTH_PASSWORD);
+    await page.fill('[data-testid="username-input"]', E2E_USERNAME);
+    await page.fill('[data-testid="password-input"]', E2E_PASSWORD);
     
     // Submit form
     await page.click('[data-testid="submit-btn"]');
@@ -129,8 +130,8 @@ test.describe('Sign-In Flow E2E', () => {
 
   test('should store refresh token in sessionStorage after login', async ({ page }) => {
     // Fill in credentials
-    await page.fill('[data-testid="username-input"]', AUTH_USERNAME);
-    await page.fill('[data-testid="password-input"]', AUTH_PASSWORD);
+    await page.fill('[data-testid="username-input"]', E2E_USERNAME);
+    await page.fill('[data-testid="password-input"]', E2E_PASSWORD);
     
     // Submit form
     await page.click('[data-testid="submit-btn"]');
@@ -167,55 +168,51 @@ test.describe('Sign-In Flow E2E', () => {
   });
 
   test('should validate empty fields and not allow submission', async ({ page }) => {
-    // Fields are empty initially
     const usernameInput = page.locator('[data-testid="username-input"]');
     const passwordInput = page.locator('[data-testid="password-input"]');
-    
-    // Wait a moment for validation to trigger
-    await page.waitForTimeout(500);
-    
-    // Username input should have is-invalid class
-    const usernameHasInvalidClass = await usernameInput.evaluate(el => 
-      el.classList.contains('is-invalid')
-    );
-    expect(usernameHasInvalidClass).toBe(true);
-    
-    // Password input should have is-invalid class
-    const passwordHasInvalidClass = await passwordInput.evaluate(el => 
-      el.classList.contains('is-invalid')
-    );
-    expect(passwordHasInvalidClass).toBe(true);
-    
-    // Submit button should be disabled
     const submitBtn = page.locator('[data-testid="submit-btn"]');
-    const isDisabled = await submitBtn.isDisabled();
-    expect(isDisabled).toBe(true);
+    
+    // Validation only appears after submit or blur.
+    await submitBtn.click();
+    await expect(usernameInput).toHaveClass(/is-invalid/);
+    await expect(passwordInput).toHaveClass(/is-invalid/);
+    
+    // After failed submit, form surfaces errors and blocks resubmission.
+    await expect(submitBtn).toBeDisabled();
+    const accessToken = await page.evaluate(() => sessionStorage.getItem('access_token'));
+    expect(accessToken).toBeNull();
   });
 
   test('should not allow submission with empty username', async ({ page }) => {
     // Only fill password
-    await page.fill('[data-testid="password-input"]', AUTH_PASSWORD);
+    await page.fill('[data-testid="password-input"]', E2E_PASSWORD);
+    await page.click('[data-testid="submit-btn"]');
     
-    // Submit button should be disabled
+    const usernameInput = page.locator('[data-testid="username-input"]');
     const submitBtn = page.locator('[data-testid="submit-btn"]');
-    const isDisabled = await submitBtn.isDisabled();
-    expect(isDisabled).toBe(true);
+    await expect(usernameInput).toHaveClass(/is-invalid/);
+    await expect(submitBtn).toBeDisabled();
+    const accessToken = await page.evaluate(() => sessionStorage.getItem('access_token'));
+    expect(accessToken).toBeNull();
   });
 
   test('should not allow submission with empty password', async ({ page }) => {
     // Only fill username
-    await page.fill('[data-testid="username-input"]', AUTH_USERNAME);
+    await page.fill('[data-testid="username-input"]', E2E_USERNAME);
+    await page.click('[data-testid="submit-btn"]');
     
-    // Submit button should be disabled
+    const passwordInput = page.locator('[data-testid="password-input"]');
     const submitBtn = page.locator('[data-testid="submit-btn"]');
-    const isDisabled = await submitBtn.isDisabled();
-    expect(isDisabled).toBe(true);
+    await expect(passwordInput).toHaveClass(/is-invalid/);
+    await expect(submitBtn).toBeDisabled();
+    const accessToken = await page.evaluate(() => sessionStorage.getItem('access_token'));
+    expect(accessToken).toBeNull();
   });
 
   test('should attach Bearer token to subsequent API requests', async ({ page }) => {
     // Fill in credentials
-    await page.fill('[data-testid="username-input"]', AUTH_USERNAME);
-    await page.fill('[data-testid="password-input"]', AUTH_PASSWORD);
+    await page.fill('[data-testid="username-input"]', E2E_USERNAME);
+    await page.fill('[data-testid="password-input"]', E2E_PASSWORD);
     
     // Submit form
     await page.click('[data-testid="submit-btn"]');
@@ -231,8 +228,8 @@ test.describe('Sign-In Flow E2E', () => {
 
   test('should clear tokens on logout', async ({ page }) => {
     // Sign in first
-    await page.fill('[data-testid="username-input"]', AUTH_USERNAME);
-    await page.fill('[data-testid="password-input"]', AUTH_PASSWORD);
+    await page.fill('[data-testid="username-input"]', E2E_USERNAME);
+    await page.fill('[data-testid="password-input"]', E2E_PASSWORD);
     await page.click('[data-testid="submit-btn"]');
     
     // Wait for login to process

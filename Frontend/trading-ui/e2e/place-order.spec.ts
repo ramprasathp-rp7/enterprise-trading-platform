@@ -133,25 +133,29 @@ test.describe('Place Order Journey', () => {
     // Wait for order-ticket page to be fully loaded
     await page.waitForLoadState('networkidle');
     
-    // Try to submit with empty fields - button should be disabled
+    // Button is enabled when an account exists; invalid state is enforced on submit.
     const submitBtn = page.locator('[data-testid="submit-order-btn"]');
     await submitBtn.waitFor({ timeout: 10000 });
     
-    const isDisabled = await submitBtn.isDisabled();
-    expect(isDisabled).toBe(true);
+    await submitBtn.click();
+    await expect(page.locator('[data-testid="symbol-input"]')).toHaveClass(/is-invalid/);
+    await expect(page.locator('[data-testid="quantity-input"]')).toHaveClass(/is-invalid/);
+    await expect(page.locator('[data-testid="price-input"]')).toHaveClass(/is-invalid/);
     
-    // Fill quantity with invalid value (0)
+    // Fill quantity with invalid value (0) and resubmit.
     const quantityInput = page.locator('[data-testid="quantity-input"]');
     await quantityInput.fill('0');
-    expect(await submitBtn.isDisabled()).toBe(true);
+    await submitBtn.click();
+    await expect(quantityInput).toHaveClass(/is-invalid/);
     
     // Fill quantity with valid value
     await quantityInput.fill('100');
     
-    // Fill price with invalid value (0)
+    // Fill price with invalid value (0) and resubmit.
     const priceInput = page.locator('[data-testid="price-input"]');
     await priceInput.fill('0');
-    expect(await submitBtn.isDisabled()).toBe(true);
+    await submitBtn.click();
+    await expect(priceInput).toHaveClass(/is-invalid/);
     
     // Fill price with valid value
     await priceInput.fill('150.50');
@@ -160,8 +164,9 @@ test.describe('Place Order Journey', () => {
     const symbolInput = page.locator('[data-testid="symbol-input"]');
     await symbolInput.fill(E2E_SYMBOL);
     
-    // Now submit button should be enabled
-    expect(await submitBtn.isDisabled()).toBe(false);
+    // With valid values entered, submit should succeed or produce an order result.
+    await submitBtn.click();
+    await expect(page.locator('[data-testid="order-result-message"], [data-testid="order-rejected-message"]').first()).toBeVisible();
   });
 
   /**
