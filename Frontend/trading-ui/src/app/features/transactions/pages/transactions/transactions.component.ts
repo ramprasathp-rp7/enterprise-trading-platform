@@ -1,7 +1,11 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterModule } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
+import { AccountsService } from '../../../../api/generated/trade';
 import { CoreAuthService } from '../../../../core/auth/core-auth.service';
+import { StatementPdfService, fileDate } from '../../../../shared/statement-pdf.service';
 import { TransactionsStore } from '../../transactions.store';
 import { TransactionType } from '../../models/transaction.models';
 
@@ -12,13 +16,15 @@ import { TransactionType } from '../../models/transaction.models';
 @Component({
   selector: 'app-transactions',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './transactions.component.html',
   styleUrls: ['./transactions.component.css'],
 })
 export class TransactionsComponent implements OnInit {
   private readonly authService = inject(CoreAuthService);
   readonly transactionsStore = inject(TransactionsStore);
+  private readonly statementPdf = inject(StatementPdfService);
+  private readonly accountsService = inject(AccountsService);
 
   // State from store
   transactions = this.transactionsStore.transactions;
@@ -29,6 +35,8 @@ export class TransactionsComponent implements OnInit {
   selectedTypeFilter = signal<TransactionType | 'ALL'>('ALL');
   transactionIdQuery = signal('');
   transactionTypes: (TransactionType | 'ALL')[] = ['ALL', 'DEPOSIT', 'WITHDRAW', 'FEE', 'BUY', 'SELL'];
+  readonly downloading = signal(false);
+  readonly downloadError = signal<string | null>(null);
 
   ngOnInit() {
     const user = this.authService.currentUser();
@@ -56,6 +64,76 @@ export class TransactionsComponent implements OnInit {
       const matchesId = !idQuery || tx.transactionId.toLowerCase().includes(idQuery);
       return matchesType && matchesId;
     });
+  }
+
+  /** Download the transactions currently shown (filters applied) as a PDF statement. */
+  async downloadStatement(): Promise<void> {
+    const user = this.authService.currentUser();
+    const transactions = this.getFilteredTransactions();
+    const credits = transactions.filter((t) => t.actionType === 'CREDIT').reduce((sum, t) => sum + t.amount, 0);
+    const debits = transactions.filter((t) => t.actionType === 'DEBIT').reduce((sum, t) => sum + t.amount, 0);
+
+    const filters: string[] = [];
+    if (this.selectedTypeFilter() !== 'ALL') {
+      filters.push(`Type ${this.selectedTypeFilter()}`);
+    }
+    if (this.transactionIdQuery().trim()) {
+      filters.push(`ID contains "${this.transactionIdQuery().trim()}"`);
+    }
+
+    this.downloading.set(true);
+    this.downloadError.set(null);
+    try {
+      const accountNumber = await this.customerAccountNumber();
+      await this.statementPdf.download({
+        title: 'Transaction Statement',
+        details: [
+          ['Account', accountNumber],
+          ['Prepared for', user?.username ?? 'N/A'],
+          ['Filters', filters.length ? filters.join(', ') : 'None (all transactions)'],
+        ],
+        summary: [
+          ['Transactions', String(transactions.length)],
+          ['Total credits', this.formatCurrency(credits)],
+          ['Total debits', this.formatCurrency(debits)],
+          ['Net', this.formatCurrency(credits - debits)],
+        ],
+        columns: [
+          { header: 'Date & time' },
+          { header: 'Type' },
+          { header: 'Direction' },
+          { header: 'Amount', numeric: true },
+          { header: 'Transaction ID' },
+        ],
+        rows: transactions.map((t) => [
+          this.formatDate(t.createdOn),
+          t.transactionType,
+          t.actionType,
+          this.formatCurrency(t.amount),
+          t.transactionId,
+        ]),
+        emptyMessage: 'No transactions match the current filters.',
+        fileName: `transaction-statement-${accountNumber}-${fileDate()}`,
+      });
+    } catch (err) {
+      console.error('Failed to generate transaction statement', err);
+      this.downloadError.set('Could not generate the statement. Please try again.');
+    } finally {
+      this.downloading.set(false);
+    }
+  }
+
+  /** Customer-facing account number (e.g. ACC-000001) for statements, not the internal numeric key. */
+  private async customerAccountNumber(): Promise<string> {
+    const accountId = this.authService.currentUser()?.accountId;
+    if (!accountId) {
+      throw new Error('No account for the current session');
+    }
+    const account = await firstValueFrom(this.accountsService.getAccount(accountId));
+    if (!account?.accountId) {
+      throw new Error('Account has no customer-facing number');
+    }
+    return account.accountId;
   }
 
   clearTransactionIdQuery() {

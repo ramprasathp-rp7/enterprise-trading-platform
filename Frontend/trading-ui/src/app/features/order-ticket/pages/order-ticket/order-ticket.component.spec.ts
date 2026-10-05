@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter, Router } from '@angular/router';
 import { signal } from '@angular/core';
 import { vi } from 'vitest';
 import { OrderSide } from '../../../../api/generated/trade';
@@ -35,7 +36,7 @@ describe('OrderTicketComponent', () => {
 
     await TestBed.configureTestingModule({
       imports: [OrderTicketComponent],
-      providers: [{ provide: OrderTicketStore, useValue: store }],
+      providers: [provideRouter([]), { provide: OrderTicketStore, useValue: store }],
     }).compileComponents();
 
     fixture = TestBed.createComponent(OrderTicketComponent);
@@ -78,21 +79,60 @@ describe('OrderTicketComponent', () => {
     expect(store.submitOrder).not.toHaveBeenCalled();
   });
 
-  it('renders the returned status from a submitted order', () => {
-    store.submissionResult.set({
-      orderId: 'ORD-123',
-      status: 'NEW',
-      message: 'Order accepted and queued.',
-      symbol: 'AAPL',
-      side: OrderSide.Buy,
-      quantity: 10,
-      price: 245.75,
-    });
-    fixture.detectChanges();
+  describe('after submission', () => {
+    const fillValidOrder = () => {
+      component.symbol.set('AAPL');
+      component.side.set(OrderSide.Buy);
+      component.quantity.set('10');
+      component.price.set('245.75');
+    };
 
-    const result = fixture.nativeElement.querySelector('[data-testid="order-result-message"]');
-    expect(result).toBeTruthy();
-    expect(result.textContent).toContain('NEW');
-    expect(result.textContent).toContain('Order accepted and queued.');
+    it('opens the confirmation page for the placed order', async () => {
+      const router = TestBed.inject(Router);
+      const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+      store.submitOrder.mockImplementation(async () => {
+        store.submissionResult.set({
+          orderId: 'ORD-123',
+          status: 'NEW',
+          message: 'Order accepted and queued.',
+          symbol: 'AAPL',
+          side: OrderSide.Buy,
+          quantity: 10,
+          price: 245.75,
+        });
+        return true;
+      });
+      fillValidOrder();
+
+      await component.onSubmit();
+
+      expect(store.submitOrder).toHaveBeenCalledWith({ symbol: 'AAPL', side: OrderSide.Buy, quantity: 10, price: 245.75 });
+      expect(navigate).toHaveBeenCalledWith(['/order-confirmation', 'ORD-123']);
+    });
+
+    it('stays on the ticket and shows the error when placement fails', async () => {
+      const router = TestBed.inject(Router);
+      const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+      store.submitOrder.mockImplementation(async () => {
+        store.errorCode.set('ORD-409');
+        store.errorMessage.set('Duplicate order');
+        return false;
+      });
+      fillValidOrder();
+
+      await component.onSubmit();
+      fixture.detectChanges();
+
+      expect(navigate).not.toHaveBeenCalled();
+      const rejected = fixture.nativeElement.querySelector('[data-testid="order-rejected-message"]');
+      expect(rejected.textContent).toContain('Duplicate order');
+    });
+
+    it('no longer renders a success card on the ticket itself', () => {
+      store.submissionResult.set({ orderId: 'ORD-1', status: 'NEW', message: 'ok', symbol: 'AAPL', side: OrderSide.Buy, quantity: 1, price: 1 });
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector('[data-testid="order-result-message"]')).toBeNull();
+    });
   });
 });

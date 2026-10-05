@@ -21,7 +21,7 @@ describe('OrderStatusBadgeComponent', () => {
       fixture.detectChanges();
 
       const element = fixture.nativeElement.querySelector('span');
-      expect(element.textContent).toBe('NEW');
+      expect(element.textContent.trim()).toBe('NEW');
       expect(element.classList.contains('status-new')).toBe(true);
     });
 
@@ -30,7 +30,7 @@ describe('OrderStatusBadgeComponent', () => {
       fixture.detectChanges();
 
       const element = fixture.nativeElement.querySelector('span');
-      expect(element.textContent).toBe('FILLED');
+      expect(element.textContent.trim()).toBe('FILLED');
       expect(element.classList.contains('status-filled')).toBe(true);
     });
 
@@ -39,7 +39,7 @@ describe('OrderStatusBadgeComponent', () => {
       fixture.detectChanges();
 
       const element = fixture.nativeElement.querySelector('span');
-      expect(element.textContent).toBe('REJECTED');
+      expect(element.textContent.trim()).toBe('REJECTED');
       expect(element.classList.contains('status-rejected')).toBe(true);
     });
 
@@ -48,7 +48,7 @@ describe('OrderStatusBadgeComponent', () => {
       fixture.detectChanges();
 
       const element = fixture.nativeElement.querySelector('span');
-      expect(element.textContent).toBe('CANCELLED');
+      expect(element.textContent.trim()).toBe('CANCELLED');
       expect(element.classList.contains('status-cancelled')).toBe(true);
     });
   });

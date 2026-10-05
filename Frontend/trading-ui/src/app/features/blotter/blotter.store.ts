@@ -1,8 +1,9 @@
-import { Injectable, inject, computed, signal } from '@angular/core';
+import { Injectable, computed, signal } from '@angular/core';
 import { interval, Subject, takeUntil } from 'rxjs';
 import { switchMap, takeWhile } from 'rxjs/operators';
 import { OrderHistoryService } from './services/order-history.service';
-import { BlotterOrder, OrderFilters } from './blotter.models';
+import { OrderCancelService } from './services/order-cancel.service';
+import { BlotterOrder, CancelResult, OrderFilters } from './blotter.models';
 import { OrderStatus } from '../../api/generated/trade';
 
 /**
@@ -13,7 +14,17 @@ import { OrderStatus } from '../../api/generated/trade';
   providedIn: 'root',
 })
 export class BlotterStore {
-  private orderHistoryService = inject(OrderHistoryService);
+  // OrderHistoryService is injected by Angular when instantiated via DI.
+  // Tests instantiate the store with `new BlotterStore()` and then
+  // assign a mock to this property, so accept an optional service
+  // via constructor but keep a no-arg constructor-compatible form.
+  private orderHistoryService?: OrderHistoryService;
+  private orderCancelService?: OrderCancelService;
+
+  constructor(orderHistoryService?: OrderHistoryService, orderCancelService?: OrderCancelService) {
+    this.orderHistoryService = orderHistoryService;
+    this.orderCancelService = orderCancelService;
+  }
 
   // Polling configuration - can be customized
   private readonly POLL_INTERVAL_MS = 2000; // Poll every 2 seconds
@@ -26,6 +37,8 @@ export class BlotterStore {
   private pollAttemptsSignal = signal<number>(0);
   private lastErrorSignal = signal<string | null>(null);
   private filtersSignal = signal<OrderFilters>({});
+  private cancellingIdsSignal = signal<ReadonlySet<string>>(new Set());
+  private cancelResultSignal = signal<CancelResult | null>(null);
 
   // Public computed observables
   readonly orders = computed(() => this.ordersSignal());
@@ -34,6 +47,8 @@ export class BlotterStore {
   readonly pollAttempts = computed(() => this.pollAttemptsSignal());
   readonly lastError = computed(() => this.lastErrorSignal());
   readonly filters = computed(() => this.filtersSignal());
+  readonly cancellingIds = computed(() => this.cancellingIdsSignal());
+  readonly cancelResult = computed(() => this.cancelResultSignal());
 
   // Computed: filtered orders based on current filters
   readonly filteredOrders = computed(() => {
@@ -60,8 +75,6 @@ export class BlotterStore {
   private stopPolling$ = new Subject<void>();
   private currentAccountId: number | null = null;
 
-  constructor() {}
-
   /**
    * Load order history and start polling if needed
    */
@@ -70,7 +83,7 @@ export class BlotterStore {
     this.isLoadingSignal.set(true);
     this.lastErrorSignal.set(null);
 
-    this.orderHistoryService.getOrderHistory(accountId).subscribe({
+    this.orderHistoryService!.getOrderHistory(accountId).subscribe({
       next: (orders) => {
         this.ordersSignal.set(orders as BlotterOrder[]);
         this.isLoadingSignal.set(false);
@@ -105,7 +118,7 @@ export class BlotterStore {
         takeWhile(() => this.pollAttemptsSignal() < this.MAX_POLL_ATTEMPTS),
         takeUntil(this.stopPolling$),
         switchMap(() =>
-          this.orderHistoryService.getOrderHistory(accountId)
+          this.orderHistoryService!.getOrderHistory(accountId)
         )
       )
       .subscribe({
@@ -146,6 +159,109 @@ export class BlotterStore {
   }
 
   /**
+   * Cancel a NEW order via DELETE /api/v1/orders/{id}.
+   * On success the row is marked CANCELLED immediately, then the history is
+   * re-fetched so the blotter reflects the server's state.
+   */
+  cancelOrder(orderId: string): void {
+    if (!this.orderCancelService || this.cancellingIdsSignal().has(orderId)) {
+      return;
+    }
+
+    this.setCancelling(orderId, true);
+    this.cancelResultSignal.set(null);
+
+    this.orderCancelService.cancelOrder(orderId).subscribe({
+      next: (response) => {
+        this.setCancelling(orderId, false);
+        this.ordersSignal.update(orders =>
+          orders.map(order =>
+            order.orderId === orderId ? { ...order, status: OrderStatus.Cancelled } : order
+          )
+        );
+        const order = this.ordersSignal().find(o => o.orderId === orderId);
+        this.cancelResultSignal.set({
+          type: 'success',
+          orderId,
+          message: response?.message || `${order?.side ?? ''} ${order?.symbol ?? 'Order'} cancelled`.trim(),
+        });
+        this.syncOrderHistory();
+      },
+      error: (err) => {
+        this.setCancelling(orderId, false);
+        this.cancelResultSignal.set({
+          type: 'error',
+          orderId,
+          errorCode: err?.error?.errorCode,
+          message: BlotterStore.describeCancelError(err),
+        });
+        // The order may have moved on (e.g. filled) — re-sync with the server.
+        this.syncOrderHistory();
+      },
+    });
+  }
+
+  /**
+   * Dismiss the last cancel result banner
+   */
+  clearCancelResult(): void {
+    this.cancelResultSignal.set(null);
+  }
+
+  /**
+   * Re-fetch history in the background (no loading state) and keep polling
+   * while any order is still NEW.
+   */
+  private syncOrderHistory(): void {
+    const accountId = this.currentAccountId;
+    if (accountId === null || !this.orderHistoryService) {
+      return;
+    }
+
+    this.orderHistoryService.getOrderHistory(accountId).subscribe({
+      next: (orders) => {
+        this.ordersSignal.set(orders as BlotterOrder[]);
+        const hasNew = orders.some(o => (o as BlotterOrder).status === OrderStatus.New);
+        if (!hasNew) {
+          this.stopPolling();
+        }
+      },
+      error: () => {
+        // Keep the optimistic state; the next poll or manual refresh will correct it.
+      },
+    });
+  }
+
+  private setCancelling(orderId: string, cancelling: boolean): void {
+    this.cancellingIdsSignal.update(ids => {
+      const next = new Set(ids);
+      if (cancelling) {
+        next.add(orderId);
+      } else {
+        next.delete(orderId);
+      }
+      return next;
+    });
+  }
+
+  private static describeCancelError(err: any): string {
+    switch (err?.status) {
+      case 409:
+        return 'This order can no longer be cancelled. It has already been filled, rejected or cancelled.';
+      case 404:
+        return 'This order could not be found. It may have been removed.';
+      case 403:
+        return 'Your account is not active, so orders cannot be cancelled.';
+      case 401:
+        return 'Your session has expired. Please sign in again.';
+      case 0:
+        return 'Unable to reach the order service. Check your connection and try again.';
+      default:
+        return err?.error?.message || 'Failed to cancel the order. Please try again.';
+    }
+  }
+
+  /**
    * Clear all state
    */
   clearOrders(): void {
@@ -153,6 +269,8 @@ export class BlotterStore {
     this.ordersSignal.set([]);
     this.pollAttemptsSignal.set(0);
     this.lastErrorSignal.set(null);
+    this.cancellingIdsSignal.set(new Set());
+    this.cancelResultSignal.set(null);
     this.currentAccountId = null;
   }
 

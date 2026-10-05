@@ -14,7 +14,7 @@ interface NavItem {
   standalone: true,
   imports: [CommonModule, RouterModule, RouterLinkActive],
   templateUrl: './admin-sidebar.html',
-  styleUrls: ['./admin-sidebar.css'],
+  styleUrls: ['../sidebar/sidebar.component.css'],
 })
 export class AdminSidebarComponent {
   isCollapsed = false;
@@ -25,12 +25,6 @@ export class AdminSidebarComponent {
       route: '/admin/analytics',
       icon: 'fas fa-chart-line',
       description: 'Analytics overview'
-    },
-    {
-      label: 'Account Management',
-      route: '/admin/accounts',
-      icon: 'fas fa-users',
-      description: 'Manage user accounts'
     },
     {
       label: 'Register User',

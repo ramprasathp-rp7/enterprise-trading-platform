@@ -54,11 +54,13 @@ export class UsersService {
     const passwordHash = await this.passwordService.hashPassword(password);
 
     // Create the user
+    // SECURITY: Always register as CUSTOMER. Admins are seeded in the database only.
+    // Accepting self-declared roles is a privilege-escalation vulnerability.
     const newUser = await this.usersRepository.saveUser({
       username,
       password_hash: passwordHash,
       account_id: accountId,
-      roles: (roles as Role[]) || [Role.CUSTOMER],
+      roles: [Role.CUSTOMER],
     });
 
     this.logger.log(`User registered successfully: ${username} (id: ${newUser.id})`);

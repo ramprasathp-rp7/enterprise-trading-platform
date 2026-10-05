@@ -6,7 +6,10 @@
       <div class="brand-icon">
         <i class="fas fa-chart-line"></i>
       </div>
-      <div class="brand-text">Enterprise Trading Platform</div>
+      <div class="brand-text">
+        <span class="brand-name">Enterprise Trading Platform</span>
+        <span class="brand-tag">Institutional Markets</span>
+      </div>
     </div>
 
     <!-- Spacer -->
@@ -17,10 +20,33 @@
       
       <!-- Quick Actions Icons -->
       <div class="navbar-actions">
-        <!-- Search -->
-        <button class="action-icon" title="Search">
-          <i class="fas fa-search"></i>
+        <!-- Theme -->
+        <button
+          type="button"
+          class="action-icon theme-toggle"
+          data-testid="theme-toggle"
+          (click)="themeService.toggle()"
+          [attr.aria-label]="themeService.isDark() ? 'Switch to light mode' : 'Switch to dark mode'"
+          [attr.aria-pressed]="themeService.isDark()"
+          [title]="themeService.isDark() ? 'Switch to light mode' : 'Switch to dark mode'"
+        >
+          <i class="fas" [class.fa-sun]="themeService.isDark()" [class.fa-moon]="!themeService.isDark()"></i>
         </button>
+
+        <!-- Instrument search (customers only: trading pages are customer routes) -->
+        @if (canSearch()) {
+          <button
+            type="button"
+            class="action-icon search-toggle"
+            title="Search instruments (Ctrl+K)"
+            aria-label="Search instruments"
+            aria-haspopup="dialog"
+            data-testid="instrument-search-btn"
+            (click)="openSearch()"
+          >
+            <i class="fas fa-search"></i>
+          </button>
+        }
 
         <!-- Settings -->
         <button class="action-icon" title="Settings">
@@ -35,18 +61,21 @@
       <div class="user-profile-container">
         <button 
           class="user-profile-button"
+          [class.open]="isProfileMenuOpen"
           (click)="toggleProfileMenu($event)"
+          aria-haspopup="menu"
+          [attr.aria-expanded]="isProfileMenuOpen"
         >
           <div class="user-avatar">{{ (authService.currentUser()?.username || 'U')?.charAt(0)?.toUpperCase() || 'U' }}</div>
           <div class="user-info">
             <div class="user-name">{{ authService.currentUser()?.username || 'User' }}</div>
             <div class="user-role">Acct {{ accountDisplayId() || 'N/A' }}</div>
           </div>
-          <i class="fas fa-chevron-down"></i>
+          <i class="fas fa-chevron-down chevron"></i>
         </button>
 
         <!-- Profile Dropdown Menu -->
-        <div class="profile-menu" *ngIf="isProfileMenuOpen">
+        <div class="profile-menu" role="menu" *ngIf="isProfileMenuOpen">
           <div class="profile-menu-header">
             <div class="profile-menu-avatar">{{ (authService.currentUser()?.username || 'U')?.charAt(0)?.toUpperCase() || 'U' }}</div>
             <div class="profile-menu-details">
@@ -63,10 +92,6 @@
             <i class="fas fa-sliders-h"></i>
             Preferences
           </button>
-          <button class="profile-menu-item">
-            <i class="fas fa-file-download"></i>
-            Download Reports
-          </button>
           <div class="profile-menu-divider"></div>
           <button class="profile-menu-item logout" (click)="logout()">
             <i class="fas fa-sign-out-alt"></i>
@@ -77,3 +102,10 @@
     </div>
   </div>
 </nav>
+
+@if (searchOpen()) {
+  <!-- Loaded on first use to keep the initial bundle small -->
+  @defer {
+    <app-instrument-search-dialog (selected)="openInstrument($event)" (closed)="closeSearch()" />
+  }
+}

@@ -154,4 +154,42 @@ describe('OrderListComponent', () => {
       expect(rows.length).toBe(mockOrders.length);
     });
   });
+
+  describe('cancel action', () => {
+    beforeEach(() => {
+      component.orders = mockOrders as any;
+      fixture.detectChanges();
+    });
+
+    it('shows a Cancel button only for NEW orders', () => {
+      const buttons = fixture.nativeElement.querySelectorAll('[data-testid="cancel-order-btn"]');
+      const newCount = mockOrders.filter((o) => o.status === OrderStatus.New).length;
+      expect(buttons.length).toBe(newCount);
+    });
+
+    it('asks for confirmation before emitting the order ID', () => {
+      const emitted: string[] = [];
+      component.cancelOrder.subscribe((id: string) => emitted.push(id));
+
+      fixture.nativeElement.querySelector('[data-testid="cancel-order-btn"]').click();
+      fixture.detectChanges();
+      expect(emitted).toEqual([]);
+
+      fixture.nativeElement.querySelector('[data-testid="confirm-cancel-btn"]').click();
+      fixture.detectChanges();
+
+      const newOrder = mockOrders.find((o) => o.status === OrderStatus.New)!;
+      expect(emitted).toEqual([newOrder.orderId]);
+      expect(fixture.nativeElement.querySelector('[data-testid="confirm-cancel-btn"]')).toBeNull();
+    });
+
+    it('shows progress instead of the button while cancelling', () => {
+      const newOrder = mockOrders.find((o) => o.status === OrderStatus.New)!;
+      fixture.componentRef.setInput('cancellingIds', new Set([newOrder.orderId]));
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector('[data-testid="cancel-order-btn"]')).toBeNull();
+      expect(fixture.nativeElement.querySelector('.cancel-progress').textContent).toContain('Cancelling');
+    });
+  });
 });

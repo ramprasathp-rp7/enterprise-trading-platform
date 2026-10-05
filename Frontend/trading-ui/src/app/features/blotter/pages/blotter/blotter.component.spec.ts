@@ -4,6 +4,7 @@ import { BlotterStore } from '../../blotter.store';
 import { CoreAuthService } from '../../../../core/auth/core-auth.service';
 import { OrderHistoryEntry, OrderStatus } from '../../../../api/generated/trade';
 import { vi } from 'vitest';
+import { provideRouter } from '@angular/router';
 
 describe('BlotterComponent', () => {
   let component: BlotterComponent;
@@ -39,6 +40,7 @@ describe('BlotterComponent', () => {
   beforeEach(async () => {
     mockBlotterStore = {
       orders: vi.fn(() => mockOrders),
+      filteredOrders: vi.fn(() => mockOrders),
       isLoading: vi.fn(() => false),
       isPolling: vi.fn(() => true),
       pollAttempts: vi.fn(() => 5),
@@ -48,6 +50,10 @@ describe('BlotterComponent', () => {
       stopPolling: vi.fn(),
       refreshOrderHistory: vi.fn(),
       clearOrders: vi.fn(),
+      cancellingIds: vi.fn(() => new Set<string>()),
+      cancelResult: vi.fn(() => null),
+      cancelOrder: vi.fn(),
+      clearCancelResult: vi.fn(),
     };
 
     mockAuthService = {
@@ -59,6 +65,7 @@ describe('BlotterComponent', () => {
     await TestBed.configureTestingModule({
       imports: [BlotterComponent],
       providers: [
+        provideRouter([]),
         { provide: BlotterStore, useValue: mockBlotterStore },
         { provide: CoreAuthService, useValue: mockAuthService },
       ],
@@ -152,6 +159,27 @@ describe('BlotterComponent', () => {
       expect(component.pollAttempts()).toBe(5);
       expect(component.lastError()).toBeNull();
       expect(component.hasNewOrders()).toBe(true);
+    });
+  });
+
+  describe('cancel order', () => {
+    it('delegates a confirmed cancel to the store', () => {
+      component.onCancelOrder('order-1');
+
+      expect(mockBlotterStore.cancelOrder).toHaveBeenCalledWith('order-1');
+    });
+
+    it('renders the cancel result banner and dismisses it', () => {
+      mockBlotterStore.cancelResult.mockReturnValue({ type: 'error', orderId: 'order-1', message: 'Too late' });
+      fixture = TestBed.createComponent(BlotterComponent);
+      fixture.detectChanges();
+
+      const banner = fixture.nativeElement.querySelector('[data-testid="cancel-result"]');
+      expect(banner.textContent).toContain('Cancel failed');
+      expect(banner.textContent).toContain('Too late');
+
+      banner.querySelector('.alert-close').click();
+      expect(mockBlotterStore.clearCancelResult).toHaveBeenCalled();
     });
   });
 });

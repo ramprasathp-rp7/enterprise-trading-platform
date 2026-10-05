@@ -63,7 +63,7 @@ export class AdminFeeManagementComponent implements OnInit {
       case 'FX':
         return 'fas fa-money-bill';
       case 'CRYPTO':
-        return 'fas fa-bitcoin';
+        return 'fab fa-bitcoin';
       default:
         return 'fas fa-coins';
     }

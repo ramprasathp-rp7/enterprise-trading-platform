@@ -5,9 +5,9 @@ import { LoginComponent } from './features/sign-in/pages/login/login.component';
 import { authGuard, canActivateChildGuard } from './core/auth/auth.guard';
 import { unauthenticatedGuard } from './core/auth/unauthenticated.guard';
 import { adminGuard } from './core/auth/admin.guard';
+import { customerGuard } from './core/auth/customer.guard';
 import { AdminAnalyticsComponent } from './features/admin/pages/analytics/admin-analytics.component';
 import { AdminFeeManagementComponent } from './features/admin/pages/fee-management/admin-fee-management.component';
-import { AdminAccountManagementComponent } from './features/admin/pages/account-management/account-management';
 import { AdminUserRegistrationComponent } from './features/admin/pages/user-registration/user-registration';
 export const routes: Routes = [
   // Sign-in route (public, no auth required)
@@ -19,10 +19,11 @@ export const routes: Routes = [
   },
 
   // Protected routes - all under Shell layout with auth guard
+  // Customers only - admins redirected to /admin/analytics
   {
     path: '',
     component: ShellComponent,
-    canActivate: [authGuard],
+    canActivate: [authGuard, customerGuard],
     children: [
       // Default route redirects to dashboard
       {
@@ -47,6 +48,15 @@ export const routes: Routes = [
             (m) => m.OrderTicketComponent
           ),
         data: { title: 'Place Order' },
+      },
+      {
+        path: 'order-confirmation/:orderId',
+        canActivateChild: [canActivateChildGuard],
+        loadComponent: () =>
+          import('./features/order-ticket/pages/order-confirmation/order-confirmation.component').then(
+            (m) => m.OrderConfirmationComponent
+          ),
+        data: { title: 'Order Confirmation' },
       },
       {
         path: 'blotter',
@@ -85,6 +95,15 @@ export const routes: Routes = [
         data: { title: 'Transactions' },
       },
       {
+        path: 'transaction-confirmation/:transactionId',
+        canActivateChild: [canActivateChildGuard],
+        loadComponent: () =>
+          import('./features/transactions/pages/transaction-confirmation/transaction-confirmation.component').then(
+            (m) => m.TransactionConfirmationComponent
+          ),
+        data: { title: 'Transaction Confirmation' },
+      },
+      {
         path: 'transaction-history',
         canActivateChild: [canActivateChildGuard],
         loadComponent: () =>
@@ -106,11 +125,6 @@ export const routes: Routes = [
         path: 'analytics',
         component: AdminAnalyticsComponent,
         data: { title: 'Admin Analytics' },
-      },
-      {
-        path: 'accounts',
-        component: AdminAccountManagementComponent,
-        data: { title: 'Account Management' },
       },
       {
         path: 'register',

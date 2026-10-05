@@ -133,25 +133,29 @@ test.describe('Place Order Journey', () => {
     // Wait for order-ticket page to be fully loaded
     await page.waitForLoadState('networkidle');
     
-    // Try to submit with empty fields - button should be disabled
+    // Button is enabled when an account exists; invalid state is enforced on submit.
     const submitBtn = page.locator('[data-testid="submit-order-btn"]');
     await submitBtn.waitFor({ timeout: 10000 });
     
-    const isDisabled = await submitBtn.isDisabled();
-    expect(isDisabled).toBe(true);
+    await submitBtn.click();
+    await expect(page.locator('[data-testid="symbol-input"]')).toHaveClass(/is-invalid/);
+    await expect(page.locator('[data-testid="quantity-input"]')).toHaveClass(/is-invalid/);
+    await expect(page.locator('[data-testid="price-input"]')).toHaveClass(/is-invalid/);
     
-    // Fill quantity with invalid value (0)
+    // Fill quantity with invalid value (0) and resubmit.
     const quantityInput = page.locator('[data-testid="quantity-input"]');
     await quantityInput.fill('0');
-    expect(await submitBtn.isDisabled()).toBe(true);
+    await submitBtn.click();
+    await expect(quantityInput).toHaveClass(/is-invalid/);
     
     // Fill quantity with valid value
     await quantityInput.fill('100');
     
-    // Fill price with invalid value (0)
+    // Fill price with invalid value (0) and resubmit.
     const priceInput = page.locator('[data-testid="price-input"]');
     await priceInput.fill('0');
-    expect(await submitBtn.isDisabled()).toBe(true);
+    await submitBtn.click();
+    await expect(priceInput).toHaveClass(/is-invalid/);
     
     // Fill price with valid value
     await priceInput.fill('150.50');
@@ -160,8 +164,9 @@ test.describe('Place Order Journey', () => {
     const symbolInput = page.locator('[data-testid="symbol-input"]');
     await symbolInput.fill(E2E_SYMBOL);
     
-    // Now submit button should be enabled
-    expect(await submitBtn.isDisabled()).toBe(false);
+    // With valid values entered, submit should succeed or produce an order result.
+    await submitBtn.click();
+    await expect(page.locator('[data-testid="order-result-message"], [data-testid="order-rejected-message"]').first()).toBeVisible();
   });
 
   /**
@@ -200,7 +205,7 @@ test.describe('Place Order Journey', () => {
   /**
    * Test: Place order successfully - accept NEW, FILLED, or REJECTED
    */
-  test('should place order and accept NEW, FILLED, or REJECTED status', async ({ page }) => {
+  test('should place order, show its confirmation page and find it in the blotter', async ({ page }) => {
     await signInAndNavigate(page);
     
     // Wait for page to be fully loaded
@@ -221,21 +226,48 @@ test.describe('Place Order Journey', () => {
     await symbolInput.fill(E2E_SYMBOL);
     
     // Submit order
-    if (!(await submitBtn.isDisabled())) {
-      await submitBtn.click();
-      console.log(`📤 Order submitted`);
-      
-      // Wait for order to be processed or page to respond
-      // Could show confirmation, navigate to blotter, or display status
-      await page.waitForTimeout(2000);
-      
-      // Order has been submitted - either we see confirmation or we're on a different page
-      // Executor will process it asynchronously, so we don't need to wait for final status
-      console.log(`✅ Order placement request accepted`);
-      expect(true).toBe(true);
-    } else {
+    if (await submitBtn.isDisabled()) {
       throw new Error('Submit button is disabled - form may have validation errors');
     }
+    await submitBtn.click();
+    console.log(`📤 Order submitted`);
+
+    // A placed order opens its own confirmation page
+    await page.waitForURL(/\/order-confirmation\/[^/]+$/, { timeout: 15000 });
+    const result = page.locator('[data-testid="order-result-message"]');
+    await expect(result).toBeVisible();
+
+    // Executor runs asynchronously, so NEW, FILLED and REJECTED are all valid here
+    const status = page.locator('[data-testid="order-status"]');
+    await expect(status).toHaveText(/^\s*(NEW|FILLED|REJECTED)\s*$/);
+    const orderId = (await page.locator('[data-testid="order-id"]').textContent())?.trim() ?? '';
+    expect(orderId).not.toBe('');
+    expect(decodeURIComponent(new URL(page.url()).pathname)).toContain(orderId);
+    console.log(`✅ Confirmation shown for ${orderId} (${(await status.textContent())?.trim()})`);
+
+    // Reloading the confirmation page recovers the order from the account history
+    await page.reload({ waitUntil: 'networkidle' });
+    await expect(page.locator('[data-testid="order-id"]')).toHaveText(orderId);
+    await expect(status).toHaveText(/^\s*(NEW|FILLED|REJECTED)\s*$/);
+
+    // The confirmation routes to the Order Blotter, where the order is listed
+    await page.locator('[data-testid="view-in-blotter-btn"]').click();
+    await page.waitForURL(/\/blotter$/, { timeout: 10000 });
+    await expect(page.locator(`td.cell-order-id[title="${orderId}"]`)).toBeVisible({ timeout: 15000 });
+    console.log(`✅ Order ${orderId} found in the Order Blotter`);
+  });
+
+  /**
+   * Test: The confirmation page handles an unknown order id gracefully
+   */
+  test('should show not-found with a blotter link for an unknown order id', async ({ page }) => {
+    await signInAndNavigate(page);
+
+    await page.goto(`${E2E_BASE_URL}/order-confirmation/ORD-00000000-0000-0000-0000-000000000000`, { waitUntil: 'networkidle' });
+
+    await expect(page.locator('[data-testid="order-not-found"]')).toBeVisible();
+    await page.locator('[data-testid="view-in-blotter-btn"]').click();
+    await page.waitForURL(/\/blotter$/, { timeout: 10000 });
   });
 
   /**

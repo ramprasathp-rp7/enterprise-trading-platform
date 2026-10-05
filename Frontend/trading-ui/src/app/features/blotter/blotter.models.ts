@@ -18,3 +18,13 @@ export interface OrderFilters {
   status?: OrderStatus;
   symbol?: string;
 }
+
+/**
+ * Outcome of the most recent cancel request, shown as a banner on the blotter
+ */
+export interface CancelResult {
+  type: 'success' | 'error';
+  orderId: string;
+  message: string;
+  errorCode?: string;
+}

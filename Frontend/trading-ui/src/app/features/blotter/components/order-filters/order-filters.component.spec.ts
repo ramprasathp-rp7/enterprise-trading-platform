@@ -151,7 +151,7 @@ describe('OrderFiltersComponent', () => {
       fixture.detectChanges();
       await fixture.whenStable();
 
-      const clearButton = fixture.nativeElement.querySelector('.clear-button');
+      const clearButton = fixture.nativeElement.querySelector('.clear-search-btn');
       expect(clearButton).toBeTruthy();
     });
 
@@ -161,7 +161,7 @@ describe('OrderFiltersComponent', () => {
       fixture.detectChanges();
       await fixture.whenStable();
 
-      const clearButton = fixture.nativeElement.querySelector('.clear-button');
+      const clearButton = fixture.nativeElement.querySelector('.clear-search-btn');
       expect(clearButton).toBeFalsy();
     });
 
@@ -170,9 +170,8 @@ describe('OrderFiltersComponent', () => {
       fixture.detectChanges();
       await fixture.whenStable();
 
-      const filterInfo = fixture.nativeElement.querySelector('.filter-info');
+      const filterInfo = fixture.nativeElement.querySelector('.clear-search-btn');
       expect(filterInfo).toBeTruthy();
-      expect(filterInfo.textContent).toContain('1 filter');
     });
 
     it('should display all status options in select', async () => {

@@ -1,59 +1,67 @@
 <!-- Enterprise Trading Dashboard -->
-<div class="dashboard-container">
-  
-  <!-- Welcome Section -->
-  <div class="welcome-section">
-    <div class="welcome-row">
-      <div class="welcome-content">
-        <h1 class="welcome-title">Welcome back, {{ accountDisplayName() || 'User' }}</h1>
-        <p class="welcome-subtitle">{{ accountDisplayId() || 'N/A' }} • {{ currentDate | date: 'EEEE, MMMM d' }}</p>
-      </div>
-    </div>
-  </div>
+<div class="page dashboard-container">
 
-  <!-- Portfolio Metrics Grid -->
-  <div class="metrics-section">
-    <div class="section-title-bar">
-      <h2 class="section-title">Portfolio Overview</h2>
+  <!-- Page header with the two most common next steps -->
+  <header class="page-header">
+    <div class="page-heading">
+      <p class="page-eyebrow">{{ currentDate | date: 'EEEE, MMMM d' }}</p>
+      <h1 class="page-title">Welcome back, {{ accountDisplayName() || 'User' }}</h1>
+      <p class="page-subtitle">Account {{ accountDisplayId() || 'N/A' }} · Here is where your portfolio stands today.</p>
     </div>
-    <div class="metrics-grid">
-      @for (stat of portfolioStats(); track stat.title) {
-        <div class="metric-card">
-          <div class="metric-icon" [class]="stat.icon"></div>
-          <div class="metric-content">
-            <div class="metric-label">{{ stat.title }}</div>
-            <div class="metric-value">{{ stat.value }}</div>
-            <div class="metric-change" [class]="'change-' + stat.changeType">
-              <span class="change-direction">{{ stat.changeType === 'positive' ? '▲' : '—' }}</span>
-              <span class="change-pct">{{ stat.change | number:'1.1-2' }}% from yesterday</span>
-            </div>
-          </div>
-        </div>
-      }
-    </div>
-  </div>
-
-  <!-- Positions allocation bar inserted under Portfolio Overview cards -->
-  <div class="metrics-allocation">
-    <div class="section-title-bar">
-      <h2 class="section-title">Your Portfolio Holdings</h2>
-      <a routerLink="/positions" class="section-link">→ View all</a>
-    </div>
-    <app-positions-overview [accountId]="authService.currentUser()?.accountId"></app-positions-overview>
-  </div>
-
-  <!-- Recent Activity Section -->
-  <div class="activity-section">
-    <div class="section-title-bar">
-      <h2 class="section-title">Recent Trades</h2>
-      <a routerLink="/blotter" class="section-link">
-        <i class="fas fa-arrow-right"></i> View all
+    <div class="page-actions">
+      <a routerLink="/transactions" class="btn btn-secondary">
+        <i class="fas fa-wallet"></i> Fund account
+      </a>
+      <a routerLink="/order-ticket" class="btn btn-primary">
+        <i class="fas fa-plus"></i> New order
       </a>
     </div>
+  </header>
 
-    <!-- Activity Table -->
-    <div class="table-container">
-      <table class="activity-table">
+  <!-- Portfolio KPIs -->
+  <section class="metrics-grid" aria-label="Portfolio overview">
+    @for (stat of portfolioStats(); track stat.title) {
+      <article class="metric-card">
+        <div class="metric-top">
+          <span class="metric-label">{{ stat.title }}</span>
+          <span class="metric-icon"><i [class]="stat.icon"></i></span>
+        </div>
+        <div class="metric-value">{{ stat.value }}</div>
+        <div class="metric-change" [class]="'change-' + stat.changeType">
+          <span class="change-direction">{{ stat.changeType === 'positive' ? '▲' : '—' }}</span>
+          <span class="change-pct">{{ stat.change | number:'1.1-2' }}%</span>
+          <span class="change-caption">from yesterday</span>
+        </div>
+      </article>
+    }
+  </section>
+
+  <!-- Holdings -->
+  <section class="panel">
+    <header class="panel-header">
+      <div>
+        <h2 class="panel-title">Portfolio holdings</h2>
+        <p class="panel-subtitle">Allocation across your instruments</p>
+      </div>
+      <a routerLink="/positions" class="panel-link">View all positions <i class="fas fa-arrow-right"></i></a>
+    </header>
+    <div class="panel-body">
+      <app-positions-overview [accountId]="authService.currentUser()?.accountId"></app-positions-overview>
+    </div>
+  </section>
+
+  <!-- Recent trades -->
+  <section class="panel">
+    <header class="panel-header">
+      <div>
+        <h2 class="panel-title">Recent trades</h2>
+        <p class="panel-subtitle">Your latest order activity</p>
+      </div>
+      <a routerLink="/blotter" class="panel-link">Open order blotter <i class="fas fa-arrow-right"></i></a>
+    </header>
+
+    <div class="table-wrapper">
+      <table class="data-table activity-table">
         <colgroup>
           <col class="col-symbol" />
           <col class="col-type" />
@@ -64,40 +72,45 @@
         </colgroup>
         <thead>
           <tr>
-            <th class="col-symbol">Symbol</th>
-            <th class="col-type">Type</th>
-            <th class="col-quantity">Quantity</th>
-            <th class="col-price">Price</th>
-            <th class="col-time">Time</th>
-            <th class="col-status">Status</th>
+            <th>Symbol</th>
+            <th>Side</th>
+            <th class="num">Quantity</th>
+            <th class="num">Price</th>
+            <th class="col-time-head">Time</th>
+            <th>Status</th>
           </tr>
         </thead>
         <tbody>
           @for (trade of recentTrades(); track trade.id) {
             <tr class="trade-row">
-              <td class="cell-symbol symbol">
-                <span class="symbol-badge">{{ trade.symbol }}</span>
-              </td>
-              <td class="cell-type">
-                <span class="side" [class]="'side-' + trade.type.toLowerCase()">
+              <td class="cell-strong">{{ trade.symbol }}</td>
+              <td>
+                <span class="side-text" [class]="trade.type.toLowerCase()">
                   <i class="fas" [class]="trade.type === 'BUY' ? 'fa-arrow-up' : 'fa-arrow-down'"></i>
                   {{ trade.type }}
                 </span>
               </td>
-              <td class="cell-quantity qty">{{ trade.quantity | number }}</td>
-              <td class="cell-price price">{{ trade.price | number:'1.2-2' }}</td>
-              <td class="cell-time"><span class="time-value">{{ trade.time }}</span></td>
-              <td class="cell-status">
-                <span class="status" [class]="'status-' + trade.status.toLowerCase()">
-                  <i class="fas" [class]="getStatusIcon(trade.status)"></i>
-                  {{ trade.status }}
-                </span>
+              <td class="num">{{ trade.quantity | number }}</td>
+              <td class="num">{{ trade.price | number:'1.2-2' }}</td>
+              <td class="cell-muted cell-time">{{ trade.time }}</td>
+              <td>
+                <span class="pill" [class]="'status-' + trade.status.toLowerCase()">{{ trade.status }}</span>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="6">
+                <div class="empty-state">
+                  <i class="fas fa-chart-line"></i>
+                  <p>No trades yet</p>
+                  <small>Orders you place will appear here.</small>
+                </div>
               </td>
             </tr>
           }
         </tbody>
       </table>
     </div>
-  </div>
+  </section>
 
 </div>

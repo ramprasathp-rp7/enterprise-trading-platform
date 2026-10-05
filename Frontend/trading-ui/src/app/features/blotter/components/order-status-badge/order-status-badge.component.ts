@@ -22,48 +22,57 @@ import { OrderStatus } from '../../../../api/generated/trade';
     </span>
   `,
   styles: [`
+    /* Pill with a status dot; colours are shared design tokens */
     .status-badge {
       display: inline-flex;
       align-items: center;
-      justify-content: center;
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 11px;
-      font-weight: 700;
+      gap: 6px;
+      height: 26px;
+      padding: 0 10px;
+      border-radius: var(--r-pill);
+      border: 1px solid var(--neutral-line);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
       text-transform: uppercase;
-      letter-spacing: 0.3px;
       white-space: nowrap;
-      overflow: visible;
-      text-overflow: clip;
-      max-width: none;
+      line-height: 1;
+    }
+
+    .status-badge::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
     }
 
     /* NEW - Blue (working state) */
     .status-new {
-      background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-      color: #1d4ed8;
-      border: 1px solid rgba(37, 99, 235, 0.2);
+      background: var(--info-soft);
+      border-color: var(--info-line);
+      color: var(--info);
     }
 
     /* FILLED - Green */
     .status-filled {
-      background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
-      color: #065f46;
-      border: 1px solid rgba(5, 150, 105, 0.2);
+      background: var(--positive-soft);
+      border-color: var(--positive-line);
+      color: var(--positive);
     }
 
-    /* REJECTED - Red (uses pattern to avoid color-blind issues) */
+    /* REJECTED - Red */
     .status-rejected {
-      background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
-      color: #991b1b;
-      border: 1px solid rgba(220, 38, 38, 0.2);
+      background: var(--negative-soft);
+      border-color: var(--negative-line);
+      color: var(--negative);
     }
 
     /* CANCELLED - Gray */
     .status-cancelled {
-      background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
-      color: #334155;
-      border: 1px solid rgba(100, 116, 139, 0.22);
+      background: var(--neutral-soft);
+      border-color: var(--neutral-line);
+      color: var(--neutral);
     }
   `],
 })

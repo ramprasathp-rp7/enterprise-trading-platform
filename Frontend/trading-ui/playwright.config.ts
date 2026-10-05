@@ -1,10 +1,16 @@
 import { defineConfig, devices } from '@playwright/test';
+import path from 'node:path';
+import { config as loadEnv } from 'dotenv';
 
 /**
  * Read environment variables from file.
  * https://github.com/motdotla/dotenv
  */
-// require('dotenv').config();
+loadEnv({ path: path.resolve(__dirname, '..', '..', '.env'), override: false });
+loadEnv({ path: path.resolve(__dirname, '..', '..', '.env.local'), override: true });
+loadEnv({ path: path.resolve(__dirname, '.env'), override: false });
+loadEnv({ path: path.resolve(__dirname, '.env.local'), override: false });
+loadEnv({ path: path.resolve(__dirname, '..', '..', 'manifest.env'), override: false });
 
 /**
  * See https://playwright.dev/docs/test-configuration.

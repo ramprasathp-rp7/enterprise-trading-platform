@@ -19,6 +19,7 @@
           "options": {
             "browser": "src/main.ts",
             "tsConfig": "tsconfig.app.json",
+            "allowedCommonJsDependencies": ["html2canvas", "canvg", "core-js", "raf", "rgbcolor"],
             "assets": [
               {
                 "glob": "**/*",
@@ -77,7 +78,18 @@
           "defaultConfiguration": "development"
         },
         "test": {
-          "builder": "@angular/build:unit-test"
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "coverageInclude": ["src/app/**/*.ts"],
+            "coverageExclude": ["src/app/api/generated/**", "src/**/*.spec.ts"],
+            "coverageReporters": ["html", "text-summary", "json", "lcov"],
+            "coverageThresholds": {
+              "statements": 80,
+              "branches": 80,
+              "functions": 80,
+              "lines": 80
+            }
+          }
         }
       }
     }

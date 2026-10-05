@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { OrderStatusBadgeComponent } from '../order-status-badge/order-status-badge.component';
 import { BlotterOrder } from '../../blotter.models';
@@ -15,7 +15,7 @@ import { BlotterOrder } from '../../blotter.models';
   template: `
     @if (orders && orders.length > 0) {
       <div class="table-wrapper">
-        <table class="transactions-table">
+        <table class="data-table transactions-table">
           <colgroup>
             <col class="col-order-id" />
             <col class="col-symbol" />
@@ -25,30 +25,62 @@ import { BlotterOrder } from '../../blotter.models';
             <col class="col-executed" />
             <col class="col-status" />
             <col class="col-created" />
+            <col class="col-actions" />
           </colgroup>
           <thead>
             <tr>
               <th class="col-order-id">Order ID</th>
               <th class="col-symbol">Symbol</th>
               <th class="col-side">Side</th>
-              <th class="col-quantity">Quantity</th>
-              <th class="col-price">Price</th>
-              <th class="col-executed">Executed Price</th>
+              <th class="col-quantity num">Quantity</th>
+              <th class="col-price num">Price</th>
+              <th class="col-executed num">Executed</th>
               <th class="col-status">Status</th>
               <th class="col-created">Created</th>
+              <th class="col-actions"><span class="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody>
             @for (order of orders; track order.orderId) {
               <tr class="transaction-row">
-                <td class="cell-order-id" [title]="order.orderId"><code>{{ order.orderId }}</code></td>
-                <td class="cell-symbol">{{ order.symbol }}</td>
-                <td class="cell-side" [class.buy]="order.side === 'BUY'" [class.sell]="order.side === 'SELL'">{{ order.side }}</td>
-                <td class="cell-quantity">{{ order.quantity.toLocaleString() }}</td>
-                <td class="cell-price">{{ formatCurrency(order.price) }}</td>
-                <td class="cell-executed">{{ order.executedPrice != null ? formatCurrency(order.executedPrice) : '—' }}</td>
+                <td class="cell-order-id" [title]="order.orderId"><code class="order-id">@for (part of idParts(order.orderId); track $index) {<ng-container>{{ part }}</ng-container><wbr>}</code></td>
+                <td class="cell-symbol cell-strong">{{ order.symbol }}</td>
+                <td class="cell-side">
+                  <span class="side-text" [class.buy]="order.side === 'BUY'" [class.sell]="order.side === 'SELL'">
+                    <i class="fas" [class.fa-arrow-up]="order.side === 'BUY'" [class.fa-arrow-down]="order.side === 'SELL'"></i>
+                    {{ order.side }}
+                  </span>
+                </td>
+                <td class="cell-quantity num">{{ order.quantity.toLocaleString() }}</td>
+                <td class="cell-price num">{{ formatCurrency(order.price) }}</td>
+                <td class="cell-executed num" [class.cell-muted]="order.executedPrice == null">{{ order.executedPrice != null ? formatCurrency(order.executedPrice) : '—' }}</td>
                 <td class="cell-status"><app-order-status-badge [status]="order.status"></app-order-status-badge></td>
-                <td class="cell-created"><span class="created-value">{{ formatDate(order.createdOn) }}</span></td>
+                <td class="cell-created" [title]="formatDate(order.createdOn)">
+                  @if (formatDateParts(order.createdOn); as parts) {
+                    <span class="created-date">{{ parts.date }}</span>
+                    <span class="created-time">{{ parts.time }}</span>
+                  }
+                </td>
+                <td class="cell-actions">
+                  @if (order.status === 'NEW') {
+                    @if (cancellingIds.has(order.orderId)) {
+                      <span class="cancel-progress"><i class="fas fa-spinner fa-spin"></i> Cancelling…</span>
+                    } @else if (confirmingId === order.orderId) {
+                      <div class="confirm-group">
+                        <button type="button" class="btn btn-sm btn-danger" data-testid="confirm-cancel-btn"
+                          (click)="confirmCancel(order.orderId)">Confirm</button>
+                        <button type="button" class="btn btn-sm btn-ghost keep-btn" title="Keep order" aria-label="Keep order"
+                          (click)="confirmingId = null"><i class="fas fa-xmark"></i></button>
+                      </div>
+                    } @else {
+                      <button type="button" class="btn btn-sm btn-secondary cancel-btn" data-testid="cancel-order-btn"
+                        [attr.aria-label]="'Cancel order ' + order.orderId"
+                        (click)="confirmingId = order.orderId">
+                        <i class="fas fa-xmark"></i> Cancel
+                      </button>
+                    }
+                  }
+                </td>
               </tr>
             }
           </tbody>
@@ -56,222 +88,213 @@ import { BlotterOrder } from '../../blotter.models';
       </div>
     } @else {
       <div class="empty-state">
+        <i class="fas fa-receipt"></i>
         <p class="empty-message">No orders yet. Place your first order to get started.</p>
+        <small>Orders matching your filters will be listed here.</small>
       </div>
     }
   `,
   styles: [`
+    :host {
+      display: block;
+    }
+
     .table-wrapper {
-      background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-      border: 1px solid rgba(226, 232, 240, 0.8);
-      border-radius: 14px;
-      overflow-y: auto;
-      overflow-x: hidden;
-      box-shadow: 0 10px 26px rgba(15, 23, 42, 0.08);
-      flex: 1;
-      min-height: 360px;
-      max-height: min(62vh, 760px);
+      max-height: min(64vh, 780px);
     }
 
+    /* Columns size to their content so nothing is cut off; the table fills the panel */
     .transactions-table {
-      width: 100%;
-      min-width: 100%;
-      border-collapse: collapse;
-      table-layout: fixed;
-      font-size: 14px;
+      table-layout: auto;
     }
 
-    .transactions-table col.col-order-id { width: 25%; }
-    .transactions-table col.col-symbol { width: 10%; }
-    .transactions-table col.col-side { width: 8%; }
-    .transactions-table col.col-quantity { width: 9%; }
-    .transactions-table col.col-price { width: 10%; }
-    .transactions-table col.col-executed { width: 12%; }
-    .transactions-table col.col-status { width: 12%; }
-    .transactions-table col.col-created { width: 14%; }
-
-    .transactions-table thead {
-      background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-      border-bottom: 2px solid rgba(226, 232, 240, 0.6);
-    }
-
-    .transactions-table th {
-      padding: 14px 18px;
-      text-align: left;
-      font-weight: 800;
-      color: #0f172a;
-      font-size: 13px;
-      text-transform: uppercase;
-      letter-spacing: 0.45px;
-      white-space: nowrap;
-      position: sticky;
-      top: 0;
-      z-index: 12;
-      background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
-      box-shadow: inset 0 -1px 0 rgba(203, 213, 225, 0.85);
-    }
-
+    .transactions-table th,
     .transactions-table td {
-      padding: 14px 18px;
-      color: #0f172a;
-      vertical-align: middle;
-      line-height: 1.35;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      overflow: visible;
+      text-overflow: clip;
     }
 
-    .transaction-row {
-      border-bottom: 1px solid rgba(226, 232, 240, 0.4);
-      transition: all 0.15s ease;
-    }
-
-    .transaction-row:hover {
-      background-color: rgba(37, 99, 235, 0.02);
-    }
-
-    .transaction-row:nth-child(even) {
-      background-color: rgba(241, 245, 249, 0.4);
-    }
-
-    .transaction-row:nth-child(even):hover {
-      background-color: rgba(37, 99, 235, 0.03);
-    }
-
-    .cell-side,
-    .cell-quantity,
-    .cell-price,
-    .cell-executed,
-    .cell-status,
-    .transactions-table th.col-side,
-    .transactions-table th.col-quantity,
-    .transactions-table th.col-price,
-    .transactions-table th.col-executed,
-    .transactions-table th.col-status {
-      text-align: center;
-    }
-
-    .cell-quantity,
-    .cell-price,
-    .cell-executed {
-      font-family: 'Courier New', monospace;
-      font-weight: 700;
-    }
-
-    .cell-order-id code {
-      font-size: 12px;
-      color: #7c3aed;
-      background: rgba(124, 58, 237, 0.1);
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-family: 'Courier New', monospace;
+    /* Full order id: one line when there is room, otherwise wraps at its hyphens */
+    .cell-order-id {
       white-space: normal;
-      overflow-wrap: anywhere;
-      word-break: break-word;
     }
 
-    .cell-side.buy {
-      color: #065f46;
-      font-weight: 700;
+    .order-id {
+      display: inline-block;
+      /* wide enough for the longer half of a UUID, so an id never takes more than two lines */
+      min-width: 22ch;
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      color: var(--ink-700);
+      line-height: 1.45;
+      /* break only at the <wbr> after each hyphen, never inside a segment */
+      overflow-wrap: normal;
+      word-break: keep-all;
     }
 
-    .cell-side.sell {
-      color: #991b1b;
-      font-weight: 700;
+    /* Dense blotter: tighter inner padding, outer cells keep the 24px panel inset */
+    .transactions-table th,
+    .transactions-table td {
+      padding: 0 14px;
+    }
+
+    .transactions-table th:first-child,
+    .transactions-table td:first-child {
+      padding-left: 24px;
+    }
+
+    .transactions-table th:last-child,
+    .transactions-table td:last-child {
+      padding-right: 24px;
+    }
+
+    /* Separate the right-aligned numbers from the text columns that follow */
+    .transactions-table th.col-status,
+    .transactions-table .cell-status {
+      padding-left: 24px;
+    }
+
+    /* Narrower screens: tighten inner cell padding so the full row still fits */
+    @media (max-width: 1500px) {
+      .transactions-table th:not(:first-child):not(:last-child),
+      .transactions-table td:not(:first-child):not(:last-child) {
+        padding-left: 10px;
+        padding-right: 10px;
+      }
+
+      .transactions-table th.col-status,
+      .transactions-table .cell-status {
+        padding-left: 16px;
+      }
     }
 
     .cell-created {
-      color: #64748b;
-      font-family: 'Courier New', monospace;
-      font-size: 13px;
-      white-space: normal;
-      overflow: visible;
-      text-overflow: clip;
-      overflow-wrap: anywhere;
-      word-break: break-word;
+      line-height: 1.3;
     }
 
-    .created-value {
-      display: inline-block;
-      padding: 2px 6px;
-      border-radius: 4px;
-      background: rgba(100, 116, 139, 0.08);
-      color: #475569;
-      white-space: normal;
+    .created-date {
+      display: block;
+      font-size: 13.5px;
+      color: var(--ink-900);
+    }
+
+    .created-time {
+      display: block;
+      font-size: 12px;
+      color: var(--ink-500);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .keep-btn {
+      width: var(--control-h-sm);
+      padding: 0;
     }
 
     .cell-status {
-      white-space: normal;
       overflow: visible;
-      text-overflow: clip;
-      word-break: normal;
     }
 
-    .empty-state {
-      padding: 64px 24px;
-      text-align: center;
-      color: #64748b;
-      border: 1px dashed #cbd5e1;
-      border-radius: 12px;
-      background: rgba(248, 250, 252, 0.7);
+    .cell-actions {
+      text-align: right;
+      overflow: visible;
     }
 
-    .empty-message {
-      margin: 0;
-      font-size: 16px;
+    .confirm-group {
+      display: inline-flex;
+      gap: 6px;
+    }
+
+    .cancel-btn:hover:not(:disabled) {
+      color: var(--negative);
+      border-color: var(--negative-line);
+      background: var(--negative-soft);
+    }
+
+    .cancel-progress {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
       font-weight: 600;
-      color: #0f172a;
+      color: var(--ink-500);
     }
   `],
 })
 export class OrderListComponent {
   @Input() orders: BlotterOrder[] | null = null;
+  /** Order IDs with a cancel request in flight */
+  @Input() cancellingIds: ReadonlySet<string> = new Set();
+  /** Emits the order ID once the user confirms cancellation */
+  @Output() cancelOrder = new EventEmitter<string>();
+
+  /** Row currently asking "Confirm / Keep" */
+  confirmingId: string | null = null;
+
+  /** Order id split after each hyphen so the browser may wrap it there and nowhere else */
+  idParts(orderId: string): string[] {
+    return (orderId ?? '').split(/(?<=-)/);
+  }
+
+  confirmCancel(orderId: string): void {
+    this.confirmingId = null;
+    this.cancelOrder.emit(orderId);
+  }
 
   formatCurrency(value: number): string {
     return value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   formatDate(value: string | number | null | undefined): string {
+    const date = this.parseDate(value);
+    if (!date) {
+      return value === null || value === undefined ? '' : String(value).trim();
+    }
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+  }
+
+  /** Date and time as separate lines for the compact Created column */
+  formatDateParts(value: string | number | null | undefined): { date: string; time: string } | null {
+    const date = this.parseDate(value);
+    if (!date) {
+      const raw = value === null || value === undefined ? '' : String(value).trim();
+      return raw ? { date: raw, time: '' } : null;
+    }
+    return {
+      date: date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+      time: date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+    };
+  }
+
+  /** Accepts ISO strings and epoch seconds/milliseconds */
+  private parseDate(value: string | number | null | undefined): Date | null {
     if (value === null || value === undefined) {
-      return '';
+      return null;
     }
 
     const raw = String(value).trim();
     if (!raw) {
-      return '';
+      return null;
     }
 
-    const numericPattern = /^-?\d+(\.\d+)?$/;
-    if (numericPattern.test(raw)) {
+    if (/^-?\d+(\.\d+)?$/.test(raw)) {
       const numericValue = Number(raw);
       if (Number.isFinite(numericValue)) {
         const epochMs = Math.abs(numericValue) < 1e12 ? numericValue * 1000 : numericValue;
         const epochDate = new Date(epochMs);
         if (!Number.isNaN(epochDate.getTime())) {
-          return epochDate.toLocaleString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-          });
+          return epochDate;
         }
       }
     }
 
     const parsedDate = new Date(raw);
-    if (!Number.isNaN(parsedDate.getTime())) {
-      return parsedDate.toLocaleString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-      });
-    }
-
-    return raw;
+    return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
   }
 }

@@ -1,27 +1,36 @@
 <!-- Admin Fee Management -->
-<div class="fee-management-container">
-  <!-- Header Section -->
-  <div class="page-header">
-    <h1>Fee Management</h1>
-    <p class="subtitle">View asset class trading fees</p>
-  </div>
+<div class="page fee-management-container">
+  <header class="page-header">
+    <div class="page-heading">
+      <p class="page-eyebrow">Administration</p>
+      <h1 class="page-title">Fee Management</h1>
+      <p class="page-subtitle">View asset class trading fees</p>
+    </div>
+  </header>
 
   <!-- Error Message -->
-  <div *ngIf="errorMessage()" class="alert alert-error">
+  <div *ngIf="errorMessage()" class="alert alert-error" role="alert">
     <i class="fas fa-exclamation-circle"></i>
-    {{ errorMessage() }}
+    <span>{{ errorMessage() }}</span>
   </div>
 
-  <!-- Loading State -->
-  <div *ngIf="isLoading()" class="loading-container">
-    <i class="fas fa-spinner fa-spin"></i>
-    <p>Loading fees...</p>
-  </div>
+  <section class="panel">
+    <header class="panel-header">
+      <div>
+        <h2 class="panel-title">Fee schedule <span class="count-chip">{{ assetFees().length }}</span></h2>
+        <p class="panel-subtitle">Flat and percentage fees applied per asset class</p>
+      </div>
+    </header>
 
-  <!-- Fee Table -->
-  <div *ngIf="!isLoading() && assetFees().length > 0" class="table-section">
-    <div class="table-container">
-      <table class="fee-table">
+    <!-- Loading State -->
+    <div *ngIf="isLoading()" class="loading-container">
+      <div class="spinner"></div>
+      <p>Loading fees...</p>
+    </div>
+
+    <!-- Fee Table -->
+    <div *ngIf="!isLoading() && assetFees().length > 0" class="table-wrapper">
+      <table class="data-table fee-table">
         <colgroup>
           <col class="col-asset" />
           <col class="col-flat-fee" />
@@ -29,28 +38,30 @@
         </colgroup>
         <thead>
           <tr>
-            <th>Asset Class</th>
-            <th class="th-number">Flat Fee</th>
-            <th class="th-number">Percentage Fee</th>
+            <th>Asset class</th>
+            <th class="num">Flat fee</th>
+            <th class="num">Percentage fee</th>
           </tr>
         </thead>
         <tbody>
           <tr *ngFor="let fee of assetFees()">
-            <td class="asset-type">
-              <i [class]="getAssetIcon(fee.assetType)" class="asset-icon"></i>
-              <span>{{ formatAssetClass(fee.assetType) }}</span>
+            <td>
+              <span class="asset-type">
+                <span class="asset-icon"><i [class]="getAssetIcon(fee.assetType)"></i></span>
+                <span>{{ formatAssetClass(fee.assetType) }}</span>
+              </span>
             </td>
-            <td class="number">{{ formatCurrency(fee.flatFee) }}</td>
-            <td class="number">{{ (fee.percentageFee * 100).toFixed(2) }}%</td>
+            <td class="num">{{ formatCurrency(fee.flatFee) }}</td>
+            <td class="num">{{ (fee.percentageFee * 100).toFixed(2) }}%</td>
           </tr>
         </tbody>
       </table>
     </div>
-  </div>
 
-  <!-- Empty State -->
-  <div *ngIf="!isLoading() && assetFees().length === 0" class="empty-state">
-    <i class="fas fa-inbox"></i>
-    <p>No fees found</p>
-  </div>
+    <!-- Empty State -->
+    <div *ngIf="!isLoading() && assetFees().length === 0" class="empty-state">
+      <i class="fas fa-inbox"></i>
+      <p>No fees found</p>
+    </div>
+  </section>
 </div>

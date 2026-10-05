@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { RouterTestingModule } from '@angular/router/testing';
 
 import { AdminShell } from './admin-shell';
 
@@ -8,7 +9,7 @@ describe('AdminShell', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [AdminShell],
+      imports: [RouterTestingModule, AdminShell],
     }).compileComponents();
 
     fixture = TestBed.createComponent(AdminShell);
