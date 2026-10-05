@@ -3,7 +3,7 @@
     <div class="page-heading">
       <p class="page-eyebrow">Administration</p>
       <h1 class="page-title">Register User</h1>
-      <p class="page-subtitle">Create platform credentials and map user access roles</p>
+      <p class="page-subtitle">Create platform credentials for customer users</p>
     </div>
   </header>
 
@@ -88,20 +88,11 @@
         </div>
 
         <div class="form-group">
-          <label>Assign roles</label>
-          <div class="checkbox-group">
-            <label class="checkbox">
-              <input
-                type="checkbox"
-                value="ADMIN"
-                (change)="$any($event.target).checked ? form.get('roles')?.value.push('ADMIN') : form.get('roles')?.setValue(form.get('roles')?.value.filter(r => r !== 'ADMIN'))"
-              />
-              <span class="checkbox-text"><strong>Admin</strong><small>Full access to administration</small></span>
-            </label>
-            <label class="checkbox">
-              <input type="checkbox" value="CUSTOMER" [checked]="true" disabled />
-              <span class="checkbox-text"><strong>Customer</strong><small>Default trading access</small></span>
-            </label>
+          <label id="role-label">Role</label>
+          <div class="role-card" aria-labelledby="role-label" data-testid="registered-role">
+            <span class="role-icon"><i class="fas fa-user"></i></span>
+            <span class="checkbox-text"><strong>Customer</strong><small>Trading access to their own account</small></span>
+            <span class="pill pill-info no-dot">Fixed</span>
           </div>
         </div>
 
@@ -134,7 +125,7 @@
         </li>
         <li>
           <span class="guidance-icon"><i class="fas fa-shield-halved"></i></span>
-          <div><strong>Roles</strong><p>Every user is a Customer. Grant Admin only when required.</p></div>
+          <div><strong>Role</strong><p>Users created here are always Customers. Admin accounts cannot be created from this page.</p></div>
         </li>
       </ul>
     </aside>

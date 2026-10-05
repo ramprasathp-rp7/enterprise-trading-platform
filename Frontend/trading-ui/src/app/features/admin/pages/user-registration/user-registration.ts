@@ -5,6 +5,9 @@ import { RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../../core/config/environment';
 
+/** Admins may only create customer users from this page; the role is not user-selectable. */
+export const REGISTERED_USER_ROLES: readonly string[] = ['CUSTOMER'];
+
 interface RegisterDto {
   username: string;
   password: string;
@@ -35,7 +38,6 @@ export class AdminUserRegistrationComponent implements OnInit, OnDestroy {
       username: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(64)]],
       password: ['', [Validators.required, Validators.minLength(12), Validators.maxLength(128)]],
       accountId: ['', Validators.required],
-      roles: [['CUSTOMER'], Validators.required],
     });
   }
 
@@ -52,12 +54,12 @@ export class AdminUserRegistrationComponent implements OnInit, OnDestroy {
     this.loading.set(true);
     this.clearMessages();
 
-    const dto: RegisterDto = this.form.value;
+    const dto: RegisterDto = { ...this.form.value, roles: [...REGISTERED_USER_ROLES] };
 
     this.http.post(`${environment.AUTH_SERVICE_URL}/auth/register`, dto).subscribe({
       next: () => {
         this.showSuccessMessage(`User '${dto.username}' registered successfully!`);
-        this.form.reset({ roles: ['CUSTOMER'] });
+        this.form.reset();
         this.loading.set(false);
       },
       error: (err) => {
