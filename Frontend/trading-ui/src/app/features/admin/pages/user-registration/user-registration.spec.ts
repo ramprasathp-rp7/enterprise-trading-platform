@@ -149,4 +149,49 @@ describe('AdminUserRegistrationComponent', () => {
 
     expect(component.errorMessage()).not.toBe('');
   });
+
+  describe('validation messages', () => {
+    const errors = (): string[] =>
+      Array.from(fixture.nativeElement.querySelectorAll('.error')).map((e: any) => e.textContent.trim());
+    const invalidInputs = () => fixture.nativeElement.querySelectorAll('input.is-invalid').length;
+
+    it('shows no errors before the admin has entered anything', () => {
+      expect(errors()).toEqual([]);
+      expect(invalidInputs()).toBe(0);
+    });
+
+    it("shows a field's error only after the field is left empty or too short", () => {
+      const username: HTMLInputElement = fixture.nativeElement.querySelector('#username');
+
+      username.dispatchEvent(new Event('blur'));
+      fixture.detectChanges();
+      expect(errors()).toEqual(['Username is required']);
+      expect(username.classList).toContain('is-invalid');
+
+      username.value = 'ab';
+      username.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+      expect(errors()).toEqual(['Username must be at least 3 characters']);
+    });
+
+    it('reveals every error when an invalid form is submitted', () => {
+      fixture.nativeElement.querySelector('button[type="submit"]').click();
+      fixture.detectChanges();
+
+      expect(errors()).toEqual(['Username is required', 'Password is required', 'Account ID is required']);
+      expect(invalidInputs()).toBe(3);
+      http.expectNone(registerUrl);
+    });
+
+    it('clears the errors again after a successful registration resets the form', () => {
+      component.form.markAllAsTouched();
+      fillValidForm();
+      component.onSubmit();
+      http.expectOne(registerUrl).flush({});
+      fixture.detectChanges();
+
+      expect(errors()).toEqual([]);
+      expect(invalidInputs()).toBe(0);
+    });
+  });
 });

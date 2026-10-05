@@ -21,18 +21,17 @@
   <!-- Portfolio KPIs -->
   <section class="metrics-grid" aria-label="Portfolio overview">
     @for (stat of portfolioStats(); track stat.title) {
-      <article class="metric-card">
+      <a class="metric-card" [routerLink]="stat.link" [attr.aria-label]="stat.title + ': ' + stat.value + '. ' + stat.linkLabel">
         <div class="metric-top">
           <span class="metric-label">{{ stat.title }}</span>
           <span class="metric-icon"><i [class]="stat.icon"></i></span>
         </div>
         <div class="metric-value">{{ stat.value }}</div>
-        <div class="metric-change" [class]="'change-' + stat.changeType">
-          <span class="change-direction">{{ stat.changeType === 'positive' ? '▲' : '—' }}</span>
-          <span class="change-pct">{{ stat.change | number:'1.1-2' }}%</span>
-          <span class="change-caption">from yesterday</span>
+        <div class="metric-foot">
+          <span class="metric-caption">{{ stat.caption }}</span>
+          <span class="metric-link">{{ stat.linkLabel }} <i class="fas fa-arrow-right"></i></span>
         </div>
-      </article>
+      </a>
     }
   </section>
 
@@ -46,7 +45,7 @@
       <a routerLink="/positions" class="panel-link">View all positions <i class="fas fa-arrow-right"></i></a>
     </header>
     <div class="panel-body">
-      <app-positions-overview [accountId]="authService.currentUser()?.accountId"></app-positions-overview>
+      <app-positions-overview [accountId]="authService.currentUser()?.accountId" (positionsLoaded)="onPositionsLoaded($event)"></app-positions-overview>
     </div>
   </section>
 

@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal, computed, Input } from '@angular/core';
+import { Component, OnInit, inject, signal, computed, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { AccountsService, PositionResponse } from '../../../../api/generated/trade';
@@ -23,6 +23,8 @@ interface AllocationSegment {
 })
 export class PositionsOverviewComponent implements OnInit {
   @Input() accountId?: number | null = null;
+  /** Emits the positions once loaded, so the dashboard can show holdings KPIs without a second request */
+  @Output() positionsLoaded = new EventEmitter<PositionResponse[]>();
   private accountsService = inject(AccountsService);
   // Auth service will be injected by parent or available globally; we'll read account id from window if not provided
 
@@ -115,6 +117,7 @@ export class PositionsOverviewComponent implements OnInit {
       next: (positions) => {
         this.positions.set(positions ?? []);
         this.loading.set(false);
+        this.positionsLoaded.emit(positions ?? []);
       },
       error: (err) => {
         console.error('Failed to load positions', err);

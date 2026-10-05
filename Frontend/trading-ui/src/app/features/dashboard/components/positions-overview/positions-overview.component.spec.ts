@@ -37,8 +37,19 @@ describe('PositionsOverviewComponent', () => {
     delete (window as any).__CURRENT_ACCOUNT_ID__;
   });
 
-  it('loads positions for the given account', async () => {
-    await create(7);
+  it('loads positions for the given account and hands them to the dashboard', async () => {
+    const emitted: unknown[] = [];
+    await TestBed.configureTestingModule({
+      imports: [PositionsOverviewComponent],
+      providers: [provideRouter([]), { provide: AccountsService, useValue: accounts }],
+    }).compileComponents();
+    fixture = TestBed.createComponent(PositionsOverviewComponent);
+    component = fixture.componentInstance;
+    component.accountId = 7;
+    component.positionsLoaded.subscribe((p) => emitted.push(p));
+    fixture.detectChanges();
+
+    expect(emitted).toEqual([positions]);
 
     expect(accounts.getPositions).toHaveBeenCalledWith(7);
     expect(component.positionsCount()).toBe(5);

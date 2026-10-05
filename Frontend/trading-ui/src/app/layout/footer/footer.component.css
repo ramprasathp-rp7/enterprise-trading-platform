@@ -1,7 +1,9 @@
 /* Slim status footer */
 .footer {
   flex-shrink: 0;
-  background: var(--surface);
+  background: var(--glass);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
   border-top: 1px solid var(--line);
 }
 
