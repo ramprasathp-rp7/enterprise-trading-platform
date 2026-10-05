@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { BlotterStore } from './blotter.store';
 import { OrderHistoryService } from './services/order-history.service';
 import { OrderHistoryEntry, OrderStatus } from '../../api/generated/trade';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 
 describe('BlotterStore', () => {
   let store: BlotterStore;
@@ -259,6 +259,69 @@ describe('BlotterStore', () => {
           resolve();
         }, 100);
       });
+    });
+  });
+
+  describe('cancelOrder', () => {
+    let mockOrderCancelService: any;
+
+    beforeEach(() => {
+      mockOrderCancelService = { cancelOrder: vi.fn() };
+      (store as any).orderCancelService = mockOrderCancelService;
+      (store as any).ordersSignal.set(mockOrders);
+      (store as any).currentAccountId = 123;
+    });
+
+    it('marks the order CANCELLED, reports success and re-syncs history', () => {
+      const cancelled = [{ ...mockOrders[0], status: OrderStatus.Cancelled }, mockOrders[1]];
+      mockOrderCancelService.cancelOrder.mockReturnValue(of({ orderId: 'ord-001', status: 'CANCELLED', message: 'Order cancelled' }));
+      mockOrderHistoryService.getOrderHistory.mockReturnValue(of(cancelled));
+
+      store.cancelOrder('ord-001');
+
+      expect(mockOrderCancelService.cancelOrder).toHaveBeenCalledWith('ord-001');
+      expect(store.orders()[0].status).toBe(OrderStatus.Cancelled);
+      expect(store.cancelResult()).toEqual({ type: 'success', orderId: 'ord-001', message: 'Order cancelled' });
+      expect(store.cancellingIds().has('ord-001')).toBe(false);
+      expect(mockOrderHistoryService.getOrderHistory).toHaveBeenCalledWith(123);
+      expect(store.isLoading()).toBe(false);
+    });
+
+    it('explains a 409 when the order is no longer cancellable', () => {
+      mockOrderCancelService.cancelOrder.mockReturnValue(
+        throwError(() => ({ status: 409, error: { errorCode: 'ORD-409', message: 'Order is not cancellable' } }))
+      );
+      mockOrderHistoryService.getOrderHistory.mockReturnValue(of(filledOrders));
+
+      store.cancelOrder('ord-001');
+
+      const result = store.cancelResult();
+      expect(result?.type).toBe('error');
+      expect(result?.errorCode).toBe('ORD-409');
+      expect(result?.message).toContain('can no longer be cancelled');
+      expect(store.orders()[0].status).toBe(OrderStatus.Filled);
+      expect(store.cancellingIds().size).toBe(0);
+    });
+
+    it('tracks the in-flight cancel and ignores duplicate requests', () => {
+      mockOrderCancelService.cancelOrder.mockReturnValue(new Subject());
+
+      store.cancelOrder('ord-001');
+      store.cancelOrder('ord-001');
+
+      expect(store.cancellingIds().has('ord-001')).toBe(true);
+      expect(mockOrderCancelService.cancelOrder).toHaveBeenCalledTimes(1);
+    });
+
+    it('clears the cancel result on demand', () => {
+      mockOrderCancelService.cancelOrder.mockReturnValue(throwError(() => ({ status: 0 })));
+      mockOrderHistoryService.getOrderHistory.mockReturnValue(of(mockOrders));
+
+      store.cancelOrder('ord-001');
+      expect(store.cancelResult()?.message).toContain('Unable to reach');
+
+      store.clearCancelResult();
+      expect(store.cancelResult()).toBeNull();
     });
   });
 });

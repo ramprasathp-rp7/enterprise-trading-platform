@@ -21,6 +21,18 @@
 
   <!-- Sign-in form -->
   <main class="login-main">
+    <button
+      type="button"
+      class="theme-toggle"
+      data-testid="theme-toggle"
+      (click)="themeService.toggle()"
+      [attr.aria-label]="themeService.isDark() ? 'Switch to light mode' : 'Switch to dark mode'"
+      [attr.aria-pressed]="themeService.isDark()"
+    >
+      <i class="fas" [class.fa-sun]="themeService.isDark()" [class.fa-moon]="!themeService.isDark()"></i>
+      {{ themeService.isDark() ? 'Light' : 'Dark' }} mode
+    </button>
+
     <div class="login-card">
       <div class="login-header">
         <p class="eyebrow"><i class="fas fa-lock"></i> Secure Sign In</p>

@@ -50,6 +50,10 @@ describe('BlotterComponent', () => {
       stopPolling: vi.fn(),
       refreshOrderHistory: vi.fn(),
       clearOrders: vi.fn(),
+      cancellingIds: vi.fn(() => new Set<string>()),
+      cancelResult: vi.fn(() => null),
+      cancelOrder: vi.fn(),
+      clearCancelResult: vi.fn(),
     };
 
     mockAuthService = {
@@ -155,6 +159,27 @@ describe('BlotterComponent', () => {
       expect(component.pollAttempts()).toBe(5);
       expect(component.lastError()).toBeNull();
       expect(component.hasNewOrders()).toBe(true);
+    });
+  });
+
+  describe('cancel order', () => {
+    it('delegates a confirmed cancel to the store', () => {
+      component.onCancelOrder('order-1');
+
+      expect(mockBlotterStore.cancelOrder).toHaveBeenCalledWith('order-1');
+    });
+
+    it('renders the cancel result banner and dismisses it', () => {
+      mockBlotterStore.cancelResult.mockReturnValue({ type: 'error', orderId: 'order-1', message: 'Too late' });
+      fixture = TestBed.createComponent(BlotterComponent);
+      fixture.detectChanges();
+
+      const banner = fixture.nativeElement.querySelector('[data-testid="cancel-result"]');
+      expect(banner.textContent).toContain('Cancel failed');
+      expect(banner.textContent).toContain('Too late');
+
+      banner.querySelector('.alert-close').click();
+      expect(mockBlotterStore.clearCancelResult).toHaveBeenCalled();
     });
   });
 });

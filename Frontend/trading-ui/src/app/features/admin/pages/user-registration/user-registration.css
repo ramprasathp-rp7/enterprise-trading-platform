@@ -75,7 +75,7 @@
 }
 
 .checkbox:hover {
-  border-color: #b9c3d2;
+  border-color: var(--line-hover);
 }
 
 .checkbox:has(input:checked) {

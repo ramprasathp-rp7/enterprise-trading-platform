@@ -1,8 +1,11 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
+import { Observable } from 'rxjs';
+import { OrdersService } from '../../../api/generated/trade/api/orders.service';
+import { OrderResponse } from '../../../api/generated/trade';
 
 /**
  * Order cancellation service
- * 
+ *
  * Calls:
  * - DELETE /api/v1/orders/{id}
  */
@@ -10,7 +13,17 @@ import { Injectable } from '@angular/core';
   providedIn: 'root',
 })
 export class OrderCancelService {
-  constructor() {}
+  private ordersApi = inject(OrdersService);
 
-  // Service implementation
+  /**
+   * Cancel a working (NEW) order.
+   * The endpoint expects the bare UUID, so any `ORD-` display prefix is stripped.
+   */
+  cancelOrder(orderId: string): Observable<OrderResponse> {
+    return this.ordersApi.cancelOrder(OrderCancelService.toOrderUuid(orderId));
+  }
+
+  static toOrderUuid(orderId: string): string {
+    return orderId.trim().replace(/^ORD-/i, '');
+  }
 }

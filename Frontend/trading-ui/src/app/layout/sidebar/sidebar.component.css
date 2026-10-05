@@ -180,7 +180,8 @@
 }
 
 .nav-link.active .nav-description {
-  color: #5577c9;
+  color: var(--brand-strong);
+  opacity: 0.75;
 }
 
 .badge {

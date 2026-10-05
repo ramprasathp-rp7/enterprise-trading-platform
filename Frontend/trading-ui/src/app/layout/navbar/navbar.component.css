@@ -299,7 +299,7 @@
 
   .brand-tag,
   .user-info,
-  .navbar-actions,
+  .navbar-actions .action-icon:not(.theme-toggle),
   .navbar-divider {
     display: none;
   }

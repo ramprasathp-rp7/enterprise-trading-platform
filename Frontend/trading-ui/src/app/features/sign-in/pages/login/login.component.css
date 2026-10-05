@@ -124,10 +124,36 @@
 
 /* ===== FORM SIDE ===== */
 .login-main {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 48px 32px;
+}
+
+.theme-toggle {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--ink-700);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-card);
+  transition: border-color var(--t-fast), color var(--t-fast);
+}
+
+.theme-toggle:hover {
+  border-color: var(--line-hover);
+  color: var(--ink-900);
 }
 
 .login-card {

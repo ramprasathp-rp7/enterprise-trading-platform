@@ -20,6 +20,19 @@
       
       <!-- Quick Actions Icons -->
       <div class="navbar-actions">
+        <!-- Theme -->
+        <button
+          type="button"
+          class="action-icon theme-toggle"
+          data-testid="theme-toggle"
+          (click)="themeService.toggle()"
+          [attr.aria-label]="themeService.isDark() ? 'Switch to light mode' : 'Switch to dark mode'"
+          [attr.aria-pressed]="themeService.isDark()"
+          [title]="themeService.isDark() ? 'Switch to light mode' : 'Switch to dark mode'"
+        >
+          <i class="fas" [class.fa-sun]="themeService.isDark()" [class.fa-moon]="!themeService.isDark()"></i>
+        </button>
+
         <!-- Search -->
         <button class="action-icon" title="Search">
           <i class="fas fa-search"></i>

@@ -133,6 +133,7 @@
     radial-gradient(circle at 100% 0%, rgba(59, 130, 246, 0.35), transparent 55%),
     linear-gradient(145deg, #0f1d3d 0%, #13295c 100%);
   color: #ffffff;
+  border: 1px solid var(--line);
   box-shadow: var(--shadow-raised);
 }
 

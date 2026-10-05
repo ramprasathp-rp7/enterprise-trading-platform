@@ -32,11 +32,13 @@ i[class*=" fab"] {
   --surface-sunken: #eef2f7;       /* segmented controls, wells */
   --surface-hover: #f5f8ff;        /* row / item hover */
   --line: #e5e9f0;                 /* default borders & dividers */
-  --line-strong: #d2d9e4;          /* hovered borders */
+  --line-strong: #d2d9e4;          /* default control borders */
+  --line-hover: #b9c3d2;           /* hovered control borders */
 
   /* ---- Brand ---- */
   --brand: #2563eb;
-  --brand-strong: #1d4ed8;
+  --brand-strong: #1d4ed8;         /* brand text on light surfaces */
+  --brand-hover: #1d4ed8;          /* primary button hover fill */
   --brand-soft: #eef3ff;
   --brand-ring: rgba(37, 99, 235, 0.18);
   --brand-gradient: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
@@ -57,6 +59,15 @@ i[class*=" fab"] {
   --neutral: #475569;
   --neutral-soft: #f1f4f8;
   --neutral-line: #dbe1ea;
+  --positive-ink: #0b6b3d;         /* text inside success alerts */
+  --negative-ink: #a3262c;         /* text inside error alerts */
+  --violet: #6d28d9;
+  --violet-soft: #f3efff;
+  --invalid-bg: #fffafa;
+  --disabled-bg: #c7d2e3;
+  --disabled-ink: #ffffff;
+  --scrollbar: #cdd5e0;
+  --scrollbar-hover: #b3bdcb;
 
   /* ---- Shape ---- */
   --r-sm: 8px;
@@ -70,6 +81,8 @@ i[class*=" fab"] {
   --shadow-raised: 0 2px 6px rgba(16, 24, 40, 0.06), 0 14px 36px rgba(16, 24, 40, 0.10);
   --shadow-pop: 0 24px 56px rgba(16, 24, 40, 0.18);
   --shadow-brand: 0 6px 18px rgba(37, 99, 235, 0.28);
+
+  color-scheme: light;
 
   /* ---- Layout ---- */
   --page-max: 1360px;
@@ -163,6 +176,84 @@ i[class*=" fab"] {
 }
 
 /* ============================================================================
+   DARK THEME
+   Set by ThemeService as <html data-theme="dark">. Only tokens change, so
+   every component follows automatically.
+   =========================================================================== */
+
+:root[data-theme="dark"] {
+  --ink-900: #e6ebf3;
+  --ink-700: #b4bfcf;
+  --ink-500: #8a96a8;
+  --ink-400: #667386;
+
+  --canvas: #0b1120;
+  --surface: #121a2b;
+  --surface-muted: #172135;
+  --surface-sunken: #1c2740;
+  --surface-hover: #19243b;
+  --line: #233049;
+  --line-strong: #2f3d5a;
+  --line-hover: #44557c;
+
+  --brand: #3b82f6;
+  --brand-strong: #8bb8ff;
+  --brand-hover: #2563eb;
+  --brand-soft: rgba(59, 130, 246, 0.15);
+  --brand-ring: rgba(96, 165, 250, 0.32);
+
+  --positive: #34d399;
+  --positive-soft: rgba(52, 211, 153, 0.12);
+  --positive-line: rgba(52, 211, 153, 0.32);
+  --positive-ink: #6ee7b7;
+  --negative: #f87171;
+  --negative-soft: rgba(248, 113, 113, 0.12);
+  --negative-line: rgba(248, 113, 113, 0.34);
+  --negative-ink: #fca5a5;
+  --warning: #fbbf24;
+  --warning-soft: rgba(251, 191, 36, 0.12);
+  --warning-line: rgba(251, 191, 36, 0.32);
+  --info: #8bb8ff;
+  --info-soft: rgba(59, 130, 246, 0.15);
+  --info-line: rgba(96, 165, 250, 0.34);
+  --neutral: #a3b0c2;
+  --neutral-soft: rgba(148, 163, 184, 0.12);
+  --neutral-line: rgba(148, 163, 184, 0.28);
+  --violet: #c4b5fd;
+  --violet-soft: rgba(139, 92, 246, 0.16);
+
+  --invalid-bg: rgba(248, 113, 113, 0.06);
+  --disabled-bg: #24304a;
+  --disabled-ink: #6b7a90;
+  --scrollbar: #2f3d5a;
+  --scrollbar-hover: #44557c;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35), 0 4px 16px rgba(0, 0, 0, 0.22);
+  --shadow-raised: 0 2px 6px rgba(0, 0, 0, 0.4), 0 14px 36px rgba(0, 0, 0, 0.35);
+  --shadow-pop: 0 24px 56px rgba(0, 0, 0, 0.55);
+  --shadow-brand: 0 6px 18px rgba(37, 99, 235, 0.35);
+
+  color-scheme: dark;
+}
+
+/* Native select chevron needs a lighter stroke on dark surfaces */
+:root[data-theme="dark"] select.form-control,
+:root[data-theme="dark"] select.form-input,
+:root[data-theme="dark"] .filter-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a96a8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+}
+
+/* Smooth the switch between themes (skipped for users who prefer reduced motion) */
+@media (prefers-reduced-motion: no-preference) {
+  :root.theme-transition,
+  :root.theme-transition *,
+  :root.theme-transition *::before,
+  :root.theme-transition *::after {
+    transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease !important;
+  }
+}
+
+/* ============================================================================
    RESET & BASE
    =========================================================================== */
 
@@ -247,18 +338,18 @@ table {
 /* Scrollbars */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #cdd5e0 transparent;
+  scrollbar-color: var(--scrollbar) transparent;
 }
 
 *::-webkit-scrollbar { width: 10px; height: 10px; }
 *::-webkit-scrollbar-track { background: transparent; }
 *::-webkit-scrollbar-thumb {
-  background: #cdd5e0;
+  background: var(--scrollbar);
   border-radius: var(--r-pill);
   border: 3px solid transparent;
   background-clip: padding-box;
 }
-*::-webkit-scrollbar-thumb:hover { background-color: #b3bdcb; }
+*::-webkit-scrollbar-thumb:hover { background-color: var(--scrollbar-hover); }
 
 /* ============================================================================
    PAGE LAYOUT
@@ -565,7 +656,7 @@ select.form-input,
 .filter-select:hover,
 .search-input:hover,
 .id-search-input:hover {
-  border-color: #b9c3d2;
+  border-color: var(--line-hover);
 }
 
 .form-control:focus,
@@ -593,7 +684,7 @@ select.form-input,
 .form-control.is-invalid,
 .form-input.is-invalid {
   border-color: var(--negative);
-  background: #fffafa;
+  background: var(--invalid-bg);
 }
 
 .form-control.is-invalid:focus,
@@ -777,14 +868,14 @@ select.form-input,
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: var(--brand-strong);
+  background: var(--brand-hover);
   color: #ffffff;
   box-shadow: var(--shadow-brand);
 }
 
 .btn-primary:disabled {
-  background: #c7d2e3;
-  color: #ffffff;
+  background: var(--disabled-bg);
+  color: var(--disabled-ink);
   box-shadow: none;
 }
 
@@ -799,7 +890,7 @@ select.form-input,
 .btn-secondary:hover:not(:disabled),
 .btn-outline:hover:not(:disabled) {
   background: var(--surface-muted);
-  border-color: #b9c3d2;
+  border-color: var(--line-hover);
   color: var(--ink-900);
 }
 
@@ -816,6 +907,16 @@ select.form-input,
 .btn-ghost:hover:not(:disabled) {
   background: var(--surface-sunken);
   color: var(--ink-900);
+}
+
+.btn-danger {
+  background: var(--negative);
+  color: #ffffff;
+}
+
+.btn-danger:hover:not(:disabled) {
+  filter: brightness(0.92);
+  box-shadow: 0 6px 16px rgba(209, 52, 59, 0.28);
 }
 
 .btn-sm {
@@ -1093,14 +1194,14 @@ select.form-input,
 .alert-success {
   border-color: var(--positive-line);
   background: var(--positive-soft);
-  color: #0b6b3d;
+  color: var(--positive-ink);
 }
 
 .alert-error,
 .alert-danger {
   border-color: var(--negative-line);
   background: var(--negative-soft);
-  color: #a3262c;
+  color: var(--negative-ink);
 }
 
 .alert-warning {
@@ -1139,7 +1240,7 @@ select.form-input,
 
 .alert-close:hover {
   opacity: 1;
-  background: rgba(255, 255, 255, 0.6);
+  background: color-mix(in srgb, currentColor 12%, transparent);
 }
 
 /* Rich result card: order / transaction outcome */
@@ -1168,11 +1269,11 @@ select.form-input,
 
 .ticket-message-success { border-color: var(--positive-line); }
 .ticket-message-success::before { background: var(--positive); }
-.ticket-message-success .message-title { color: #0b6b3d; }
+.ticket-message-success .message-title { color: var(--positive-ink); }
 
 .ticket-message-error { border-color: var(--negative-line); }
 .ticket-message-error::before { background: var(--negative); }
-.ticket-message-error .message-title { color: #a3262c; }
+.ticket-message-error .message-title { color: var(--negative-ink); }
 
 .message-header-row {
   display: flex;
@@ -1262,11 +1363,11 @@ select.form-input,
 
 .message-action.secondary {
   background: var(--ink-900);
-  color: #ffffff;
+  color: var(--surface);
 }
 
 .message-action.secondary:hover {
-  background: #1e293b;
+  opacity: 0.88;
 }
 
 .message-action.ghost {
@@ -1355,6 +1456,18 @@ select.form-input,
 /* ============================================================================
    UTILITIES
    =========================================================================== */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 
 .text-primary { color: var(--ink-900); }
 .text-secondary { color: var(--ink-700); }

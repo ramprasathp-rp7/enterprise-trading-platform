@@ -1,10 +1,11 @@
-import { Component, signal, HostListener, ElementRef } from '@angular/core';
+import { Component, signal, HostListener, ElementRef, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { CoreAuthService } from '../../core/auth/core-auth.service';
 import { SignInStore } from '../../features/sign-in/sign-in.store';
 import { AccountsService } from '../../api/generated/trade';
+import { ThemeService } from '../../core/services/theme.service';
 
 /**
  * Navigation Bar Component
@@ -23,6 +24,7 @@ import { AccountsService } from '../../api/generated/trade';
   styleUrls: ['./navbar.component.css'],
 })
 export class NavbarComponent {
+  readonly themeService = inject(ThemeService);
   accountDisplayId = signal<string | null>(null);
   isProfileMenuOpen = false;
   private accountLookupSubscription: Subscription | null = null;

@@ -59,6 +59,21 @@ import { OrderFilters } from '../../blotter.models';
         </div>
       }
 
+      @if (cancelResult(); as result) {
+        <div class="alert" role="status" aria-live="polite" data-testid="cancel-result"
+          [class.alert-success]="result.type === 'success'"
+          [class.alert-error]="result.type === 'error'">
+          <i class="fas" [class.fa-circle-check]="result.type === 'success'" [class.fa-circle-exclamation]="result.type === 'error'"></i>
+          <div>
+            <strong>{{ result.type === 'success' ? 'Order cancelled' : 'Cancel failed' }}</strong>
+            <p>{{ result.message }}</p>
+          </div>
+          <button class="alert-close" type="button" aria-label="Dismiss" (click)="onDismissCancelResult()">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+      }
+
       <section class="panel">
         <header class="panel-header">
           <h2 class="panel-title">Order history <span class="count-chip">{{ filteredOrders().length }}</span></h2>
@@ -71,7 +86,11 @@ import { OrderFilters } from '../../blotter.models';
             <p>Loading order history...</p>
           </div>
         } @else {
-          <app-order-list [orders]="filteredOrders()"></app-order-list>
+          <app-order-list
+            [orders]="filteredOrders()"
+            [cancellingIds]="cancellingIds()"
+            (cancelOrder)="onCancelOrder($event)">
+          </app-order-list>
         }
       </section>
     </div>
@@ -135,6 +154,8 @@ export class BlotterComponent implements OnInit, OnDestroy {
   readonly pollAttempts = computed(() => this.blotterStore.pollAttempts());
   readonly lastError = computed(() => this.blotterStore.lastError());
   readonly hasNewOrders = computed(() => this.blotterStore.hasNewOrders());
+  readonly cancellingIds = computed(() => this.blotterStore.cancellingIds());
+  readonly cancelResult = computed(() => this.blotterStore.cancelResult());
 
   ngOnInit(): void {
     // Load order history for current account
@@ -159,6 +180,7 @@ export class BlotterComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     // Stop polling when component is destroyed
     this.blotterStore.stopPolling();
+    this.blotterStore.clearCancelResult();
   }
 
   /**
@@ -166,6 +188,17 @@ export class BlotterComponent implements OnInit, OnDestroy {
    */
   onRefresh(): void {
     this.blotterStore.refreshOrderHistory();
+  }
+
+  /**
+   * Cancel a NEW order (already confirmed in the row)
+   */
+  onCancelOrder(orderId: string): void {
+    this.blotterStore.cancelOrder(orderId);
+  }
+
+  onDismissCancelResult(): void {
+    this.blotterStore.clearCancelResult();
   }
 
   /**

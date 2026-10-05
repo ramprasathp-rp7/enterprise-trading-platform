@@ -6,6 +6,7 @@ import { SignInErrorMessageComponent } from '../../components/sign-in-error-mess
 import { SignInSuccessMessageComponent } from '../../components/sign-in-success-message/sign-in-success-message.component';
 import { SignInStore } from '../../sign-in.store';
 import { LoginCredentials } from '../../../../core/auth/auth.models';
+import { ThemeService } from '../../../../core/services/theme.service';
 import { CoreAuthService } from '../../../../core/auth/core-auth.service';
 
 /**
@@ -31,6 +32,7 @@ export class LoginComponent {
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   private authService = inject(CoreAuthService);
+  readonly themeService = inject(ThemeService);
   private readonly defaultReturnUrl = '/dashboard';
 
   // Track whether login was successful
