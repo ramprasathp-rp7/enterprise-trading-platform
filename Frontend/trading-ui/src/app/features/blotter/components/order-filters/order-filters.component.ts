@@ -14,87 +14,19 @@ import { OrderStatus } from '../../../../api/generated/trade';
   imports: [CommonModule, FormsModule],
   templateUrl: './order-filters.component.html',
   styles: [`
-    .history-controls {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: nowrap;
-      overflow-x: auto;
-    }
-
-    .filter-group {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: nowrap;
-    }
-
-    .id-search-group {
-      gap: 8px;
-    }
-
-    label {
-      font-size: 13px;
-      font-weight: 600;
-      color: #64748b;
-      white-space: nowrap;
-    }
-
-    .filter-select {
-      padding: 8px 12px;
-      border: 1px solid #e2e8f0;
-      border-radius: 6px;
-      font-size: 13px;
-      color: #0f172a;
-      background: white;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .filter-select:hover {
-      border-color: #cbd5e1;
-    }
-
-    .filter-select:focus {
-      outline: none;
-      border-color: #2563eb;
-      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    .status-select {
+      width: 168px;
     }
 
     .id-search-input {
-      min-width: 280px;
-      width: 320px;
-      padding: 8px 12px;
-      border: 1px solid #e2e8f0;
-      border-radius: 6px;
-      font-size: 13px;
-      color: #0f172a;
-      background: #ffffff;
+      width: 220px;
     }
 
-    .id-search-input::placeholder {
-      color: #94a3b8;
-    }
-
-    .id-search-input:focus {
-      outline: none;
-      border-color: #2563eb;
-      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-    }
-
-    .clear-search-btn {
-      border: 1px solid #cbd5e1;
-      background: #f8fafc;
-      color: #334155;
-      border-radius: 6px;
-      padding: 7px 10px;
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
-    }
-
-    .clear-search-btn:hover {
-      background: #f1f5f9;
+    @media (max-width: 768px) {
+      .status-select,
+      .id-search-input {
+        width: 100%;
+      }
     }
   `],
 })

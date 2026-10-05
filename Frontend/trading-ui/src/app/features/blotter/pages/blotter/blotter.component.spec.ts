@@ -4,6 +4,7 @@ import { BlotterStore } from '../../blotter.store';
 import { CoreAuthService } from '../../../../core/auth/core-auth.service';
 import { OrderHistoryEntry, OrderStatus } from '../../../../api/generated/trade';
 import { vi } from 'vitest';
+import { provideRouter } from '@angular/router';
 
 describe('BlotterComponent', () => {
   let component: BlotterComponent;
@@ -60,6 +61,7 @@ describe('BlotterComponent', () => {
     await TestBed.configureTestingModule({
       imports: [BlotterComponent],
       providers: [
+        provideRouter([]),
         { provide: BlotterStore, useValue: mockBlotterStore },
         { provide: CoreAuthService, useValue: mockAuthService },
       ],

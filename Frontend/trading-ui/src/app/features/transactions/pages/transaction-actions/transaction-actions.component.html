@@ -1,126 +1,178 @@
-<div class="transaction-actions-container">
-  <div class="welcome-section">
-    <div class="welcome-content">
-      <h1 class="welcome-title">Transactions</h1>
-      <p class="welcome-subtitle">Create deposits and withdrawals</p>
+<div class="page transaction-actions-container">
+  <header class="page-header">
+    <div class="page-heading">
+      <h1 class="page-title">Transactions</h1>
+      <p class="page-subtitle">Create deposits and withdrawals</p>
     </div>
+    <div class="page-actions">
+      <a routerLink="/transaction-history" class="btn btn-secondary"><i class="fas fa-clock-rotate-left"></i> View history</a>
+    </div>
+  </header>
+
+  <div class="ticket-message-stack" *ngIf="error() || showSuccess()">
+    @if (error()) {
+      <section class="ticket-message ticket-message-error" role="alert" data-testid="transaction-rejected-message">
+        <div class="message-header-row">
+          <p class="message-title">Transaction rejected</p>
+          <span class="message-code">{{ error()?.errorCode }}</span>
+        </div>
+        <p class="message-body">{{ error()?.message }}</p>
+        <dl class="message-meta-grid">
+          <div>
+            <dt>Action</dt>
+            <dd>{{ getLastAttemptedActionLabel() }}</dd>
+          </div>
+          <div>
+            <dt>Amount</dt>
+            <dd>{{ getLastAttemptedAmountLabel() }}</dd>
+          </div>
+          <div>
+            <dt>Account</dt>
+            <dd>{{ accountId() ?? 'N/A' }}</dd>
+          </div>
+        </dl>
+        <div class="message-actions">
+          <button type="button" class="message-action ghost" (click)="dismissError()">Dismiss</button>
+        </div>
+      </section>
+    }
+
+    @if (showSuccess()) {
+      <section class="ticket-message ticket-message-success" data-testid="transaction-complete-message" role="status" aria-live="polite">
+        <div class="message-header-row">
+          <p class="message-title">Transaction completed</p>
+          <span class="message-pill">{{ getLatestSuccessfulTransaction()?.transactionType ?? 'SUCCESS' }}</span>
+        </div>
+        <p class="message-body">{{ getSuccessMessage() }}</p>
+        <dl class="message-meta-grid">
+          <div>
+            <dt>Transaction ID</dt>
+            <dd>{{ getLatestSuccessfulTransaction()?.transactionId ?? 'N/A' }}</dd>
+          </div>
+          <div>
+            <dt>Amount</dt>
+            <dd>{{ getLatestSuccessfulAmountLabel() }}</dd>
+          </div>
+          <div>
+            <dt>Direction</dt>
+            <dd>{{ getLatestSuccessfulTransaction()?.actionType ?? 'N/A' }}</dd>
+          </div>
+          <div>
+            <dt>Type</dt>
+            <dd>{{ getLatestSuccessfulTransaction()?.transactionType ?? 'N/A' }}</dd>
+          </div>
+          <div>
+            <dt>Account</dt>
+            <dd>{{ accountId() ?? 'N/A' }}</dd>
+          </div>
+          <div>
+            <dt>Created</dt>
+            <dd>{{ getCreatedOnLabel(getLatestSuccessfulTransaction()?.createdOn) }}</dd>
+          </div>
+        </dl>
+      </section>
+    }
   </div>
 
-  <div class="transaction-shell">
-    <div class="ticket-message-stack" *ngIf="error() || showSuccess()">
-      @if (error()) {
-        <section class="ticket-message ticket-message-error" data-testid="transaction-rejected-message">
-          <div class="message-header-row">
-            <p class="message-title">Transaction rejected</p>
-            <span class="message-code">{{ error()?.errorCode }}</span>
-          </div>
-          <p class="message-body">{{ error()?.message }}</p>
-          <dl class="message-meta-grid">
-            <div>
-              <dt>Action</dt>
-              <dd>{{ getLastAttemptedActionLabel() }}</dd>
-            </div>
-            <div>
-              <dt>Amount</dt>
-              <dd>{{ getLastAttemptedAmountLabel() }}</dd>
-            </div>
-            <div>
-              <dt>Account</dt>
-              <dd>{{ accountId() ?? 'N/A' }}</dd>
-            </div>
-          </dl>
-          <div class="message-actions">
-            <button type="button" class="message-action ghost" (click)="dismissError()">Dismiss</button>
-          </div>
-        </section>
-      }
+  <div class="page-split">
+    <!-- Entry form -->
+    <section class="panel action-card">
+      <header class="panel-header">
+        <div>
+          <h2 class="panel-title">{{ getTransactionTitle() }}</h2>
+          <p class="panel-subtitle">{{ getTransactionDescription() }}</p>
+        </div>
+      </header>
 
-      @if (showSuccess()) {
-        <section class="ticket-message ticket-message-success" data-testid="transaction-complete-message" role="status" aria-live="polite">
-          <div class="message-header-row">
-            <p class="message-title">Transaction completed</p>
-            <span class="message-pill">{{ getLatestSuccessfulTransaction()?.transactionType ?? 'SUCCESS' }}</span>
-          </div>
-          <p class="message-body">{{ getSuccessMessage() }}</p>
-          <dl class="message-meta-grid">
-            <div>
-              <dt>Transaction ID</dt>
-              <dd>{{ getLatestSuccessfulTransaction()?.transactionId ?? 'N/A' }}</dd>
-            </div>
-            <div>
-              <dt>Amount</dt>
-              <dd>{{ getLatestSuccessfulAmountLabel() }}</dd>
-            </div>
-            <div>
-              <dt>Direction</dt>
-              <dd>{{ getLatestSuccessfulTransaction()?.actionType ?? 'N/A' }}</dd>
-            </div>
-            <div>
-              <dt>Type</dt>
-              <dd>{{ getLatestSuccessfulTransaction()?.transactionType ?? 'N/A' }}</dd>
-            </div>
-            <div>
-              <dt>Account</dt>
-              <dd>{{ accountId() ?? 'N/A' }}</dd>
-            </div>
-            <div>
-              <dt>Created</dt>
-              <dd>{{ getCreatedOnLabel(getLatestSuccessfulTransaction()?.createdOn) }}</dd>
-            </div>
-          </dl>
-        </section>
-      }
-    </div>
-
-    <div class="actions-grid compact-actions">
-      <div class="action-card compact-card unified-card">
-        <div class="card-header compact-header unified-header">
-          <div>
-            <p class="eyebrow">Transaction Actions</p>
-            <h3>{{ getTransactionTitle() }}</h3>
-            <p class="card-subtitle">{{ getTransactionDescription() }}</p>
+      <div class="panel-body form-stack">
+        <div class="form-group">
+          <label id="transaction-type-label">Transaction type</label>
+          <div class="segmented" role="radiogroup" aria-labelledby="transaction-type-label">
+            <button
+              type="button"
+              role="radio"
+              class="segment credit"
+              [class.active]="transactionType() === 'deposit'"
+              [attr.aria-checked]="transactionType() === 'deposit'"
+              [disabled]="loading()"
+              (click)="onTransactionTypeChange('deposit')"
+            >
+              <i class="fas fa-arrow-down"></i> Credit (Deposit)
+            </button>
+            <button
+              type="button"
+              role="radio"
+              class="segment debit"
+              [class.active]="transactionType() === 'withdraw'"
+              [attr.aria-checked]="transactionType() === 'withdraw'"
+              [disabled]="loading()"
+              (click)="onTransactionTypeChange('withdraw')"
+            >
+              <i class="fas fa-arrow-up"></i> Debit (Withdraw)
+            </button>
           </div>
         </div>
 
-        <div class="form-group compact-form-group">
-          <label for="transaction-type">Transaction Type</label>
-          <select
-            id="transaction-type"
-            class="form-input compact-input"
-            [value]="transactionType()"
-            (change)="onTransactionTypeChange($any($event.target).value)"
-            [disabled]="loading()"
-          >
-            <option value="deposit">Credit (Deposit)</option>
-            <option value="withdraw">Debit (Withdraw)</option>
-          </select>
+        <div class="form-group">
+          <label for="transaction-amount">Amount</label>
+          <div class="amount-field">
+            <span class="amount-prefix">USD</span>
+            <input
+              id="transaction-amount"
+              type="number"
+              [ngModel]="amount()"
+              (ngModelChange)="amount.set($event)"
+              placeholder="0.00"
+              min="0.01"
+              step="0.01"
+              class="form-input amount-input"
+              [disabled]="loading()"
+            />
+          </div>
+          <p class="field-hint">Minimum 0.01. Funds settle to account {{ accountId() ?? 'N/A' }}.</p>
         </div>
 
-        <div class="form-group compact-form-group">
-          <label for="transaction-amount">Amount (USD)</label>
-          <input
-            id="transaction-amount"
-            type="number"
-            [ngModel]="amount()"
-            (ngModelChange)="amount.set($event)"
-            placeholder="0.00"
-            min="0.01"
-            step="0.01"
-            class="form-input compact-input"
-            [disabled]="loading()"
-          />
-        </div>
-
-        <div class="form-actions compact-actions-row unified-actions-row">
+        <div class="form-actions">
           <button
-            class="btn-primary compact-btn"
+            class="btn btn-primary btn-lg"
             (click)="onSubmit()"
             [disabled]="!amount() || amount()! <= 0 || loading()"
           >
-            <i class="fas fa-check"></i> {{ getActionLabel() }} Funds
+            @if (loading()) {
+              <i class="fas fa-spinner fa-spin"></i> Processing...
+            } @else {
+              <i class="fas fa-check"></i> {{ getActionLabel() }} Funds
+            }
           </button>
         </div>
       </div>
-    </div>
+    </section>
+
+    <!-- Live summary -->
+    <aside class="panel summary-card" aria-label="Transaction summary">
+      <header class="panel-header">
+        <h2 class="panel-title">Summary</h2>
+      </header>
+      <div class="panel-body">
+        <dl class="summary-list">
+          <div>
+            <dt>Direction</dt>
+            <dd>
+              <span class="pill" [class.action-credit]="transactionType() === 'deposit'" [class.action-debit]="transactionType() === 'withdraw'">
+                {{ getActionLabel() }}
+              </span>
+            </dd>
+          </div>
+          <div>
+            <dt>Account</dt>
+            <dd>{{ accountId() ?? 'N/A' }}</dd>
+          </div>
+          <div class="summary-total">
+            <dt>Amount</dt>
+            <dd>{{ amount() && amount()! > 0 ? (amount() | number:'1.2-2') : '0.00' }} <span>USD</span></dd>
+          </div>
+        </dl>
+      </div>
+    </aside>
   </div>
 </div>

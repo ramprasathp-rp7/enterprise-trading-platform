@@ -6,7 +6,10 @@
       <div class="brand-icon">
         <i class="fas fa-chart-line"></i>
       </div>
-      <div class="brand-text">Enterprise Trading Platform</div>
+      <div class="brand-text">
+        <span class="brand-name">Enterprise Trading Platform</span>
+        <span class="brand-tag">Institutional Markets</span>
+      </div>
     </div>
 
     <!-- Spacer -->
@@ -35,18 +38,21 @@
       <div class="user-profile-container">
         <button 
           class="user-profile-button"
+          [class.open]="isProfileMenuOpen"
           (click)="toggleProfileMenu($event)"
+          aria-haspopup="menu"
+          [attr.aria-expanded]="isProfileMenuOpen"
         >
           <div class="user-avatar">{{ (authService.currentUser()?.username || 'U')?.charAt(0)?.toUpperCase() || 'U' }}</div>
           <div class="user-info">
             <div class="user-name">{{ authService.currentUser()?.username || 'User' }}</div>
             <div class="user-role">Acct {{ accountDisplayId() || 'N/A' }}</div>
           </div>
-          <i class="fas fa-chevron-down"></i>
+          <i class="fas fa-chevron-down chevron"></i>
         </button>
 
         <!-- Profile Dropdown Menu -->
-        <div class="profile-menu" *ngIf="isProfileMenuOpen">
+        <div class="profile-menu" role="menu" *ngIf="isProfileMenuOpen">
           <div class="profile-menu-header">
             <div class="profile-menu-avatar">{{ (authService.currentUser()?.username || 'U')?.charAt(0)?.toUpperCase() || 'U' }}</div>
             <div class="profile-menu-details">

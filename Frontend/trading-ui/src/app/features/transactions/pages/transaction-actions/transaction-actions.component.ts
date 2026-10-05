@@ -1,6 +1,7 @@
 import { Component, OnDestroy, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterModule } from '@angular/router';
 import { CoreAuthService } from '../../../../core/auth/core-auth.service';
 import { TransactionsStore } from '../../transactions.store';
 import { TransactionHistoryEntry } from '../../models/transaction.models';
@@ -8,7 +9,7 @@ import { TransactionHistoryEntry } from '../../models/transaction.models';
 @Component({
   selector: 'app-transaction-actions',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './transaction-actions.component.html',
   styleUrls: ['./transaction-actions.component.css'],
 })

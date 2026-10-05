@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { signal } from '@angular/core';
 import { vi } from 'vitest';
 import { OrderSide } from '../../../../api/generated/trade';
@@ -35,7 +36,7 @@ describe('OrderTicketComponent', () => {
 
     await TestBed.configureTestingModule({
       imports: [OrderTicketComponent],
-      providers: [{ provide: OrderTicketStore, useValue: store }],
+      providers: [provideRouter([]), { provide: OrderTicketStore, useValue: store }],
     }).compileComponents();
 
     fixture = TestBed.createComponent(OrderTicketComponent);

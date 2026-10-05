@@ -1,34 +1,56 @@
 <div class="login-container">
-  <div class="login-card">
-    <div class="login-header">
-      <p class="eyebrow">Secure Sign In</p>
-      <h1 class="login-title">Sign In — Enterprise Trading Platform</h1>
-      <p class="login-subtitle">Use your workspace credentials to continue.</p>
+  <!-- Brand panel -->
+  <aside class="login-brand" aria-hidden="true">
+    <div class="brand-mark">
+      <span class="brand-icon"><i class="fas fa-chart-line"></i></span>
+      <span class="brand-name">Enterprise Trading Platform</span>
     </div>
 
-    <!-- Success message display (shows when login succeeds) -->
-    <app-sign-in-success-message
-      [isVisible]="isLoginSuccessful()">
-    </app-sign-in-success-message>
-
-    <!-- Error message display (only shows when there's an actual error) -->
-    <app-sign-in-error-message
-      [message]="errorMessage()"
-      [errorCode]="errorCode()">
-    </app-sign-in-error-message>
-
-    <!-- Login form -->
-    <app-credential-form 
-      (submitAttempt)="onSubmit($event)"
-      [isDisabled]="isLoading()"
-      [class.is-loading]="isLoading()">
-    </app-credential-form>
-
-    <!-- Loading/Processing indicator -->
-    <div *ngIf="isLoading()" class="loading-indicator">
-      <div class="spinner"></div>
-      <span>Signing in...</span>
+    <div class="brand-copy">
+      <h2>Trade with clarity and control.</h2>
+      <p>Place orders, monitor positions and manage funds from one secure workspace.</p>
+      <ul class="brand-points">
+        <li><i class="fas fa-bolt"></i> Real-time order status and blotter</li>
+        <li><i class="fas fa-layer-group"></i> Portfolio allocation at a glance</li>
+        <li><i class="fas fa-shield-halved"></i> Token-secured sessions</li>
+      </ul>
     </div>
-  </div>
+
+    <p class="brand-foot">Institutional Markets</p>
+  </aside>
+
+  <!-- Sign-in form -->
+  <main class="login-main">
+    <div class="login-card">
+      <div class="login-header">
+        <p class="eyebrow"><i class="fas fa-lock"></i> Secure Sign In</p>
+        <h1 class="login-title">Sign In — Enterprise Trading Platform</h1>
+        <p class="login-subtitle">Use your workspace credentials to continue.</p>
+      </div>
+
+      <!-- Success message display (shows when login succeeds) -->
+      <app-sign-in-success-message
+        [isVisible]="isLoginSuccessful()">
+      </app-sign-in-success-message>
+
+      <!-- Error message display (only shows when there's an actual error) -->
+      <app-sign-in-error-message
+        [message]="errorMessage()"
+        [errorCode]="errorCode()">
+      </app-sign-in-error-message>
+
+      <!-- Login form -->
+      <app-credential-form
+        (submitAttempt)="onSubmit($event)"
+        [isDisabled]="isLoading()"
+        [class.is-loading]="isLoading()">
+      </app-credential-form>
+
+      <!-- Loading/Processing indicator -->
+      <div *ngIf="isLoading()" class="loading-indicator">
+        <div class="spinner"></div>
+        <span>Signing in...</span>
+      </div>
+    </div>
+  </main>
 </div>
-

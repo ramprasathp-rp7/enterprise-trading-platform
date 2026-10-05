@@ -1,17 +1,19 @@
 <!-- Transactions Page -->
-<div class="transactions-container">
-  
-  <!-- Welcome Header -->
-  <div class="welcome-section">
-    <div class="welcome-content">
-      <h1 class="welcome-title">Transaction History</h1>
-      <p class="welcome-subtitle">View and filter your complete transaction activity</p>
+<div class="page transactions-container">
+
+  <header class="page-header">
+    <div class="page-heading">
+      <h1 class="page-title">Transaction History</h1>
+      <p class="page-subtitle">View and filter your complete transaction activity</p>
     </div>
-  </div>
+    <div class="page-actions">
+      <a routerLink="/transactions" class="btn btn-primary"><i class="fas fa-plus"></i> New transaction</a>
+    </div>
+  </header>
 
   <!-- Error Alert -->
   @if (error()) {
-    <div class="alert alert-error">
+    <div class="alert alert-error" role="alert">
       <div class="alert-content">
         <i class="fas fa-exclamation-circle"></i>
         <div>
@@ -19,23 +21,23 @@
           <p>{{ error()?.message }}</p>
         </div>
       </div>
-      <button class="alert-close" (click)="dismissError()">
+      <button class="alert-close" (click)="dismissError()" aria-label="Dismiss">
         <i class="fas fa-times"></i>
       </button>
     </div>
   }
 
-  <!-- Transaction History Section -->
-  <div class="history-section">
-    <div class="section-header">
-      <h2 class="section-title">Transaction History</h2>
-      <div class="history-controls">
+  <!-- Transaction History -->
+  <section class="panel">
+    <header class="panel-header">
+      <h2 class="panel-title">All transactions <span class="count-chip">{{ getFilteredTransactions().length }}</span></h2>
+      <div class="history-controls toolbar">
         <div class="filter-group">
-          <label for="type-filter">Filter by Type:</label>
+          <label for="type-filter">Type</label>
           <select
             id="type-filter"
             [(ngModel)]="selectedTypeFilter"
-            class="filter-select"
+            class="filter-select type-select"
           >
             @for (type of transactionTypes; track type) {
               <option [value]="type">{{ type }}</option>
@@ -44,25 +46,30 @@
         </div>
 
         <div class="filter-group id-search-group">
-          <label for="id-filter">Search by ID:</label>
-          <input
-            id="id-filter"
-            type="text"
-            class="id-search-input"
-            placeholder="Enter full or partial transaction ID"
-            [ngModel]="transactionIdQuery()"
-            (ngModelChange)="transactionIdQuery.set($event || '')"
-          />
-          @if (transactionIdQuery()) {
-            <button class="clear-search-btn" type="button" (click)="clearTransactionIdQuery()">Clear</button>
-          }
+          <label for="id-filter">Transaction ID</label>
+          <div class="input-with-icon">
+            <i class="fas fa-magnifying-glass"></i>
+            <input
+              id="id-filter"
+              type="text"
+              class="id-search-input"
+              placeholder="Full or partial ID"
+              [ngModel]="transactionIdQuery()"
+              (ngModelChange)="transactionIdQuery.set($event || '')"
+            />
+          </div>
         </div>
-      </div>
-    </div>
 
-    <!-- Transactions Table -->
+        @if (transactionIdQuery()) {
+          <button class="btn btn-ghost btn-sm clear-search-btn" type="button" (click)="clearTransactionIdQuery()">
+            <i class="fas fa-xmark"></i> Clear
+          </button>
+        }
+      </div>
+    </header>
+
     <div class="table-wrapper">
-      <table class="transactions-table">
+      <table class="data-table transactions-table">
         <colgroup>
           <col class="col-type" />
           <col class="col-amount" />
@@ -73,10 +80,10 @@
         <thead>
           <tr>
             <th class="col-type">Type</th>
-            <th class="col-amount">Amount</th>
-            <th class="col-action">Action</th>
-            <th class="col-datetime">Date & Time</th>
-            <th class="col-id">ID</th>
+            <th class="col-amount num">Amount</th>
+            <th class="col-action">Direction</th>
+            <th class="col-datetime">Date &amp; time</th>
+            <th class="col-id">Transaction ID</th>
           </tr>
         </thead>
         <tbody>
@@ -104,23 +111,17 @@
               <tr class="transaction-row">
                 <td class="cell-type">
                   <div class="type-badge">
-                    <i [class]="'fas fa-' + getTypeIcon(transaction.transactionType)"></i>
+                    <span class="type-icon"><i [class]="'fas fa-' + getTypeIcon(transaction.transactionType)"></i></span>
                     <span class="type-label">{{ transaction.transactionType }}</span>
                   </div>
                 </td>
-                <td class="cell-amount amount">
-                  {{ formatCurrency(transaction.amount) }}
-                </td>
+                <td class="cell-amount num">{{ formatCurrency(transaction.amount) }}</td>
                 <td class="cell-action">
-                  <span class="action-badge" [class]="getActionClass(transaction.actionType)">
-                    {{ transaction.actionType }}
-                  </span>
+                  <span class="pill" [class]="getActionClass(transaction.actionType)">{{ transaction.actionType }}</span>
                 </td>
-                <td class="cell-datetime" [title]="formatDate(transaction.createdOn)">
-                  <span class="timestamp-value">{{ formatDate(transaction.createdOn) }}</span>
-                </td>
-                <td class="cell-id transaction-id" [title]="transaction.transactionId">
-                  <code>{{ transaction.transactionId }}</code>
+                <td class="cell-datetime cell-muted" [title]="formatDate(transaction.createdOn)">{{ formatDate(transaction.createdOn) }}</td>
+                <td class="cell-id" [title]="transaction.transactionId">
+                  <code class="mono-id">{{ transaction.transactionId }}</code>
                 </td>
               </tr>
             }
@@ -128,13 +129,6 @@
         </tbody>
       </table>
     </div>
-
-    <div class="summary-footer">
-      <div class="summary-stat">
-        <span class="stat-label">Total Transactions:</span>
-        <span class="stat-value">{{ getFilteredTransactions().length }}</span>
-      </div>
-    </div>
-  </div>
+  </section>
 
 </div>

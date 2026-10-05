@@ -1,39 +1,64 @@
-<div class="positions-container">
-  <div class="welcome-section">
-    <h1 class="welcome-title">Positions</h1>
-    <p class="welcome-subtitle">Current holdings by instrument</p>
-  </div>
+<div class="page positions-container">
+  <header class="page-header">
+    <div class="page-heading">
+      <h1 class="page-title">Positions</h1>
+      <p class="page-subtitle">Current holdings by instrument</p>
+    </div>
+    <div class="page-actions">
+      <a routerLink="/order-ticket" class="btn btn-primary"><i class="fas fa-plus"></i> New order</a>
+    </div>
+  </header>
 
   @if (error()) {
-    <div class="alert alert-error">
-      <strong>Unable to load positions</strong>
-      <p>{{ error() }}</p>
+    <div class="alert alert-error" role="alert">
+      <i class="fas fa-exclamation-circle"></i>
+      <div>
+        <strong>Unable to load positions</strong>
+        <p>{{ error() }}</p>
+      </div>
     </div>
   }
 
-  <section class="history-section">
-    <div class="section-header">
-      <h2 class="section-title">Positions</h2>
+  <section class="stat-strip" aria-label="Positions summary">
+    <div class="stat-tile">
+      <span class="stat-label">Open positions</span>
+      <span class="stat-value">{{ positions().length }}</span>
     </div>
+    <div class="stat-tile">
+      <span class="stat-label">Total units</span>
+      <span class="stat-value">{{ formatNumber(totalUnits(), 0) }}</span>
+    </div>
+    <div class="stat-tile">
+      <span class="stat-label">Total cost basis</span>
+      <span class="stat-value">{{ formatNumber(totalCostBasis(), 2) }}</span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <header class="panel-header">
+      <h2 class="panel-title">Holdings <span class="count-chip">{{ positions().length }}</span></h2>
+    </header>
 
     <div class="table-wrapper">
-      <table class="transactions-table">
+      <table class="data-table transactions-table">
         <colgroup>
           <col class="col-symbol" />
           <col class="col-quantity" />
           <col class="col-cost" />
+          <col class="col-basis" />
         </colgroup>
         <thead>
           <tr>
-            <th class="col-symbol">Symbol</th>
-            <th class="col-quantity">Quantity</th>
-            <th class="col-cost">Average Cost</th>
+            <th>Symbol</th>
+            <th class="num">Quantity</th>
+            <th class="num">Average cost</th>
+            <th class="num">Cost basis</th>
           </tr>
         </thead>
         <tbody>
           @if (loading()) {
             <tr>
-              <td colspan="3">
+              <td colspan="4">
                 <div class="loading-state">
                   <div class="spinner"></div>
                   <p>Loading positions...</p>
@@ -42,7 +67,7 @@
             </tr>
           } @else if (positions().length === 0) {
             <tr>
-              <td colspan="3">
+              <td colspan="4">
                 <div class="empty-state">
                   <i class="fas fa-inbox"></i>
                   <p>No active positions</p>
@@ -53,20 +78,15 @@
           } @else {
             @for (position of positions(); track position.symbol) {
               <tr class="transaction-row">
-                <td class="cell-symbol symbol-cell">{{ position.symbol }}</td>
-                <td class="cell-quantity amount">{{ formatNumber(position.quantity, 0) }}</td>
-                <td class="cell-cost"><span class="amount">{{ formatNumber(position.averageCost, 2) }}</span></td>
+                <td class="cell-strong">{{ position.symbol }}</td>
+                <td class="num">{{ formatNumber(position.quantity, 0) }}</td>
+                <td class="num">{{ formatNumber(position.averageCost, 2) }}</td>
+                <td class="num">{{ formatNumber(position.quantity * position.averageCost, 2) }}</td>
               </tr>
             }
           }
         </tbody>
       </table>
-    </div>
-    <div class="summary-footer">
-      <div class="summary-stat">
-        <span class="stat-label">Total Positions:</span>
-        <span class="stat-value">{{ positions().length }}</span>
-      </div>
     </div>
   </section>
 </div>

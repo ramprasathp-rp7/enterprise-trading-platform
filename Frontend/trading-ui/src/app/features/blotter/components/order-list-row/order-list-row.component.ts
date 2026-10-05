@@ -30,31 +30,35 @@ import { OrderStatus } from '../../../../api/generated/trade';
   `,
   styles: [`
     .order-row {
-      border-bottom: 1px solid #e5e7eb;
-      background-color: #ffffff;
+      background-color: var(--surface);
+      transition: background-color var(--t-fast);
+    }
+
+    .order-row:hover {
+      background-color: var(--surface-hover);
     }
 
     .order-row.new-status {
-      background-color: #eff6ff;
-      font-weight: 500;
+      background-color: var(--info-soft);
     }
 
     td {
-      padding: 12px 16px;
+      height: 56px;
+      padding: 0 20px;
       vertical-align: middle;
-      font-size: 0.875rem;
-      white-space: normal;
-      word-wrap: break-word;
-      word-break: break-word;
+      border-bottom: 1px solid var(--line);
+      font-size: 14px;
+      color: var(--ink-900);
+      white-space: nowrap;
     }
 
     .order-id {
-      font-family: monospace;
-      color: #0066cc;
-      font-weight: 600;
-      white-space: nowrap;
+      max-width: 200px;
       overflow: hidden;
       text-overflow: ellipsis;
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      color: var(--ink-700);
     }
 
     .symbol {
@@ -62,47 +66,34 @@ import { OrderStatus } from '../../../../api/generated/trade';
     }
 
     .side {
-      text-align: center;
       font-weight: 600;
+      font-size: 13px;
     }
 
     .side.buy {
-      color: #155724;
+      color: var(--positive);
     }
 
     .side.sell {
-      color: #721c24;
+      color: var(--negative);
     }
 
-    .quantity {
-      text-align: center;
-      font-family: monospace;
-    }
-
-    .price {
-      text-align: center;
-      font-family: monospace;
-    }
-
+    .quantity,
+    .price,
     .executed-price {
-      text-align: center;
-      font-family: monospace;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      font-weight: 500;
     }
 
     .executed-price.filled {
-      color: #155724;
+      color: var(--positive);
       font-weight: 600;
     }
 
     .created-on {
-      text-align: left;
-      color: #64748b;
-      font-size: 0.8rem;
-      font-family: 'Courier New', monospace;
-    }
-
-    .status {
-      text-align: center;
+      color: var(--ink-500);
+      font-size: 13px;
     }
   `],
 })

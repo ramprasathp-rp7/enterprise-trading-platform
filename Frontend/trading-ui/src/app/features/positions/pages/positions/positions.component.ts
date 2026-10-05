@@ -1,5 +1,6 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
 import { finalize } from 'rxjs/operators';
 import {
   AccountsService,
@@ -15,7 +16,7 @@ import { CoreAuthService } from '../../../../core/auth/core-auth.service';
 @Component({
   selector: 'app-positions',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterModule],
   templateUrl: './positions.component.html',
   styleUrls: ['./positions.component.css'],
 })
@@ -26,6 +27,12 @@ export class PositionsComponent implements OnInit {
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly positions = signal<PositionResponse[]>([]);
+  readonly totalUnits = computed(() =>
+    this.positions().reduce((sum, p) => sum + (p.quantity || 0), 0)
+  );
+  readonly totalCostBasis = computed(() =>
+    this.positions().reduce((sum, p) => sum + (p.quantity || 0) * (p.averageCost || 0), 0)
+  );
 
   ngOnInit(): void {
     const accountId = this.authService.currentUser()?.accountId;

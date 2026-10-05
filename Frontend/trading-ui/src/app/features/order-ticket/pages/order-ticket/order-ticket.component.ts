@@ -1,6 +1,7 @@
 import { Component, OnDestroy, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterModule } from '@angular/router';
 import { OrderSide } from '../../../../api/generated/trade';
 import { OrderTicketStore } from '../../order-ticket.store';
 import {
@@ -13,7 +14,7 @@ import { ProcessedError } from '../../../../core/errors/error-response-handler';
 @Component({
   selector: 'app-order-ticket',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './order-ticket.component.html',
   styleUrls: ['./order-ticket.component.css']
 })
@@ -107,6 +108,16 @@ export class OrderTicketComponent implements OnDestroy {
       !!price &&
       isValidLimitPrice(price)
     );
+  });
+
+  /** Live notional (quantity x limit price) shown in the order summary rail. */
+  readonly estimatedNotional = computed(() => {
+    const quantity = Number(String(this.quantity() ?? '').trim());
+    const price = Number(String(this.price() ?? '').trim());
+    if (!Number.isFinite(quantity) || !Number.isFinite(price) || quantity <= 0 || price <= 0) {
+      return null;
+    }
+    return quantity * price;
   });
 
   readonly canSubmit = computed(() => {

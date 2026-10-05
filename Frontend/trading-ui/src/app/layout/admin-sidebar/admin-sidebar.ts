@@ -14,7 +14,7 @@ interface NavItem {
   standalone: true,
   imports: [CommonModule, RouterModule, RouterLinkActive],
   templateUrl: './admin-sidebar.html',
-  styleUrls: ['./admin-sidebar.css'],
+  styleUrls: ['../sidebar/sidebar.component.css'],
 })
 export class AdminSidebarComponent {
   isCollapsed = false;

@@ -1,17 +1,12 @@
-.alert-success {
-  background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
-  border: 1px solid rgba(5, 150, 105, 0.24);
-  border-radius: 10px;
-  padding: 14px 16px;
-  margin-bottom: 16px;
-  color: #065f46;
+/* Uses the global .alert / .alert-success styles */
+.alert {
+  margin-bottom: 20px;
 }
 
 .success-message {
-  font-weight: 700;
-  font-size: 13px;
-  letter-spacing: 0.2px;
   display: flex;
   align-items: center;
   gap: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
 }

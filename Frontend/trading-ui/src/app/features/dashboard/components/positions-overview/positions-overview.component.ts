@@ -30,16 +30,15 @@ export class PositionsOverviewComponent implements OnInit {
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
 
-  // Use defined theme variables from global styles.css so colors resolve correctly
-  // Mild, but readable palette using theme tokens (mid-range tints)
+  // Categorical palette for the allocation bar: distinct hues at similar
+  // weight so no single holding looks more important than its share.
   private palette = [
-    // Pastel palette (soft, desaturated colors)
-    '#ff8ab9', // pastel pink
-    '#bd96f8', // pastel lavender
-    '#fce39f', // pastel yellow
-    '#90c9ff', // pastel blue
-    '#93fab9', // pastel green
-    '#7cfde3', // pastel teal
+    '#2563eb', // blue
+    '#0d9488', // teal
+    '#7c3aed', // violet
+    '#d97706', // amber
+    '#db2777', // pink
+    '#0891b2', // cyan
   ];
 
   readonly allocation = computed(() => {

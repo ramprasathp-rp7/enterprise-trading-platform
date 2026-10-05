@@ -1,33 +1,22 @@
+/* Uses the global .alert / .alert-danger styles */
 .alert {
-  padding: 14px 16px;
-  margin-bottom: 16px;
-  border-radius: 10px;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 10px;
-}
-
-.alert-danger {
-  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
-  color: #991b1b;
-  border: 1px solid rgba(220, 38, 38, 0.24);
+  align-items: center;
+  margin-bottom: 20px;
 }
 
 .error-message {
   flex: 1;
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.4;
+  font-size: 13.5px;
+  font-weight: 500;
 }
 
 .error-code {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
-  margin-left: 10px;
-  padding: 3px 8px;
-  background-color: rgba(127, 29, 29, 0.12);
-  border-radius: 999px;
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border-radius: var(--r-pill);
+  background: rgba(163, 38, 44, 0.1);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 600;
   white-space: nowrap;
 }

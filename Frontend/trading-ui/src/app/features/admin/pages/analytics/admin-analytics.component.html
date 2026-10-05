@@ -1,30 +1,28 @@
 <!-- Admin Analytics Dashboard -->
-<div class="analytics-container">
-  <!-- Welcome Section -->
-  <div class="welcome-section">
-    <div class="welcome-content">
-      <h1 class="welcome-title">Analytics Dashboard</h1>
-      <p class="welcome-subtitle">System-wide trading metrics derived from complete order and transaction history</p>
+<div class="page analytics-container">
+  <header class="page-header">
+    <div class="page-heading">
+      <p class="page-eyebrow">Administration</p>
+      <h1 class="page-title">Analytics Dashboard</h1>
+      <p class="page-subtitle">System-wide trading metrics derived from complete order and transaction history</p>
     </div>
-  </div>
-
-  <!-- Controls Section -->
-  <div class="controls-section">
-    <div class="filter-group">
-      <label for="dateRange">Date Range</label>
-      <select 
-        id="dateRange"
-        [ngModel]="dateRange()" 
-        (ngModelChange)="dateRange.set($any($event))"
-        class="filter-select"
-      >
-        <option value="7d">Last 7 Days</option>
-        <option value="30d">Last 30 Days</option>
-        <option value="90d">Last 90 Days</option>
-        <option value="all-time">All Time</option>
-      </select>
+    <div class="page-actions">
+      <div class="filter-group">
+        <label for="dateRange">Date range</label>
+        <select 
+          id="dateRange"
+          [ngModel]="dateRange()" 
+          (ngModelChange)="dateRange.set($any($event))"
+          class="filter-select range-select"
+        >
+          <option value="7d">Last 7 Days</option>
+          <option value="30d">Last 30 Days</option>
+          <option value="90d">Last 90 Days</option>
+          <option value="all-time">All Time</option>
+        </select>
+      </div>
     </div>
-  </div>
+  </header>
 
   <!-- Loading State -->
   @if (isLoading()) {
@@ -36,17 +34,15 @@
 
   <!-- Error State -->
   @if (errorMessage()) {
-    <div class="error-message">
+    <div class="alert alert-error" role="alert">
       <i class="fas fa-exclamation-circle"></i>
-      {{ errorMessage() }}
+      <span>{{ errorMessage() }}</span>
     </div>
   }
 
   <!-- Key Metrics Section -->
   @if (!isLoading()) {
-    <div class="metrics-section">
-      <h2 class="section-title">Key Metrics</h2>
-      
+    <section class="metrics-section" aria-label="Key metrics">
       <div class="metrics-grid">
         <!-- Total Orders Card -->
         <div class="metric-card">
@@ -96,7 +92,7 @@
           <p class="metric-description">Percentage of orders successfully filled</p>
         </div>
       </div>
-    </div>
+    </section>
   }
 </div>
 

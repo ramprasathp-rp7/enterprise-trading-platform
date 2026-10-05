@@ -1,252 +1,215 @@
-/* Positions overview styles aligned with dashboard/table theme */
+/* Holdings overview shown inside the dashboard "Portfolio holdings" panel */
 
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ===== ALLOCATION ===== */
 .positions-overview {
-	display: block;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.allocation-bar-wrapper {
-	display: block;
-	padding: 0;
-	max-width: 100%;
-	margin: 0;
-	box-sizing: border-box;
+.allocation-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.allocation-bar {
-	width: 100%;
-	height: 38px;
-	display: flex;
-	border-radius: 12px;
-	overflow: hidden;
-	background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-	border: 1px solid rgba(226, 232, 240, 0.85);
-	box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
-}
-
-.allocation-bar .segment {
-	height: 100%;
-	cursor: pointer;
-	transition: transform 120ms ease, filter 120ms ease;
-	min-width: 6px;
-	border-right: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.allocation-bar .segment:hover {
-	transform: scaleY(1.04);
-	filter: brightness(1.04);
-}
-
-.allocation-bar .segment.empty {
-	opacity: 0.7;
-}
-
-.allocation-legend .legend-toggle {
-	display: none;
-}
-
-.holdings-list {
-	display: none;
+.allocation-caption {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-500);
 }
 
 .alloc-status {
-	font-size: 13px;
-	color: #64748b;
-	font-weight: 500;
-	padding-top: 10px;
+  font-size: 13px;
+  color: var(--ink-500);
+  font-variant-numeric: tabular-nums;
 }
 
 .alloc-status .error {
-	color: #dc2626;
-	font-weight: 600;
+  color: var(--negative);
+  font-weight: 600;
 }
 
-.hover-label {
-	font-size: 13px;
-	color: #0f172a;
-	padding-top: 6px;
-	font-weight: 600;
+.allocation-bar {
+  display: flex;
+  gap: 3px;
+  width: 100%;
+  height: 14px;
+  border-radius: var(--r-pill);
+  overflow: hidden;
+  background: var(--surface-sunken);
 }
 
-.holdings-detail-wrapper {
-	margin-top: 14px;
-	margin-bottom: 22px;
+.allocation-bar .segment {
+  height: 100%;
+  min-width: 6px;
+  cursor: pointer;
+  transition: filter var(--t-fast);
 }
 
+.allocation-bar .segment:first-child {
+  border-radius: var(--r-pill) 0 0 var(--r-pill);
+}
+
+.allocation-bar .segment:last-child {
+  border-radius: 0 var(--r-pill) var(--r-pill) 0;
+}
+
+.allocation-bar .segment:only-child {
+  border-radius: var(--r-pill);
+}
+
+.allocation-bar .segment:hover {
+  filter: brightness(1.12);
+}
+
+.allocation-bar .segment.empty {
+  flex-basis: 100%;
+  background: var(--surface-sunken);
+  cursor: default;
+}
+
+.allocation-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  font-size: 13px;
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.legend-symbol {
+  font-weight: 600;
+  color: var(--ink-900);
+}
+
+.legend-pct {
+  color: var(--ink-500);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== HOLDINGS DETAIL ===== */
 .holdings-detail {
-	display: flex;
-	gap: 14px;
-	align-items: stretch;
+  display: grid;
+  grid-template-columns: 340px minmax(0, 1fr);
+  gap: 20px;
+  align-items: stretch;
 }
 
 .top-card {
-	flex: 0 0 360px;
-	background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
-	border: 1px solid rgba(226, 232, 240, 0.8);
-	border-radius: 14px;
-	padding: 16px;
-	box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
-	display: flex;
-	align-items: center;
-	position: relative;
-	overflow: hidden;
-}
-
-.top-card::before {
-	content: '';
-	position: absolute;
-	left: 0;
-	right: 0;
-	top: 0;
-	height: 3px;
-	background: linear-gradient(90deg, #0ea5e9 0%, #2563eb 100%);
-}
-
-.top-card-inner {
-	width: 100%;
-	padding-left: 4px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 22px 24px;
+  border-radius: var(--r-lg);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(59, 130, 246, 0.35), transparent 55%),
+    linear-gradient(145deg, #0f1d3d 0%, #13295c 100%);
+  color: #ffffff;
+  box-shadow: var(--shadow-raised);
 }
 
 .top-eyebrow {
-	margin: 0 0 6px 0;
-	font-size: 11px;
-	font-weight: 700;
-	color: #64748b;
-	text-transform: uppercase;
-	letter-spacing: 0.3px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .top-symbol {
-	margin: 0 0 10px 0;
-	font-size: 20px;
-	font-weight: 700;
-	color: #0f172a;
-	letter-spacing: -0.25px;
-	text-align: left;
+  margin: 6px 0 18px;
+  font-size: 28px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
 }
 
 .top-metrics {
-	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
-	gap: 12px;
-	align-items: stretch;
-	justify-items: start;
-	width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
 }
 
 .top-metrics .metric {
-	display: flex;
-	flex-direction: column;
-	gap: 3px;
-	align-items: flex-start;
-	text-align: left;
+  min-width: 0;
 }
 
 .top-metrics .label {
-	font-size: 11px;
-	font-weight: 700;
-	color: #64748b;
-	text-transform: uppercase;
-	letter-spacing: 0.3px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .top-metrics .value {
-	font-size: 15px;
-	font-weight: 700;
-	font-family: 'Courier New', monospace;
-	color: #0f172a;
+  margin: 4px 0 0;
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .mini-table {
-	flex: 1;
-	background: transparent;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  overflow: hidden;
 }
 
-.mini-table table {
-	width: 100%;
-	border-collapse: collapse;
-	table-layout: fixed;
-	background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-	border: 1px solid rgba(226, 232, 240, 0.8);
-	border-radius: 14px;
-	overflow: hidden;
-	box-shadow: 0 10px 26px rgba(15, 23, 42, 0.08);
-}
-
-.mini-table th,
-.mini-table td {
-	padding: 12px 14px;
-	border-bottom: 1px solid rgba(226, 232, 240, 0.7);
-	font-size: 13px;
-	font-weight: 500;
-	color: #0f172a;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
-
-.mini-table thead th {
-	text-align: left;
-	font-weight: 800;
-	font-size: 12px;
-	text-transform: uppercase;
-	letter-spacing: 0.35px;
-	background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
-	box-shadow: inset 0 -1px 0 rgba(203, 213, 225, 0.85);
-}
-
-.mini-table thead th:nth-child(2),
-.mini-table tbody td:nth-child(2) {
-	text-align: center;
-	font-size: 13px;
-	color: #1e293b;
-}
-
-.mini-table thead th:nth-child(3),
-.mini-table tbody td:nth-child(3) {
-	text-align: right;
-	font-size: 13px;
-	color: #1e293b;
-}
-
-.mini-table tbody td:nth-child(2),
-.mini-table tbody td:nth-child(3) {
-	font-family: 'Courier New', monospace;
-	font-weight: 700;
-}
-
-.mini-table thead th:nth-child(1),
-.mini-table tbody td:nth-child(1) {
-	text-align: left;
-}
-
-.col-right-center {
-	display: inline-block;
-	min-width: 90px;
-	text-align: center;
-}
-
-.mini-table tbody tr {
-	transition: background-color 120ms ease;
-}
-
-.mini-table tbody tr:nth-child(even) {
-	background-color: rgba(241, 245, 249, 0.4);
-}
-
-.mini-table tbody tr:hover {
-	background-color: rgba(37, 99, 235, 0.03);
-}
-
-.mini-table tbody tr:last-child td {
-	border-bottom: 0;
+.mini-table .data-table td {
+  height: 50px;
 }
 
 @media (max-width: 1100px) {
-	.holdings-detail {
-		flex-direction: column;
-	}
+  .holdings-detail {
+    grid-template-columns: 1fr;
+  }
+}
 
-	.top-card {
-		flex: 1 1 auto;
-	}
+@media (max-width: 480px) {
+  .top-card {
+    padding: 20px;
+  }
+
+  .top-metrics {
+    gap: 10px;
+  }
+
+  .top-metrics .value {
+    font-size: 14px;
+    overflow: visible;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
 }
