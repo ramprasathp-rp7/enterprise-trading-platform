@@ -50,6 +50,15 @@ export const routes: Routes = [
         data: { title: 'Place Order' },
       },
       {
+        path: 'order-confirmation/:orderId',
+        canActivateChild: [canActivateChildGuard],
+        loadComponent: () =>
+          import('./features/order-ticket/pages/order-confirmation/order-confirmation.component').then(
+            (m) => m.OrderConfirmationComponent
+          ),
+        data: { title: 'Order Confirmation' },
+      },
+      {
         path: 'blotter',
         canActivateChild: [canActivateChildGuard],
         loadComponent: () =>
@@ -84,6 +93,15 @@ export const routes: Routes = [
             (m) => m.TransactionActionsComponent
           ),
         data: { title: 'Transactions' },
+      },
+      {
+        path: 'transaction-confirmation/:transactionId',
+        canActivateChild: [canActivateChildGuard],
+        loadComponent: () =>
+          import('./features/transactions/pages/transaction-confirmation/transaction-confirmation.component').then(
+            (m) => m.TransactionConfirmationComponent
+          ),
+        data: { title: 'Transaction Confirmation' },
       },
       {
         path: 'transaction-history',

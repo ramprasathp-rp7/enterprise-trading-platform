@@ -9,7 +9,7 @@
     </div>
   </header>
 
-  <div class="ticket-message-stack" *ngIf="error() || showSuccess()">
+  <div class="ticket-message-stack" *ngIf="error()">
     @if (error()) {
       <section class="ticket-message ticket-message-error" role="alert" data-testid="transaction-rejected-message">
         <div class="message-header-row">
@@ -34,42 +34,6 @@
         <div class="message-actions">
           <button type="button" class="message-action ghost" (click)="dismissError()">Dismiss</button>
         </div>
-      </section>
-    }
-
-    @if (showSuccess()) {
-      <section class="ticket-message ticket-message-success" data-testid="transaction-complete-message" role="status" aria-live="polite">
-        <div class="message-header-row">
-          <p class="message-title">Transaction completed</p>
-          <span class="message-pill">{{ getLatestSuccessfulTransaction()?.transactionType ?? 'SUCCESS' }}</span>
-        </div>
-        <p class="message-body">{{ getSuccessMessage() }}</p>
-        <dl class="message-meta-grid">
-          <div>
-            <dt>Transaction ID</dt>
-            <dd>{{ getLatestSuccessfulTransaction()?.transactionId ?? 'N/A' }}</dd>
-          </div>
-          <div>
-            <dt>Amount</dt>
-            <dd>{{ getLatestSuccessfulAmountLabel() }}</dd>
-          </div>
-          <div>
-            <dt>Direction</dt>
-            <dd>{{ getLatestSuccessfulTransaction()?.actionType ?? 'N/A' }}</dd>
-          </div>
-          <div>
-            <dt>Type</dt>
-            <dd>{{ getLatestSuccessfulTransaction()?.transactionType ?? 'N/A' }}</dd>
-          </div>
-          <div>
-            <dt>Account</dt>
-            <dd>{{ accountId() ?? 'N/A' }}</dd>
-          </div>
-          <div>
-            <dt>Created</dt>
-            <dd>{{ getCreatedOnLabel(getLatestSuccessfulTransaction()?.createdOn) }}</dd>
-          </div>
-        </dl>
       </section>
     }
   </div>

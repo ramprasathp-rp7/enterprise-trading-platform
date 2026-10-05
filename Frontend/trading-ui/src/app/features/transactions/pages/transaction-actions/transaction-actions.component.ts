@@ -1,10 +1,9 @@
-import { Component, OnDestroy, computed, effect, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { CoreAuthService } from '../../../../core/auth/core-auth.service';
 import { TransactionsStore } from '../../transactions.store';
-import { TransactionHistoryEntry } from '../../models/transaction.models';
 
 @Component({
   selector: 'app-transaction-actions',
@@ -13,8 +12,9 @@ import { TransactionHistoryEntry } from '../../models/transaction.models';
   templateUrl: './transaction-actions.component.html',
   styleUrls: ['./transaction-actions.component.css'],
 })
-export class TransactionActionsComponent implements OnDestroy {
+export class TransactionActionsComponent {
   private readonly authService = inject(CoreAuthService);
+  private readonly router = inject(Router);
   readonly transactionsStore = inject(TransactionsStore);
 
   loading = this.transactionsStore.loading;
@@ -23,9 +23,9 @@ export class TransactionActionsComponent implements OnDestroy {
   lastAction = this.transactionsStore.lastAction;
   lastActionSuccess = this.transactionsStore.lastActionSuccess;
   accountId = computed(() => this.authService.currentUser()?.accountId ?? null);
-  showSuccess = signal(false);
   lastSubmittedAmount = signal<number | null>(null);
-  private successTimer: ReturnType<typeof setTimeout> | null = null;
+  /** True between this page's submit and the store reporting its outcome */
+  private readonly awaitingResult = signal(false);
 
   amount = signal<number | null>(null);
   transactionType = signal<'deposit' | 'withdraw'>('deposit');
@@ -36,17 +36,17 @@ export class TransactionActionsComponent implements OnDestroy {
       const action = this.lastAction();
       const success = this.lastActionSuccess();
 
-      if (!loading && success && (action === 'deposit' || action === 'withdraw')) {
-        this.showSuccess.set(true);
+      // The store is app-wide, so only react to a submission made from this page.
+      if (loading || !this.awaitingResult()) {
+        return;
+      }
+      this.awaitingResult.set(false);
 
-        if (this.successTimer) {
-          clearTimeout(this.successTimer);
+      if (success && (action === 'deposit' || action === 'withdraw')) {
+        const created = untracked(this.transactions)[0];
+        if (created?.transactionId) {
+          this.router.navigate(['/transaction-confirmation', created.transactionId]);
         }
-
-        this.successTimer = setTimeout(() => {
-          this.showSuccess.set(false);
-          this.successTimer = null;
-        }, 3500);
       }
     });
   }
@@ -59,6 +59,7 @@ export class TransactionActionsComponent implements OnDestroy {
       return;
     }
 
+    this.awaitingResult.set(true);
     if (this.transactionType() === 'deposit') {
       this.transactionsStore.deposit(accountId, amount);
     } else {
@@ -80,41 +81,6 @@ export class TransactionActionsComponent implements OnDestroy {
     this.transactionsStore.clearError();
   }
 
-  ngOnDestroy() {
-    if (this.successTimer) {
-      clearTimeout(this.successTimer);
-      this.successTimer = null;
-    }
-  }
-
-  getSuccessMessage(): string {
-    const amount = this.getLatestSuccessfulTransaction()?.amount;
-    const formattedAmount = amount !== undefined ? this.formatAmount(amount) : null;
-    const action = this.lastAction();
-    if (action === 'deposit') {
-      return formattedAmount ? `${formattedAmount} credited successfully.` : 'Amount credited successfully.';
-    }
-    if (action === 'withdraw') {
-      return formattedAmount ? `${formattedAmount} debited successfully.` : 'Amount debited successfully.';
-    }
-    return '';
-  }
-
-  getLatestSuccessfulTransaction(): TransactionHistoryEntry | null {
-    const latest = this.transactions()[0] ?? null;
-    if (!latest) {
-      return null;
-    }
-
-    const action = this.lastAction();
-    const expectedType = action === 'deposit' ? 'DEPOSIT' : action === 'withdraw' ? 'WITHDRAW' : null;
-    if (!expectedType) {
-      return null;
-    }
-
-    return latest.transactionType === expectedType ? latest : null;
-  }
-
   getLastAttemptedActionLabel(): string {
     return this.lastAction() === 'withdraw' ? 'Withdrawal' : 'Deposit';
   }
@@ -122,55 +88,6 @@ export class TransactionActionsComponent implements OnDestroy {
   getLastAttemptedAmountLabel(): string {
     const amount = this.lastSubmittedAmount();
     return amount && amount > 0 ? this.formatAmount(amount) : 'N/A';
-  }
-
-  getLatestSuccessfulAmountLabel(): string {
-    const amount = this.getLatestSuccessfulTransaction()?.amount;
-    return amount !== undefined ? this.formatAmount(amount) : 'N/A';
-  }
-
-  getCreatedOnLabel(value: string | number | null | undefined): string {
-    if (value === null || value === undefined) {
-      return 'N/A';
-    }
-
-    const raw = String(value).trim();
-    if (!raw) {
-      return 'N/A';
-    }
-
-    const numericPattern = /^-?\d+(\.\d+)?$/;
-    if (numericPattern.test(raw)) {
-      const numericValue = Number(raw);
-      if (Number.isFinite(numericValue)) {
-        const epochMs = Math.abs(numericValue) < 1e12 ? numericValue * 1000 : numericValue;
-        const epochDate = new Date(epochMs);
-        if (!Number.isNaN(epochDate.getTime())) {
-          return epochDate.toLocaleString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-          });
-        }
-      }
-    }
-
-    const parsedDate = new Date(raw);
-    if (!Number.isNaN(parsedDate.getTime())) {
-      return parsedDate.toLocaleString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-      });
-    }
-
-    return raw;
   }
 
   private formatAmount(value: number): string {

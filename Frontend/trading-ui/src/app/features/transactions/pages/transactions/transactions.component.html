@@ -7,9 +7,27 @@
       <p class="page-subtitle">View and filter your complete transaction activity</p>
     </div>
     <div class="page-actions">
+      <button
+        type="button"
+        class="btn btn-secondary"
+        (click)="downloadStatement()"
+        [disabled]="loading() || downloading()"
+        title="Download the transactions currently shown, with filters applied"
+        data-testid="download-statement-btn"
+      >
+        <i class="fas" [class.fa-file-pdf]="!downloading()" [class.fa-spinner]="downloading()" [class.fa-spin]="downloading()"></i>
+        {{ downloading() ? 'Preparing…' : 'Download statement' }}
+      </button>
       <a routerLink="/transactions" class="btn btn-primary"><i class="fas fa-plus"></i> New transaction</a>
     </div>
   </header>
+
+  @if (downloadError()) {
+    <div class="alert alert-error" role="alert" data-testid="download-error">
+      <i class="fas fa-exclamation-circle"></i>
+      <span>{{ downloadError() }}</span>
+    </div>
+  }
 
   <!-- Error Alert -->
   @if (error()) {

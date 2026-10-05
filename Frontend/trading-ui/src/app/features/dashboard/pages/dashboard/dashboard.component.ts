@@ -22,7 +22,7 @@ interface RecentTrade {
   quantity: number;
   price: number;
   time: string;
-  status: 'EXECUTED' | 'PENDING' | 'CANCELLED';
+  status: 'EXECUTED' | 'PENDING' | 'CANCELLED' | 'REJECTED';
 }
 
 /**
@@ -102,7 +102,7 @@ export class DashboardComponent implements OnInit {
         quantity: order.quantity,
         price: order.price,
         time: this.formatDateTime(order.createdOn),
-        status: this.mapOrderStatus(order.status) as 'EXECUTED' | 'PENDING' | 'CANCELLED'
+        status: this.mapOrderStatus(order.status) as 'EXECUTED' | 'PENDING' | 'CANCELLED' | 'REJECTED'
       }));
   });
 
@@ -195,8 +195,9 @@ export class DashboardComponent implements OnInit {
       case 'NEW':
         return 'PENDING';
       case 'CANCELLED':
-      case 'REJECTED':
         return 'CANCELLED';
+      case 'REJECTED':
+        return 'REJECTED';
       default:
         return 'PENDING';
     }
@@ -228,6 +229,8 @@ export class DashboardComponent implements OnInit {
         return 'fa-hourglass-half';
       case 'CANCELLED':
         return 'fa-times-circle';
+      case 'REJECTED':
+        return 'fa-ban';
       default:
         return 'fa-circle';
     }

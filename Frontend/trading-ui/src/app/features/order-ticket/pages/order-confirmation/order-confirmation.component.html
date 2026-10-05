@@ -1,0 +1,105 @@
+<div class="page confirmation-page order-confirmation-container">
+  <header class="page-header">
+    <div class="page-heading">
+      <p class="page-eyebrow">Order Ticket</p>
+      <h1 class="page-title">Order Confirmation</h1>
+      <p class="page-subtitle">Your order has been sent. Track its status in the Order Blotter.</p>
+    </div>
+  </header>
+
+  @if (loading()) {
+    <section class="panel">
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Looking up your order...</p>
+      </div>
+    </section>
+  } @else if (order(); as o) {
+    <section
+      class="panel confirmation-card"
+      [class.is-rejected]="isRejected()"
+      data-testid="order-result-message"
+      [attr.role]="isRejected() ? 'alert' : 'status'"
+    >
+      <div class="confirmation-hero">
+        <span class="hero-icon">
+          <i class="fas" [class.fa-circle-check]="!isRejected()" [class.fa-circle-xmark]="isRejected()"></i>
+        </span>
+        <div class="hero-text">
+          <h2 class="hero-title">{{ title() }}</h2>
+          @if (o.message) {
+            <p class="hero-message">{{ o.message }}</p>
+          }
+        </div>
+        <span class="pill" [class]="'status-' + status().toLowerCase()" data-testid="order-status">{{ status() }}</span>
+      </div>
+
+      <dl class="detail-grid">
+        <div class="detail detail-wide">
+          <dt>Order ID</dt>
+          <dd><code class="mono-id" [title]="o.orderId" data-testid="order-id">{{ o.orderId }}</code></dd>
+        </div>
+        <div class="detail">
+          <dt>Instrument</dt>
+          <dd>{{ o.symbol }}</dd>
+        </div>
+        <div class="detail">
+          <dt>Side</dt>
+          <dd>
+            <span class="side-text" [class.buy]="o.side === 'BUY'" [class.sell]="o.side === 'SELL'">
+              <i class="fas" [class.fa-arrow-up]="o.side === 'BUY'" [class.fa-arrow-down]="o.side === 'SELL'"></i>
+              {{ o.side }}
+            </span>
+          </dd>
+        </div>
+        <div class="detail">
+          <dt>Quantity</dt>
+          <dd class="num">{{ o.quantity | number }}</dd>
+        </div>
+        <div class="detail">
+          <dt>Limit price</dt>
+          <dd class="num">{{ o.price | number: '1.2-2' }}</dd>
+        </div>
+        <div class="detail">
+          <dt>Est. notional</dt>
+          <dd class="num">{{ notional() | number: '1.2-2' }}</dd>
+        </div>
+      </dl>
+
+      @if (isWorking()) {
+        <p class="status-hint">
+          <i class="fas fa-circle-info"></i>
+          The order is working. Its status updates in the Order Blotter once it fills or is rejected.
+        </p>
+      }
+
+      <footer class="confirmation-actions">
+        <a routerLink="/blotter" class="btn btn-primary btn-lg" data-testid="view-in-blotter-btn">
+          <i class="fas fa-list-ul"></i> Track in Order Blotter
+        </a>
+        <a routerLink="/order-ticket" class="btn btn-secondary btn-lg" data-testid="place-another-btn">
+          <i class="fas fa-plus"></i> Place another order
+        </a>
+      </footer>
+    </section>
+  } @else {
+    <section class="panel">
+      <div class="empty-state" data-testid="order-not-found">
+        <i class="fas fa-magnifying-glass"></i>
+        <p>We couldn't find this order</p>
+        <small>
+          @if (orderId()) {
+            <code class="mono-id">{{ orderId() }}</code> is not in your recent orders.
+          }
+          Check the Order Blotter for its current status.
+        </small>
+        <div class="empty-actions">
+          <a routerLink="/blotter" class="btn btn-primary" data-testid="view-in-blotter-btn">
+            <i class="fas fa-list-ul"></i> Open Order Blotter
+          </a>
+          <a routerLink="/order-ticket" class="btn btn-secondary">Place an order</a>
+        </div>
+      </div>
+    </section>
+  }
+</div>

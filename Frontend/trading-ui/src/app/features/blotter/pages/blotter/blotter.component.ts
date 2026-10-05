@@ -23,7 +23,7 @@ import { OrderFilters } from '../../blotter.models';
   standalone: true,
   imports: [CommonModule, RouterModule, OrderListComponent, OrderFiltersComponent],
   template: `
-    <div class="page transactions-container">
+    <div class="page page-wide transactions-container">
       <header class="page-header">
         <div class="page-heading">
           <h1 class="page-title">Order Blotter</h1>

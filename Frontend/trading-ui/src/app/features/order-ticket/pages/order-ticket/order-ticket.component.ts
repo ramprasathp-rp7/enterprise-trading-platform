@@ -1,7 +1,7 @@
-import { Component, OnDestroy, computed, effect, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { OrderSide } from '../../../../api/generated/trade';
 import { OrderTicketStore } from '../../order-ticket.store';
 import {
@@ -18,10 +18,10 @@ import { ProcessedError } from '../../../../core/errors/error-response-handler';
   templateUrl: './order-ticket.component.html',
   styleUrls: ['./order-ticket.component.css']
 })
-export class OrderTicketComponent implements OnDestroy {
+export class OrderTicketComponent implements OnInit {
   private store = inject(OrderTicketStore);
-  private dismissTimer: ReturnType<typeof setTimeout> | null = null;
-  private dismissMessageKey: string | null = null;
+  private router = inject(Router);
+  private route = inject(ActivatedRoute);
 
   readonly symbol = signal<string>('');
   readonly side = signal<OrderSide>(OrderSide.Buy);
@@ -32,11 +32,12 @@ export class OrderTicketComponent implements OnDestroy {
   readonly priceTouched = signal<boolean>(false);
   readonly formSubmitted = signal<boolean>(false);
   readonly sideOptions = [OrderSide.Buy, OrderSide.Sell] as const;
+  /** Set when the ticket was opened from a holding (e.g. Positions → Buy/Sell) */
+  readonly prefilledFrom = signal<string | null>(null);
 
   readonly accountId = this.store.accountId;
   readonly accountDisplayId = this.store.accountDisplayId;
   readonly isSubmitting = this.store.isSubmitting;
-  readonly submissionResult = this.store.submissionResult;
   readonly errorCode = this.store.errorCode;
   readonly errorMessage = this.store.errorMessage;
 
@@ -147,43 +148,25 @@ export class OrderTicketComponent implements OnDestroy {
     } as ProcessedError;
   });
 
-  constructor() {
-    effect(() => {
-      const error = this.processedError();
-      const result = this.submissionResult();
+  /**
+   * Prefill from query params, e.g. /order-ticket?symbol=AAPL&side=SELL
+   * (used by the Buy/Sell actions on the Positions holdings table).
+   */
+  ngOnInit(): void {
+    const params = this.route.snapshot.queryParamMap;
 
-      if (error) {
-        this.clearDismissTimer();
-        return;
-      }
+    const symbol = (params.get('symbol') ?? '').trim().toUpperCase().slice(0, 20);
+    if (symbol) {
+      this.symbol.set(symbol);
+      this.symbolTouched.set(true);
+      this.prefilledFrom.set(symbol);
+    }
 
-      if (!result) {
-        this.clearDismissTimer();
-        return;
-      }
-
-      // Keep NEW (in-flight/accepted) visible until status updates
-      if (result.status === 'NEW') {
-        this.clearDismissTimer();
-        this.dismissMessageKey = null;
-        return;
-      }
-
-      const nextKey = `success:${result?.orderId ?? ''}:${result?.status ?? ''}:${result?.message ?? ''}`;
-
-      if (this.dismissTimer && this.dismissMessageKey === nextKey) {
-        return;
-      }
-
-      this.clearDismissTimer();
-      this.dismissMessageKey = nextKey;
-
-      this.dismissTimer = setTimeout(() => {
-        this.store.clearSubmissionResult();
-        this.dismissTimer = null;
-        this.dismissMessageKey = null;
-      }, 5000);
-    });
+    const side = (params.get('side') ?? '').trim().toUpperCase();
+    const matchingSide = this.sideOptions.find((option) => option === side);
+    if (matchingSide) {
+      this.side.set(matchingSide);
+    }
   }
 
   async onSubmit(): Promise<void> {
@@ -196,13 +179,19 @@ export class OrderTicketComponent implements OnDestroy {
       return;
     }
 
-    await this.store.submitOrder({
+    const placed = await this.store.submitOrder({
       symbol: this.symbol().trim().toUpperCase(),
       side: this.side(),
       quantity: Number(this.quantity().trim()),
       price: Number(this.price().trim()),
     });
 
+    // A placed order (whatever its status) gets its own confirmation page,
+    // which routes on to the Order Blotter for live status.
+    const result = this.store.submissionResult();
+    if (placed && result?.orderId) {
+      await this.router.navigate(['/order-confirmation', result.orderId]);
+    }
   }
 
   /**
@@ -217,7 +206,6 @@ export class OrderTicketComponent implements OnDestroy {
     this.quantityTouched.set(false);
     this.priceTouched.set(false);
     this.formSubmitted.set(false);
-    this.clearDismissTimer();
     // Clear error from store
     this.store.clearErrors();
   }
@@ -226,21 +214,20 @@ export class OrderTicketComponent implements OnDestroy {
    * Handle dismiss: clear the error alert
    */
   onDismissError(): void {
-    this.clearDismissTimer();
     // Clear error from store
     this.store.clearErrors();
   }
 
-  ngOnDestroy(): void {
-    this.clearDismissTimer();
-  }
-
-  private clearDismissTimer(): void {
-    if (this.dismissTimer) {
-      clearTimeout(this.dismissTimer);
-      this.dismissTimer = null;
+  /**
+   * Instrument edits: once the trader changes or clears a prefilled symbol,
+   * the "Prefilled from your … holding" hint no longer applies, so drop it.
+   */
+  onSymbolChange(value: string): void {
+    this.symbol.set(value);
+    const prefilled = this.prefilledFrom();
+    if (prefilled && (value ?? '').trim().toUpperCase() !== prefilled) {
+      this.prefilledFrom.set(null);
     }
-    this.dismissMessageKey = null;
   }
 
   onSymbolBlur(): void {

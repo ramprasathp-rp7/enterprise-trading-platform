@@ -29,6 +29,8 @@
     "@fortawesome/fontawesome-free": "^7.3.1",
     "@ngrx/signals": "^21.0.0",
     "chart.js": "^4.4.0",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "ng2-charts": "^10.0.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"

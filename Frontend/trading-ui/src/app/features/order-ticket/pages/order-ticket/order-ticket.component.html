@@ -9,7 +9,7 @@
     </div>
   </header>
 
-  <div class="ticket-message-stack" *ngIf="processedError() || submissionResult()">
+  <div class="ticket-message-stack" *ngIf="processedError()">
     <section class="ticket-message ticket-message-error" role="alert" *ngIf="processedError() as error" data-testid="order-rejected-message">
       <div class="message-header-row">
         <p class="message-title">Order rejected</p>
@@ -22,39 +22,6 @@
       </div>
     </section>
 
-    <section class="ticket-message"
-      [class.ticket-message-success]="result.status !== 'REJECTED'"
-      [class.ticket-message-error]="result.status === 'REJECTED'"
-      [attr.role]="result.status === 'REJECTED' ? 'alert' : null"
-      *ngIf="submissionResult() as result" data-testid="order-result-message">
-      <div class="message-header-row">
-        <p class="message-title">{{ result.status === 'NEW' ? 'Accepted and working' : result.status === 'REJECTED' ? 'Order rejected' : 'Order placed' }}</p>
-        <span class="message-pill">{{ result.status }}</span>
-      </div>
-      <p class="message-body">{{ result.message }}</p>
-      <dl class="message-meta-grid">
-        <div>
-          <dt>Order</dt>
-          <dd [title]="result.orderId">{{ result.orderId }}</dd>
-        </div>
-        <div>
-          <dt>Instrument</dt>
-          <dd>{{ result.symbol }}</dd>
-        </div>
-        <div>
-          <dt>Side</dt>
-          <dd>{{ result.side }}</dd>
-        </div>
-        <div>
-          <dt>Quantity</dt>
-          <dd>{{ result.quantity }}</dd>
-        </div>
-        <div>
-          <dt>Price</dt>
-          <dd>{{ result.price }}</dd>
-        </div>
-      </dl>
-    </section>
   </div>
 
   <div class="page-split">
@@ -118,7 +85,7 @@
               class="form-control symbol-input"
               [class.is-invalid]="symbolErrors().length > 0"
               [ngModel]="symbol()"
-              (ngModelChange)="symbol.set($event)"
+              (ngModelChange)="onSymbolChange($event)"
               (blur)="onSymbolBlur()"
               placeholder="AAPL or INFY.NS"
               maxlength="20"
@@ -127,6 +94,9 @@
             <div class="invalid-feedback" *ngIf="symbolErrors().length > 0">
               <div *ngFor="let error of symbolErrors()">{{ error }}</div>
             </div>
+            <p class="field-hint" *ngIf="prefilledFrom() && symbolErrors().length === 0" data-testid="prefill-hint">
+              <i class="fas fa-layer-group"></i> Prefilled from your {{ prefilledFrom() }} holding
+            </p>
           </div>
         </div>
 

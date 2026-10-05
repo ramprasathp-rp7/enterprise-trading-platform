@@ -1,0 +1,77 @@
+<div class="page confirmation-page transaction-confirmation-container">
+  <header class="page-header">
+    <div class="page-heading">
+      <p class="page-eyebrow">Transactions</p>
+      <h1 class="page-title">Transaction Confirmation</h1>
+      <p class="page-subtitle">Your transaction is complete. Review it any time in Transaction History.</p>
+    </div>
+  </header>
+
+  @if (loading()) {
+    <section class="panel">
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Looking up your transaction...</p>
+      </div>
+    </section>
+  } @else if (transaction(); as tx) {
+    <section class="panel confirmation-card" data-testid="transaction-complete-message" role="status">
+      <div class="confirmation-hero">
+        <span class="hero-icon"><i class="fas fa-circle-check"></i></span>
+        <div class="hero-text">
+          <h2 class="hero-title">{{ title() }}</h2>
+          <p class="hero-message">{{ summary() }}</p>
+        </div>
+        <span class="pill" [class.action-credit]="isCredit()" [class.action-debit]="!isCredit()" data-testid="transaction-direction">
+          {{ tx.actionType }}
+        </span>
+      </div>
+
+      <div class="confirmation-amount" data-testid="transaction-amount">
+        {{ isCredit() ? '+' : '−' }}{{ formatAmount(tx.amount) }}<small>USD</small>
+      </div>
+
+      <dl class="detail-grid">
+        <div class="detail detail-wide">
+          <dt>Transaction ID</dt>
+          <dd><code class="mono-id" [title]="tx.transactionId" data-testid="transaction-id">{{ tx.transactionId }}</code></dd>
+        </div>
+        <div class="detail">
+          <dt>Type</dt>
+          <dd>{{ tx.transactionType }}</dd>
+        </div>
+        <div class="detail">
+          <dt>Account</dt>
+          <dd>{{ accountId() ?? 'N/A' }}</dd>
+        </div>
+        <div class="detail">
+          <dt>Created</dt>
+          <dd [title]="formatDate(tx.createdOn)">{{ formatDate(tx.createdOn) }}</dd>
+        </div>
+      </dl>
+
+      <footer class="confirmation-actions">
+        <a routerLink="/transaction-history" class="btn btn-primary btn-lg" data-testid="view-history-btn">
+          <i class="fas fa-clock-rotate-left"></i> View Transaction History
+        </a>
+        <a routerLink="/transactions" class="btn btn-secondary btn-lg" data-testid="new-transaction-btn">
+          <i class="fas fa-plus"></i> New transaction
+        </a>
+      </footer>
+    </section>
+  } @else {
+    <section class="panel">
+      <div class="empty-state" data-testid="transaction-not-found">
+        <i class="fas fa-magnifying-glass"></i>
+        <p>We couldn't find this transaction</p>
+        <small>Check Transaction History for your recent activity.</small>
+        <div class="empty-actions">
+          <a routerLink="/transaction-history" class="btn btn-primary" data-testid="view-history-btn">
+            <i class="fas fa-clock-rotate-left"></i> Open Transaction History
+          </a>
+          <a routerLink="/transactions" class="btn btn-secondary">New transaction</a>
+        </div>
+      </div>
+    </section>
+  }
+</div>

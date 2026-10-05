@@ -43,7 +43,7 @@ import { BlotterOrder } from '../../blotter.models';
           <tbody>
             @for (order of orders; track order.orderId) {
               <tr class="transaction-row">
-                <td class="cell-order-id" [title]="order.orderId"><code class="mono-id">{{ order.orderId }}</code></td>
+                <td class="cell-order-id" [title]="order.orderId"><code class="order-id">@for (part of idParts(order.orderId); track $index) {<ng-container>{{ part }}</ng-container><wbr>}</code></td>
                 <td class="cell-symbol cell-strong">{{ order.symbol }}</td>
                 <td class="cell-side">
                   <span class="side-text" [class.buy]="order.side === 'BUY'" [class.sell]="order.side === 'SELL'">
@@ -103,19 +103,34 @@ import { BlotterOrder } from '../../blotter.models';
       max-height: min(64vh, 780px);
     }
 
+    /* Columns size to their content so nothing is cut off; the table fills the panel */
     .transactions-table {
-      min-width: 1040px;
+      table-layout: auto;
     }
 
-    .transactions-table col.col-order-id { width: 12%; }
-    .transactions-table col.col-symbol { width: 9%; }
-    .transactions-table col.col-side { width: 8%; }
-    .transactions-table col.col-quantity { width: 10%; }
-    .transactions-table col.col-price { width: 10%; }
-    .transactions-table col.col-executed { width: 10%; }
-    .transactions-table col.col-status { width: 13%; }
-    .transactions-table col.col-created { width: 13%; }
-    .transactions-table col.col-actions { width: 15%; }
+    .transactions-table th,
+    .transactions-table td {
+      overflow: visible;
+      text-overflow: clip;
+    }
+
+    /* Full order id: one line when there is room, otherwise wraps at its hyphens */
+    .cell-order-id {
+      white-space: normal;
+    }
+
+    .order-id {
+      display: inline-block;
+      /* wide enough for the longer half of a UUID, so an id never takes more than two lines */
+      min-width: 22ch;
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      color: var(--ink-700);
+      line-height: 1.45;
+      /* break only at the <wbr> after each hyphen, never inside a segment */
+      overflow-wrap: normal;
+      word-break: keep-all;
+    }
 
     /* Dense blotter: tighter inner padding, outer cells keep the 24px panel inset */
     .transactions-table th,
@@ -137,6 +152,20 @@ import { BlotterOrder } from '../../blotter.models';
     .transactions-table th.col-status,
     .transactions-table .cell-status {
       padding-left: 24px;
+    }
+
+    /* Narrower screens: tighten inner cell padding so the full row still fits */
+    @media (max-width: 1500px) {
+      .transactions-table th:not(:first-child):not(:last-child),
+      .transactions-table td:not(:first-child):not(:last-child) {
+        padding-left: 10px;
+        padding-right: 10px;
+      }
+
+      .transactions-table th.col-status,
+      .transactions-table .cell-status {
+        padding-left: 16px;
+      }
     }
 
     .cell-created {
@@ -200,6 +229,11 @@ export class OrderListComponent {
 
   /** Row currently asking "Confirm / Keep" */
   confirmingId: string | null = null;
+
+  /** Order id split after each hyphen so the browser may wrap it there and nowhere else */
+  idParts(orderId: string): string[] {
+    return (orderId ?? '').split(/(?<=-)/);
+  }
 
   confirmCancel(orderId: string): void {
     this.confirmingId = null;

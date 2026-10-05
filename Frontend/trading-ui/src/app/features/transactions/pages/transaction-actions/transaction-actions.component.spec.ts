@@ -1,9 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { TransactionActionsComponent } from './transaction-actions.component';
 import { TransactionService } from '../../services/transaction.service';
+import { TransactionsStore } from '../../transactions.store';
 import { CoreAuthService } from '../../../../core/auth/core-auth.service';
 import { TransactionResponse } from '../../models/transaction.models';
 
@@ -12,6 +13,7 @@ describe('TransactionActionsComponent', () => {
   let component: TransactionActionsComponent;
   let service: { deposit: ReturnType<typeof vi.fn>; withdraw: ReturnType<typeof vi.fn>; getTransactionHistory: ReturnType<typeof vi.fn> };
   let currentUser: ReturnType<typeof vi.fn>;
+  let navigate: ReturnType<typeof vi.fn>;
 
   const response = (overrides: Partial<TransactionResponse> = {}): TransactionResponse => ({
     transactionId: 'tx-9',
@@ -23,15 +25,7 @@ describe('TransactionActionsComponent', () => {
     ...overrides,
   });
 
-  beforeEach(async () => {
-    vi.useFakeTimers();
-    service = {
-      deposit: vi.fn(() => of(response())),
-      withdraw: vi.fn(() => of(response({ transactionType: 'WITHDRAW', actionType: 'DEBIT', amount: 40 }))),
-      getTransactionHistory: vi.fn(() => of([])),
-    };
-    currentUser = vi.fn(() => ({ accountId: 7 }));
-
+  async function create(): Promise<void> {
     await TestBed.configureTestingModule({
       imports: [TransactionActionsComponent],
       providers: [
@@ -41,13 +35,20 @@ describe('TransactionActionsComponent', () => {
       ],
     }).compileComponents();
 
+    navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true) as any;
     fixture = TestBed.createComponent(TransactionActionsComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
-  });
+  }
 
-  afterEach(() => {
-    vi.useRealTimers();
+  beforeEach(async () => {
+    service = {
+      deposit: vi.fn(() => of(response())),
+      withdraw: vi.fn(() => of(response({ transactionId: 'tx-10', transactionType: 'WITHDRAW', actionType: 'DEBIT', amount: 40 }))),
+      getTransactionHistory: vi.fn(() => of([])),
+    };
+    currentUser = vi.fn(() => ({ accountId: 7 }));
+    await create();
   });
 
   it('defaults to a credit (deposit) and exposes the account id', () => {
@@ -59,8 +60,7 @@ describe('TransactionActionsComponent', () => {
   });
 
   it('switches to debit via the segmented control and ignores unknown values', () => {
-    const debit = fixture.nativeElement.querySelector('.segment.debit');
-    debit.click();
+    fixture.nativeElement.querySelector('.segment.debit').click();
     fixture.detectChanges();
 
     expect(component.transactionType()).toBe('withdraw');
@@ -73,15 +73,14 @@ describe('TransactionActionsComponent', () => {
   });
 
   it('does nothing when the amount is missing, zero or negative', () => {
-    component.amount.set(null);
-    component.onSubmit();
-    component.amount.set(0);
-    component.onSubmit();
-    component.amount.set(-5);
-    component.onSubmit();
+    for (const value of [null, 0, -5]) {
+      component.amount.set(value);
+      component.onSubmit();
+    }
+    fixture.detectChanges();
 
     expect(service.deposit).not.toHaveBeenCalled();
-    expect(service.withdraw).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
   });
 
   it('does nothing without a signed-in account', () => {
@@ -93,7 +92,7 @@ describe('TransactionActionsComponent', () => {
     expect(service.deposit).not.toHaveBeenCalled();
   });
 
-  it('deposits, clears the amount and shows the success message for 3.5s', () => {
+  it('deposits and opens the confirmation page for the new transaction', () => {
     component.amount.set(250);
 
     component.onSubmit();
@@ -102,18 +101,10 @@ describe('TransactionActionsComponent', () => {
     expect(service.deposit).toHaveBeenCalledWith(7, 250);
     expect(component.amount()).toBeNull();
     expect(component.lastSubmittedAmount()).toBe(250);
-    expect(component.showSuccess()).toBe(true);
-    expect(component.getSuccessMessage()).toBe('250.00 credited successfully.');
-    expect(component.getLatestSuccessfulAmountLabel()).toBe('250.00');
-    expect(fixture.nativeElement.querySelector('[data-testid="transaction-complete-message"]')).not.toBeNull();
-
-    vi.advanceTimersByTime(3500);
-    fixture.detectChanges();
-
-    expect(component.showSuccess()).toBe(false);
+    expect(navigate).toHaveBeenCalledWith(['/transaction-confirmation', 'tx-9']);
   });
 
-  it('withdraws when debit is selected', () => {
+  it('withdraws when debit is selected and opens its confirmation', () => {
     component.onTransactionTypeChange('withdraw');
     component.amount.set(40);
 
@@ -121,11 +112,10 @@ describe('TransactionActionsComponent', () => {
     fixture.detectChanges();
 
     expect(service.withdraw).toHaveBeenCalledWith(7, 40);
-    expect(component.getSuccessMessage()).toBe('40.00 debited successfully.');
-    expect(component.getLatestSuccessfulTransaction()?.transactionType).toBe('WITHDRAW');
+    expect(navigate).toHaveBeenCalledWith(['/transaction-confirmation', 'tx-10']);
   });
 
-  it('shows the rejection with the attempted action and amount, then dismisses it', () => {
+  it('stays on the page and shows the rejection with the attempted action and amount', () => {
     service.withdraw.mockReturnValue(
       throwError(() => ({ error: { errorCode: 'TRANS-400', message: 'Insufficient funds' } }))
     );
@@ -135,45 +125,40 @@ describe('TransactionActionsComponent', () => {
     component.onSubmit();
     fixture.detectChanges();
 
+    expect(navigate).not.toHaveBeenCalled();
     const rejected = fixture.nativeElement.querySelector('[data-testid="transaction-rejected-message"]');
     expect(rejected.textContent).toContain('TRANS-400');
     expect(rejected.textContent).toContain('Insufficient funds');
     expect(component.getLastAttemptedActionLabel()).toBe('Withdrawal');
     expect(component.getLastAttemptedAmountLabel()).toBe('1,000.00');
-    expect(component.showSuccess()).toBe(false);
 
     component.dismissError();
     fixture.detectChanges();
-
     expect(component.error()).toBeNull();
+  });
+
+  it('does not redirect on arrival when an earlier transaction already succeeded', async () => {
+    // A deposit completed on a previous visit leaves the app-wide store in a success state
+    TestBed.inject(TransactionsStore).deposit(7, 250);
+    navigate.mockClear();
+
+    fixture.destroy();
+    fixture = TestBed.createComponent(TransactionActionsComponent);
+    fixture.detectChanges();
+
+    expect(navigate).not.toHaveBeenCalled();
   });
 
   it('falls back to generic labels before anything is submitted', () => {
     expect(component.getLastAttemptedActionLabel()).toBe('Deposit');
     expect(component.getLastAttemptedAmountLabel()).toBe('N/A');
-    expect(component.getLatestSuccessfulTransaction()).toBeNull();
-    expect(component.getLatestSuccessfulAmountLabel()).toBe('N/A');
-    expect(component.getSuccessMessage()).toBe('');
   });
 
-  it('formats the created-on label for ISO, epoch and invalid input', () => {
-    expect(component.getCreatedOnLabel(null)).toBe('N/A');
-    expect(component.getCreatedOnLabel(undefined)).toBe('N/A');
-    expect(component.getCreatedOnLabel('  ')).toBe('N/A');
-    expect(component.getCreatedOnLabel('not-a-date')).toBe('not-a-date');
-    expect(component.getCreatedOnLabel('2026-10-05T10:00:00Z')).toContain('2026');
-    expect(component.getCreatedOnLabel(1790000000)).toBe(component.getCreatedOnLabel(1790000000000));
-  });
-
-  it('clears the pending success timer on destroy', () => {
+  it('no longer renders a success card on the page itself', () => {
     component.amount.set(250);
     component.onSubmit();
     fixture.detectChanges();
-    expect(component.showSuccess()).toBe(true);
 
-    fixture.destroy();
-    vi.advanceTimersByTime(5000);
-
-    expect(component.showSuccess()).toBe(true);
+    expect(fixture.nativeElement.querySelector('[data-testid="transaction-complete-message"]')).toBeNull();
   });
 });

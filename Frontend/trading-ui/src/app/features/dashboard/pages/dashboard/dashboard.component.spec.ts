@@ -74,7 +74,7 @@ describe('DashboardComponent', () => {
 
     const trades = component.recentTrades();
     expect(trades.map((t) => t.id)).toEqual(['o1', 'o2', 'o3']);
-    expect(trades.map((t) => t.status)).toEqual(['EXECUTED', 'PENDING', 'CANCELLED']);
+    expect(trades.map((t) => t.status)).toEqual(['EXECUTED', 'PENDING', 'REJECTED']);
     expect(trades[0].time).toContain('2026');
     expect(trades[2].time).toBe('not-a-date');
     expect(fixture.nativeElement.querySelectorAll('tr.trade-row').length).toBe(3);
@@ -146,6 +146,16 @@ describe('DashboardComponent', () => {
     expect(component.getStatusIcon('executed')).toBe('fa-check-circle');
     expect(component.getStatusIcon('PENDING')).toBe('fa-hourglass-half');
     expect(component.getStatusIcon('CANCELLED')).toBe('fa-times-circle');
+    expect(component.getStatusIcon('REJECTED')).toBe('fa-ban');
     expect(component.getStatusIcon('OTHER')).toBe('fa-circle');
+  });
+
+  it('shows a rejected order with the red REJECTED badge, not CANCELLED', async () => {
+    blotterStore.orders.set([orders[2]]);
+    await create();
+
+    const pill = fixture.nativeElement.querySelector('tr.trade-row .pill');
+    expect(pill.textContent.trim()).toBe('REJECTED');
+    expect(pill.classList).toContain('status-rejected');
   });
 });

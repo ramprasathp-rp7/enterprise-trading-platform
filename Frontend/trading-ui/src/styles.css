@@ -420,6 +420,11 @@ table {
   flex-wrap: wrap;
 }
 
+/* Data-dense pages (e.g. the Order Blotter) use the full content width */
+.page.page-wide > * {
+  max-width: none;
+}
+
 /* Two-column work area: main column + supporting rail */
 .page-split {
   display: grid;
@@ -1451,6 +1456,177 @@ select.form-input,
 @keyframes rise-in {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================================================
+   CONFIRMATION PAGES (order + transaction)
+   A centred column: header and result card share one width.
+   =========================================================================== */
+
+.page.confirmation-page > * {
+  max-width: 760px;
+}
+
+.confirmation-page .page-header {
+  justify-content: center;
+  text-align: center;
+}
+
+.confirmation-card {
+  border-top: 4px solid var(--positive);
+}
+
+.confirmation-card.is-rejected {
+  border-top-color: var(--negative);
+}
+
+.confirmation-hero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.hero-icon {
+  width: 48px;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: var(--r-md);
+  background: var(--positive-soft);
+  color: var(--positive);
+  font-size: 22px;
+}
+
+.is-rejected .hero-icon {
+  background: var(--negative-soft);
+  color: var(--negative);
+}
+
+.hero-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.hero-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  color: var(--ink-900);
+}
+
+.hero-message {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--ink-500);
+}
+
+.confirmation-amount {
+  padding: 24px 24px 0;
+  font-size: 34px;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  color: var(--ink-900);
+  font-variant-numeric: tabular-nums;
+}
+
+.confirmation-amount small {
+  margin-left: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--ink-500);
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px 24px;
+  margin: 0;
+  padding: 24px;
+}
+
+.detail {
+  min-width: 0;
+}
+
+.detail-wide {
+  grid-column: 1 / -1;
+}
+
+.detail dt {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-500);
+}
+
+.detail dd {
+  margin: 6px 0 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink-900);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Values sit under their labels, even numeric ones that use .num elsewhere */
+.detail dd.num {
+  text-align: left;
+}
+
+.detail .mono-id {
+  font-size: 13.5px;
+}
+
+.status-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 24px 24px;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: var(--info-soft);
+  color: var(--info);
+  font-size: 13.5px;
+}
+
+.status-hint i {
+  margin-top: 2px;
+}
+
+.confirmation-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 20px 24px;
+  border-top: 1px solid var(--line);
+  background: var(--surface-muted);
+}
+
+.empty-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+@media (max-width: 640px) {
+  .detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .confirmation-actions .btn {
+    width: 100%;
+  }
 }
 
 /* ============================================================================

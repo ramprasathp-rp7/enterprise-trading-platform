@@ -5,6 +5,8 @@ import { of, throwError } from 'rxjs';
 import { TransactionsComponent } from './transactions.component';
 import { TransactionService } from '../../services/transaction.service';
 import { CoreAuthService } from '../../../../core/auth/core-auth.service';
+import { StatementPdfService } from '../../../../shared/statement-pdf.service';
+import { AccountsService } from '../../../../api/generated/trade';
 import { TransactionHistoryEntry } from '../../models/transaction.models';
 
 describe('TransactionsComponent', () => {
@@ -12,6 +14,8 @@ describe('TransactionsComponent', () => {
   let component: TransactionsComponent;
   let service: { getTransactionHistory: ReturnType<typeof vi.fn> };
   let currentUser: ReturnType<typeof vi.fn>;
+  let statementPdf: { download: ReturnType<typeof vi.fn> };
+  let accounts: { getAccount: ReturnType<typeof vi.fn> };
 
   const history: TransactionHistoryEntry[] = [
     { transactionId: 'abc-111', transactionType: 'DEPOSIT', actionType: 'CREDIT', amount: 1500, createdOn: '2026-10-01T10:00:00Z' },
@@ -26,6 +30,8 @@ describe('TransactionsComponent', () => {
         provideRouter([]),
         { provide: TransactionService, useValue: service },
         { provide: CoreAuthService, useValue: { currentUser } },
+        { provide: StatementPdfService, useValue: statementPdf },
+        { provide: AccountsService, useValue: accounts },
       ],
     }).compileComponents();
     fixture = TestBed.createComponent(TransactionsComponent);
@@ -35,7 +41,9 @@ describe('TransactionsComponent', () => {
 
   beforeEach(() => {
     service = { getTransactionHistory: vi.fn(() => of(history)) };
-    currentUser = vi.fn(() => ({ accountId: 7 }));
+    currentUser = vi.fn(() => ({ accountId: 7, username: 'rkumar' }));
+    statementPdf = { download: vi.fn().mockResolvedValue(undefined) };
+    accounts = { getAccount: vi.fn(() => of({ id: 7, accountId: 'ACC-000007', holderName: 'Rahul Kumar', cashBalance: 1, status: 'ACTIVE', version: 1, lastUpdated: '' })) };
   });
 
   it('loads history for the signed-in account and renders a row per transaction', async () => {
@@ -130,6 +138,68 @@ describe('TransactionsComponent', () => {
       expect(component.formatDate(undefined)).toBe('');
       expect(component.formatDate('   ')).toBe('');
       expect(component.formatDate('not-a-date')).toBe('not-a-date');
+    });
+  });
+
+  describe('transaction statement download', () => {
+    it('downloads all transactions with credit/debit totals when no filter is set', async () => {
+      await create();
+
+      fixture.nativeElement.querySelector('[data-testid="download-statement-btn"]').click();
+      await fixture.whenStable();
+
+      const def = statementPdf.download.mock.calls[0][0];
+      expect(def.title).toBe('Transaction Statement');
+      expect(accounts.getAccount).toHaveBeenCalledWith(7);
+      expect(def.details).toContainEqual(['Account', 'ACC-000007']);
+      expect(def.details).toContainEqual(['Filters', 'None (all transactions)']);
+      expect(def.summary).toEqual([
+        ['Transactions', '3'],
+        ['Total credits', '1,500.00'],
+        ['Total debits', '204.95'],
+        ['Net', '1,295.05'],
+      ]);
+      expect(def.rows.length).toBe(3);
+      expect(def.rows[0].slice(1)).toEqual(['DEPOSIT', 'CREDIT', '1,500.00', 'abc-111']);
+      expect(def.fileName).toMatch(/^transaction-statement-ACC-000007-\d{4}-\d{2}-\d{2}$/);
+    });
+
+    it('applies the on-screen filters to the statement', async () => {
+      await create();
+      component.selectedTypeFilter.set('FEE');
+      component.transactionIdQuery.set(' abc ');
+
+      await component.downloadStatement();
+
+      const def = statementPdf.download.mock.calls[0][0];
+      expect(def.details).toContainEqual(['Filters', 'Type FEE, ID contains "abc"']);
+      expect(def.rows.map((r: string[]) => r[4])).toEqual(['abc-333']);
+      expect(def.summary[0]).toEqual(['Transactions', '1']);
+    });
+
+    it('shows an error if the statement cannot be generated', async () => {
+      statementPdf.download.mockRejectedValue(new Error('boom'));
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+      await create();
+
+      await component.downloadStatement();
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector('[data-testid="download-error"]')).not.toBeNull();
+      expect(component.downloading()).toBe(false);
+      consoleError.mockRestore();
+    });
+
+    it('does not download when the customer account number cannot be loaded', async () => {
+      await create();
+      accounts.getAccount.mockReturnValue(of({ id: 7, accountId: '' }));
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      await component.downloadStatement();
+
+      expect(statementPdf.download).not.toHaveBeenCalled();
+      expect(component.downloadError()).not.toBeNull();
+      consoleError.mockRestore();
     });
   });
 });

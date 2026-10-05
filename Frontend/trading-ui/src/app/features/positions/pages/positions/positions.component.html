@@ -5,9 +5,26 @@
       <p class="page-subtitle">Current holdings by instrument</p>
     </div>
     <div class="page-actions">
+      <button
+        type="button"
+        class="btn btn-secondary"
+        (click)="downloadStatement()"
+        [disabled]="loading() || downloading()"
+        data-testid="download-statement-btn"
+      >
+        <i class="fas" [class.fa-file-pdf]="!downloading()" [class.fa-spinner]="downloading()" [class.fa-spin]="downloading()"></i>
+        {{ downloading() ? 'Preparing…' : 'Download statement' }}
+      </button>
       <a routerLink="/order-ticket" class="btn btn-primary"><i class="fas fa-plus"></i> New order</a>
     </div>
   </header>
+
+  @if (downloadError()) {
+    <div class="alert alert-error" role="alert" data-testid="download-error">
+      <i class="fas fa-exclamation-circle"></i>
+      <span>{{ downloadError() }}</span>
+    </div>
+  }
 
   @if (error()) {
     <div class="alert alert-error" role="alert">
@@ -46,6 +63,7 @@
           <col class="col-quantity" />
           <col class="col-cost" />
           <col class="col-basis" />
+          <col class="col-actions" />
         </colgroup>
         <thead>
           <tr>
@@ -53,12 +71,13 @@
             <th class="num">Quantity</th>
             <th class="num">Average cost</th>
             <th class="num">Cost basis</th>
+            <th class="col-actions-head">Trade</th>
           </tr>
         </thead>
         <tbody>
           @if (loading()) {
             <tr>
-              <td colspan="4">
+              <td colspan="5">
                 <div class="loading-state">
                   <div class="spinner"></div>
                   <p>Loading positions...</p>
@@ -67,7 +86,7 @@
             </tr>
           } @else if (positions().length === 0) {
             <tr>
-              <td colspan="4">
+              <td colspan="5">
                 <div class="empty-state">
                   <i class="fas fa-inbox"></i>
                   <p>No active positions</p>
@@ -82,6 +101,24 @@
                 <td class="num">{{ formatNumber(position.quantity, 0) }}</td>
                 <td class="num">{{ formatNumber(position.averageCost, 2) }}</td>
                 <td class="num">{{ formatNumber(position.quantity * position.averageCost, 2) }}</td>
+                <td class="cell-actions">
+                  <div class="trade-actions">
+                    <a
+                      class="btn btn-sm trade-btn buy"
+                      routerLink="/order-ticket"
+                      [queryParams]="{ symbol: position.symbol, side: 'BUY' }"
+                      [attr.aria-label]="'Buy ' + position.symbol"
+                      data-testid="holding-buy-btn"
+                    ><i class="fas fa-arrow-up"></i> Buy</a>
+                    <a
+                      class="btn btn-sm trade-btn sell"
+                      routerLink="/order-ticket"
+                      [queryParams]="{ symbol: position.symbol, side: 'SELL' }"
+                      [attr.aria-label]="'Sell ' + position.symbol"
+                      data-testid="holding-sell-btn"
+                    ><i class="fas fa-arrow-down"></i> Sell</a>
+                  </div>
+                </td>
               </tr>
             }
           }

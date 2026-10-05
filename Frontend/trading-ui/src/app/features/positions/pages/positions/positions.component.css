@@ -8,10 +8,52 @@
 }
 
 .transactions-table {
-  min-width: 640px;
+  min-width: 760px;
 }
 
-.transactions-table col.col-symbol { width: 31%; }
-.transactions-table col.col-quantity { width: 21%; }
-.transactions-table col.col-cost { width: 24%; }
-.transactions-table col.col-basis { width: 24%; }
+.transactions-table col.col-symbol { width: 22%; }
+.transactions-table col.col-quantity { width: 16%; }
+.transactions-table col.col-cost { width: 19%; }
+.transactions-table col.col-basis { width: 19%; }
+.transactions-table col.col-actions { width: 24%; }
+
+/* Trade actions sit at the row end, clear of the right-aligned numbers */
+.transactions-table .col-actions-head,
+.transactions-table .cell-actions {
+  text-align: right;
+}
+
+.trade-actions {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.trade-btn {
+  min-width: 76px;
+  background: var(--surface);
+  border-color: var(--line-strong);
+}
+
+.trade-btn i {
+  font-size: 11px;
+}
+
+.trade-btn.buy {
+  color: var(--positive);
+}
+
+.trade-btn.buy:hover {
+  background: var(--positive-soft);
+  border-color: var(--positive-line);
+  color: var(--positive);
+}
+
+.trade-btn.sell {
+  color: var(--negative);
+}
+
+.trade-btn.sell:hover {
+  background: var(--negative-soft);
+  border-color: var(--negative-line);
+  color: var(--negative);
+}
