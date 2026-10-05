@@ -55,45 +55,32 @@
   color: var(--ink-900);
 }
 
-/* Role cards */
-.checkbox-group {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.checkbox {
+/* Fixed role (customers only) */
+.role-card {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
   padding: 14px 16px;
   border: 1px solid var(--line-strong);
   border-radius: var(--r-md);
-  background: var(--surface);
-  cursor: pointer;
-  transition: border-color var(--t-fast), background-color var(--t-fast);
+  background: var(--surface-muted);
 }
 
-.checkbox:hover {
-  border-color: var(--line-hover);
+.role-card .pill {
+  margin-left: auto;
 }
 
-.checkbox:has(input:checked) {
-  border-color: var(--brand);
-  background: var(--brand-soft);
-}
-
-.checkbox:has(input:disabled) {
-  cursor: default;
-}
-
-.checkbox input {
-  width: 16px;
-  height: 16px;
-  margin-top: 2px;
+.role-icon {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
-  accent-color: var(--brand);
-  cursor: inherit;
+  border-radius: 10px;
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-size: 13px;
 }
 
 .checkbox-text {
@@ -167,10 +154,6 @@
 }
 
 @media (max-width: 640px) {
-  .checkbox-group {
-    grid-template-columns: 1fr;
-  }
-
   .form-actions {
     flex-direction: column;
   }
