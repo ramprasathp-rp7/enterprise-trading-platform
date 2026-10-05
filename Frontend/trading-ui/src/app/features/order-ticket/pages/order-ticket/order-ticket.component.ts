@@ -11,6 +11,9 @@ import {
   isValidWholeQuantity,
 } from '../../order-ticket.models';
 import { ProcessedError } from '../../../../core/errors/error-response-handler';
+import { NotificationService } from '../../../../core/notifications/notification.service';
+import { OrderStatusWatcherService } from '../../../../core/notifications/order-status-watcher.service';
+import { orderPlacedNotice } from '../../../../core/notifications/order-messages';
 import { Instrument } from '../../../instruments/instrument.models';
 import { InstrumentSearchComponent } from '../../../instruments/components/instrument-search/instrument-search.component';
 import { InstrumentPanelComponent } from '../../../instruments/components/instrument-panel/instrument-panel.component';
@@ -27,6 +30,8 @@ export class OrderTicketComponent implements OnInit {
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   private destroyRef = inject(DestroyRef);
+  private notifications = inject(NotificationService);
+  private orderWatcher = inject(OrderStatusWatcherService);
 
   readonly symbol = signal<string>('');
   readonly side = signal<OrderSide>(OrderSide.Buy);
@@ -61,7 +66,7 @@ export class OrderTicketComponent implements OnInit {
     }
 
     if (!isValidTradeableSymbol(value)) {
-      return ['Use a tradeable symbol shape such as AAPL, INFY.NS, FX:USD/EUR or X:BTC-USD.'];
+      return ['Try a symbol like AAPL.'];
     }
 
     return [];
@@ -78,7 +83,7 @@ export class OrderTicketComponent implements OnInit {
     }
 
     if (!isValidWholeQuantity(value)) {
-      return ['Quantity must be a whole number greater than zero.'];
+      return ['Whole number above 0.'];
     }
 
     return [];
@@ -95,7 +100,7 @@ export class OrderTicketComponent implements OnInit {
     }
 
     if (!isValidLimitPrice(value)) {
-      return ['Price must be greater than zero with at most two decimal places.'];
+      return ['Above 0, max 2 decimals.'];
     }
 
     return [];
@@ -214,6 +219,12 @@ export class OrderTicketComponent implements OnInit {
     // which routes on to the Order Blotter for live status.
     const result = this.store.submissionResult();
     if (placed && result?.orderId) {
+      this.notifications.notify({
+        ...orderPlacedNotice(result),
+        link: { path: `/order-confirmation/${result.orderId}` },
+        dedupeKey: `order-created:${result.orderId}`,
+      });
+      this.orderWatcher.track(result.orderId, result.status);
       await this.router.navigate(['/order-confirmation', result.orderId]);
     }
   }

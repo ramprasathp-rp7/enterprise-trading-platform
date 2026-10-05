@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { NotificationService } from '../../../../core/notifications/notification.service';
 import { of, throwError } from 'rxjs';
 import { PositionsComponent } from './positions.component';
 import { AccountsService, PositionResponse } from '../../../../api/generated/trade';
@@ -108,6 +109,7 @@ describe('PositionsComponent', () => {
     it('downloads a PDF of the current holdings with totals', async () => {
       await create();
 
+      const notify = vi.spyOn(TestBed.inject(NotificationService), 'notify');
       fixture.nativeElement.querySelector('[data-testid="download-statement-btn"]').click();
       await fixture.whenStable();
 
@@ -121,6 +123,12 @@ describe('PositionsComponent', () => {
       expect(def.rows[0]).toEqual(['AAPL', '100', '182.40', '18,240.00']);
       expect(def.footerRow).toEqual(['Total', '120', '', '25,262.00']);
       expect(def.fileName).toMatch(/^holdings-statement-ACC-000007-\d{4}-\d{2}-\d{2}$/);
+      expect(notify).toHaveBeenCalledWith({
+        kind: 'report',
+        title: 'Report exported',
+        message: `Holdings statement downloaded as ${def.fileName}.pdf.`,
+        link: { path: '/positions' },
+      });
       expect(component.downloading()).toBe(false);
     });
 
@@ -145,12 +153,14 @@ describe('PositionsComponent', () => {
       statementPdf.download.mockRejectedValue(new Error('boom'));
       const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
       await create();
+      const notify = vi.spyOn(TestBed.inject(NotificationService), 'notify');
 
       await component.downloadStatement();
       fixture.detectChanges();
 
       expect(fixture.nativeElement.querySelector('[data-testid="download-error"]').textContent).toContain('Could not generate the statement');
       expect(component.downloading()).toBe(false);
+      expect(notify).not.toHaveBeenCalled();
       consoleError.mockRestore();
     });
 

@@ -34,6 +34,9 @@ interface RecentTrade {
  * Dashboard Component
  * Main dashboard landing page with portfolio overview and quick actions
  */
+/** Compact timestamp for the recent trades list, e.g. "Oct 5, 09:00 AM" */
+const TRADE_TIME_FORMAT: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+
 @Component({
   selector: 'app-dashboard',
   standalone: true,
@@ -114,9 +117,9 @@ export class DashboardComponent implements OnInit {
       return [];
     }
     
-    // Map blotter orders to recent trades, get last 3 orders with any status
+    // Map blotter orders to recent trades, get last 4 orders with any status
     return orders
-      .slice(0, 3)
+      .slice(0, 4)
       .map(order => ({
         id: order.orderId,
         symbol: order.symbol,
@@ -183,28 +186,14 @@ export class DashboardComponent implements OnInit {
         const epochMs = Math.abs(numericValue) < 1e12 ? numericValue * 1000 : numericValue;
         const epochDate = new Date(epochMs);
         if (!Number.isNaN(epochDate.getTime())) {
-          return epochDate.toLocaleString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-          });
+          return epochDate.toLocaleString('en-US', TRADE_TIME_FORMAT);
         }
       }
     }
 
     const parsedDate = new Date(raw);
     if (!Number.isNaN(parsedDate.getTime())) {
-      return parsedDate.toLocaleString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-      });
+      return parsedDate.toLocaleString('en-US', TRADE_TIME_FORMAT);
     }
 
     return raw;

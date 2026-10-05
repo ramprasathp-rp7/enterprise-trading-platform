@@ -9,6 +9,7 @@ import {
 } from '../../../../api/generated/trade';
 import { CoreAuthService } from '../../../../core/auth/core-auth.service';
 import { StatementPdfService, fileDate } from '../../../../shared/statement-pdf.service';
+import { NotificationService } from '../../../../core/notifications/notification.service';
 
 /**
  * Positions Component
@@ -26,6 +27,7 @@ export class PositionsComponent implements OnInit {
   private readonly authService = inject(CoreAuthService);
   private readonly accountsService = inject(AccountsService);
   private readonly statementPdf = inject(StatementPdfService);
+  private readonly notifications = inject(NotificationService);
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
@@ -75,6 +77,7 @@ export class PositionsComponent implements OnInit {
     this.downloadError.set(null);
     try {
       const accountNumber = await this.customerAccountNumber();
+      const fileName = `holdings-statement-${accountNumber}-${fileDate()}`;
       await this.statementPdf.download({
         title: 'Holdings Statement',
         details: [
@@ -100,7 +103,13 @@ export class PositionsComponent implements OnInit {
         ]),
         footerRow: ['Total', this.formatNumber(this.totalUnits(), 0), '', this.formatNumber(this.totalCostBasis(), 2)],
         emptyMessage: 'There are no open positions on this account.',
-        fileName: `holdings-statement-${accountNumber}-${fileDate()}`,
+        fileName,
+      });
+      this.notifications.notify({
+        kind: 'report',
+        title: 'Report exported',
+        message: `Holdings statement downloaded as ${fileName}.pdf.`,
+        link: { path: '/positions' },
       });
     } catch (err) {
       console.error('Failed to generate holdings statement', err);

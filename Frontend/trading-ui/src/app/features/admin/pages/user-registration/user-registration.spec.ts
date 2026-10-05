@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
+import { NotificationService } from '../../../../core/notifications/notification.service';
 import { FormControl } from '@angular/forms';
 import { AdminUserRegistrationComponent } from './user-registration';
 import { environment } from '../../../../core/config/environment';
@@ -64,6 +65,7 @@ describe('AdminUserRegistrationComponent', () => {
   });
 
   it('registers the user, resets the form and shows a success message', () => {
+    const notify = vi.spyOn(TestBed.inject(NotificationService), 'notify');
     fillValidForm();
 
     component.onSubmit();
@@ -82,6 +84,12 @@ describe('AdminUserRegistrationComponent', () => {
     expect(component.loading()).toBe(false);
     expect(component.successMessage()).toBe("User 'jdoe' registered successfully!");
     expect(component.form.value.username).toBeNull();
+    expect(notify).toHaveBeenCalledWith({
+      kind: 'user-registered',
+      title: 'Registration successful',
+      message: "Customer 'jdoe' was registered for account 1001.",
+      link: { path: '/admin/register' },
+    });
 
     vi.advanceTimersByTime(5000);
     expect(component.successMessage()).toBe('');

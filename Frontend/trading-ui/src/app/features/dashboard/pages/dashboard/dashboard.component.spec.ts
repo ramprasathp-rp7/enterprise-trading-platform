@@ -97,15 +97,15 @@ describe('DashboardComponent', () => {
     expect(component.portfolioStats()[2]).toEqual(expect.objectContaining({ value: '0', caption: 'Nothing awaiting execution' }));
   });
 
-  it('maps the three most recent orders to trades with display statuses', async () => {
+  it('maps the four most recent orders to trades with display statuses', async () => {
     await create();
 
     const trades = component.recentTrades();
-    expect(trades.map((t) => t.id)).toEqual(['o1', 'o2', 'o3']);
-    expect(trades.map((t) => t.status)).toEqual(['EXECUTED', 'PENDING', 'REJECTED']);
-    expect(trades[0].time).toContain('2026');
+    expect(trades.map((t) => t.id)).toEqual(['o1', 'o2', 'o3', 'o4']);
+    expect(trades.map((t) => t.status)).toEqual(['EXECUTED', 'PENDING', 'REJECTED', 'CANCELLED']);
+    expect(trades[0].time).toMatch(/^[A-Z][a-z]{2} \d{1,2}, \d{2}:\d{2} [AP]M$/);
     expect(trades[2].time).toBe('not-a-date');
-    expect(fixture.nativeElement.querySelectorAll('tr.trade-row').length).toBe(3);
+    expect(fixture.nativeElement.querySelectorAll('tr.trade-row').length).toBe(4);
   });
 
   it('maps CANCELLED and unknown statuses and handles empty timestamps', async () => {

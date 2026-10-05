@@ -17,7 +17,8 @@ interface NavItem {
   styleUrls: ['../sidebar/sidebar.component.css'],
 })
 export class AdminSidebarComponent {
-  isCollapsed = false;
+  /** On phones the sidebar is an overlay drawer, so it starts closed */
+  isCollapsed = typeof window !== 'undefined' && window.innerWidth < 768;
 
   navigationItems: NavItem[] = [
     {

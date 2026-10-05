@@ -3,7 +3,7 @@
 :host {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
 }
 
 /* ===== ALLOCATION ===== */
@@ -81,7 +81,7 @@
 .allocation-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   list-style: none;
   margin: 4px 0 0;
   padding: 0;
@@ -90,13 +90,13 @@
 .legend-item {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  height: 30px;
-  padding: 0 12px;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
   border: 1px solid var(--line);
   border-radius: var(--r-pill);
   background: var(--surface);
-  font-size: 13px;
+  font-size: 12.5px;
 }
 
 .legend-dot {
@@ -118,8 +118,8 @@
 /* ===== HOLDINGS DETAIL ===== */
 .holdings-detail {
   display: grid;
-  grid-template-columns: 340px minmax(0, 1fr);
-  gap: 20px;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1fr);
+  gap: 16px;
   align-items: stretch;
 }
 
@@ -127,7 +127,7 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 22px 24px;
+  padding: 18px 20px;
   border-radius: var(--r-lg);
   background:
     radial-gradient(circle at 100% 0%, rgba(59, 130, 246, 0.35), transparent 55%),
@@ -146,23 +146,28 @@
 }
 
 .top-symbol {
-  margin: 6px 0 18px;
-  font-size: 28px;
+  margin: 4px 0 12px;
+  font-size: 26px;
   font-weight: 650;
   letter-spacing: -0.02em;
 }
 
+/* Label / value rows so long amounts never truncate in the narrower card */
 .top-metrics {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+  grid-template-columns: 1fr;
+  gap: 6px;
   margin: 0;
-  padding-top: 16px;
+  padding-top: 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.14);
 }
 
 .top-metrics .metric {
   min-width: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .top-metrics .label {
@@ -172,8 +177,8 @@
 }
 
 .top-metrics .value {
-  margin: 4px 0 0;
-  font-size: 16px;
+  margin: 0;
+  font-size: 15px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   overflow: hidden;
@@ -188,8 +193,18 @@
   overflow: hidden;
 }
 
+.mini-table .data-table th {
+  height: 38px;
+}
+
+.mini-table .data-table th,
 .mini-table .data-table td {
-  height: 50px;
+  padding-left: 14px;
+  padding-right: 14px;
+}
+
+.mini-table .data-table td {
+  height: 40px;
 }
 
 @media (max-width: 1100px) {

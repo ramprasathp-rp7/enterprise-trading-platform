@@ -6,6 +6,7 @@ import { firstValueFrom } from 'rxjs';
 import { AccountsService } from '../../../../api/generated/trade';
 import { CoreAuthService } from '../../../../core/auth/core-auth.service';
 import { StatementPdfService, fileDate } from '../../../../shared/statement-pdf.service';
+import { NotificationService } from '../../../../core/notifications/notification.service';
 import { TransactionsStore } from '../../transactions.store';
 import { TransactionType } from '../../models/transaction.models';
 
@@ -24,6 +25,7 @@ export class TransactionsComponent implements OnInit {
   private readonly authService = inject(CoreAuthService);
   readonly transactionsStore = inject(TransactionsStore);
   private readonly statementPdf = inject(StatementPdfService);
+  private readonly notifications = inject(NotificationService);
   private readonly accountsService = inject(AccountsService);
 
   // State from store
@@ -85,6 +87,7 @@ export class TransactionsComponent implements OnInit {
     this.downloadError.set(null);
     try {
       const accountNumber = await this.customerAccountNumber();
+      const fileName = `transaction-statement-${accountNumber}-${fileDate()}`;
       await this.statementPdf.download({
         title: 'Transaction Statement',
         details: [
@@ -113,7 +116,13 @@ export class TransactionsComponent implements OnInit {
           t.transactionId,
         ]),
         emptyMessage: 'No transactions match the current filters.',
-        fileName: `transaction-statement-${accountNumber}-${fileDate()}`,
+        fileName,
+      });
+      this.notifications.notify({
+        kind: 'report',
+        title: 'Report exported',
+        message: `Transaction statement downloaded as ${fileName}.pdf.`,
+        link: { path: '/transaction-history' },
       });
     } catch (err) {
       console.error('Failed to generate transaction statement', err);

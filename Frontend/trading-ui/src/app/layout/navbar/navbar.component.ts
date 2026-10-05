@@ -8,6 +8,9 @@ import { AccountsService } from '../../api/generated/trade';
 import { ThemeService } from '../../core/services/theme.service';
 import { InstrumentSearchDialogComponent } from '../../features/instruments/components/instrument-search-dialog/instrument-search-dialog.component';
 import { Instrument } from '../../features/instruments/instrument.models';
+import { NotificationBellComponent } from '../../core/notifications/notification-bell.component';
+import { NotificationService } from '../../core/notifications/notification.service';
+import { OrderStatusWatcherService } from '../../core/notifications/order-status-watcher.service';
 
 /**
  * Navigation Bar Component
@@ -21,12 +24,14 @@ import { Instrument } from '../../features/instruments/instrument.models';
 @Component({
   selector: 'app-navbar',
   standalone: true,
-  imports: [CommonModule, RouterModule, InstrumentSearchDialogComponent],
+  imports: [CommonModule, RouterModule, InstrumentSearchDialogComponent, NotificationBellComponent],
   templateUrl: './navbar.component.html',
   styleUrls: ['./navbar.component.css'],
 })
 export class NavbarComponent {
   readonly themeService = inject(ThemeService);
+  private readonly notifications = inject(NotificationService);
+  private readonly orderWatcher = inject(OrderStatusWatcherService);
   accountDisplayId = signal<string | null>(null);
   readonly searchOpen = signal(false);
   isProfileMenuOpen = false;
@@ -42,6 +47,8 @@ export class NavbarComponent {
 
   ngOnInit(): void {
     this.updateAccountDisplayId();
+    // First sign-in on this browser: a one-time hello
+    this.notifications.welcomeIfFirstVisit();
   }
 
   ngOnDestroy(): void {
@@ -107,6 +114,7 @@ export class NavbarComponent {
 
   logout(): void {
     this.closeProfileMenu();
+    this.orderWatcher.stop();
     this.signInStore.logout();
     this.router.navigateByUrl('/sign-in');
   }

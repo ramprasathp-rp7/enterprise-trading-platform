@@ -791,7 +791,14 @@ select.form-input,
   margin-top: 6px;
   font-size: 12.5px;
   font-weight: 500;
+  line-height: 1.35;
   color: var(--negative);
+}
+
+/* Directly under a field: sit snug against it (the group's own gap already spaces it) */
+.form-group > .invalid-feedback,
+.form-group > .field-error {
+  margin-top: -4px;
 }
 
 .field-hint {

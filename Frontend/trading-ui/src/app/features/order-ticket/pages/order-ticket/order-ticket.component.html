@@ -5,6 +5,11 @@
       <p class="page-subtitle">Search an instrument, review its chart and place a limit order</p>
     </div>
     <div class="page-actions">
+      <app-instrument-search
+        class="ticket-search"
+        placeholder="Search instruments, e.g. AAPL or Infosys"
+        (selected)="onInstrumentSelected($event)"
+      />
       <a routerLink="/blotter" class="btn btn-secondary"><i class="fas fa-list-ul"></i> Order blotter</a>
     </div>
   </header>
@@ -24,23 +29,17 @@
 
   </div>
 
-  <app-instrument-search
-    class="ticket-search"
-    placeholder="Search instruments to trade, e.g. AAPL or Infosys"
-    (selected)="onInstrumentSelected($event)"
-  />
-
   <div class="trade-layout">
     <!-- Instrument details + chart (follows the instrument in the ticket) -->
     <app-instrument-panel [symbol]="symbol()" />
 
     <aside class="trade-rail">
     <!-- Order entry -->
-    <section class="panel ticket-card">
+    <section class="panel ticket-card" [class.is-sell]="side() === sideOptions[1]">
       <header class="panel-header">
         <div>
           <h2 class="panel-title">Place an order</h2>
-          <p class="panel-subtitle">Limit order · enter units and price per unit</p>
+          <p class="panel-subtitle">Limit order</p>
         </div>
       </header>
 
@@ -94,6 +93,7 @@
               data-testid="symbol-input"
               class="form-control symbol-input"
               [class.is-invalid]="symbolErrors().length > 0"
+              [attr.aria-describedby]="symbolErrors().length > 0 ? 'symbol-error' : null"
               [ngModel]="symbol()"
               (ngModelChange)="onSymbolChange($event)"
               (blur)="onSymbolBlur()"
@@ -101,11 +101,12 @@
               maxlength="20"
               autocomplete="off"
             />
-            <div class="invalid-feedback" *ngIf="symbolErrors().length > 0">
-              <div *ngFor="let error of symbolErrors()">{{ error }}</div>
+            <div class="invalid-feedback" id="symbol-error" role="alert" *ngIf="symbolErrors().length > 0" [title]="symbolErrors()[0]">
+              {{ symbolErrors()[0] }}
             </div>
-            <p class="field-hint" *ngIf="prefilledFrom() && symbolErrors().length === 0" data-testid="prefill-hint">
-              <i class="fas fa-layer-group"></i> Prefilled from your {{ prefilledFrom() }} holding
+            <p class="field-hint" *ngIf="prefilledFrom() && symbolErrors().length === 0" data-testid="prefill-hint"
+              [title]="'Prefilled from your ' + prefilledFrom() + ' holding'">
+              <i class="fas fa-layer-group"></i> From your {{ prefilledFrom() }} holding
             </p>
           </div>
         </div>
@@ -119,14 +120,15 @@
               data-testid="quantity-input"
               class="form-control numeric"
               [class.is-invalid]="quantityErrors().length > 0"
+              [attr.aria-describedby]="quantityErrors().length > 0 ? 'quantity-error' : null"
               [ngModel]="quantity()"
               (ngModelChange)="quantity.set($event)"
               (blur)="onQuantityBlur()"
               inputmode="numeric"
               placeholder="100"
             />
-            <div class="invalid-feedback" *ngIf="quantityErrors().length > 0">
-              <div *ngFor="let error of quantityErrors()">{{ error }}</div>
+            <div class="invalid-feedback" id="quantity-error" role="alert" *ngIf="quantityErrors().length > 0" [title]="quantityErrors()[0]">
+              {{ quantityErrors()[0] }}
             </div>
           </div>
 
@@ -138,17 +140,63 @@
               data-testid="price-input"
               class="form-control numeric"
               [class.is-invalid]="priceErrors().length > 0"
+              [attr.aria-describedby]="priceErrors().length > 0 ? 'price-error' : null"
               [ngModel]="price()"
               (ngModelChange)="price.set($event)"
               (blur)="onPriceBlur()"
               inputmode="decimal"
               placeholder="245.75"
             />
-            <div class="invalid-feedback" *ngIf="priceErrors().length > 0">
-              <div *ngFor="let error of priceErrors()">{{ error }}</div>
+            <div class="invalid-feedback" id="price-error" role="alert" *ngIf="priceErrors().length > 0" [title]="priceErrors()[0]">
+              {{ priceErrors()[0] }}
             </div>
           </div>
         </div>
+
+        <!-- Live order summary: one row per field when there is room, a single line on short screens -->
+        <section class="order-summary" aria-label="Order summary" data-testid="order-summary">
+          <dl class="summary-rows">
+            <div class="summary-line summary-compact">
+              <dt class="summary-label">Order</dt>
+              <dd class="summary-order" data-testid="summary-order">
+                <span class="side-text" [class.buy]="side() === sideOptions[0]" [class.sell]="side() === sideOptions[1]">
+                  <i class="fas" [class.fa-arrow-up]="side() === sideOptions[0]" [class.fa-arrow-down]="side() === sideOptions[1]"></i>
+                  {{ side() }}
+                </span>
+                {{ quantity().trim() || '—' }}
+                {{ symbol().trim() ? symbol().trim().toUpperCase() : '—' }}
+                &#64; {{ price().trim() || '—' }}
+              </dd>
+            </div>
+
+            <div class="summary-line summary-detail">
+              <dt class="summary-label">Side</dt>
+              <dd class="summary-value-sm">
+                <span class="side-text" [class.buy]="side() === sideOptions[0]" [class.sell]="side() === sideOptions[1]">
+                  <i class="fas" [class.fa-arrow-up]="side() === sideOptions[0]" [class.fa-arrow-down]="side() === sideOptions[1]"></i>
+                  {{ side() }}
+                </span>
+              </dd>
+            </div>
+            <div class="summary-line summary-detail">
+              <dt class="summary-label">Instrument</dt>
+              <dd class="summary-value-sm" data-testid="summary-symbol">{{ symbol().trim() ? symbol().trim().toUpperCase() : '—' }}</dd>
+            </div>
+            <div class="summary-line summary-detail">
+              <dt class="summary-label">Quantity</dt>
+              <dd class="summary-value-sm" data-testid="summary-quantity">{{ quantity().trim() || '—' }}</dd>
+            </div>
+            <div class="summary-line summary-detail">
+              <dt class="summary-label">Limit price</dt>
+              <dd class="summary-value-sm" data-testid="summary-price">{{ price().trim() || '—' }}</dd>
+            </div>
+
+            <div class="summary-line summary-total">
+              <dt class="summary-label">Est. notional</dt>
+              <dd class="summary-value" data-testid="summary-notional">{{ estimatedNotional() !== null ? (estimatedNotional() | number:'1.2-2') : '—' }}</dd>
+            </div>
+          </dl>
+        </section>
 
         <div class="form-footer">
           <button type="submit" class="btn btn-primary btn-lg submit-button" data-testid="submit-order-btn" [disabled]="!canSubmit()">
@@ -162,42 +210,6 @@
         </div>
       </form>
     </section>
-
-    <!-- Live order summary -->
-    <aside class="panel summary-card" aria-label="Order summary">
-      <header class="panel-header">
-        <h2 class="panel-title">Order summary</h2>
-      </header>
-      <div class="panel-body">
-        <dl class="summary-list">
-          <div>
-            <dt>Side</dt>
-            <dd>
-              <span class="side-text" [class.buy]="side() === sideOptions[0]" [class.sell]="side() === sideOptions[1]">
-                <i class="fas" [class.fa-arrow-up]="side() === sideOptions[0]" [class.fa-arrow-down]="side() === sideOptions[1]"></i>
-                {{ side() }}
-              </span>
-            </dd>
-          </div>
-          <div>
-            <dt>Instrument</dt>
-            <dd>{{ symbol().trim() ? symbol().trim().toUpperCase() : '—' }}</dd>
-          </div>
-          <div>
-            <dt>Quantity</dt>
-            <dd>{{ quantity().trim() || '—' }}</dd>
-          </div>
-          <div>
-            <dt>Limit price</dt>
-            <dd>{{ price().trim() || '—' }}</dd>
-          </div>
-          <div class="summary-total">
-            <dt>Est. notional</dt>
-            <dd>{{ estimatedNotional() !== null ? (estimatedNotional() | number:'1.2-2') : '—' }}</dd>
-          </div>
-        </dl>
-      </div>
-    </aside>
     </aside>
   </div>
 </div>

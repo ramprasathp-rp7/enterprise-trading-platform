@@ -7,6 +7,7 @@ import { TransactionService } from '../../services/transaction.service';
 import { TransactionsStore } from '../../transactions.store';
 import { CoreAuthService } from '../../../../core/auth/core-auth.service';
 import { TransactionResponse } from '../../models/transaction.models';
+import { AccountsService } from '../../../../api/generated/trade';
 
 describe('TransactionActionsComponent', () => {
   let fixture: ComponentFixture<TransactionActionsComponent>;
@@ -14,6 +15,7 @@ describe('TransactionActionsComponent', () => {
   let service: { deposit: ReturnType<typeof vi.fn>; withdraw: ReturnType<typeof vi.fn>; getTransactionHistory: ReturnType<typeof vi.fn> };
   let currentUser: ReturnType<typeof vi.fn>;
   let navigate: ReturnType<typeof vi.fn>;
+  let accounts: { getBalance: ReturnType<typeof vi.fn>; getAccount: ReturnType<typeof vi.fn> };
 
   const response = (overrides: Partial<TransactionResponse> = {}): TransactionResponse => ({
     transactionId: 'tx-9',
@@ -32,6 +34,7 @@ describe('TransactionActionsComponent', () => {
         provideRouter([]),
         { provide: TransactionService, useValue: service },
         { provide: CoreAuthService, useValue: { currentUser } },
+        { provide: AccountsService, useValue: accounts },
       ],
     }).compileComponents();
 
@@ -48,15 +51,19 @@ describe('TransactionActionsComponent', () => {
       getTransactionHistory: vi.fn(() => of([])),
     };
     currentUser = vi.fn(() => ({ accountId: 7 }));
+    accounts = {
+      getBalance: vi.fn(() => of({ accountId: 7, cashBalance: 1000, currency: 'USD', asOf: '' })),
+      getAccount: vi.fn(() => of({ id: 7, accountId: 'ACC-000007', holderName: 'R', cashBalance: 1000, status: 'ACTIVE', version: 1, lastUpdated: '' })),
+    };
     await create();
   });
 
   it('defaults to a credit (deposit) and exposes the account id', () => {
     expect(component.transactionType()).toBe('deposit');
     expect(component.accountId()).toBe(7);
-    expect(component.getTransactionTitle()).toBe('Credit Account');
+    expect(component.getTransactionTitle()).toBe('Deposit funds');
     expect(component.getTransactionDescription()).toContain('Add funds');
-    expect(component.getActionLabel()).toBe('Credit');
+    expect(component.getActionLabel()).toBe('Deposit');
   });
 
   it('switches to debit via the segmented control and ignores unknown values', () => {
@@ -64,9 +71,9 @@ describe('TransactionActionsComponent', () => {
     fixture.detectChanges();
 
     expect(component.transactionType()).toBe('withdraw');
-    expect(component.getTransactionTitle()).toBe('Debit Account');
+    expect(component.getTransactionTitle()).toBe('Withdraw funds');
     expect(component.getTransactionDescription()).toContain('Move funds out');
-    expect(component.getActionLabel()).toBe('Debit');
+    expect(component.getActionLabel()).toBe('Withdraw');
 
     component.onTransactionTypeChange('bogus');
     expect(component.transactionType()).toBe('withdraw');
@@ -160,5 +167,95 @@ describe('TransactionActionsComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.querySelector('[data-testid="transaction-complete-message"]')).toBeNull();
+  });
+
+  describe('balance, quick amounts and recent activity', () => {
+    const q = (sel: string) => fixture.nativeElement.querySelector(sel);
+
+    it('shows the cash balance and the customer-facing account number', () => {
+      expect(accounts.getBalance).toHaveBeenCalledWith(7);
+      expect(q('[data-testid="balance-value"]').textContent).toContain('1,000.00');
+      expect(q('[data-testid="balance-card"]').textContent).toContain('ACC-000007');
+    });
+
+    it('projects the balance after a deposit or withdrawal', () => {
+      component.amount.set(250);
+      fixture.detectChanges();
+      expect(component.balanceAfter()).toBe(1250);
+      expect(q('[data-testid="balance-after"]').textContent).toContain('1,250.00');
+
+      component.onTransactionTypeChange('withdraw');
+      fixture.detectChanges();
+      expect(component.balanceAfter()).toBe(750);
+    });
+
+    it('warns (without blocking) when a withdrawal is more than the available cash', () => {
+      component.onTransactionTypeChange('withdraw');
+      component.amount.set(1500);
+      fixture.detectChanges();
+
+      expect(component.exceedsBalance()).toBe(true);
+      expect(q('[data-testid="exceeds-balance"]').textContent).toContain('1,000.00');
+      expect(q('[data-testid="submit-transaction-btn"]').disabled).toBe(false);
+
+      component.onTransactionTypeChange('deposit');
+      fixture.detectChanges();
+      expect(q('[data-testid="exceeds-balance"]')).toBeNull();
+    });
+
+    it('adds quick amounts and fills the full balance with Max', () => {
+      const chips = (): HTMLButtonElement[] => Array.from(fixture.nativeElement.querySelectorAll('.quick-amounts .chip'));
+      chips()[0].click();
+      chips()[2].click();
+      expect(component.amount()).toBe(1100);
+
+      expect(q('[data-testid="use-full-balance"]')).toBeNull();
+      component.onTransactionTypeChange('withdraw');
+      fixture.detectChanges();
+      q('[data-testid="use-full-balance"]').click();
+      expect(component.amount()).toBe(1000);
+    });
+
+    it('lists the latest transactions, newest first, capped at four', async () => {
+      const rows = [1, 2, 3, 4, 5].map((i) => ({
+        transactionId: `t${i}`, transactionType: i === 2 ? 'FEE' : 'DEPOSIT', actionType: i === 2 ? 'DEBIT' : 'CREDIT', amount: i * 10, createdOn: '2026-10-05T09:00:00Z',
+      }));
+      service.getTransactionHistory.mockReturnValue(of(rows));
+      fixture.destroy();
+      fixture = TestBed.createComponent(TransactionActionsComponent);
+      fixture.detectChanges();
+
+      const items = fixture.nativeElement.querySelectorAll('[data-testid="recent-transaction"]');
+      expect(items.length).toBe(4);
+      expect(items[0].textContent).toContain('+10.00');
+      expect(items[1].textContent).toContain('Fee');
+      expect(items[1].textContent).toContain('−20.00');
+    });
+
+    it('shows a placeholder when the balance or history cannot be loaded', () => {
+      accounts.getBalance.mockReturnValue(throwError(() => new Error('down')));
+      accounts.getAccount.mockReturnValue(throwError(() => new Error('down')));
+      service.getTransactionHistory.mockReturnValue(throwError(() => new Error('down')));
+      fixture.destroy();
+      fixture = TestBed.createComponent(TransactionActionsComponent);
+      component = fixture.componentInstance;
+      fixture.detectChanges();
+
+      expect(component.balance()).toBeNull();
+      expect(component.balanceAfter()).toBeNull();
+      expect(q('[data-testid="balance-value"]').textContent).toContain('—');
+      expect(q('[data-testid="balance-card"]').textContent).toContain('Account 7');
+      expect(q('.recent-empty')).not.toBeNull();
+    });
+
+    it('formats dates safely and picks an icon per type', () => {
+      expect(component.shortDate('2026-10-05T09:00:00Z')).toMatch(/^Oct 5, \d{1,2}:\d{2} [AP]M$/);
+      expect(component.shortDate(1759654800)).toMatch(/^[A-Z][a-z]{2} \d{1,2}, /);
+      expect(component.shortDate('not-a-date')).toBe('');
+      expect(component.shortDate(null)).toBe('');
+      expect(['DEPOSIT', 'WITHDRAW', 'FEE', 'OTHER'].map((t) => component.transactionIcon(t))).toEqual([
+        'fa-arrow-down', 'fa-arrow-up', 'fa-receipt', 'fa-right-left',
+      ]);
+    });
   });
 });

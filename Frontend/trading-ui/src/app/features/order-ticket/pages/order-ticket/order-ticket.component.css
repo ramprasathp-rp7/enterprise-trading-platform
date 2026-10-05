@@ -7,8 +7,26 @@
   overflow: hidden;
 }
 
-/* Trade view: instrument details + chart on the left, ticket on the right */
+/* Search sits in the header row so the trade view starts higher */
+.page-actions {
+  flex: 1;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+}
+
+.ticket-search {
+  flex: 1;
+  max-width: 460px;
+  min-width: 220px;
+}
+
+/* Trade view: instrument details + chart on the left, ticket on the right.
+   The chart shrinks on shorter screens so chart, ticket and summary share one frame. */
 .trade-layout {
+  --chart-height: clamp(170px, calc(100vh - 650px), 300px);
+  /* Full height of the chart card (its chart plus fixed header, quote, toolbar and stats).
+     The ticket is fixed to it; it does not track the left card. */
+  --trade-card-height: calc(var(--chart-height) + 376px);
   display: grid;
   grid-template-columns: minmax(0, 1fr) 400px;
   gap: var(--stack-gap);
@@ -23,34 +41,198 @@
   gap: var(--stack-gap);
 }
 
-/* The rail is narrow: stack paired fields and tighten spacing so Submit stays in view */
+/* Compact rail: paired fields side by side, tight spacing so Submit and the summary stay in view */
+.trade-rail .panel-header {
+  padding-top: 16px;
+  padding-bottom: 14px;
+}
+
+.trade-rail .panel-body {
+  padding-top: 14px;
+  padding-bottom: 20px;
+}
+
+/* Same height as the chart card; only grows if a validation message needs the room */
+.trade-rail .ticket-card {
+  min-height: var(--trade-card-height);
+  display: flex;
+  flex-direction: column;
+}
+
 .trade-rail .ticket-form {
-  gap: 16px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* The summary keeps a fixed size and sits just above Submit; spare height stays above it,
+   so field errors appearing or clearing never resize the summary */
+.trade-rail .order-summary {
+  flex: none;
+  margin-top: auto;
 }
 
 .trade-rail .field-row {
-  grid-template-columns: 1fr;
-  gap: 16px;
+  gap: 12px;
+  /* Room for a one-line message under the inputs, clear of the next label */
+  margin-bottom: 8px;
+}
+
+.trade-rail .form-group {
+  gap: 6px;
+}
+
+/* Field messages sit in the gap under their input instead of adding height,
+   so an error appearing or clearing never resizes the ticket */
+.trade-rail .form-group {
+  position: relative;
+}
+
+.trade-rail .form-group > .invalid-feedback,
+.trade-rail .form-group > .field-hint {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  display: block;
+  margin: 1px 0 0;
+  font-size: 11.5px;
+  line-height: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .trade-rail .form-footer {
   flex-direction: column;
   align-items: stretch;
-  gap: 10px;
-  padding-top: 16px;
+  gap: 6px;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.trade-rail .form-footnote {
+  font-size: 12px;
+  text-align: center;
+}
+
+/* Live order summary, directly above Submit */
+.order-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  padding: 10px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface-sunken);
+}
+
+.summary-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+}
+
+.summary-rows dd {
+  margin: 0;
+}
+
+.summary-value-sm {
+  font-weight: 600;
+  color: var(--ink-900);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Relaxed by default: one row per field (needs to beat .summary-line's display) */
+.summary-line.summary-compact {
+  display: none;
+}
+
+.summary-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.summary-label {
+  color: var(--ink-500);
+}
+
+.summary-order {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--ink-900);
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-total {
+  margin-top: 2px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line-strong, var(--line));
+}
+
+.summary-value {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink-900);
+  font-variant-numeric: tabular-nums;
 }
 
 .trade-rail .submit-button {
   width: 100%;
 }
 
+/* Short screens: no spare height, so fold the summary back into one line */
+@media (max-height: 880px) {
+  .summary-detail {
+    display: none;
+  }
+
+  .summary-line.summary-compact {
+    display: flex;
+  }
+
+}
+
+/* Tall screens: more room, so space the rows out a little more */
+@media (min-height: 1000px) {
+  .summary-rows {
+    gap: 12px;
+  }
+
+  .order-summary {
+    padding: 16px 18px;
+  }
+}
+
 @media (max-width: 1180px) {
+  .trade-rail .ticket-card {
+    height: auto;
+  }
+
   .trade-layout {
     grid-template-columns: minmax(0, 1fr);
   }
 
   .trade-rail {
     position: static;
+  }
+
+  .trade-layout {
+    --chart-height: 280px;
+  }
+
+  .page-actions {
+    flex-wrap: wrap;
   }
 }
 
@@ -105,4 +287,112 @@
   .submit-button {
     width: 100%;
   }
+}
+
+/* ===== Shiny ticket: accent line + glowing side choice (matches Deposit & withdraw) ===== */
+.ticket-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.ticket-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--positive);
+  opacity: 0.85;
+  transition: background-color var(--t-base);
+}
+
+.ticket-card.is-sell::before {
+  background: var(--negative);
+}
+
+/* Soft glow in the corner that follows the side */
+.ticket-card::after {
+  content: '';
+  position: absolute;
+  top: -80px;
+  right: -80px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--positive-soft) 0%, transparent 70%);
+  pointer-events: none;
+  transition: background var(--t-base);
+}
+
+.ticket-card.is-sell::after {
+  background: radial-gradient(circle, var(--negative-soft) 0%, transparent 70%);
+}
+
+.ticket-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Side buttons become glowing choice tiles */
+.ticket-card .segmented {
+  gap: 10px;
+  padding: 0;
+  background: transparent;
+}
+
+.ticket-card .segment {
+  height: 40px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  font-size: 14.5px;
+}
+
+.ticket-card .segment:hover:not(:disabled):not(.active) {
+  border-color: var(--line-strong);
+  background: var(--surface-sunken);
+}
+
+.ticket-card .segment i {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  background: var(--surface-sunken);
+  font-size: 11px;
+  transition: background-color var(--t-fast), color var(--t-fast);
+}
+
+.ticket-card .segment.buy.active {
+  border-color: var(--positive);
+  background: var(--positive-soft);
+  box-shadow: 0 0 0 3px var(--positive-soft), 0 6px 18px -8px var(--positive);
+}
+
+.ticket-card .segment.buy.active i {
+  background: var(--positive);
+  color: #ffffff;
+}
+
+.ticket-card .segment.sell.active {
+  border-color: var(--negative);
+  background: var(--negative-soft);
+  box-shadow: 0 0 0 3px var(--negative-soft), 0 6px 18px -8px var(--negative);
+}
+
+.ticket-card .segment.sell.active i {
+  background: var(--negative);
+  color: #ffffff;
+}
+
+/* Summary picks up a hint of the side colour */
+.ticket-card .order-summary {
+  border-color: color-mix(in srgb, var(--positive) 35%, var(--line));
+  background: linear-gradient(180deg, var(--positive-soft), var(--surface-sunken));
+}
+
+.ticket-card.is-sell .order-summary {
+  border-color: color-mix(in srgb, var(--negative) 35%, var(--line));
+  background: linear-gradient(180deg, var(--negative-soft), var(--surface-sunken));
 }

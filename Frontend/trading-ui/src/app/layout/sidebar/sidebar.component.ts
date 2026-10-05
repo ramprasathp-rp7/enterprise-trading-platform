@@ -34,7 +34,8 @@ interface NavSection {
   styleUrls: ['./sidebar.component.css'],
 })
 export class SidebarComponent {
-  isCollapsed = false;
+  /** On phones the sidebar is an overlay drawer, so it starts closed */
+  isCollapsed = typeof window !== 'undefined' && window.innerWidth < 768;
 
   navigationItems: NavItem[] = [
     {

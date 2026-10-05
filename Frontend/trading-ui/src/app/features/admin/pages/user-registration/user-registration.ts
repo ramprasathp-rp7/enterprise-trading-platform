@@ -4,6 +4,7 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../../core/config/environment';
+import { NotificationService } from '../../../../core/notifications/notification.service';
 
 /** Admins may only create customer users from this page; the role is not user-selectable. */
 export const REGISTERED_USER_ROLES: readonly string[] = ['CUSTOMER'];
@@ -25,6 +26,7 @@ interface RegisterDto {
 export class AdminUserRegistrationComponent implements OnInit, OnDestroy {
   private fb = inject(FormBuilder);
   private http = inject(HttpClient);
+  private notifications = inject(NotificationService);
   private messageTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
   form!: FormGroup;
@@ -73,6 +75,12 @@ export class AdminUserRegistrationComponent implements OnInit, OnDestroy {
     this.http.post(`${environment.AUTH_SERVICE_URL}/auth/register`, dto).subscribe({
       next: () => {
         this.showSuccessMessage(`User '${dto.username}' registered successfully!`);
+        this.notifications.notify({
+          kind: 'user-registered',
+          title: 'Registration successful',
+          message: `Customer '${dto.username}' was registered for account ${dto.accountId}.`,
+          link: { path: '/admin/register' },
+        });
         this.form.reset();
         this.loading.set(false);
       },

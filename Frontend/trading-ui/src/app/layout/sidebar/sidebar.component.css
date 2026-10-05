@@ -293,6 +293,13 @@
     z-index: 200;
     max-height: calc(100vh - 140px);
     padding: 0;
+    /* The fixed wrapper must not block taps on the page while the drawer is closed */
+    pointer-events: none;
+  }
+
+  .sidebar:not(.collapsed),
+  .sidebar-reopen-button {
+    pointer-events: auto;
   }
 
   .sidebar,
