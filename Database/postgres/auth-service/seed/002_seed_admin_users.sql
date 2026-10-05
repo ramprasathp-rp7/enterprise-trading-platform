@@ -1,0 +1,38 @@
+-- Seed demo admin user
+-- This is an operations-only seed script that runs once during deployment.
+-- Admins are created here only, never through the public registration endpoint.
+--
+-- Demo Admin Credentials:
+--   Username: demo.admin
+--   Password: Admin@123456 (change in production)
+--   Account: 1 (Operator account)
+--   Roles: ADMIN
+--
+-- Password Hash Details:
+--   Algorithm: argon2id (Argon2id v=19, m=65540, t=3, p=4)
+--   Pre-hashed for demo purposes. Regenerate for production:
+--   node -e "const argon2 = require('argon2'); argon2.hash('Admin@123456').then(console.log)"
+--
+INSERT INTO auth.users (id, username, password_hash, account_id, roles, created_on, last_updated)
+VALUES (
+    'f47ac10b-58cc-4372-a567-0e02b2c3d479'::uuid,
+    'demo.admin',
+    -- Argon2id hash of 'Admin@123456'
+    '$argon2id$v=19$m=65540,t=3,p=4$Y7q4hAWNhFnJhVCCxRDKqQ$uJd4bEdTNbUGcNBgOqDvP5P4MiKTpDZhSgSgChXiZ8I',
+    1,
+    ARRAY['ADMIN'],
+    TIMESTAMP '2026-01-01 00:00:00+00',
+    TIMESTAMP '2026-01-01 00:00:00+00'
+)
+ON CONFLICT (username) DO NOTHING;
+
+-- Optional: Seed additional demo users for testing
+INSERT INTO auth.users (username, password_hash, account_id, roles)
+VALUES (
+    'demo.customer',
+    -- Argon2id hash of 'Customer@123456'
+    '$argon2id$v=19$m=65540,t=3,p=4$e8LN9WQvz3c8qQvHgLq1rg$XvBzGf6bK5Kq2yZ8vJpS7q5L4mN6rP2X9sQ1wT3uV6W',
+    2,
+    ARRAY['CUSTOMER']
+)
+ON CONFLICT (username) DO NOTHING;

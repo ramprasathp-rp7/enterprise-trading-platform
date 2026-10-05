@@ -27,12 +27,6 @@ export class AdminSidebarComponent {
       description: 'Analytics overview'
     },
     {
-      label: 'Account Management',
-      route: '/admin/accounts',
-      icon: 'fas fa-users',
-      description: 'Manage user accounts'
-    },
-    {
       label: 'Register User',
       route: '/admin/register',
       icon: 'fas fa-user-plus',
