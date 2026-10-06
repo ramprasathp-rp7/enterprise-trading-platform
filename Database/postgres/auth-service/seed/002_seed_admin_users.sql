@@ -5,7 +5,7 @@
 -- Demo Admin Credentials:
 --   Username: demo.admin
 --   Password: Admin@123456 (change in production)
---   Account: 1 (Operator account)
+--   Account: 0 (Operator account)
 --   Roles: ADMIN
 --
 -- Password Hash Details:
@@ -18,8 +18,8 @@ VALUES (
     'f47ac10b-58cc-4372-a567-0e02b2c3d479'::uuid,
     'demo.admin',
     -- Argon2id hash of 'Admin@123456'
-    '$argon2id$v=19$m=65540,t=3,p=4$Y7q4hAWNhFnJhVCCxRDKqQ$uJd4bEdTNbUGcNBgOqDvP5P4MiKTpDZhSgSgChXiZ8I',
-    1,
+    '$argon2id$v=19$m=19456,p=1,t=2$c2ZxubGrZ8k4f+hKbJF+7Q$NNYk6c2M1a1TOWu0GQbp0daXw0cb6EFaamevzNLIuEQ',
+    0,
     ARRAY['ADMIN'],
     TIMESTAMP '2026-01-01 00:00:00+00',
     TIMESTAMP '2026-01-01 00:00:00+00'

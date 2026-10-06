@@ -92,9 +92,11 @@ export class TokenService {
       });
 
       // Validate required claims
+      // Note: Use explicit type checks and nullish coalescing to avoid falsy-value issues
+      // (e.g., accountId = 0 is a valid claim, not missing)
       if (
         !decoded.sub ||
-        !decoded.accountId ||
+        decoded.accountId === null || decoded.accountId === undefined ||
         !decoded.roles ||
         !Array.isArray(decoded.roles) ||
         decoded.roles.length === 0 ||

@@ -1,5 +1,6 @@
 -- Seed known_account_ids from the trade database accounts
 INSERT INTO auth.known_account_ids (account_id, created_on) VALUES
+    (0, TIMESTAMP '2026-01-10 09:00:00+00'),
     (1, TIMESTAMP '2026-01-10 09:00:00+00'),
     (2, TIMESTAMP '2026-02-03 11:15:00+00'),
     (3, TIMESTAMP '2026-02-20 10:30:00+00'),
