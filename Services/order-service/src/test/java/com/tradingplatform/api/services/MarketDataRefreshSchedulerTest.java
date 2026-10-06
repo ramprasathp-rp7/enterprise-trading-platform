@@ -65,6 +65,10 @@ class MarketDataRefreshSchedulerTest {
         assertEquals("INR", infy.currency());
         assertEquals(AS_OF, infy.quoteAsOf());
         assertFalse(infy.stale());
+        assertEquals(new BigDecimal("-4.25"), infy.change());
+        assertEquals(new BigDecimal("-0.41"), infy.changePercent());
+        assertEquals(new BigDecimal("1024.75"), infy.previousClose());
+        assertEquals("open", infy.marketState());
         assertEquals(2, cache.getCacheSize());
     }
 
@@ -162,6 +166,7 @@ class MarketDataRefreshSchedulerTest {
     private static FauxnanceApiClient.QuoteData quote(String symbol, String price, String currency) {
         BigDecimal p = new BigDecimal(price);
         return new FauxnanceApiClient.QuoteData(symbol, p, p.subtract(new BigDecimal("0.22")),
-            p.add(new BigDecimal("0.22")), currency, AS_OF, false);
+            p.add(new BigDecimal("0.22")), currency, AS_OF, false,
+            new BigDecimal("-4.25"), new BigDecimal("-0.41"), new BigDecimal("1024.75"), "open");
     }
 }

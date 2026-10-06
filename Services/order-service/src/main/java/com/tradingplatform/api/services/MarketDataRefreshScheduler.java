@@ -85,7 +85,7 @@ public class MarketDataRefreshScheduler {
         }
     }
 
-    /** Fauxnance quotes carry no change or market state fields, so those stay empty. */
+    /** Same fields the executor's market-data poller publishes to the topic. */
     private static QuotePayload toPayload(FauxnanceApiClient.QuoteData quote) {
         return new QuotePayload(
             quote.getSymbol(),
@@ -93,10 +93,10 @@ public class MarketDataRefreshScheduler {
             quote.getBid(),
             quote.getAsk(),
             quote.getCurrency(),
-            null,
-            null,
-            null,
-            null,
+            quote.getChange(),
+            quote.getChangePercent(),
+            quote.getPreviousClose(),
+            quote.getMarketState(),
             quote.isStale(),
             quote.getQuoteAsOf()
         );

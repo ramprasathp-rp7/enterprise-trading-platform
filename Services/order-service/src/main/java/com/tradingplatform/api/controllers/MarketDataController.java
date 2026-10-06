@@ -3,12 +3,14 @@ package com.tradingplatform.api.controllers;
 import com.tradingplatform.api.services.MarketDataCache;
 import com.tradingplatform.domain.dto.CachedQuoteResponse;
 import com.tradingplatform.domain.dto.CachedQuotesDayResponse;
+import com.tradingplatform.domain.dto.QuoteDayRequest;
 import com.tradingplatform.domain.exception.QuoteNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -62,7 +64,7 @@ public class MarketDataController {
     /**
      * GET /api/v1/market-data/quotes
      * Returns the cached quote rows received on one UTC day, oldest first.
-     * Optional query parameters:
+     * Optional query parameters (or the same fields in a JSON body; query parameters win):
      *   - date: LocalDate - the UTC day (default: today)
      *   - symbol: String - restrict to one instrument (default: all symbols)
      * Only rows still held by the cache are returned (see market-data.cache.history-window).
@@ -70,9 +72,13 @@ public class MarketDataController {
     @GetMapping("/quotes")
     public ResponseEntity<CachedQuotesDayResponse> getQuotesForDay(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-            @RequestParam(required = false) String symbol) {
-        LocalDate day = date != null ? date : LocalDate.now(clock.withZone(ZoneOffset.UTC));
-        String normalised = symbol == null || symbol.isBlank() ? null : normalise(symbol);
+            @RequestParam(required = false) String symbol,
+            @RequestBody(required = false) QuoteDayRequest body) {
+        LocalDate requestedDate = date != null ? date : body != null ? body.date() : null;
+        String requestedSymbol = symbol != null ? symbol : body != null ? body.symbol() : null;
+
+        LocalDate day = requestedDate != null ? requestedDate : LocalDate.now(clock.withZone(ZoneOffset.UTC));
+        String normalised = requestedSymbol == null || requestedSymbol.isBlank() ? null : normalise(requestedSymbol);
 
         Instant from = day.atStartOfDay(ZoneOffset.UTC).toInstant();
         Instant to = day.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();

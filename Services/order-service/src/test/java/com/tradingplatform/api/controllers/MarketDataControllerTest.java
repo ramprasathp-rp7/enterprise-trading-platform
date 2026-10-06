@@ -6,6 +6,7 @@ import com.tradingplatform.api.services.MarketDataCache;
 import com.tradingplatform.domain.dto.CachedQuoteResponse;
 import com.tradingplatform.domain.dto.CachedQuotesDayResponse;
 import com.tradingplatform.domain.dto.ErrorResponse;
+import com.tradingplatform.domain.dto.QuoteDayRequest;
 import com.tradingplatform.domain.enums.ErrorCode;
 import com.tradingplatform.domain.exception.QuoteNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
@@ -110,7 +111,7 @@ class MarketDataControllerTest {
         cache.updateQuote("AAPL", quote("AAPL", "193.00"), Instant.parse("2026-10-07T00:00:00Z"));  // tomorrow
 
         // Act
-        ResponseEntity<CachedQuotesDayResponse> response = controller.getQuotesForDay(null, null);
+        ResponseEntity<CachedQuotesDayResponse> response = controller.getQuotesForDay(null, null, null);
 
         // Assert
         CachedQuotesDayResponse body = response.getBody();
@@ -134,7 +135,7 @@ class MarketDataControllerTest {
 
         // Act
         ResponseEntity<CachedQuotesDayResponse> response =
-            controller.getQuotesForDay(LocalDate.parse("2026-10-05"), "aapl");
+            controller.getQuotesForDay(LocalDate.parse("2026-10-05"), "aapl", null);
 
         // Assert
         CachedQuotesDayResponse body = response.getBody();
@@ -149,15 +150,47 @@ class MarketDataControllerTest {
     void testDayRowsEmpty() {
         cache.updateQuote("AAPL", quote("AAPL", "190.00"), NOW);
 
-        CachedQuotesDayResponse otherDay = controller.getQuotesForDay(LocalDate.parse("2026-09-30"), null).getBody();
-        CachedQuotesDayResponse otherSymbol = controller.getQuotesForDay(null, "MSFT").getBody();
-        CachedQuotesDayResponse blankSymbol = controller.getQuotesForDay(null, " ").getBody();
+        CachedQuotesDayResponse otherDay = controller.getQuotesForDay(LocalDate.parse("2026-09-30"), null, null).getBody();
+        CachedQuotesDayResponse otherSymbol = controller.getQuotesForDay(null, "MSFT", null).getBody();
+        CachedQuotesDayResponse blankSymbol = controller.getQuotesForDay(null, " ", null).getBody();
 
         assertEquals(0, otherDay.count());
         assertTrue(otherDay.quotes().isEmpty());
         assertEquals(0, otherSymbol.count());
         assertNull(blankSymbol.symbol());
         assertEquals(1, blankSymbol.count());
+    }
+
+    @Test
+    @DisplayName("Should take symbol and date from a JSON body when no query parameters are sent")
+    void testDayRowsFromBody() {
+        // Arrange
+        cache.updateQuote("INFY.NS", quote("INFY.NS", "1006.35"), Instant.parse("2026-10-05T09:00:00Z"));
+        cache.updateQuote("RELIANCE.NS", quote("RELIANCE.NS", "1215.70"), Instant.parse("2026-10-05T09:00:00Z"));
+
+        // Act
+        CachedQuotesDayResponse body = controller.getQuotesForDay(null, null,
+            new QuoteDayRequest("infy.ns", LocalDate.parse("2026-10-05"))).getBody();
+
+        // Assert
+        assertEquals("INFY.NS", body.symbol());
+        assertEquals(LocalDate.parse("2026-10-05"), body.date());
+        assertEquals(1, body.count());
+        assertEquals("INFY.NS", body.quotes().get(0).symbol());
+    }
+
+    @Test
+    @DisplayName("Should let query parameters win over the JSON body")
+    void testQueryParamsOverrideBody() {
+        cache.updateQuote("INFY.NS", quote("INFY.NS", "1006.35"), NOW);
+        cache.updateQuote("RELIANCE.NS", quote("RELIANCE.NS", "1215.70"), NOW);
+
+        CachedQuotesDayResponse body = controller.getQuotesForDay(null, "RELIANCE.NS",
+            new QuoteDayRequest("INFY.NS", LocalDate.parse("2026-09-30"))).getBody();
+
+        assertEquals("RELIANCE.NS", body.symbol());
+        assertEquals(LocalDate.parse("2026-09-30"), body.date());   // date still from body
+        assertEquals(0, body.count());
     }
 
     private static QuotePayload quote(String symbol, String price) {
