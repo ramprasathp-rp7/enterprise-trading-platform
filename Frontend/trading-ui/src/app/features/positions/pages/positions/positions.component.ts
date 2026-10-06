@@ -3,10 +3,12 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { finalize } from 'rxjs/operators';
+import { AccountsService } from '../../../../api/generated/trade';
 import {
-  AccountsService,
-  PositionResponse,
-} from '../../../../api/generated/trade';
+  PortfolioService,
+  PortfolioSummary,
+  PricedPosition,
+} from '../../../../api/generated/porfolio';
 import { CoreAuthService } from '../../../../core/auth/core-auth.service';
 import { StatementPdfService, fileDate } from '../../../../shared/statement-pdf.service';
 import { NotificationService } from '../../../../core/notifications/notification.service';
@@ -14,7 +16,9 @@ import { NotificationService } from '../../../../core/notifications/notification
 /**
  * Positions Component
  *
- * Displays current positions from the accounts positions API.
+ * Displays the portfolio summary and priced holdings from the portfolio API.
+ * Prices come from Fauxnance (or the market-data cache when it is unavailable),
+ * so stale and unpriced holdings are flagged rather than shown as current.
  */
 @Component({
   selector: 'app-positions',
@@ -26,20 +30,30 @@ import { NotificationService } from '../../../../core/notifications/notification
 export class PositionsComponent implements OnInit {
   private readonly authService = inject(CoreAuthService);
   private readonly accountsService = inject(AccountsService);
+  private readonly portfolioService = inject(PortfolioService);
   private readonly statementPdf = inject(StatementPdfService);
   private readonly notifications = inject(NotificationService);
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
-  readonly positions = signal<PositionResponse[]>([]);
+  readonly positions = signal<PricedPosition[]>([]);
+  readonly summaryLoading = signal(false);
+  readonly summaryError = signal<string | null>(null);
+  readonly summary = signal<PortfolioSummary | null>(null);
   readonly downloading = signal(false);
   readonly downloadError = signal<string | null>(null);
   readonly totalUnits = computed(() =>
     this.positions().reduce((sum, p) => sum + (p.quantity || 0), 0)
   );
   readonly totalCostBasis = computed(() =>
-    this.positions().reduce((sum, p) => sum + (p.quantity || 0) * (p.averageCost || 0), 0)
+    this.positions().reduce((sum, p) => sum + (p.costBasis || 0), 0)
   );
+  /** Holdings priced from a stale quote or not priced at all */
+  readonly stalePositionCount = computed(() => this.positions().filter((p) => p.stale).length);
+  /** Stale/partial pricing banner, hidden for now. */
+  readonly showPricingWarning = false;
+  /** Per-row Stale badge next to the last price, hidden for now; the No price badge still shows. */
+  readonly showStaleBadge = false;
 
   ngOnInit(): void {
     const accountId = this.authService.currentUser()?.accountId;
@@ -48,15 +62,45 @@ export class PositionsComponent implements OnInit {
       return;
     }
 
+    this.loadPortfolio(accountId);
+  }
+
+  /** Reload the summary and holdings so prices are re-quoted. */
+  refresh(): void {
+    const accountId = this.authService.currentUser()?.accountId;
+    if (accountId) {
+      this.loadPortfolio(accountId);
+    }
+  }
+
+  private loadPortfolio(accountId: number): void {
+    this.loadSummary(accountId);
     this.loadPositions(accountId);
+  }
+
+  private loadSummary(accountId: number): void {
+    this.summaryLoading.set(true);
+    this.summaryError.set(null);
+
+    this.portfolioService
+      .getPortfolioSummary(accountId)
+      .pipe(finalize(() => this.summaryLoading.set(false)))
+      .subscribe({
+        next: (summary) => {
+          this.summary.set(summary ?? null);
+        },
+        error: () => {
+          this.summaryError.set('Could not fetch the portfolio summary.');
+        },
+      });
   }
 
   private loadPositions(accountId: number): void {
     this.loading.set(true);
     this.error.set(null);
 
-    this.accountsService
-      .getPositions(accountId)
+    this.portfolioService
+      .getPricedPositions(accountId)
       .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
         next: (positions) => {
@@ -99,7 +143,7 @@ export class PositionsComponent implements OnInit {
           p.symbol,
           this.formatNumber(p.quantity, 0),
           this.formatNumber(p.averageCost, 2),
-          this.formatNumber(p.quantity * p.averageCost, 2),
+          this.formatNumber(p.costBasis, 2),
         ]),
         footerRow: ['Total', this.formatNumber(this.totalUnits(), 0), '', this.formatNumber(this.totalCostBasis(), 2)],
         emptyMessage: 'There are no open positions on this account.',
@@ -137,6 +181,23 @@ export class PositionsComponent implements OnInit {
       minimumFractionDigits: fractionDigits,
       maximumFractionDigits: fractionDigits,
     }).format(value);
+  }
+
+  /** Money with an explicit sign, for P&L figures; '—' when the value is unknown. */
+  formatSigned(value: number | null | undefined, fractionDigits = 2): string {
+    if (value === null || value === undefined) {
+      return '—';
+    }
+    const formatted = this.formatNumber(Math.abs(value), fractionDigits);
+    return value > 0 ? `+${formatted}` : value < 0 ? `-${formatted}` : formatted;
+  }
+
+  /** CSS tone for a P&L value. */
+  pnlTone(value: number | null | undefined): string {
+    if (!value) {
+      return '';
+    }
+    return value > 0 ? 'pnl-up' : 'pnl-down';
   }
 
 }

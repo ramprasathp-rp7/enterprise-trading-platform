@@ -8,14 +8,49 @@
 }
 
 .transactions-table {
-  min-width: 760px;
+  min-width: 1080px;
 }
 
-.transactions-table col.col-symbol { width: 22%; }
-.transactions-table col.col-quantity { width: 16%; }
-.transactions-table col.col-cost { width: 19%; }
-.transactions-table col.col-basis { width: 19%; }
-.transactions-table col.col-actions { width: 24%; }
+.transactions-table col.col-symbol { width: 11%; }
+.transactions-table col.col-quantity { width: 8%; }
+.transactions-table col.col-cost { width: 11%; }
+.transactions-table col.col-basis { width: 12%; }
+.transactions-table col.col-price { width: 14%; }
+.transactions-table col.col-value { width: 12%; }
+.transactions-table col.col-pnl { width: 14%; }
+.transactions-table col.col-actions { width: 18%; }
+
+/* Context line under each summary figure */
+.stat-caption {
+  min-height: 18px;
+  font-size: 12.5px;
+  color: var(--ink-500);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Profit and loss tones */
+.pnl-up {
+  color: var(--positive);
+}
+
+.pnl-down {
+  color: var(--negative);
+}
+
+.pnl-percent {
+  display: block;
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+/* Stale / unpriced quote flag next to the last price */
+.price-flag {
+  height: 20px;
+  margin-left: 6px;
+  padding: 0 7px;
+  font-size: 10.5px;
+  vertical-align: middle;
+}
 
 /* Trade actions sit at the row end, clear of the right-aligned numbers */
 .transactions-table .col-actions-head,
