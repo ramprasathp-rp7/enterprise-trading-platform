@@ -228,6 +228,7 @@ class SecurityFilterChainAuthFlowTest {
     @EnableAutoConfiguration
     @Import({
             ApiSecurityConfiguration.class,
+            JwtAuthenticationConverter.class,
             ResolverAuthenticationEntryPoint.class,
             GlobalExceptionHandler.class
     })

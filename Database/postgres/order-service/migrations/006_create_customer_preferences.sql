@@ -1,4 +1,8 @@
--- Migration 003: Add Customer Preferences Column to Accounts Table
+-- Migration 006: Add Customer Preferences Column to Accounts Table
+--
+-- SUPERSEDED: this column is dropped by 015_drop_accounts_preferences.sql. Customer preferences
+-- now live in customer_preferences (014), owned by the Sprint 10 preferences module. Kept so the
+-- migration history replays in order on a fresh database.
 --
 -- This migration adds a nullable preferences JSONB column to the accounts table.
 -- 

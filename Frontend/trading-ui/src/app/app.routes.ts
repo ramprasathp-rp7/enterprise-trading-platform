@@ -86,6 +86,15 @@ export const routes: Routes = [
         data: { title: 'Watchlists' },
       },
       {
+        path: 'settings',
+        canActivateChild: [canActivateChildGuard],
+        loadComponent: () =>
+          import('./features/settings/pages/settings/settings.component').then(
+            (m) => m.SettingsComponent
+          ),
+        data: { title: 'Preferences' },
+      },
+      {
         path: 'account',
         canActivateChild: [canActivateChildGuard],
         loadComponent: () =>
