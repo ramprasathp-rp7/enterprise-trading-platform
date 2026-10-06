@@ -52,4 +52,13 @@ public interface PositionMapper {
     })
     @Select("SELECT account_id, instrument_id, quantity, average_cost, version FROM positions WHERE account_id = #{accountId}")
     List<Position> findByAccountId(@Param("accountId") Long accountId);
+
+    /**
+     * Get all distinct symbols with non-zero quantity held across all positions.
+     * Same query as the executor's market-data poller, so both quote sources cover the same symbols.
+     *
+     * @return List of distinct symbol strings where quantity > 0
+     */
+    @Select("SELECT DISTINCT i.symbol FROM positions p JOIN instruments i ON p.instrument_id = i.id WHERE p.quantity > 0 AND i.tradable = true ORDER BY i.symbol")
+    List<String> getDistinctSymbolsWithQuantity();
 }

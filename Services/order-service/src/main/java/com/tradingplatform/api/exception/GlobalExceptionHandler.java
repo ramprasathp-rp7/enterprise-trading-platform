@@ -102,6 +102,21 @@ public class GlobalExceptionHandler {
         );
     }
     
+    // MKT-404: No cached quote for the symbol Maps to HTTP 404 (Not Found)
+    
+    @ExceptionHandler(QuoteNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleQuoteNotFound(
+            QuoteNotFoundException ex,
+            WebRequest request) {
+        
+        logger.warn("No cached quote: symbol={}", ex.getSymbol());
+        
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.MKT_404, "No price is available for this symbol yet."),
+            HttpStatus.NOT_FOUND
+        );
+    }
+    
     // ORD-409: Order not found Maps to HTTP 404 (Not Found)
     // Per OpenAPI spec: DELETE /api/v1/orders/{id} returns HTTP 404 with ORD-409 error code
     
@@ -378,7 +393,7 @@ public class GlobalExceptionHandler {
     private HttpStatus mapErrorCodeToHttpStatus(ErrorCode code) {
         return switch(code) {
             case AUTH_401 -> HttpStatus.UNAUTHORIZED;
-            case ACC_404, INS_404, TRANS_404, WL_404 -> HttpStatus.NOT_FOUND;
+            case ACC_404, INS_404, TRANS_404, WL_404, MKT_404 -> HttpStatus.NOT_FOUND;
             case ACC_403 -> HttpStatus.FORBIDDEN;
             case ORD_400, TRANS_400 -> HttpStatus.BAD_REQUEST;
             case ORD_409, WL_409 -> HttpStatus.CONFLICT;

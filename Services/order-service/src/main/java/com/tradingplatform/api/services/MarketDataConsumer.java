@@ -7,6 +7,7 @@ import com.tradingplatform.api.events.MessageEnvelope;
 import com.tradingplatform.api.events.QuotePayload;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Service;
@@ -31,8 +32,8 @@ import java.time.Instant;
  * - Non-blocking processing to handle high message volume
  * 
  * Note: 
- * - Live market data is fetched from Fauxnance API on-demand
- * - This consumer caches quotes asynchronously as a fallback data source
+ * - Only created when market-data.quote-source=KAFKA (env MARKET_DATA_QUOTE_SOURCE);
+ *   in FAUXNANCE mode MarketDataRefreshScheduler fills the cache instead
  * 
  * Error Handling:
  * - Malformed messages: logged as WARN, offset committed (skip and continue)
@@ -45,6 +46,7 @@ import java.time.Instant;
  * @see MarketDataCache for quote caching
  */
 @Service
+@ConditionalOnProperty(name = "market-data.quote-source", havingValue = "KAFKA")
 public class MarketDataConsumer {
     
     private static final Logger logger = LoggerFactory.getLogger(MarketDataConsumer.class);
@@ -137,7 +139,7 @@ public class MarketDataConsumer {
                 quote.stale(), quote.marketState(), eventTime
             );
             
-            // Step 8: Cache the quote for fallback when Fauxnance is unavailable
+            // Step 8: Cache the quote (this consumer is the cache's writer in KAFKA mode)
             marketDataCache.updateQuote(symbol, quote, eventTime);
             logger.debug("Quote cached for symbol: {}", symbol);
             

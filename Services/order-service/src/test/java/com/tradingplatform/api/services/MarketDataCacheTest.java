@@ -6,7 +6,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -15,7 +20,8 @@ import static org.junit.jupiter.api.Assertions.*;
  * Unit tests for MarketDataCache.
  * 
  * Tests cover:
- * - Cache operations: update, retrieve, clear
+ * - Cache operations: append, retrieve, clear
+ * - History: per-symbol append, time-window trimming, newest always kept
  * - Thread safety: concurrent access (implicitly tested by design)
  * - Data integrity: quote preservation and updates
  * - Optional handling: missing quotes return empty
@@ -325,5 +331,154 @@ class MarketDataCacheTest {
         assertEquals("open", retrieved.marketState());
         assertTrue(retrieved.stale());
         assertEquals(quoteAsOf, retrieved.quoteAsOf());
+    }
+    
+    @Test
+    @DisplayName("Should append quotes instead of replacing them")
+    void testUpdateAppendsToHistory() {
+        // Arrange
+        Instant t1 = Instant.now().minusSeconds(600);
+        Instant t2 = Instant.now().minusSeconds(300);
+        
+        // Act
+        cache.updateQuote("AAPL", quote("AAPL", "190.00"), t1);
+        cache.updateQuote("AAPL", quote("AAPL", "191.00"), t2);
+        
+        // Assert
+        List<MarketDataCache.CachedQuote> history = cache.getQuoteHistory("AAPL");
+        assertEquals(2, history.size());
+        assertEquals(new BigDecimal("190.00"), history.get(0).quote().price());
+        assertEquals(t1, history.get(0).receivedAt());
+        assertEquals(new BigDecimal("191.00"), history.get(1).quote().price());
+        assertEquals(new BigDecimal("191.00"), cache.getLatestPrice("AAPL").orElseThrow());
+        assertEquals(t2, cache.getQuoteTimestamp("AAPL").orElseThrow());
+        assertEquals(1, cache.getCacheSize());
+        assertEquals(2, cache.getTotalQuoteCount());
+        assertEquals(new BigDecimal("191.00"), cache.getAllQuotes().get("AAPL").price());
+    }
+    
+    @Test
+    @DisplayName("Should trim quotes older than the history window on write")
+    void testTrimsOutsideWindow() {
+        // Arrange
+        MutableClock clock = new MutableClock(Instant.parse("2026-10-06T00:00:00Z"));
+        MarketDataCache windowed = new MarketDataCache(Duration.ofHours(1), clock);
+        windowed.updateQuote("AAPL", quote("AAPL", "190.00"), clock.instant());
+        clock.advance(Duration.ofMinutes(30));
+        windowed.updateQuote("AAPL", quote("AAPL", "191.00"), clock.instant());
+        
+        // Act: 61 minutes after the first quote
+        clock.advance(Duration.ofMinutes(31));
+        windowed.updateQuote("AAPL", quote("AAPL", "192.00"), clock.instant());
+        
+        // Assert
+        assertEquals(List.of(new BigDecimal("191.00"), new BigDecimal("192.00")),
+            windowed.getQuoteHistory("AAPL").stream().map(entry -> entry.quote().price()).toList());
+    }
+    
+    @Test
+    @DisplayName("Should always keep the newest quote, even past the window")
+    void testKeepsNewestPastWindow() {
+        // Arrange
+        MutableClock clock = new MutableClock(Instant.parse("2026-10-06T00:00:00Z"));
+        MarketDataCache windowed = new MarketDataCache(Duration.ofHours(1), clock);
+        windowed.updateQuote("AAPL", quote("AAPL", "190.00"), clock.instant());
+        windowed.updateQuote("AAPL", quote("AAPL", "191.00"), clock.instant().plusSeconds(60));
+        
+        // Act
+        clock.advance(Duration.ofHours(5));
+        
+        // Assert: history read hides the expired entry, latest stays available
+        List<MarketDataCache.CachedQuote> history = windowed.getQuoteHistory("AAPL");
+        assertEquals(1, history.size());
+        assertEquals(new BigDecimal("191.00"), history.get(0).quote().price());
+        assertEquals(new BigDecimal("191.00"), windowed.getLatestPrice("AAPL").orElseThrow());
+        
+        // A replayed quote older than the window is trimmed straight away, except as newest
+        windowed.updateQuote("AAPL", quote("AAPL", "189.00"), Instant.parse("2026-10-05T00:00:00Z"));
+        assertEquals(1, windowed.getQuoteHistory("AAPL").size());
+    }
+    
+    @Test
+    @DisplayName("Should use now when the event time is missing")
+    void testNullEventTime() {
+        MutableClock clock = new MutableClock(Instant.parse("2026-10-06T00:00:00Z"));
+        MarketDataCache windowed = new MarketDataCache(Duration.ofHours(1), clock);
+        
+        windowed.updateQuote("AAPL", quote("AAPL", "190.00"), null);
+        
+        assertEquals(clock.instant(), windowed.getQuoteTimestamp("AAPL").orElseThrow());
+    }
+    
+    @Test
+    @DisplayName("Should return empty history for unknown or blank symbols")
+    void testEmptyHistory() {
+        assertTrue(cache.getQuoteHistory("UNKNOWN").isEmpty());
+        assertTrue(cache.getQuoteHistory(null).isEmpty());
+        assertTrue(cache.getQuoteHistory(" ").isEmpty());
+    }
+    
+    @Test
+    @DisplayName("Should reject a non-positive history window")
+    void testRejectsInvalidWindow() {
+        assertThrows(IllegalArgumentException.class, () -> new MarketDataCache(Duration.ZERO));
+        assertThrows(IllegalArgumentException.class, () -> new MarketDataCache(Duration.ofMinutes(-5)));
+        assertThrows(IllegalArgumentException.class, () -> new MarketDataCache((Duration) null));
+    }
+    
+    @Test
+    @DisplayName("Should return quotes received in a time range, oldest first, optionally for one symbol")
+    void testQuotesReceivedBetween() {
+        // Arrange
+        Instant from = Instant.now().minusSeconds(3600);
+        Instant to = Instant.now();
+        cache.updateQuote("AAPL", quote("AAPL", "189.00"), from.minusSeconds(1));    // before range
+        cache.updateQuote("INFY.NS", quote("INFY.NS", "1020.00"), from.plusSeconds(60));
+        cache.updateQuote("AAPL", quote("AAPL", "190.00"), from);                    // inclusive start
+        cache.updateQuote("AAPL", quote("AAPL", "191.00"), to);                      // exclusive end
+        
+        // Act
+        List<MarketDataCache.CachedQuote> all = cache.getQuotesReceivedBetween(null, from, to);
+        List<MarketDataCache.CachedQuote> aapl = cache.getQuotesReceivedBetween("AAPL", from, to);
+        
+        // Assert
+        assertEquals(List.of(new BigDecimal("190.00"), new BigDecimal("1020.00")),
+            all.stream().map(entry -> entry.quote().price()).toList());
+        assertEquals(List.of(new BigDecimal("190.00")),
+            aapl.stream().map(entry -> entry.quote().price()).toList());
+        assertTrue(cache.getQuotesReceivedBetween("MSFT", from, to).isEmpty());
+    }
+    
+    private static QuotePayload quote(String symbol, String price) {
+        BigDecimal p = new BigDecimal(price);
+        return new QuotePayload(symbol, p, p, p, "USD", null, null, null, "open", false, Instant.now());
+    }
+    
+    /** Clock the tests can move forward. */
+    private static final class MutableClock extends Clock {
+        private Instant now;
+        
+        MutableClock(Instant start) {
+            this.now = start;
+        }
+        
+        void advance(Duration duration) {
+            now = now.plus(duration);
+        }
+        
+        @Override
+        public Instant instant() {
+            return now;
+        }
+        
+        @Override
+        public ZoneId getZone() {
+            return ZoneOffset.UTC;
+        }
+        
+        @Override
+        public Clock withZone(ZoneId zone) {
+            return this;
+        }
     }
 }
