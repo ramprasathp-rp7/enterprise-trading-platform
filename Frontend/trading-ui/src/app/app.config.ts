@@ -9,6 +9,7 @@ import { provideAuthApiConfig } from './core/config/auth-api.config';
 import { provideApi as provideAuthApi } from './api/generated/auth/provide-api';
 import { provideApi as provideTradeApi } from './api/generated/trade/provide-api';
 import { provideApi as provideAdminApi } from './api/generated/admin/provide-api';
+import { provideApi as provideWatchlistApi } from './api/generated/watchlist/provide-api';
 import { environment } from './core/config/environment';
 
 export const appConfig: ApplicationConfig = {
@@ -20,6 +21,7 @@ export const appConfig: ApplicationConfig = {
     provideAuthApi(environment.AUTH_SERVICE_URL),
     provideTradeApi(environment.TRADE_API_URL),
     provideAdminApi(environment.TRADE_API_URL),
+    provideWatchlistApi(environment.TRADE_API_URL),
     {
       provide: HTTP_INTERCEPTORS,
       useClass: AuthInterceptor,

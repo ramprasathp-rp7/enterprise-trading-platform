@@ -35,7 +35,7 @@
     }
   </section>
 
-  <!-- Holdings + recent trades share one row so the whole dashboard fits on screen -->
+  <!-- Holdings + watchlist share one row so the whole dashboard fits on screen -->
   <div class="dashboard-grid">
   <section class="panel holdings-panel">
     <header class="panel-header">
@@ -50,56 +50,9 @@
     </div>
   </section>
 
-  <!-- Recent trades -->
-  <section class="panel trades-panel">
-    <header class="panel-header">
-      <div>
-        <h2 class="panel-title">Recent trades</h2>
-        <p class="panel-subtitle">Your latest order activity</p>
-      </div>
-      <a routerLink="/blotter" class="panel-link">Order blotter <i class="fas fa-arrow-right"></i></a>
-    </header>
-
-    <table class="data-table activity-table">
-      <thead>
-        <tr>
-          <th>Order</th>
-          <th class="col-status-head">Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (trade of recentTrades(); track trade.id) {
-          <tr class="trade-row">
-            <td>
-              <span class="trade-symbol">{{ trade.symbol }}</span>
-              <span class="trade-meta">
-                <span class="side-text" [class]="trade.type.toLowerCase()">
-                  <i class="fas" [class]="trade.type === 'BUY' ? 'fa-arrow-up' : 'fa-arrow-down'"></i>
-                  {{ trade.type }}
-                </span>
-                <span class="trade-amount">{{ trade.quantity | number }} &#64; {{ trade.price | number:'1.2-2' }}</span>
-              </span>
-            </td>
-            <td class="col-status">
-              <span class="pill" [class]="'status-' + trade.status.toLowerCase()">{{ trade.status }}</span>
-              @if (trade.time) {
-                <span class="trade-time">{{ trade.time }}</span>
-              }
-            </td>
-          </tr>
-        } @empty {
-          <tr>
-            <td colspan="2">
-              <div class="empty-state">
-                <i class="fas fa-chart-line"></i>
-                <p>No trades yet</p>
-                <small>Orders you place will appear here.</small>
-              </div>
-            </td>
-          </tr>
-        }
-      </tbody>
-    </table>
+  <!-- Watchlist preview; "View all" opens the Watchlists page -->
+  <section class="panel watchlist-panel" aria-label="Watchlist">
+    <app-watchlist-widget />
   </section>
   </div>
 

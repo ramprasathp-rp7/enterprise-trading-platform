@@ -14,7 +14,8 @@
     "generate:auth": "openapi-generator-cli generate -c openapi/auth-api-config.json",
     "generate:transactions": "openapi-generator-cli generate -c openapi/transactions-api-config.json",
     "generate:admin": "openapi-generator-cli generate -c openapi/admin-api-config.json",
-    "generate": "npm run generate:auth && npm run generate:trade && npm run generate:transactions && npm run generate:admin"
+    "generate:watchlist": "openapi-generator-cli generate -c openapi/watchlist-api-config.json",
+    "generate": "npm run generate:auth && npm run generate:trade && npm run generate:transactions && npm run generate:admin && npm run generate:watchlist"
   },
   "private": true,
   "packageManager": "npm@11.16.0",

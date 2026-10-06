@@ -115,7 +115,7 @@ describe('InstrumentSearchComponent', () => {
     fixture.componentRef.setInput('showShortcut', true);
     fixture.detectChanges();
 
-    expect(results().length).toBe(7);
+    expect(results().length).toBe(8);
     expect(fixture.nativeElement.querySelector('.shortcut').textContent).toContain('Ctrl K');
 
     type('inf');

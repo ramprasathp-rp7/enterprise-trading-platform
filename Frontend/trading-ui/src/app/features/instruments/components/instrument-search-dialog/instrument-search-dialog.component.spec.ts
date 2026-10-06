@@ -22,7 +22,7 @@ describe('InstrumentSearchDialogComponent', () => {
     const dialog = fixture.nativeElement.querySelector('[data-testid="search-dialog"]');
     expect(dialog.getAttribute('role')).toBe('dialog');
     expect(dialog.getAttribute('aria-modal')).toBe('true');
-    expect(fixture.nativeElement.querySelectorAll('[data-testid="instrument-search-result"]').length).toBe(7);
+    expect(fixture.nativeElement.querySelectorAll('[data-testid="instrument-search-result"]').length).toBe(8);
   });
 
   it('passes on the picked instrument', () => {

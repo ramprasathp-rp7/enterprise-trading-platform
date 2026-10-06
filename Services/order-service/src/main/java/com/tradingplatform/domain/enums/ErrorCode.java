@@ -12,7 +12,9 @@ public enum ErrorCode {
     VAL_422("VAL-422"),
     INVALID_PREFERENCE("PREF-422"),
     TRANS_404("TRANS-404"),
-    TRANS_400("TRANS-400");
+    TRANS_400("TRANS-400"),
+    WL_404("WL-404"),
+    WL_409("WL-409");
 
     private final String code;
 

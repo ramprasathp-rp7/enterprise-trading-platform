@@ -126,7 +126,8 @@ a.metric-card:focus-visible .metric-link {
   transform: none;
 }
 
-/* ===== HOLDINGS + RECENT TRADES ROW ===== */
+/* ===== HOLDINGS + WATCHLIST ROW ===== */
+/* Both panels share one height; long content scrolls inside its own panel */
 .dashboard-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.6fr) minmax(340px, 1fr);
@@ -136,73 +137,28 @@ a.metric-card:focus-visible .metric-link {
 
 .dashboard-grid > .panel {
   min-width: 0;
-}
-
-/* ===== RECENT TRADES ===== */
-.activity-table {
-  width: 100%;
-  table-layout: auto;
-}
-
-.activity-table th,
-.activity-table td {
-  padding-left: 12px;
-  padding-right: 12px;
-}
-
-.activity-table td {
-  height: 64px;
-  overflow: visible;
-}
-
-/* Instrument column takes the slack; amount and status hug their content */
-.activity-table th:first-child,
-.activity-table td:first-child {
-  width: 100%;
-  padding-left: 24px;
-}
-
-.activity-table th:last-child,
-.activity-table td:last-child {
-  padding-right: 24px;
-}
-
-.trade-symbol {
-  display: block;
-  font-weight: 600;
-  color: var(--ink-900);
-}
-
-.trade-meta {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 2px;
-  font-size: 12px;
-  white-space: nowrap;
+  flex-direction: column;
 }
 
-.trade-time {
-  display: block;
-  margin-top: 4px;
-  font-size: 12px;
-  color: var(--ink-500);
+.holdings-panel .panel-body {
+  flex: 1;
 }
 
-.trade-amount {
-  color: var(--ink-700);
-  font-variant-numeric: tabular-nums;
-}
-
-.activity-table .col-status-head,
-.activity-table .col-status {
-  text-align: right;
+.watchlist-panel app-watchlist-widget {
+  flex: 1;
+  /* Never taller than the holdings panel beside it */
+  max-height: 460px;
 }
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 1200px) {
   .dashboard-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .watchlist-panel app-watchlist-widget {
+    max-height: none;
   }
 }
 

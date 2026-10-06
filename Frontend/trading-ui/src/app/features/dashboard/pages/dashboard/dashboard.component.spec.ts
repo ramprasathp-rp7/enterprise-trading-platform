@@ -8,6 +8,7 @@ import { DashboardService } from '../../services/dashboard.service';
 import { BlotterStore } from '../../../blotter/blotter.store';
 import { CoreAuthService } from '../../../../core/auth/core-auth.service';
 import { AccountsService } from '../../../../api/generated/trade';
+import { WatchlistsService } from '../../../../api/generated/watchlist';
 
 describe('DashboardComponent', () => {
   let fixture: ComponentFixture<DashboardComponent>;
@@ -15,6 +16,7 @@ describe('DashboardComponent', () => {
   let dashboardService: { getBalance: ReturnType<typeof vi.fn>; getAccount: ReturnType<typeof vi.fn> };
   let blotterStore: { orders: ReturnType<typeof signal<any[]>>; loadOrderHistory: ReturnType<typeof vi.fn> };
   let currentUser: ReturnType<typeof vi.fn>;
+  let watchlistsApi: { getWatchlists: ReturnType<typeof vi.fn> };
 
   const orders = [
     { orderId: 'o1', symbol: 'AAPL', side: 'BUY', quantity: 100, price: 189.35, status: 'FILLED', createdOn: '2026-10-05T09:30:00Z' },
@@ -32,6 +34,7 @@ describe('DashboardComponent', () => {
         { provide: BlotterStore, useValue: blotterStore },
         { provide: CoreAuthService, useValue: { currentUser } },
         { provide: AccountsService, useValue: { getPositions: vi.fn(() => of([])) } },
+        { provide: WatchlistsService, useValue: watchlistsApi },
       ],
     }).compileComponents();
     fixture = TestBed.createComponent(DashboardComponent);
@@ -46,6 +49,35 @@ describe('DashboardComponent', () => {
     };
     blotterStore = { orders: signal<any[]>(orders), loadOrderHistory: vi.fn() };
     currentUser = vi.fn(() => ({ accountId: 7 }));
+    watchlistsApi = { getWatchlists: vi.fn(() => of([])) };
+  });
+
+  it('shows the first watchlist with a link to the full Watchlists page', async () => {
+    watchlistsApi.getWatchlists.mockReturnValue(
+      of([
+        {
+          watchlistId: 3,
+          accountId: 7,
+          name: 'Tech',
+          createdAt: '2026-10-01T00:00:00Z',
+          updatedAt: '2026-10-01T00:00:00Z',
+          items: [{ watchlistItemId: 1, watchlistId: 3, accountId: 7, symbol: 'MSFT', createdAt: '2026-10-01T00:00:00Z' }],
+        },
+      ]),
+    );
+    await create();
+
+    expect(watchlistsApi.getWatchlists).toHaveBeenCalledWith(7);
+    const panel: HTMLElement = fixture.nativeElement.querySelector('.watchlist-panel');
+    expect(panel.textContent).toContain('MSFT');
+    expect(panel.textContent).toContain('Microsoft Corporation');
+    expect(panel.querySelector('[data-testid="watchlist-view-all"]')!.getAttribute('href')).toBe('/watchlists?id=3');
+  });
+
+  it('invites the user to create a watchlist when there are none', async () => {
+    await create();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="watchlist-widget-empty"]')).not.toBeNull();
   });
 
   it('loads orders, balance and account for the signed-in user', async () => {
@@ -97,34 +129,6 @@ describe('DashboardComponent', () => {
     expect(component.portfolioStats()[2]).toEqual(expect.objectContaining({ value: '0', caption: 'Nothing awaiting execution' }));
   });
 
-  it('maps the four most recent orders to trades with display statuses', async () => {
-    await create();
-
-    const trades = component.recentTrades();
-    expect(trades.map((t) => t.id)).toEqual(['o1', 'o2', 'o3', 'o4']);
-    expect(trades.map((t) => t.status)).toEqual(['EXECUTED', 'PENDING', 'REJECTED', 'CANCELLED']);
-    expect(trades[0].time).toMatch(/^[A-Z][a-z]{2} \d{1,2}, \d{2}:\d{2} [AP]M$/);
-    expect(trades[2].time).toBe('not-a-date');
-    expect(fixture.nativeElement.querySelectorAll('tr.trade-row').length).toBe(4);
-  });
-
-  it('maps CANCELLED and unknown statuses and handles empty timestamps', async () => {
-    blotterStore.orders.set([orders[3], { ...orders[0], orderId: 'o5', status: 'MYSTERY', createdOn: '  ' }]);
-    await create();
-
-    const trades = component.recentTrades();
-    expect(trades.map((t) => t.status)).toEqual(['CANCELLED', 'PENDING']);
-    expect(trades.map((t) => t.time)).toEqual(['', '']);
-  });
-
-  it('renders the empty state when there are no orders', async () => {
-    blotterStore.orders.set([]);
-    await create();
-
-    expect(component.recentTrades()).toEqual([]);
-    expect(fixture.nativeElement.querySelector('.empty-state').textContent).toContain('No trades yet');
-  });
-
   it('skips all loading without a signed-in account', async () => {
     currentUser.mockReturnValue(null);
     await create();
@@ -167,23 +171,4 @@ describe('DashboardComponent', () => {
     expect(blotterStore.loadOrderHistory).toHaveBeenCalledTimes(1);
   });
 
-  it('maps statuses to classes and icons', async () => {
-    await create();
-
-    expect(component.getStatusClass('EXECUTED')).toBe('status-executed');
-    expect(component.getStatusIcon('executed')).toBe('fa-check-circle');
-    expect(component.getStatusIcon('PENDING')).toBe('fa-hourglass-half');
-    expect(component.getStatusIcon('CANCELLED')).toBe('fa-times-circle');
-    expect(component.getStatusIcon('REJECTED')).toBe('fa-ban');
-    expect(component.getStatusIcon('OTHER')).toBe('fa-circle');
-  });
-
-  it('shows a rejected order with the red REJECTED badge, not CANCELLED', async () => {
-    blotterStore.orders.set([orders[2]]);
-    await create();
-
-    const pill = fixture.nativeElement.querySelector('tr.trade-row .pill');
-    expect(pill.textContent.trim()).toBe('REJECTED');
-    expect(pill.classList).toContain('status-rejected');
-  });
 });

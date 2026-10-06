@@ -31,6 +31,25 @@ const CATALOGUE: Instrument[] = [
   { symbol: 'TATASTEEL.BO', name: 'Tata Steel Limited', assetClass: 'EQUITY', currency: 'INR', tradable: false },
   { symbol: 'FX:EURUSD', name: 'Euro / US Dollar', assetClass: 'FX', currency: 'USD', tradable: true },
   { symbol: 'X:BTC-USD', name: 'Bitcoin / US Dollar', assetClass: 'CRYPTO', currency: 'USD', tradable: true },
+  // seed 007_additional_instruments.sql: brings the catalogue to Fauxnance's 25-symbol batch limit
+  { symbol: 'MSFT', name: 'Microsoft Corporation', assetClass: 'EQUITY', currency: 'USD', tradable: true },
+  { symbol: 'GOOGL', name: 'Alphabet Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true },
+  { symbol: 'AMZN', name: 'Amazon.com Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true },
+  { symbol: 'NVDA', name: 'NVIDIA Corporation', assetClass: 'EQUITY', currency: 'USD', tradable: true },
+  { symbol: 'TSLA', name: 'Tesla Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true },
+  { symbol: 'META', name: 'Meta Platforms Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true },
+  { symbol: 'JPM', name: 'JPMorgan Chase & Co.', assetClass: 'EQUITY', currency: 'USD', tradable: true },
+  { symbol: 'NFLX', name: 'Netflix Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true },
+  { symbol: 'TCS.NS', name: 'Tata Consultancy Services', assetClass: 'EQUITY', currency: 'INR', tradable: true },
+  { symbol: 'HDFCBANK.NS', name: 'HDFC Bank Limited', assetClass: 'EQUITY', currency: 'INR', tradable: true },
+  { symbol: 'ICICIBANK.NS', name: 'ICICI Bank Limited', assetClass: 'EQUITY', currency: 'INR', tradable: true },
+  { symbol: 'WIPRO.NS', name: 'Wipro Limited', assetClass: 'EQUITY', currency: 'INR', tradable: true },
+  { symbol: 'FX:GBPUSD', name: 'British Pound / US Dollar', assetClass: 'FX', currency: 'USD', tradable: true },
+  { symbol: 'FX:USDJPY', name: 'US Dollar / Japanese Yen', assetClass: 'FX', currency: 'JPY', tradable: true },
+  { symbol: 'FX:USDINR', name: 'US Dollar / Indian Rupee', assetClass: 'FX', currency: 'INR', tradable: true },
+  { symbol: 'X:ETH-USD', name: 'Ethereum / US Dollar', assetClass: 'CRYPTO', currency: 'USD', tradable: true },
+  { symbol: 'X:SOL-USD', name: 'Solana / US Dollar', assetClass: 'CRYPTO', currency: 'USD', tradable: true },
+  { symbol: 'X:XRP-USD', name: 'XRP / US Dollar', assetClass: 'CRYPTO', currency: 'USD', tradable: true },
 ];
 
 /** Real candle snapshots, by symbol */
@@ -47,6 +66,25 @@ const REFERENCE_PRICE: Record<string, number> = {
   'TATASTEEL.BO': 141.05,
   'FX:EURUSD': 1.0842,
   'X:BTC-USD': 64250,
+  // Dummy reference prices until a live quote feed is connected
+  MSFT: 415.2,
+  GOOGL: 168.4,
+  AMZN: 182.75,
+  NVDA: 121.6,
+  TSLA: 248.3,
+  META: 505.1,
+  JPM: 201.45,
+  NFLX: 645.9,
+  'TCS.NS': 3925.5,
+  'HDFCBANK.NS': 1642.3,
+  'ICICIBANK.NS': 1215.8,
+  'WIPRO.NS': 486.25,
+  'FX:GBPUSD': 1.2715,
+  'FX:USDJPY': 151.42,
+  'FX:USDINR': 83.47,
+  'X:ETH-USD': 3150,
+  'X:SOL-USD': 145.3,
+  'X:XRP-USD': 0.52,
 };
 
 /** Daily volatility and typical volume for generated candles (FX has no volume) */

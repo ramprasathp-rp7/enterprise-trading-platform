@@ -53,6 +53,13 @@ export class SidebarComponent {
       section: 'Trading'
     },
     {
+      label: 'Watchlists',
+      route: '/watchlists',
+      icon: 'fas fa-bookmark',
+      description: 'Instruments you follow',
+      section: 'Trading'
+    },
+    {
       label: 'Order Blotter',
       route: '/blotter',
       icon: 'fas fa-list-ul',
