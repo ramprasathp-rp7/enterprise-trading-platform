@@ -33,9 +33,9 @@ public class FauxnanceApiClient {
     
     private static final Logger log = LoggerFactory.getLogger(FauxnanceApiClient.class);
     private static final int MAX_BATCH_SIZE = 25;
-    private static final String QUOTES_ENDPOINT = "/v1/quotes";
-    private static final String USAGE_ENDPOINT = "/v1/usage";
-    private static final String HEALTH_ENDPOINT = "/v1/health";
+    private static final String QUOTES_ENDPOINT = "/quotes";
+    private static final String USAGE_ENDPOINT = "/usage";
+    private static final String HEALTH_ENDPOINT = "/health";
     
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
