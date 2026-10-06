@@ -2,6 +2,8 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { InstrumentCatalogService } from '../../../instruments/services/instrument-catalog.service';
+import { LiveQuoteStore } from '../../../../core/market-data/live-quote.store';
+import { currencySymbol } from '../../../../shared/currency';
 import { WatchlistResponse } from '../../../../api/generated/watchlist';
 import { WatchlistStore } from '../../watchlist.store';
 
@@ -10,7 +12,8 @@ const MAX_ROWS = 5;
 
 /**
  * Dashboard card showing one watchlist (switchable with tabs) and its first few
- * instruments with sample prices. "View all" opens the Watchlists page on that list.
+ * instruments with live prices from the order service's quote cache. "View all" opens the
+ * Watchlists page on that list.
  */
 @Component({
   selector: 'app-watchlist-widget',
@@ -66,8 +69,8 @@ const MAX_ROWS = 5;
                   <span class="sym">{{ row.symbol }}</span>
                   <span class="name">{{ row.name }}</span>
                 </span>
-                <span class="quote">
-                  <span class="price">{{ row.price }}</span>
+                <span class="quote" [title]="row.title">
+                  <span class="price" [class.muted]="row.price === '—'">{{ row.price }}</span>
                   @if (row.changePercent !== null) {
                     <span class="chg" [class.up]="row.changePercent >= 0" [class.down]="row.changePercent < 0">
                       {{ row.changePercent >= 0 ? '+' : '' }}{{ row.changePercent | number: '1.2-2' }}%
@@ -188,6 +191,11 @@ const MAX_ROWS = 5;
       color: var(--ink-900);
     }
 
+    .price.muted {
+      color: var(--ink-400, var(--ink-500));
+      font-weight: 500;
+    }
+
     .chg {
       font-size: 12px;
       font-weight: 600;
@@ -213,6 +221,7 @@ const MAX_ROWS = 5;
 export class WatchlistWidgetComponent implements OnInit {
   readonly store = inject(WatchlistStore);
   private readonly catalog = inject(InstrumentCatalogService);
+  private readonly liveQuotes = inject(LiveQuoteStore);
 
   readonly selectedId = signal<number | null>(null);
 
@@ -223,16 +232,29 @@ export class WatchlistWidgetComponent implements OnInit {
 
   readonly rows = computed(() =>
     (this.current()?.items ?? []).slice(0, MAX_ROWS).map((item) => {
-      const quote = this.catalog.quote(item.symbol);
+      const entry = this.liveQuotes.entry(item.symbol);
+      const quote = entry?.quote ?? null;
       const decimals = this.catalog.decimals(item.symbol);
+      const instrument = this.catalog.find(item.symbol);
+      const symbol = currencySymbol(quote?.currency ?? instrument?.currency);
       return {
         symbol: item.symbol,
-        name: this.catalog.find(item.symbol)?.name ?? '',
-        price: (quote?.price ?? 0).toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }),
+        name: instrument?.name ?? '',
+        price: quote
+          ? symbol + quote.price.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
+          : entry?.status === 'loading' || !entry ? '…' : '—',
         changePercent: quote?.changePercent ?? null,
+        title: quote
+          ? `Updated ${new Date(quote.receivedAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}`
+          : entry?.status === 'missing' ? 'No price yet' : '',
       };
     }),
   );
+
+  constructor() {
+    // Live prices only for the rows on screen
+    this.liveQuotes.track(() => (this.current()?.items ?? []).slice(0, MAX_ROWS).map((item) => item.symbol));
+  }
 
   readonly hiddenCount = computed(() => Math.max(0, (this.current()?.items.length ?? 0) - MAX_ROWS));
 

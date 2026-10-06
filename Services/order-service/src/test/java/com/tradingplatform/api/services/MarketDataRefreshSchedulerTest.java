@@ -1,7 +1,7 @@
 package com.tradingplatform.api.services;
 
 import com.tradingplatform.api.events.QuotePayload;
-import com.tradingplatform.api.mappers.PositionMapper;
+import com.tradingplatform.api.mappers.InstrumentMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,7 +20,7 @@ import static org.mockito.Mockito.*;
  * Unit tests for MarketDataRefreshScheduler.
  *
  * Tests cover:
- * - Refresh: held symbols quoted, every Fauxnance quote appended to the cache
+ * - Refresh: every instrument quoted, every Fauxnance quote appended to the cache
  * - Failures: partial results, API down and database down keep existing cached quotes
  * - Quote source switch: scheduler and Kafka consumer bind to opposite modes
  *
@@ -32,17 +32,17 @@ class MarketDataRefreshSchedulerTest {
     private static final Instant AS_OF = Instant.parse("2026-10-05T09:45:00Z");
 
     private FauxnanceApiClient fauxnanceClient;
-    private PositionMapper positionMapper;
+    private InstrumentMapper instrumentMapper;
     private MarketDataCache cache;
     private MarketDataRefreshScheduler scheduler;
 
     @BeforeEach
     void setUp() {
         fauxnanceClient = mock(FauxnanceApiClient.class);
-        positionMapper = mock(PositionMapper.class);
+        instrumentMapper = mock(InstrumentMapper.class);
         cache = new MarketDataCache();
-        scheduler = new MarketDataRefreshScheduler(fauxnanceClient, positionMapper, cache);
-        when(positionMapper.getDistinctSymbolsWithQuantity()).thenReturn(List.of("AAPL", "INFY.NS"));
+        scheduler = new MarketDataRefreshScheduler(fauxnanceClient, instrumentMapper, cache);
+        when(instrumentMapper.findAllSymbols()).thenReturn(List.of("AAPL", "INFY.NS"));
     }
 
     @Test
@@ -125,9 +125,9 @@ class MarketDataRefreshSchedulerTest {
     }
 
     @Test
-    @DisplayName("Should skip the refresh when held symbols cannot be loaded")
+    @DisplayName("Should skip the refresh when instruments cannot be loaded")
     void testDatabaseFailure() {
-        when(positionMapper.getDistinctSymbolsWithQuantity()).thenThrow(new RuntimeException("db down"));
+        when(instrumentMapper.findAllSymbols()).thenThrow(new RuntimeException("db down"));
 
         assertDoesNotThrow(() -> scheduler.refreshQuotes());
 
@@ -136,9 +136,9 @@ class MarketDataRefreshSchedulerTest {
     }
 
     @Test
-    @DisplayName("Should not call Fauxnance when no symbols are held")
-    void testNoHeldSymbols() {
-        when(positionMapper.getDistinctSymbolsWithQuantity()).thenReturn(List.of());
+    @DisplayName("Should not call Fauxnance when there are no instruments")
+    void testNoInstruments() {
+        when(instrumentMapper.findAllSymbols()).thenReturn(List.of());
 
         scheduler.refreshQuotes();
 

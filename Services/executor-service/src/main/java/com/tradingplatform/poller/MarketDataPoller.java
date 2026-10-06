@@ -27,7 +27,7 @@ import com.tradingplatform.services.SymbolDiscoveryService;
 /**
  * Scheduled market data poller that publishes quotes from Fauxnance to the Kafka market-data topic.
  * 
- * Polls active symbols (from positions) at a configurable interval, batches up to 25 symbols per request,
+ * Polls every instrument symbol at a configurable interval, batches up to 25 symbols per request,
  * and publishes one message per symbol to maintain per-symbol ordering guarantees.
  * 
  * Quota tracking: Shares the same Fauxnance request budget with the fill path (both use QuoteClient).
@@ -95,11 +95,11 @@ public class MarketDataPoller {
         try {
             logger.info("Starting market data poll cycle");
             
-            // Get symbols to poll from active positions
+            // Get symbols to poll: every instrument
             Set<String> symbols = symbolDiscoveryService.getActiveSymbols();
             
             if (symbols.isEmpty()) {
-                logger.info("No active symbols to poll, skipping this cycle");
+                logger.info("No instruments to poll, skipping this cycle");
                 return;
             }
             

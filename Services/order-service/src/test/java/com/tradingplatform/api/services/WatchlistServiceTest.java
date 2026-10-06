@@ -226,5 +226,10 @@ class WatchlistServiceTest {
         public Instrument findById(Long id) {
             return bySymbol.values().stream().filter(i -> i.getId().equals(id)).findFirst().orElse(null);
         }
+
+        @Override
+        public List<String> findAllSymbols() {
+            return bySymbol.keySet().stream().sorted().toList();
+        }
     }
 }

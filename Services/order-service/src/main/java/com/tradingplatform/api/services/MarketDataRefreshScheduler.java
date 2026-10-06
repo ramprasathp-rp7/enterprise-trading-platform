@@ -1,7 +1,7 @@
 package com.tradingplatform.api.services;
 
 import com.tradingplatform.api.events.QuotePayload;
-import com.tradingplatform.api.mappers.PositionMapper;
+import com.tradingplatform.api.mappers.InstrumentMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -19,9 +19,9 @@ import java.util.Objects;
  * Only created when market-data.quote-source=FAUXNANCE (the default; env MARKET_DATA_QUOTE_SOURCE).
  * In KAFKA mode MarketDataConsumer fills the cache from the market-data topic instead.
  *
- * Each run quotes the same symbols as the executor's market-data poller (tradable symbols
- * with a non-zero position), in batched calls of up to 25 symbols per request, so the daily
- * cost is 288 requests per 25 held symbols, well inside the 2000 request quota.
+ * Each run quotes every symbol in the instruments table, the same symbols the executor's
+ * market-data poller publishes to the topic, in batched calls of up to 25 symbols per request,
+ * so the daily cost is 288 requests per 25 instruments, well inside the 2000 request quota.
  * Every quote is appended to the cache's per-symbol history; symbols Fauxnance fails to
  * quote simply get no new entry that run.
  *
@@ -36,18 +36,18 @@ public class MarketDataRefreshScheduler {
     private static final Logger logger = LoggerFactory.getLogger(MarketDataRefreshScheduler.class);
 
     private final FauxnanceApiClient fauxnanceClient;
-    private final PositionMapper positionMapper;
+    private final InstrumentMapper instrumentMapper;
     private final MarketDataCache marketDataCache;
 
-    public MarketDataRefreshScheduler(FauxnanceApiClient fauxnanceClient, PositionMapper positionMapper,
+    public MarketDataRefreshScheduler(FauxnanceApiClient fauxnanceClient, InstrumentMapper instrumentMapper,
                                       MarketDataCache marketDataCache) {
         this.fauxnanceClient = Objects.requireNonNull(fauxnanceClient, "fauxnanceClient cannot be null");
-        this.positionMapper = Objects.requireNonNull(positionMapper, "positionMapper cannot be null");
+        this.instrumentMapper = Objects.requireNonNull(instrumentMapper, "instrumentMapper cannot be null");
         this.marketDataCache = Objects.requireNonNull(marketDataCache, "marketDataCache cannot be null");
     }
 
     /**
-     * Quotes every held symbol and appends the results to the cache.
+     * Quotes every instrument and appends the results to the cache.
      * Runs on startup, then every market-data.refresh.interval-ms (default five minutes).
      */
     @Scheduled(initialDelayString = "${market-data.refresh.initial-delay-ms:0}",
@@ -55,13 +55,13 @@ public class MarketDataRefreshScheduler {
     public void refreshQuotes() {
         List<String> symbols;
         try {
-            symbols = positionMapper.getDistinctSymbolsWithQuantity();
+            symbols = instrumentMapper.findAllSymbols();
         } catch (Exception ex) {
-            logger.error("Quote refresh skipped: could not load held symbols: {}", ex.getMessage());
+            logger.error("Quote refresh skipped: could not load instrument symbols: {}", ex.getMessage());
             return;
         }
         if (symbols == null || symbols.isEmpty()) {
-            logger.debug("Quote refresh skipped: no held symbols");
+            logger.debug("Quote refresh skipped: no instruments");
             return;
         }
 
@@ -78,8 +78,9 @@ public class MarketDataRefreshScheduler {
             marketDataCache.updateQuote(quote.getSymbol(), toPayload(quote), receivedAt));
 
         if (quotes.size() < symbols.size()) {
-            logger.warn("Quote refresh: Fauxnance quoted {} of {} symbols; the rest get no new quote this run",
-                quotes.size(), symbols.size());
+            List<String> unquoted = symbols.stream().filter(symbol -> !quotes.containsKey(symbol)).toList();
+            logger.warn("Quote refresh: Fauxnance quoted {} of {} symbols; no quote this run for {}",
+                quotes.size(), symbols.size(), unquoted);
         } else {
             logger.info("Quote refresh: cached {} quotes from Fauxnance", quotes.size());
         }
