@@ -7,24 +7,34 @@ import { WatchlistItemResponse, WatchlistResponse } from '../../../../api/genera
 import { InstrumentSearchComponent } from '../../../instruments/components/instrument-search/instrument-search.component';
 import { Instrument } from '../../../instruments/instrument.models';
 import { InstrumentCatalogService } from '../../../instruments/services/instrument-catalog.service';
+import { LiveQuoteEntry, LiveQuoteStore } from '../../../../core/market-data/live-quote.store';
+import { currencySymbol } from '../../../../shared/currency';
 import { WatchlistStore } from '../../watchlist.store';
 
-/** A watchlist row: the stored item plus catalogue details and a (sample) quote */
+/** A watchlist row: the stored item plus catalogue details and its live quote */
 export interface WatchlistRow {
   item: WatchlistItemResponse;
   name: string;
   assetClass: string;
   currency: string;
+  /** Short symbol for the currency (₹, $, ¥), '' when it has none */
+  currencySymbol: string;
   tradable: boolean;
-  price: number;
+  /** Latest cached price, or null while loading / when the backend has none */
+  price: number | null;
   changePercent: number | null;
+  /** The quote was past its freshness window when the backend received it */
+  stale: boolean;
+  /** When the backend received the quote (ISO-8601) */
+  receivedAt: string | null;
+  priceStatus: LiveQuoteEntry['status'];
   decimals: number;
 }
 
 /**
  * Watchlists page: create and delete watchlists, add instruments via search,
  * remove instruments, and jump to the order ticket for any of them.
- * Prices are sample values from InstrumentCatalogService until live quotes exist.
+ * Prices are the latest quotes from the order service's cache (LiveQuoteStore), refreshed every 5 minutes.
  */
 @Component({
   selector: 'app-watchlists',
@@ -36,6 +46,7 @@ export interface WatchlistRow {
 export class WatchlistsComponent implements OnInit {
   readonly store = inject(WatchlistStore);
   private readonly catalog = inject(InstrumentCatalogService);
+  private readonly liveQuotes = inject(LiveQuoteStore);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
@@ -58,19 +69,30 @@ export class WatchlistsComponent implements OnInit {
   readonly rows = computed<WatchlistRow[]>(() =>
     (this.selected()?.items ?? []).map((item) => {
       const instrument = this.catalog.find(item.symbol);
-      const quote = this.catalog.quote(item.symbol);
+      const entry = this.liveQuotes.entry(item.symbol);
+      const quote = entry?.quote ?? null;
+      const currency = quote?.currency ?? instrument?.currency ?? '';
       return {
         item,
         name: instrument?.name ?? item.symbol,
         assetClass: instrument?.assetClass ?? '—',
-        currency: instrument?.currency ?? '',
+        currency,
+        currencySymbol: currencySymbol(currency),
         tradable: instrument?.tradable ?? false,
-        price: quote?.price ?? 0,
+        price: quote?.price ?? null,
         changePercent: quote?.changePercent ?? null,
+        stale: quote?.stale === true,
+        receivedAt: quote?.receivedAt ?? null,
+        priceStatus: entry?.status ?? 'loading',
         decimals: this.catalog.decimals(item.symbol),
       };
     }),
   );
+
+  constructor() {
+    // Live prices for whichever watchlist is open
+    this.liveQuotes.track(() => (this.selected()?.items ?? []).map((item) => item.symbol));
+  }
 
   ngOnInit(): void {
     this.store.load();
@@ -167,6 +189,28 @@ export class WatchlistsComponent implements OnInit {
   }
 
   formatPrice(row: WatchlistRow): string {
-    return row.price.toLocaleString('en-US', { minimumFractionDigits: row.decimals, maximumFractionDigits: row.decimals });
+    if (row.price === null) {
+      return '—';
+    }
+    const amount = row.price.toLocaleString('en-US', { minimumFractionDigits: row.decimals, maximumFractionDigits: row.decimals });
+    return `${row.currencySymbol}${amount}`;
+  }
+
+  /** Hover text for the price cell: where the price came from and how fresh it is */
+  priceTitle(row: WatchlistRow): string {
+    switch (row.priceStatus) {
+      case 'loading':
+        return 'Loading the latest price…';
+      case 'missing':
+        return 'No price yet. Prices are refreshed for instruments with an open position.';
+      default: {
+        if (!row.receivedAt) {
+          return 'Price unavailable right now.';
+        }
+        const at = new Date(row.receivedAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+        const note = row.priceStatus === 'error' ? ' (could not refresh, showing last price)' : '';
+        return `Updated ${at}${row.stale ? ', delayed quote' : ''}${note}`;
+      }
+    }
   }
 }

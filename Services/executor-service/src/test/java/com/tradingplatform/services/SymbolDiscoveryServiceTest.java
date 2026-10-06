@@ -14,45 +14,45 @@ import org.junit.jupiter.api.DisplayName;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import com.tradingplatform.mappers.PositionMapper;
+import com.tradingplatform.mappers.InstrumentMapper;
 
 @DisplayName("SymbolDiscoveryService Tests")
 class SymbolDiscoveryServiceTest {
 
     @Mock
-    private PositionMapper positionMapper;
+    private InstrumentMapper instrumentMapper;
 
     private SymbolDiscoveryService symbolDiscoveryService;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        symbolDiscoveryService = new SymbolDiscoveryService(positionMapper);
+        symbolDiscoveryService = new SymbolDiscoveryService(instrumentMapper);
     }
 
     @Test
-    @DisplayName("Test 1: Returns empty set when no active positions")
-    void testReturnsEmptySetWhenNoActivePositions() {
-        when(positionMapper.getDistinctSymbolsWithQuantity()).thenReturn(new ArrayList<>());
+    @DisplayName("Test 1: Returns empty set when there are no instruments")
+    void testReturnsEmptySetWhenNoInstruments() {
+        when(instrumentMapper.findAllSymbols()).thenReturn(new ArrayList<>());
         
         Set<String> symbols = symbolDiscoveryService.getActiveSymbols();
         
-        assertTrue(symbols.isEmpty(), "Should return empty set when no active positions");
+        assertTrue(symbols.isEmpty(), "Should return empty set when there are no instruments");
     }
 
     @Test
-    @DisplayName("Test 2: Returns symbols when active positions exist")
-    void testReturnsSymbolsWhenActivePositionsExist() {
+    @DisplayName("Test 2: Returns every instrument symbol, held or not")
+    void testReturnsEveryInstrumentSymbol() {
         List<String> mockSymbols = new ArrayList<>();
         mockSymbols.add("AAPL");
         mockSymbols.add("MSFT");
         mockSymbols.add("GOOGL");
         
-        when(positionMapper.getDistinctSymbolsWithQuantity()).thenReturn(mockSymbols);
+        when(instrumentMapper.findAllSymbols()).thenReturn(mockSymbols);
         
         Set<String> symbols = symbolDiscoveryService.getActiveSymbols();
         
-        assertEquals(3, symbols.size(), "Should return all active symbols");
+        assertEquals(3, symbols.size(), "Should return all instrument symbols");
         assertTrue(symbols.contains("AAPL"), "Should contain AAPL");
         assertTrue(symbols.contains("MSFT"), "Should contain MSFT");
         assertTrue(symbols.contains("GOOGL"), "Should contain GOOGL");
@@ -61,7 +61,7 @@ class SymbolDiscoveryServiceTest {
     @Test
     @DisplayName("Test 3: Handles mapper exception gracefully")
     void testHandlesMapperExceptionGracefully() {
-        when(positionMapper.getDistinctSymbolsWithQuantity())
+        when(instrumentMapper.findAllSymbols())
             .thenThrow(new RuntimeException("Database connection error"));
         
         // Should not throw, but return empty set
@@ -79,7 +79,7 @@ class SymbolDiscoveryServiceTest {
         mockSymbols.add("MSFT");
         mockSymbols.add("AAPL"); // Duplicate
         
-        when(positionMapper.getDistinctSymbolsWithQuantity()).thenReturn(mockSymbols);
+        when(instrumentMapper.findAllSymbols()).thenReturn(mockSymbols);
         
         Set<String> symbols = symbolDiscoveryService.getActiveSymbols();
         
@@ -90,10 +90,10 @@ class SymbolDiscoveryServiceTest {
     @Test
     @DisplayName("Test 5: Calls mapper exactly once per invocation")
     void testCallsMapperOncePerInvocation() {
-        when(positionMapper.getDistinctSymbolsWithQuantity()).thenReturn(new ArrayList<>());
+        when(instrumentMapper.findAllSymbols()).thenReturn(new ArrayList<>());
         
         symbolDiscoveryService.getActiveSymbols();
         
-        verify(positionMapper, times(1)).getDistinctSymbolsWithQuantity();
+        verify(instrumentMapper, times(1)).findAllSymbols();
     }
 }

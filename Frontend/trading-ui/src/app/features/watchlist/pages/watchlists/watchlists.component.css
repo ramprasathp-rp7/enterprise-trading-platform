@@ -138,16 +138,34 @@
   color: var(--ink-500);
 }
 
-.sample-tag {
+.live-tag {
   margin-left: 4px;
   padding: 1px 6px;
   border-radius: var(--r-pill);
-  background: var(--warning-soft);
-  color: var(--warning);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+
+.live-tag {
+  background: var(--positive-soft);
+  color: var(--positive);
+}
+
+/* Currency and delayed marker under the price, like the name under the symbol */
+.watch-table .price-meta {
+  display: block;
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: var(--ink-500);
+}
+
+/* Delayed quote marker; the cell's title says when the price was received */
+.stale-icon {
+  margin-left: 4px;
+  color: var(--warning);
+  font-size: 11px;
 }
 
 .up {
@@ -158,6 +176,62 @@
 .down {
   color: var(--negative);
   font-weight: 600;
+}
+
+/* Columns size to their content (the global tables use equal fixed widths), so the
+   class pill, price and the Trade / Not tradable actions are never clipped; the
+   wrapper scrolls sideways if the panel is narrower than the table */
+.watch-table {
+  table-layout: auto;
+}
+
+.watch-table th,
+.watch-table td {
+  padding-left: 14px;
+  padding-right: 14px;
+}
+
+.watch-table th:first-child,
+.watch-table td:first-child {
+  padding-left: 24px;
+}
+
+.watch-table th:last-child,
+.watch-table td:last-child {
+  padding-right: 24px;
+}
+
+/* Long instrument names stop at a sensible width instead of widening the column */
+.watch-table .col-instrument {
+  width: 100%;
+}
+
+.watch-table .row-name,
+.watch-table td:first-child .cell-strong {
+  display: block;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Same footprint as the Trade button it replaces, sentence case like the rest of the row */
+.untradable {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px dashed var(--warning-line, var(--warning));
+  border-radius: var(--r-sm, 8px);
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.untradable i {
+  font-size: 11px;
 }
 
 .watch-table .actions {

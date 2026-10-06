@@ -27,14 +27,14 @@ import com.tradingplatform.services.SymbolDiscoveryService;
 /**
  * Scheduled market data poller that publishes quotes from Fauxnance to the Kafka market-data topic.
  * 
- * Polls active symbols (from positions) at a configurable interval, batches up to 25 symbols per request,
+ * Polls every instrument symbol at a configurable interval, batches up to 25 symbols per request,
  * and publishes one message per symbol to maintain per-symbol ordering guarantees.
  * 
  * Quota tracking: Shares the same Fauxnance request budget with the fill path (both use QuoteClient).
  * The local quota counter in QuoteClient tracks daily requests and auto-resets at UTC midnight.
  * 
  * Configuration (via environment variables or application.properties):
- * - POLL_INTERVAL_SECONDS: Poll interval in seconds (default: 60). Will be clamped to MIN_POLL_INTERVAL_SECONDS if lower.
+ * - POLL_INTERVAL_SECONDS: Poll interval in seconds (default: 300, every five minutes). Will be clamped to MIN_POLL_INTERVAL_SECONDS if lower.
  * - MIN_POLL_INTERVAL_SECONDS: Minimum allowed poll interval in seconds (default: 60). Cannot be configured below this value.
  * 
  * Examples:
@@ -60,7 +60,7 @@ public class MarketDataPoller {
             QuoteClient quoteClient,
             KafkaTemplate<String, String> kafkaTemplate,
             ObjectMapper objectMapper,
-            @Value("${POLL_INTERVAL_SECONDS:#{T(java.lang.System).getenv('POLL_INTERVAL_SECONDS') != null ? T(java.lang.Integer).parseInt(T(java.lang.System).getenv('POLL_INTERVAL_SECONDS')) : 60}}")
+            @Value("${POLL_INTERVAL_SECONDS:#{T(java.lang.System).getenv('POLL_INTERVAL_SECONDS') != null ? T(java.lang.Integer).parseInt(T(java.lang.System).getenv('POLL_INTERVAL_SECONDS')) : 300}}")
             int pollIntervalSeconds,
             @Value("${MIN_POLL_INTERVAL_SECONDS:60}")
             int minPollIntervalSeconds) {
@@ -84,22 +84,24 @@ public class MarketDataPoller {
 
     /**
      * Scheduled method that polls for market data at the configured interval.
-     * The interval is read from POLL_INTERVAL_SECONDS (default 60s) and validated against MIN_POLL_INTERVAL_SECONDS.
+     * The interval is read from POLL_INTERVAL_SECONDS (default 300s, every five minutes) and validated against
+     * MIN_POLL_INTERVAL_SECONDS. Note the schedule itself reads POLL_INTERVAL_SECONDS directly, so the
+     * clamp in the constructor only logs a warning; keep the property at or above the minimum.
      * Both values can be configured via environment variables or application.properties.
      * 
      * Note: This polls continuously at a fixed rate. The interval is validated at initialization time.
      * If configured interval is below the minimum, it will be clamped to the minimum value.
      */
-    @Scheduled(fixedDelayString = "${POLL_INTERVAL_SECONDS:60}000")
+    @Scheduled(fixedDelayString = "${POLL_INTERVAL_SECONDS:300}000")
     public void pollMarketData() {
         try {
             logger.info("Starting market data poll cycle");
             
-            // Get symbols to poll from active positions
+            // Get symbols to poll: every instrument
             Set<String> symbols = symbolDiscoveryService.getActiveSymbols();
             
             if (symbols.isEmpty()) {
-                logger.info("No active symbols to poll, skipping this cycle");
+                logger.info("No instruments to poll, skipping this cycle");
                 return;
             }
             

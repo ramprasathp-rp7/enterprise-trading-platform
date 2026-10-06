@@ -2,9 +2,24 @@
   <header class="page-header">
     <div class="page-heading">
       <h1 class="page-title">Positions</h1>
-      <p class="page-subtitle">Current holdings by instrument</p>
+      <p class="page-subtitle">
+        Current holdings by instrument
+        @if (summary(); as s) {
+          <span data-testid="portfolio-as-of"> · Prices as of {{ s.asOf | date: 'medium' }}</span>
+        }
+      </p>
     </div>
     <div class="page-actions">
+      <button
+        type="button"
+        class="btn btn-secondary"
+        (click)="refresh()"
+        [disabled]="loading() || summaryLoading()"
+        data-testid="refresh-portfolio-btn"
+      >
+        <i class="fas fa-rotate-right" [class.fa-spin]="loading() || summaryLoading()"></i>
+        Refresh
+      </button>
       <button
         type="button"
         class="btn btn-secondary"
@@ -36,18 +51,63 @@
     </div>
   }
 
-  <section class="stat-strip" aria-label="Positions summary">
+  @if (summaryError()) {
+    <div class="alert alert-error" role="alert" data-testid="summary-error">
+      <i class="fas fa-exclamation-circle"></i>
+      <div>
+        <strong>Unable to load portfolio summary</strong>
+        <p>{{ summaryError() }}</p>
+      </div>
+    </div>
+  }
+
+  @if (showPricingWarning && (summary()?.partial || stalePositionCount() > 0)) {
+    <div class="alert alert-warning" role="status" data-testid="pricing-warning">
+      <i class="fas fa-triangle-exclamation"></i>
+      <div>
+        <strong>Some prices are not current</strong>
+        <p>
+          @if (summary()?.partial) {
+            At least one holding could not be priced, so market value and unrealised P&amp;L exclude it.
+          } @else {
+            {{ stalePositionCount() }} holding{{ stalePositionCount() === 1 ? ' is' : 's are' }} valued from a delayed quote.
+          }
+        </p>
+      </div>
+    </div>
+  }
+
+  <section class="stat-strip" aria-label="Portfolio summary">
     <div class="stat-tile">
-      <span class="stat-label">Open positions</span>
-      <span class="stat-value">{{ positions().length }}</span>
+      <span class="stat-label">Total value</span>
+      <span class="stat-value" data-testid="summary-total-value">{{ summary() ? formatNumber(summary()!.totalValue, 2) : '—' }}</span>
+      <span class="stat-caption">{{ summary()?.baseCurrency ?? '' }} · cash plus holdings</span>
     </div>
     <div class="stat-tile">
-      <span class="stat-label">Total units</span>
-      <span class="stat-value">{{ formatNumber(totalUnits(), 0) }}</span>
+      <span class="stat-label">Market value</span>
+      <span class="stat-value" data-testid="summary-market-value">{{ summary() ? formatNumber(summary()!.marketValue, 2) : '—' }}</span>
+      <span class="stat-caption">{{ summary() ? summary()!.positionCount + ' open position' + (summary()!.positionCount === 1 ? '' : 's') : '' }}</span>
     </div>
     <div class="stat-tile">
-      <span class="stat-label">Total cost basis</span>
-      <span class="stat-value">{{ formatNumber(totalCostBasis(), 2) }}</span>
+      <span class="stat-label">Unrealised P&amp;L</span>
+      <span class="stat-value" [class]="pnlTone(summary()?.unrealisedPnl)" data-testid="summary-unrealised">{{ formatSigned(summary()?.unrealisedPnl) }}</span>
+      <span class="stat-caption" [class]="pnlTone(summary()?.unrealisedPnlPercent)">
+        @if (summary()?.unrealisedPnlPercent != null) {
+          {{ formatSigned(summary()!.unrealisedPnlPercent) }}% vs cost {{ formatNumber(summary()!.costBasis, 2) }}
+        } @else if (summary()) {
+          Cost basis {{ formatNumber(summary()!.costBasis, 2) }}
+        }
+      </span>
+    </div>
+    <div class="stat-tile">
+      <span class="stat-label">Realised P&amp;L</span>
+      <span class="stat-value" [class]="pnlTone(summary()?.realisedPnl)" data-testid="summary-realised">{{ formatSigned(summary()?.realisedPnl) }}</span>
+      <span class="stat-caption">Lifetime, from closed trades</span>
+    </div>
+    <div class="stat-tile">
+      <span class="stat-label">Cash balance</span>
+      <span class="stat-value" data-testid="summary-cash">{{ summary() ? formatNumber(summary()!.cashBalance, 2) : '—' }}</span>
+      <span class="stat-caption">Available to trade</span>
     </div>
   </section>
 
@@ -63,6 +123,9 @@
           <col class="col-quantity" />
           <col class="col-cost" />
           <col class="col-basis" />
+          <col class="col-price" />
+          <col class="col-value" />
+          <col class="col-pnl" />
           <col class="col-actions" />
         </colgroup>
         <thead>
@@ -71,13 +134,16 @@
             <th class="num">Quantity</th>
             <th class="num">Average cost</th>
             <th class="num">Cost basis</th>
+            <th class="num">Last price</th>
+            <th class="num">Market value</th>
+            <th class="num">Unrealised P&amp;L</th>
             <th class="col-actions-head">Trade</th>
           </tr>
         </thead>
         <tbody>
           @if (loading()) {
             <tr>
-              <td colspan="5">
+              <td colspan="8">
                 <div class="loading-state">
                   <div class="spinner"></div>
                   <p>Loading positions...</p>
@@ -86,7 +152,7 @@
             </tr>
           } @else if (positions().length === 0) {
             <tr>
-              <td colspan="5">
+              <td colspan="8">
                 <div class="empty-state">
                   <i class="fas fa-inbox"></i>
                   <p>No active positions</p>
@@ -100,7 +166,24 @@
                 <td class="cell-strong">{{ position.symbol }}</td>
                 <td class="num">{{ formatNumber(position.quantity, 0) }}</td>
                 <td class="num">{{ formatNumber(position.averageCost, 2) }}</td>
-                <td class="num">{{ formatNumber(position.quantity * position.averageCost, 2) }}</td>
+                <td class="num">{{ formatNumber(position.costBasis, 2) }}</td>
+                <td class="num">
+                  @if (position.lastPrice != null) {
+                    <span [attr.title]="position.priceAsOf ? 'Quoted ' + (position.priceAsOf | date: 'medium') : null">{{ formatNumber(position.lastPrice, 2) }}</span>
+                    @if (showStaleBadge && position.stale) {
+                      <span class="pill pill-warning no-dot price-flag" data-testid="stale-badge">Stale</span>
+                    }
+                  } @else {
+                    <span class="pill pill-warning no-dot price-flag" data-testid="unpriced-badge">No price</span>
+                  }
+                </td>
+                <td class="num">{{ position.marketValue != null ? formatNumber(position.marketValue, 2) : '—' }}</td>
+                <td class="num" [class]="pnlTone(position.unrealisedPnl)">
+                  {{ formatSigned(position.unrealisedPnl) }}
+                  @if (position.unrealisedPnlPercent != null) {
+                    <small class="pnl-percent">{{ formatSigned(position.unrealisedPnlPercent) }}%</small>
+                  }
+                </td>
                 <td class="cell-actions">
                   <div class="trade-actions">
                     <a

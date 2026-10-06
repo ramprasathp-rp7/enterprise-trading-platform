@@ -103,9 +103,9 @@
           <table class="data-table watch-table">
             <thead>
               <tr>
-                <th>Instrument</th>
+                <th class="col-instrument">Instrument</th>
                 <th>Class</th>
-                <th class="num">Price <span class="sample-tag" title="Sample prices until live quotes are connected">sample</span></th>
+                <th class="num">Price <span class="live-tag" title="Latest prices from the trading service, refreshed every 5 minutes">live</span></th>
                 <th class="num">Change</th>
                 <th>Added</th>
                 <th class="actions-head"><span class="sr-only">Actions</span></th>
@@ -119,7 +119,21 @@
                     <span class="row-name">{{ row.name }}</span>
                   </td>
                   <td><span class="pill no-dot">{{ row.assetClass }}</span></td>
-                  <td class="num">{{ formatPrice(row) }} <small class="cell-muted">{{ row.currency }}</small></td>
+                  <td class="num" [title]="priceTitle(row)" [attr.data-testid]="'price-' + row.item.symbol">
+                    @if (row.price !== null) {
+                      <span class="cell-strong">{{ formatPrice(row) }}</span>
+                      <span class="price-meta">
+                        {{ row.currency }}
+                        @if (row.stale) {
+                          <i class="fas fa-clock stale-icon" aria-label="Delayed quote"></i>
+                        }
+                      </span>
+                    } @else if (row.priceStatus === 'loading') {
+                      <span class="cell-muted"><i class="fas fa-spinner fa-spin" aria-label="Loading price"></i></span>
+                    } @else {
+                      <span class="cell-muted">—</span>
+                    }
+                  </td>
                   <td class="num">
                     @if (row.changePercent !== null) {
                       <span [class.up]="row.changePercent >= 0" [class.down]="row.changePercent < 0">
@@ -134,7 +148,7 @@
                     @if (row.tradable) {
                       <a class="btn btn-outline btn-sm" routerLink="/order-ticket" [queryParams]="{ symbol: row.item.symbol }">Trade</a>
                     } @else {
-                      <span class="pill status-suspended no-dot" title="Orders for this instrument are rejected">Not tradable</span>
+                      <span class="untradable" title="Orders for this instrument are rejected"><i class="fas fa-ban" aria-hidden="true"></i> Not tradable</span>
                     }
                     <button
                       type="button"

@@ -248,4 +248,67 @@ class FauxnanceApiClientTest {
         assertEquals(0, new BigDecimal("150.25").compareTo(quote.getPrice()));
         assertFalse(quote.isStale());
     }
+
+    @Test
+    @DisplayName("Should parse change, changePercent, previousClose and marketState, null when absent")
+    void testParseOptionalQuoteFields() {
+        // Arrange
+        String mockResponse = """
+                {
+                  "data": {
+                    "quotes": [
+                      {
+                        "symbol": "INFY.NS",
+                        "stale": true,
+                        "quote": {
+                          "symbol": "INFY.NS",
+                          "price": 1006.35,
+                          "bid": 1006.13,
+                          "ask": 1006.57,
+                          "currency": "INR",
+                          "change": -4.25,
+                          "changePercent": -0.42,
+                          "previousClose": 1010.60,
+                          "asOf": "2026-10-06T08:41:20Z",
+                          "marketState": "closed"
+                        }
+                      },
+                      {
+                        "symbol": "FX:EURUSD",
+                        "stale": false,
+                        "quote": {
+                          "symbol": "FX:EURUSD",
+                          "price": 1.1229,
+                          "bid": 1.122888,
+                          "ask": 1.122912,
+                          "currency": "USD",
+                          "change": null,
+                          "asOf": "2026-10-06T00:00:00Z"
+                        }
+                      }
+                    ]
+                  },
+                  "meta": {}
+                }
+                """;
+        when(restTemplate.exchange(anyString(), eq(org.springframework.http.HttpMethod.GET),
+                any(), eq(String.class)))
+                .thenReturn(new org.springframework.http.ResponseEntity<>(mockResponse, org.springframework.http.HttpStatus.OK));
+
+        // Act
+        Map<String, FauxnanceApiClient.QuoteData> result = client.getBatchedQuotes(List.of("INFY.NS", "FX:EURUSD"));
+
+        // Assert
+        FauxnanceApiClient.QuoteData infy = result.get("INFY.NS");
+        assertEquals(0, new BigDecimal("-4.25").compareTo(infy.getChange()));
+        assertEquals(0, new BigDecimal("-0.42").compareTo(infy.getChangePercent()));
+        assertEquals(0, new BigDecimal("1010.60").compareTo(infy.getPreviousClose()));
+        assertEquals("closed", infy.getMarketState());
+
+        FauxnanceApiClient.QuoteData eurusd = result.get("FX:EURUSD");
+        assertNull(eurusd.getChange());
+        assertNull(eurusd.getChangePercent());
+        assertNull(eurusd.getPreviousClose());
+        assertNull(eurusd.getMarketState());
+    }
 }

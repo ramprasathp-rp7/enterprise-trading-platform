@@ -17,7 +17,9 @@
     "generate:watchlist": "openapi-generator-cli generate -c openapi/watchlist-api-config.json",
     "generate:portfolio": "openapi-generator-cli generate -c openapi/portfolio-api-config.json",
     "generate:preferences": "openapi-generator-cli generate -c openapi/preferences-api-config.json",
-    "generate": "npm run generate:auth && npm run generate:trade && npm run generate:transactions && npm run generate:admin && npm run generate:watchlist && npm run generate:portfolio && npm run generate:preferences"
+    "generate:market-data": "openapi-generator-cli generate -c openapi/market-data-api-config.json",
+    "generate:account-history": "openapi-generator-cli generate -c openapi/account-history-api-config.json",
+    "generate": "npm run generate:auth && npm run generate:trade && npm run generate:transactions && npm run generate:admin && npm run generate:watchlist && npm run generate:portfolio && npm run generate:preferences && npm run generate:market-data && npm run generate:account-history"
   },
   "private": true,
   "packageManager": "npm@11.16.0",

@@ -6,7 +6,8 @@ import { WatchlistWidgetComponent } from '../../../watchlist/components/watchlis
 import { CoreAuthService } from '../../../../core/auth/core-auth.service';
 import { BlotterStore } from '../../../blotter/blotter.store';
 import { DashboardService } from '../../services/dashboard.service';
-import { OrderStatus, PositionResponse } from '../../../../api/generated/trade';
+import { OrderStatus } from '../../../../api/generated/trade';
+import { PortfolioService, PortfolioSummary } from '../../../../api/generated/porfolio';
 import { computed } from '@angular/core';
 
 interface StatCard {
@@ -35,14 +36,16 @@ interface StatCard {
 export class DashboardComponent implements OnInit {
   private blotterStore = inject(BlotterStore);
   private dashboardService = inject(DashboardService);
+  private portfolioService = inject(PortfolioService);
   
   currentDate = new Date();
 
   // Real-time portfolio data signals
   private cashBalanceSignal = signal<number>(0);
   private accountSignal = signal<any>(null);
-  /** Null until the holdings panel has loaded positions */
-  private positionsSignal = signal<PositionResponse[] | null>(null);
+  /** Null until the portfolio summary has loaded */
+  private portfolioSummarySignal = signal<PortfolioSummary | null>(null);
+  private portfolioSummaryFailed = signal(false);
 
   // Portfolio stats - computed from real data
   accountDisplayId = computed(() => {
@@ -57,9 +60,10 @@ export class DashboardComponent implements OnInit {
   /** Headline figures, all from real account data */
   portfolioStats = computed<StatCard[]>(() => {
     const cashBalance = this.cashBalanceSignal();
-    const positions = this.positionsSignal();
+    const summary = this.portfolioSummarySignal();
     const openOrders = (this.blotterStore.orders() ?? []).filter((o) => o.status === OrderStatus.New).length;
-    const holdingsCost = positions?.reduce((sum, p) => sum + (p.quantity || 0) * (p.averageCost || 0), 0) ?? null;
+    const portfolioValue = summary?.totalValue ?? null;
+    const positionCount = summary?.positionCount ?? 0;
 
     return [
       {
@@ -71,14 +75,16 @@ export class DashboardComponent implements OnInit {
         linkLabel: 'Deposit or withdraw',
       },
       {
-        title: 'Holdings at cost',
-        value: holdingsCost === null ? '—' : this.formatAmount(holdingsCost),
+        title: 'Portfolio value',
+        value: portfolioValue === null ? '—' : this.formatAmount(portfolioValue),
         caption:
-          positions === null
-            ? 'Loading holdings…'
-            : positions.length === 0
-              ? 'No open positions'
-              : `${positions.length} open position${positions.length === 1 ? '' : 's'}`,
+          summary === null
+            ? this.portfolioSummaryFailed()
+              ? 'Portfolio value unavailable'
+              : 'Loading portfolio…'
+            : positionCount === 0
+              ? 'Cash only · no open positions'
+              : `Cash + ${positionCount} open position${positionCount === 1 ? '' : 's'}`,
         icon: 'fas fa-layer-group',
         link: '/positions',
         linkLabel: 'View positions',
@@ -93,10 +99,6 @@ export class DashboardComponent implements OnInit {
       },
     ];
   });
-
-  onPositionsLoaded(positions: PositionResponse[]): void {
-    this.positionsSignal.set(positions);
-  }
 
   constructor(
     public authService: CoreAuthService
@@ -118,6 +120,8 @@ export class DashboardComponent implements OnInit {
         }
       });
 
+      this.loadPortfolioSummary(currentUser.accountId);
+
       this.dashboardService.getAccount(currentUser.accountId).subscribe({
         next: (account) => {
           this.accountSignal.set(account);
@@ -127,6 +131,20 @@ export class DashboardComponent implements OnInit {
         }
       });
     }
+  }
+
+  /** Portfolio value (cash plus market value) comes from the portfolio summary endpoint. */
+  private loadPortfolioSummary(accountId: number): void {
+    this.portfolioSummaryFailed.set(false);
+    this.portfolioService.getPortfolioSummary(accountId).subscribe({
+      next: (summary) => {
+        this.portfolioSummarySignal.set(summary ?? null);
+      },
+      error: (err) => {
+        console.error('Failed to load portfolio summary:', err);
+        this.portfolioSummaryFailed.set(true);
+      }
+    });
   }
 
   private formatAmount(value: number): string {
@@ -147,6 +165,8 @@ export class DashboardComponent implements OnInit {
           this.cashBalanceSignal.set(balance.cashBalance);
         }
       });
+
+      this.loadPortfolioSummary(currentUser.accountId);
     }
   }
 }
