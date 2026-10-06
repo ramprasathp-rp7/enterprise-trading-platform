@@ -46,7 +46,7 @@
       <a routerLink="/positions" class="panel-link">View all positions <i class="fas fa-arrow-right"></i></a>
     </header>
     <div class="panel-body">
-      <app-positions-overview [accountId]="authService.currentUser()?.accountId" (positionsLoaded)="onPositionsLoaded($event)"></app-positions-overview>
+      <app-positions-overview [accountId]="authService.currentUser()?.accountId"></app-positions-overview>
     </div>
   </section>
 
