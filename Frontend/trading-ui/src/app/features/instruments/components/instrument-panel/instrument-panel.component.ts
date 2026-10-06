@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { CHART_RANGES, ChartMode, ChartRange, MarketState } from '../../instrument.models';
 import { InstrumentCatalogService } from '../../services/instrument-catalog.service';
 import { InstrumentChartComponent } from '../instrument-chart/instrument-chart.component';
+import { AddToWatchlistComponent } from '../../../watchlist/components/add-to-watchlist/add-to-watchlist.component';
 
 const MARKET_STATE_LABEL: Record<MarketState, string> = {
   open: 'Market open',
@@ -21,7 +22,7 @@ const MARKET_STATE_LABEL: Record<MarketState, string> = {
 @Component({
   selector: 'app-instrument-panel',
   standalone: true,
-  imports: [CommonModule, InstrumentChartComponent],
+  imports: [CommonModule, InstrumentChartComponent, AddToWatchlistComponent],
   template: `
     @if (instrument(); as inst) {
       <section class="panel instrument-panel" data-testid="instrument-panel">
@@ -36,6 +37,7 @@ const MARKET_STATE_LABEL: Record<MarketState, string> = {
             </div>
           </div>
           <div class="tags">
+            <app-add-to-watchlist [symbol]="inst.symbol" />
             @if (!inst.tradable) {
               <span class="tag tag-blocked" role="note" data-testid="not-tradable-note"
                 [title]="inst.symbol + ' is currently not tradable. Orders for it will be rejected.'">
@@ -222,8 +224,14 @@ const MARKET_STATE_LABEL: Record<MarketState, string> = {
 
     .tags {
       display: flex;
+      align-items: center;
       gap: 6px;
       flex-wrap: wrap;
+    }
+
+    /* The watchlist menu drops down over the chart, so the card must not clip it */
+    .instrument-panel {
+      overflow: visible;
     }
 
     .tag {

@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { PositionsOverviewComponent } from '../../components/positions-overview/positions-overview.component';
+import { WatchlistWidgetComponent } from '../../../watchlist/components/watchlist-widget/watchlist-widget.component';
 import { CoreAuthService } from '../../../../core/auth/core-auth.service';
 import { BlotterStore } from '../../../blotter/blotter.store';
 import { DashboardService } from '../../services/dashboard.service';
@@ -20,27 +21,14 @@ interface StatCard {
   linkLabel: string;
 }
 
-interface RecentTrade {
-  id: string;
-  symbol: string;
-  type: 'BUY' | 'SELL';
-  quantity: number;
-  price: number;
-  time: string;
-  status: 'EXECUTED' | 'PENDING' | 'CANCELLED' | 'REJECTED';
-}
-
 /**
  * Dashboard Component
  * Main dashboard landing page with portfolio overview and quick actions
  */
-/** Compact timestamp for the recent trades list, e.g. "Oct 5, 09:00 AM" */
-const TRADE_TIME_FORMAT: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterModule, PositionsOverviewComponent],
+  imports: [CommonModule, RouterModule, PositionsOverviewComponent, WatchlistWidgetComponent],
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.css']
 })
@@ -110,27 +98,6 @@ export class DashboardComponent implements OnInit {
     this.positionsSignal.set(positions);
   }
 
-  // Get recent trades from blotter store - real data
-  recentTrades = computed(() => {
-    const orders = this.blotterStore.orders();
-    if (!orders || orders.length === 0) {
-      return [];
-    }
-    
-    // Map blotter orders to recent trades, get last 4 orders with any status
-    return orders
-      .slice(0, 4)
-      .map(order => ({
-        id: order.orderId,
-        symbol: order.symbol,
-        type: order.side as 'BUY' | 'SELL',
-        quantity: order.quantity,
-        price: order.price,
-        time: this.formatDateTime(order.createdOn),
-        status: this.mapOrderStatus(order.status) as 'EXECUTED' | 'PENDING' | 'CANCELLED' | 'REJECTED'
-      }));
-  });
-
   constructor(
     public authService: CoreAuthService
   ) {}
@@ -169,51 +136,6 @@ export class DashboardComponent implements OnInit {
     });
   }
 
-  private formatDateTime(value: string | number | null | undefined): string {
-    if (value === null || value === undefined) {
-      return '';
-    }
-
-    const raw = String(value).trim();
-    if (!raw) {
-      return '';
-    }
-
-    const numericPattern = /^-?\d+(\.\d+)?$/;
-    if (numericPattern.test(raw)) {
-      const numericValue = Number(raw);
-      if (Number.isFinite(numericValue)) {
-        const epochMs = Math.abs(numericValue) < 1e12 ? numericValue * 1000 : numericValue;
-        const epochDate = new Date(epochMs);
-        if (!Number.isNaN(epochDate.getTime())) {
-          return epochDate.toLocaleString('en-US', TRADE_TIME_FORMAT);
-        }
-      }
-    }
-
-    const parsedDate = new Date(raw);
-    if (!Number.isNaN(parsedDate.getTime())) {
-      return parsedDate.toLocaleString('en-US', TRADE_TIME_FORMAT);
-    }
-
-    return raw;
-  }
-
-  private mapOrderStatus(status: string): string {
-    switch (status) {
-      case 'FILLED':
-        return 'EXECUTED';
-      case 'NEW':
-        return 'PENDING';
-      case 'CANCELLED':
-        return 'CANCELLED';
-      case 'REJECTED':
-        return 'REJECTED';
-      default:
-        return 'PENDING';
-    }
-  }
-
   refreshDashboard(): void {
     const currentUser = this.authService.currentUser();
     if (currentUser?.accountId) {
@@ -225,25 +147,6 @@ export class DashboardComponent implements OnInit {
           this.cashBalanceSignal.set(balance.cashBalance);
         }
       });
-    }
-  }
-
-  getStatusClass(status: string): string {
-    return `status-${status.toLowerCase()}`;
-  }
-
-  getStatusIcon(status: string): string {
-    switch (status.toUpperCase()) {
-      case 'EXECUTED':
-        return 'fa-check-circle';
-      case 'PENDING':
-        return 'fa-hourglass-half';
-      case 'CANCELLED':
-        return 'fa-times-circle';
-      case 'REJECTED':
-        return 'fa-ban';
-      default:
-        return 'fa-circle';
     }
   }
 }

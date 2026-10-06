@@ -227,6 +227,62 @@ public class GlobalExceptionHandler {
         );
     }
     
+    // WL-404: Watchlist or watchlist item not found for this account Maps to HTTP 404 (Not Found)
+
+    @ExceptionHandler(WatchlistNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleWatchlistNotFound(
+            WatchlistNotFoundException ex,
+            WebRequest request) {
+
+        logger.error("Watchlist not found: watchlistId={}", ex.getWatchlistId());
+
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.WL_404, ex.getMessage()),
+            HttpStatus.NOT_FOUND
+        );
+    }
+
+    // WL-409: Duplicate watchlist name or symbol already in the watchlist Maps to HTTP 409 (Conflict)
+
+    @ExceptionHandler(WatchlistConflictException.class)
+    public ResponseEntity<ErrorResponse> handleWatchlistConflict(
+            WatchlistConflictException ex,
+            WebRequest request) {
+
+        logger.error("Watchlist conflict: {}", ex.getMessage());
+
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.WL_409, ex.getMessage()),
+            HttpStatus.CONFLICT
+        );
+    }
+
+    @ExceptionHandler(CandleDataNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleCandleDataNotFound(
+            CandleDataNotFoundException ex,
+            WebRequest request) {
+
+        logger.error("Candle data not found: instrumentId={}, date={}", ex.getInstrumentId(), ex.getDate());
+
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.CDL_404, "Candle data not found for requested date."),
+            HttpStatus.NOT_FOUND
+        );
+    }
+
+    @ExceptionHandler(CandleDataException.class)
+    public ResponseEntity<ErrorResponse> handleCandleDataException(
+            CandleDataException ex,
+            WebRequest request) {
+
+        logger.error("Candle data error: {}", ex.getMessage());
+
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.VAL_422, ex.getMessage()),
+            HttpStatus.UNPROCESSABLE_ENTITY
+        );
+    }
+
     // VAL-422: Invalid order data (quantity, price, etc.) Maps to HTTP 422 (Unprocessable Entity)
      
     @ExceptionHandler(InvalidOrderException.class)
@@ -348,10 +404,10 @@ public class GlobalExceptionHandler {
     private HttpStatus mapErrorCodeToHttpStatus(ErrorCode code) {
         return switch(code) {
             case AUTH_401 -> HttpStatus.UNAUTHORIZED;
-            case ACC_404, INS_404, TRANS_404 -> HttpStatus.NOT_FOUND;
+            case ACC_404, INS_404, TRANS_404, WL_404, CDL_404 -> HttpStatus.NOT_FOUND;
             case ACC_403 -> HttpStatus.FORBIDDEN;
             case ORD_400, TRANS_400 -> HttpStatus.BAD_REQUEST;
-            case ORD_409 -> HttpStatus.CONFLICT;
+            case ORD_409, WL_409 -> HttpStatus.CONFLICT;
             case VAL_422, INVALID_PREFERENCE -> HttpStatus.UNPROCESSABLE_ENTITY;
         };
     }

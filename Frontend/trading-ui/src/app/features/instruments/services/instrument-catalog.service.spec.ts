@@ -18,7 +18,12 @@ describe('InstrumentCatalogService', () => {
   describe('catalogue', () => {
     it('mirrors the seeded INSTRUMENTS table, including the non-tradable one', () => {
       expect(service.all().map((i) => i.symbol)).toEqual([
+        // 003_instruments.sql
         'AAPL', 'ACME', 'INFY.NS', 'RELIANCE.NS', 'TATASTEEL.BO', 'FX:EURUSD', 'X:BTC-USD',
+        // 007_additional_instruments.sql
+        'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'TSLA', 'META', 'JPM', 'NFLX',
+        'TCS.NS', 'HDFCBANK.NS', 'ICICIBANK.NS', 'WIPRO.NS',
+        'FX:GBPUSD', 'FX:USDJPY', 'FX:USDINR', 'X:ETH-USD', 'X:SOL-USD', 'X:XRP-USD',
       ]);
       expect(service.find('TATASTEEL.BO')?.tradable).toBe(false);
     });
@@ -31,8 +36,9 @@ describe('InstrumentCatalogService', () => {
   });
 
   describe('search', () => {
-    it('returns the catalogue for an empty query', () => {
-      expect(service.search('').length).toBe(7);
+    it('returns the catalogue for an empty query, capped at the limit', () => {
+      expect(service.all().length).toBe(25);
+      expect(service.search('').length).toBe(8);
       expect(service.search('   ', 3).length).toBe(3);
     });
 
@@ -47,7 +53,10 @@ describe('InstrumentCatalogService', () => {
       expect(service.search('eurusd')[0].symbol).toBe('FX:EURUSD');
       expect(service.search('btc')[0].symbol).toBe('X:BTC-USD');
       expect(service.search('bitcoin')[0].symbol).toBe('X:BTC-USD');
-      expect(service.search('dollar').map((i) => i.symbol)).toEqual(['FX:EURUSD', 'X:BTC-USD']);
+      expect(service.search('dollar', 25).map((i) => i.symbol)).toEqual(
+        expect.arrayContaining(['FX:EURUSD', 'FX:USDJPY', 'X:BTC-USD', 'X:ETH-USD']),
+      );
+      expect(service.search('yen')[0].symbol).toBe('FX:USDJPY');
     });
 
     it('returns nothing for an unknown query', () => {
