@@ -1,0 +1,167 @@
+openapi: 3.1.0
+
+info:
+  title: Order Notifications REST API
+  version: 1.0.0
+  summary: Order outcomes for the notification bell, built from the trade-events topic.
+  description: |
+    Binding contract for the order notification endpoint of the order service. The Angular UI
+    generates its typed client from this file, so a field renamed here is a compile error there.
+
+    ## Source of the data
+
+    The Trade Executor publishes every order outcome (`ORDER_FILLED`, `ORDER_REJECTED`, and
+    `ORDER_CANCELLED` when it applies) to the `trade-events` Kafka topic. The order service consumes
+    that topic (consumer group `order-notifications`) and stores one notification per event, adding the
+    order's symbol, side, quantity and limit price. Every order success or failure shown in the UI
+    comes from this feed.
+
+    ## Channels
+
+    Each outcome goes to the channels the customer chose on the Preferences page (EMAIL, SMS, IN_APP;
+    in-app only by default). This feed contains only the IN_APP ones. Email and SMS are sent by the order
+    service itself (stubbed for now: logged, not delivered).
+
+    ## Reading the feed
+
+    Notification ids increase. A client keeps the largest id it has handled and asks for
+    `?after=<id>`; without `after` it gets the account's latest notifications (use that once, to learn
+    where the feed is, without announcing history).
+
+    ## Authentication
+
+    Every `/api/v1/**` route requires a valid signed JWT in the `Authorization` header. A missing,
+    malformed, expired or wrongly signed token is `AUTH-401`, 401. A valid token whose `accountId`
+    claim does not match the account being addressed is `ACC-403`, 403.
+
+  contact:
+    name: Enterprise Trading Platform, programme materials
+  license:
+    name: Instructional use only
+
+servers:
+  - url: http://localhost:8080
+    description: Local development, run from Docker Compose
+
+tags:
+  - name: OrderNotifications
+    description: Order outcomes from the trade-events topic.
+
+security:
+  - bearerAuth: []
+
+paths:
+  /api/v1/accounts/{accountId}/order-notifications:
+    get:
+      tags: [OrderNotifications]
+      operationId: getOrderNotifications
+      summary: Order outcomes for the account
+      description: Notifications oldest first; with `after`, only those with a larger id.
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          description: Numeric account key (ACCOUNTS.id); must match the token's accountId claim.
+          schema:
+            type: integer
+            format: int64
+        - name: after
+          in: query
+          required: false
+          description: Only notifications with an id greater than this (the client's cursor).
+          schema:
+            type: integer
+            format: int64
+        - name: limit
+          in: query
+          required: false
+          description: At most this many (default 50, maximum 200).
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: The notifications, oldest first (empty array when there are none).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrderNotificationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    Unauthorised:
+      description: Missing or invalid token (`AUTH-401`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Token does not reach this account (`ACC-403`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    OrderNotificationResponse:
+      type: object
+      required: [id, orderId, eventType, status, occurredAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Increasing id; pass the largest seen as `after`.
+        orderId:
+          type: string
+          format: uuid
+        eventType:
+          type: string
+          enum: [ORDER_FILLED, ORDER_REJECTED, ORDER_CANCELLED]
+          description: The trade-events event type.
+        status:
+          type: string
+          enum: [FILLED, REJECTED, CANCELLED]
+        symbol:
+          type: [string, 'null']
+          description: Instrument symbol (null if the order could not be found).
+        side:
+          type: [string, 'null']
+          description: BUY or SELL (null if the order could not be found).
+        quantity:
+          type: [integer, 'null']
+          format: int32
+        price:
+          type: [number, 'null']
+          description: The order's limit price.
+        executedPrice:
+          type: [number, 'null']
+          description: Fill price (null unless FILLED).
+        reason:
+          type: [string, 'null']
+          description: Why the order was rejected (null unless REJECTED).
+        occurredAt:
+          type: string
+          format: date-time
+          description: When the order was executed.
+
+    ErrorResponse:
+      type: object
+      required: [errorCode, message]
+      properties:
+        errorCode:
+          type: string
+          enum: [AUTH-401, ACC-403, VAL-422]
+        message:
+          type: string

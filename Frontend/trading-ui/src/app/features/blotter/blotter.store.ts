@@ -5,6 +5,7 @@ import { OrderHistoryService } from './services/order-history.service';
 import { OrderCancelService } from './services/order-cancel.service';
 import { BlotterOrder, CancelResult, OrderFilters } from './blotter.models';
 import { OrderStatus } from '../../api/generated/trade';
+import { OrderStatusWatcherService } from '../../core/notifications/order-status-watcher.service';
 
 /**
  * Blotter state store
@@ -20,10 +21,16 @@ export class BlotterStore {
   // via constructor but keep a no-arg constructor-compatible form.
   private orderHistoryService?: OrderHistoryService;
   private orderCancelService?: OrderCancelService;
+  private orderWatcher?: OrderStatusWatcherService;
 
-  constructor(orderHistoryService?: OrderHistoryService, orderCancelService?: OrderCancelService) {
+  constructor(
+    orderHistoryService?: OrderHistoryService,
+    orderCancelService?: OrderCancelService,
+    orderWatcher?: OrderStatusWatcherService,
+  ) {
     this.orderHistoryService = orderHistoryService;
     this.orderCancelService = orderCancelService;
+    this.orderWatcher = orderWatcher;
   }
 
   // Polling configuration - can be customized
@@ -185,6 +192,9 @@ export class BlotterStore {
           orderId,
           message: response?.message || `${order?.side ?? ''} ${order?.symbol ?? 'Order'} cancelled`.trim(),
         });
+        // The order service publishes ORDER_CANCELLED to trade-events; check the feed soon so the
+        // bell shows it within seconds (the notification itself only comes from the feed)
+        this.orderWatcher?.track(orderId);
         this.syncOrderHistory();
       },
       error: (err) => {

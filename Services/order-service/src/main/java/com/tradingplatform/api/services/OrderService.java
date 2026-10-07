@@ -220,6 +220,9 @@ public class OrderService {
             throw new IllegalStateException("Instrument not found for order: " + cancelledOrder.getInstrumentId());
         }
 
+        // Record the outcome on trade-events (ORDER_CANCELLED); the executor will skip this order
+        orderPublisher.publishOrderCancelled(id, cancelledOrder, instrument);
+
         // Build and return OrderResponse from entities
         return buildOrderResponse(cancelledOrder, instrument);
     }

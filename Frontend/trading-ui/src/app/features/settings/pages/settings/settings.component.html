@@ -1,120 +1,154 @@
 <div class="page settings-page">
-  <header class="page-header">
-    <div class="page-heading">
+  <!-- One centred column: heading, messages, then the preferences card -->
+  <div class="settings-column">
+    <header class="settings-heading">
+      <span class="heading-icon" aria-hidden="true"><i class="fas fa-sliders"></i></span>
       <p class="page-eyebrow">Account</p>
       <h1 class="page-title">Preferences</h1>
       <p class="page-subtitle">Choose how we tell you about filled, rejected and cancelled orders and your price alerts.</p>
-    </div>
-  </header>
+    </header>
 
-  @if (feedback(); as f) {
-    <div class="alert" [class.alert-success]="!f.error" [class.alert-danger]="f.error" role="status" data-testid="preferences-feedback">
-      <i class="fas" [class.fa-check-circle]="!f.error" [class.fa-circle-exclamation]="f.error"></i>
-      <p>{{ f.text }}</p>
-      <button type="button" class="alert-close" (click)="feedback.set(null)" aria-label="Dismiss"><i class="fas fa-xmark"></i></button>
-    </div>
-  }
-
-  @if (store.error(); as error) {
-    <div class="alert alert-danger" role="alert">
-      <i class="fas fa-circle-exclamation"></i>
-      <p>{{ error }}</p>
-      <button type="button" class="btn btn-outline btn-sm" (click)="store.load()">Retry</button>
-    </div>
-  }
-
-  @if (store.preferences(); as prefs) {
-    @if (!prefs.configured) {
-      <div class="alert alert-warning" role="status" data-testid="preferences-default-banner">
-        <i class="fas fa-circle-info"></i>
-        <p>You haven't chosen any channels yet, so notifications go to your in-app inbox.</p>
+    @if (feedback(); as f) {
+      <div class="alert" [class.alert-success]="!f.error" [class.alert-danger]="f.error" role="status" data-testid="preferences-feedback">
+        <i class="fas" [class.fa-check-circle]="!f.error" [class.fa-circle-exclamation]="f.error"></i>
+        <p>{{ f.text }}</p>
+        <button type="button" class="alert-close" (click)="feedback.set(null)" aria-label="Dismiss"><i class="fas fa-xmark"></i></button>
       </div>
     }
-  }
 
-  <section class="panel">
-    <form class="settings-form" (ngSubmit)="save()" data-testid="preferences-form">
-      <fieldset class="channel-group" [disabled]="store.isLoading()">
-        <legend class="field-label">Alert channels</legend>
-        <p class="field-help">Pick one or more. We notify you on every channel you choose.</p>
-        <div class="channel-options">
-          @for (option of channels; track option.value) {
-            <label class="channel-option" [class.selected]="isSelected(option.value)">
-              <input
-                type="checkbox"
-                [checked]="isSelected(option.value)"
-                (change)="toggle(option.value)"
-                [attr.data-testid]="'channel-' + option.value"
-              />
-              <i class="fas" [ngClass]="option.icon"></i>
-              <span class="channel-label">{{ option.label }}</span>
-              <span class="channel-hint">{{ option.hint }}</span>
-            </label>
-          }
-        </div>
-        @if (nothingSelected()) {
-          <p class="field-error" data-testid="channels-error">Choose at least one channel.</p>
-        }
-      </fieldset>
-
-      @if (emailSelected()) {
-        <div class="form-field">
-          <label class="field-label" for="contactEmail">Email address</label>
-          <input
-            id="contactEmail"
-            class="form-input"
-            name="contactEmail"
-            type="email"
-            autocomplete="off"
-            maxlength="254"
-            placeholder="you@example.com"
-            [ngModel]="contacts().EMAIL"
-            (ngModelChange)="setContact('EMAIL', $event)"
-            [attr.aria-invalid]="!!emailError()"
-            data-testid="contact-email-input"
-          />
-          @if (emailError() && contacts().EMAIL) {
-            <p class="field-error" data-testid="contact-email-error">{{ emailError() }}</p>
-          }
-        </div>
-      }
-
-      @if (smsSelected()) {
-        <div class="form-field">
-          <label class="field-label" for="contactSms">Mobile number</label>
-          <input
-            id="contactSms"
-            class="form-input"
-            name="contactSms"
-            type="tel"
-            autocomplete="off"
-            maxlength="254"
-            placeholder="+447700900123"
-            [ngModel]="contacts().SMS"
-            (ngModelChange)="setContact('SMS', $event)"
-            [attr.aria-invalid]="!!smsError()"
-            data-testid="contact-sms-input"
-          />
-          @if (smsError() && contacts().SMS) {
-            <p class="field-error" data-testid="contact-sms-error">{{ smsError() }}</p>
-          }
-        </div>
-      }
-
-      @if (emailSelected() || smsSelected()) {
-        <p class="field-help">Used only to send you notifications. Stored encrypted.</p>
-      }
-
-      <div class="form-actions">
-        <button type="submit" class="btn btn-primary" [disabled]="!canSave()" data-testid="save-preferences">
-          <i class="fas fa-floppy-disk"></i> Save preferences
-        </button>
-        @if (store.preferences()?.configured) {
-          <button type="button" class="btn btn-outline" [disabled]="saving()" (click)="resetToDefault()" data-testid="reset-preferences">
-            Reset to default
-          </button>
-        }
+    @if (store.error(); as error) {
+      <div class="alert alert-danger" role="alert">
+        <i class="fas fa-circle-exclamation"></i>
+        <p>{{ error }}</p>
+        <button type="button" class="btn btn-outline btn-sm" (click)="store.load()">Retry</button>
       </div>
-    </form>
-  </section>
+    }
+
+    @if (store.preferences(); as prefs) {
+      @if (!prefs.configured) {
+        <div class="alert alert-warning" role="status" data-testid="preferences-default-banner">
+          <i class="fas fa-circle-info"></i>
+          <p>You haven't chosen any channels yet, so notifications go to your in-app inbox.</p>
+        </div>
+      }
+    }
+
+    <section class="panel settings-card">
+      <form class="settings-form" (ngSubmit)="save()" data-testid="preferences-form">
+        <!-- Channels -->
+        <fieldset class="settings-section channel-group" [disabled]="store.isLoading()">
+          <div class="section-head">
+            <legend class="section-title">Alert channels</legend>
+            <span class="section-meta">{{ selected().size }} of {{ channels.length }} selected</span>
+          </div>
+          <p class="field-help">Pick one or more. We notify you on every channel you choose.</p>
+
+          <div class="channel-options">
+            @for (option of channels; track option.value) {
+              <label class="channel-option" [class.selected]="isSelected(option.value)">
+                <input
+                  type="checkbox"
+                  [checked]="isSelected(option.value)"
+                  (change)="toggle(option.value)"
+                  [attr.data-testid]="'channel-' + option.value"
+                />
+                <span class="channel-check" aria-hidden="true"><i class="fas fa-check"></i></span>
+                <span class="channel-icon" aria-hidden="true"><i class="fas" [ngClass]="option.icon"></i></span>
+                <span class="channel-label">{{ option.label }}</span>
+                <span class="channel-hint">{{ option.hint }}</span>
+              </label>
+            }
+          </div>
+          @if (nothingSelected()) {
+            <p class="field-error" data-testid="channels-error"><i class="fas fa-circle-exclamation"></i> Choose at least one channel.</p>
+          }
+        </fieldset>
+
+        <!-- Contact details, only for the channels that need one -->
+        @if (emailSelected() || smsSelected()) {
+          <div class="settings-section">
+            <div class="section-head">
+              <h2 class="section-title">Contact details</h2>
+              <span class="section-meta"><i class="fas fa-lock" aria-hidden="true"></i> Stored encrypted</span>
+            </div>
+
+            <div class="contact-fields">
+              @if (emailSelected()) {
+                <div class="form-field">
+                  <label class="field-label" for="contactEmail">Email address</label>
+                  <div class="input-with-icon" [class.invalid]="emailError() && contacts().EMAIL">
+                    <i class="fas fa-envelope" aria-hidden="true"></i>
+                    <input
+                      id="contactEmail"
+                      class="form-input"
+                      name="contactEmail"
+                      type="email"
+                      autocomplete="off"
+                      maxlength="254"
+                      placeholder="you@example.com"
+                      [ngModel]="contacts().EMAIL"
+                      (ngModelChange)="setContact('EMAIL', $event)"
+                      [attr.aria-invalid]="!!emailError()"
+                      data-testid="contact-email-input"
+                    />
+                  </div>
+                  @if (emailError() && contacts().EMAIL) {
+                    <p class="field-error" data-testid="contact-email-error">{{ emailError() }}</p>
+                  }
+                </div>
+              }
+
+              @if (smsSelected()) {
+                <div class="form-field">
+                  <label class="field-label" for="contactSms">Mobile number</label>
+                  <div class="input-with-icon" [class.invalid]="smsError() && contacts().SMS">
+                    <i class="fas fa-mobile-screen" aria-hidden="true"></i>
+                    <input
+                      id="contactSms"
+                      class="form-input"
+                      name="contactSms"
+                      type="tel"
+                      autocomplete="off"
+                      maxlength="254"
+                      placeholder="+447700900123"
+                      [ngModel]="contacts().SMS"
+                      (ngModelChange)="setContact('SMS', $event)"
+                      [attr.aria-invalid]="!!smsError()"
+                      data-testid="contact-sms-input"
+                    />
+                  </div>
+                  @if (smsError() && contacts().SMS) {
+                    <p class="field-error" data-testid="contact-sms-error">{{ smsError() }}</p>
+                  }
+                </div>
+              }
+            </div>
+            <p class="field-help">Used only to send you notifications.</p>
+          </div>
+        }
+
+        <!-- Status and actions -->
+        <div class="form-actions">
+          <span class="save-status" data-testid="preferences-status">
+            @if (lastSaved(); as saved) {
+              <i class="fas fa-circle-check" aria-hidden="true"></i> Last saved {{ saved | date: 'MMM d, y, h:mm a' }}
+            } @else if (store.preferences()?.configured) {
+              <i class="fas fa-circle-check" aria-hidden="true"></i> Saved
+            } @else if (store.preferences()) {
+              <i class="fas fa-circle-info" aria-hidden="true"></i> Using the default: in-app only
+            }
+          </span>
+          @if (store.preferences()?.configured) {
+            <button type="button" class="btn btn-outline" [disabled]="saving()" (click)="resetToDefault()" data-testid="reset-preferences">
+              Reset to default
+            </button>
+          }
+          <button type="submit" class="btn btn-primary" [disabled]="!canSave()" data-testid="save-preferences">
+            <i class="fas" [class.fa-floppy-disk]="!saving()" [class.fa-spinner]="saving()" [class.fa-spin]="saving()"></i>
+            {{ saving() ? 'Saving…' : 'Save preferences' }}
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>
 </div>

@@ -1,0 +1,12 @@
+{
+  "inputSpec": "./contracts/order-notifications-api.yaml",
+  "outputDir": "./src/app/api/generated/order-notifications",
+  "generatorName": "typescript-angular",
+  "skipValidateSpec": true,
+  "validateSpec": false,
+  "packageName": "api.ordernotifications",
+  "additionalProperties": {
+    "apiModulePrefix": "OrderNotificationsApi",
+    "ngVersion": "21.0.0"
+  }
+}

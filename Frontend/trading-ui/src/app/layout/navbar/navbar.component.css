@@ -116,6 +116,17 @@
   color: var(--ink-900);
 }
 
+/* Preferences shortcut: highlighted while on the Preferences page */
+a.action-icon {
+  text-decoration: none;
+}
+
+.action-icon.prefs-link.active {
+  border-color: var(--brand-line, transparent);
+  background: var(--brand-soft);
+  color: var(--brand-strong);
+}
+
 .navbar-divider {
   width: 1px;
   height: 28px;
