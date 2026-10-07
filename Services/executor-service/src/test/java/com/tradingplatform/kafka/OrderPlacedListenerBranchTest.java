@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doThrow;
@@ -106,6 +107,18 @@ class OrderPlacedListenerBranchTest {
         assertEquals(orderUuid, built.getId());
         assertEquals(OrderSide.BUY, built.getSide());
         assertEquals(100L, built.getInstrumentId());
+        verify(ack).acknowledge();
+        assertTrue(deadLetters.isEmpty());
+    }
+
+    @Test
+    void cancelledOrderNeverEntersTheExecutor() throws Exception {
+        when(orderMapper.findOrderStatus(orderUuid)).thenReturn(OrderStatus.CANCELLED);
+
+        listener.onOrderPlaced(record(payload(orderId, "AAPL", "BUY", "key-1")), ack);
+
+        verifyNoInteractions(executorService);
+        verify(orderMapper, never()).updateOrderStatus(any(), any(), any(), any(), any(), any());
         verify(ack).acknowledge();
         assertTrue(deadLetters.isEmpty());
     }
@@ -216,8 +229,8 @@ class OrderPlacedListenerBranchTest {
         listener.onOrderPlaced(record(payload(orderId, "AAPL", "BUY", "k")), ack);
 
         verify(executorService, times(3)).process(any(), any(), any());
-        verify(orderMapper).updateOrderStatus(eq(orderUuid), eq(OrderStatus.REJECTED),
-            eq("Pricing service unavailable: quotes down"), isNull(), isNull(), any(Instant.class));
+        verify(executorService).rejectNew(eq(orderUuid), anyLong(),
+            eq("Pricing service unavailable: quotes down"), any(), any());
         assertTrue(deadLetters.isEmpty());
         verify(ack).acknowledge();
     }

@@ -1,5 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { NotificationService } from '../../../../core/notifications/notification.service';
@@ -10,6 +11,8 @@ import { PortfolioService, PortfolioSummary, PricedPosition } from '../../../../
 import { CoreAuthService } from '../../../../core/auth/core-auth.service';
 import { StatementPdfService } from '../../../../shared/statement-pdf.service';
 import { MarketDataService } from '../../../../api/generated/market-data';
+import { LIVE_QUOTE_TTL_MS } from '../../../../core/market-data/live-quote.store';
+import { OrderStatusWatcherService } from '../../../../core/notifications/order-status-watcher.service';
 
 describe('PositionsComponent', () => {
   let fixture: ComponentFixture<PositionsComponent>;
@@ -19,6 +22,7 @@ describe('PositionsComponent', () => {
   let currentUser: ReturnType<typeof vi.fn>;
   let statementPdf: { download: ReturnType<typeof vi.fn> };
   let marketData: { getLatestQuote: ReturnType<typeof vi.fn> };
+  let fills: ReturnType<typeof signal<number>>;
 
   const positions: PricedPosition[] = [
     {
@@ -51,6 +55,7 @@ describe('PositionsComponent', () => {
         { provide: CoreAuthService, useValue: { currentUser } },
         { provide: StatementPdfService, useValue: statementPdf },
         { provide: MarketDataService, useValue: marketData },
+        { provide: OrderStatusWatcherService, useValue: { fills: fills.asReadonly() } },
       ],
     }).compileComponents();
     fixture = TestBed.createComponent(PositionsComponent);
@@ -65,7 +70,10 @@ describe('PositionsComponent', () => {
     statementPdf = { download: vi.fn().mockResolvedValue(undefined) };
     // By default the live quote cache has nothing, so the portfolio API's prices are used
     marketData = { getLatestQuote: vi.fn(() => throwError(() => new HttpErrorResponse({ status: 404 }))) };
+    fills = signal(0);
   });
+
+  afterEach(() => vi.useRealTimers());
 
   it('loads priced positions and renders a row per holding with cost basis', async () => {
     await create();
@@ -98,6 +106,19 @@ describe('PositionsComponent', () => {
     expect(fixture.nativeElement.querySelector('[data-testid="summary-unrealised"]').classList).toContain('pnl-up');
     expect(fixture.nativeElement.querySelector('[data-testid="summary-realised"]').classList).toContain('pnl-down');
     expect(fixture.nativeElement.querySelector('[data-testid="pricing-warning"]')).toBeNull();
+  });
+
+  it('shows the unrealised % against the cost it was computed on, leaving out unpriced holdings', async () => {
+    portfolio.getPricedPositions.mockReturnValue(
+      of([positions[0], { ...positions[1], lastPrice: null, marketValue: null, unrealisedPnl: null, unrealisedPnlPercent: null }]),
+    );
+    await create();
+
+    // AAPL alone: +760 on 18,240; MSFT's 7,022 has no price, so it is in neither figure
+    const caption: string = fixture.nativeElement.querySelector('[data-testid="summary-unrealised"]').closest('.sum-item').textContent;
+    expect(component.liveSummary()!.cost).toBe(18240);
+    expect(caption).toContain('+4.17% on cost 18,240.00');
+    expect(caption).not.toContain('25,262.00');
   });
 
   it('shows last price, market value and signed unrealised P&L per holding', async () => {
@@ -204,6 +225,57 @@ describe('PositionsComponent', () => {
 
     expect(portfolio.getPortfolioSummary).toHaveBeenCalledTimes(2);
     expect(portfolio.getPricedPositions).toHaveBeenCalledTimes(2);
+  });
+
+  it('moves the live prices time forward on a manual refresh, even when the cached quote is unchanged', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-06T10:00:00Z'));
+    marketData.getLatestQuote.mockImplementation((symbol: string) =>
+      of({ symbol, price: 200, bid: 200, ask: 200, currency: 'USD', stale: false, receivedAt: '2026-10-06T09:58:00Z' }),
+    );
+    await create();
+    expect(component.pricesAsOf()).toBe(Date.parse('2026-10-06T10:00:00Z'));
+
+    vi.setSystemTime(new Date('2026-10-06T10:01:30Z'));
+    fixture.nativeElement.querySelector('[data-testid="refresh-portfolio-btn"]').click();
+    fixture.detectChanges();
+
+    expect(component.pricesAsOf()).toBe(Date.parse('2026-10-06T10:01:30Z'));
+    fixture.destroy();
+  });
+
+  it('polls live prices from the quote cache without re-calling the portfolio API', async () => {
+    vi.useFakeTimers();
+    let price = 200;
+    marketData.getLatestQuote.mockImplementation((symbol: string) =>
+      of({ symbol, price, bid: price, ask: price, currency: 'USD', stale: false, receivedAt: '2026-10-06T10:00:00Z' }),
+    );
+    await create();
+    expect(component.livePositions()[0].lastPrice).toBe(200);
+
+    price = 210;
+    vi.advanceTimersByTime(LIVE_QUOTE_TTL_MS);
+    fixture.detectChanges();
+
+    expect(component.livePositions()[0]).toEqual(expect.objectContaining({ lastPrice: 210, marketValue: 21000 }));
+    expect(fixture.nativeElement.querySelector('[data-testid="portfolio-as-of"]').textContent).toContain('as of');
+    // The portfolio API quotes Fauxnance on every call, so it is not on the live timer
+    expect(portfolio.getPricedPositions).toHaveBeenCalledTimes(1);
+    expect(portfolio.getPortfolioSummary).toHaveBeenCalledTimes(1);
+    fixture.destroy();
+  });
+
+  it('reloads holdings in place, without the loading spinner, when an order fills', async () => {
+    await create();
+    portfolio.getPricedPositions.mockReturnValue(of([{ ...positions[0], quantity: 110, costBasis: 20140 }, positions[1]]));
+
+    fills.set(1);
+    fixture.detectChanges();
+
+    expect(portfolio.getPricedPositions).toHaveBeenCalledTimes(2);
+    expect(portfolio.getPortfolioSummary).toHaveBeenCalledTimes(2);
+    expect(component.loading()).toBe(false);
+    expect(component.positions()[0].quantity).toBe(110);
   });
 
   it('shows the empty state when there are no positions', async () => {

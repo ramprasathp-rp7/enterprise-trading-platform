@@ -10,7 +10,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @MapperScan({
     "com.tradingplatform.api.mappers",
     "com.tradingplatform.watchlist.mapper",
-    "com.tradingplatform.watchlist.alerts.mapper"
+    "com.tradingplatform.watchlist.alerts.mapper",
+    "com.tradingplatform.notifications.mapper"
 })
 public class TradeApiApplication {
 

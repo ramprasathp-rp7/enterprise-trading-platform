@@ -1,29 +1,43 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
-import { OrderStatusWatcherService } from './order-status-watcher.service';
+import { ORDER_FEED_FAST_MS, ORDER_FEED_SLOW_MS, ORDER_NOTIFICATION_MAX_AGE_MS, OrderStatusWatcherService } from './order-status-watcher.service';
 import { NotificationService } from './notification.service';
-import { AccountsService, OrderStatus } from '../../api/generated/trade';
+import { OrderNotificationResponse, OrderNotificationsService } from '../../api/generated/order-notifications';
 import { CoreAuthService } from '../auth/core-auth.service';
 
-describe('OrderStatusWatcherService', () => {
+describe('OrderStatusWatcherService (trade-events feed)', () => {
   let watcher: OrderStatusWatcherService;
-  let accounts: { getOrders: ReturnType<typeof vi.fn> };
+  let api: { getOrderNotifications: ReturnType<typeof vi.fn> };
   let notifications: { notify: ReturnType<typeof vi.fn> };
   let currentUser: ReturnType<typeof vi.fn>;
 
-  const order = (id: string, status: string, extra: object = {}) => ({
-    orderId: id, accountId: 7, symbol: 'AAPL', side: 'BUY', quantity: 10, price: 189.35, executedPrice: null, status, createdOn: '', ...extra,
+  const CURSOR_KEY = 'etp-order-notification-cursor:7';
+
+  const item = (id: number, status: 'FILLED' | 'REJECTED' | 'CANCELLED', extra: Partial<OrderNotificationResponse> = {}): OrderNotificationResponse => ({
+    id,
+    orderId: `o${id}`,
+    eventType: `ORDER_${status}` as OrderNotificationResponse.EventTypeEnum,
+    status,
+    symbol: 'AAPL',
+    side: 'BUY',
+    quantity: 10,
+    price: 189.35,
+    executedPrice: status === 'FILLED' ? 189.3 : null,
+    reason: status === 'REJECTED' ? 'Insufficient funds' : null,
+    occurredAt: new Date().toISOString(),
+    ...extra,
   });
 
   beforeEach(() => {
     vi.useFakeTimers();
-    accounts = { getOrders: vi.fn(() => of([order('o1', 'NEW'), order('o2', 'FILLED')])) };
+    localStorage.removeItem(CURSOR_KEY);
+    api = { getOrderNotifications: vi.fn(() => of([])) };
     notifications = { notify: vi.fn() };
     currentUser = vi.fn(() => ({ accountId: 7 }));
     TestBed.configureTestingModule({
       providers: [
-        { provide: AccountsService, useValue: accounts },
+        { provide: OrderNotificationsService, useValue: api },
         { provide: NotificationService, useValue: notifications },
         { provide: CoreAuthService, useValue: { currentUser } },
       ],
@@ -33,91 +47,137 @@ describe('OrderStatusWatcherService', () => {
 
   afterEach(() => {
     watcher.stop();
+    localStorage.removeItem(CURSOR_KEY);
     vi.useRealTimers();
   });
 
-  it('learns existing statuses on start without notifying, and polls while an order is NEW', () => {
-    watcher.start();
+  it('on first start only learns where the feed is, without replaying history into the bell', () => {
+    api.getOrderNotifications.mockReturnValue(of([item(41, 'FILLED')]));
 
-    expect(accounts.getOrders).toHaveBeenCalledTimes(1);
+    watcher.start();
+    vi.advanceTimersByTime(0); // first poll runs on the next tick
+
+    expect(api.getOrderNotifications).toHaveBeenCalledWith(7, undefined, 1);
     expect(notifications.notify).not.toHaveBeenCalled();
+    expect(localStorage.getItem(CURSOR_KEY)).toBe('41');
     expect(watcher.isPolling).toBe(true);
   });
 
-  it('notifies when a NEW order fills, then stops polling once nothing is pending', () => {
+  it('announces new fills and rejections from the feed, with the reason, then advances the cursor', () => {
+    localStorage.setItem(CURSOR_KEY, '41');
+    api.getOrderNotifications.mockReturnValue(of([item(42, 'FILLED'), item(43, 'REJECTED')]));
+
     watcher.start();
-    accounts.getOrders.mockReturnValue(of([order('o1', 'FILLED', { executedPrice: 189.3 }), order('o2', 'FILLED')]));
+    vi.advanceTimersByTime(0); // first poll runs on the next tick
 
-    vi.advanceTimersByTime(5000);
-
-    expect(notifications.notify).toHaveBeenCalledWith(expect.objectContaining({
+    expect(api.getOrderNotifications).toHaveBeenCalledWith(7, 41);
+    expect(notifications.notify).toHaveBeenNthCalledWith(1, expect.objectContaining({
       kind: 'order-filled',
       title: 'Order completed',
       message: 'Good news! You bought 10 AAPL at $189.30.',
       link: { path: '/blotter' },
-      dedupeKey: 'order-status:o1:FILLED',
+      dedupeKey: 'order-status:o42:FILLED',
     }));
-    expect(watcher.isPolling).toBe(false);
+    expect(notifications.notify).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      kind: 'order-rejected',
+      message: expect.stringContaining('Reason: Insufficient funds.'),
+      dedupeKey: 'order-status:o43:REJECTED',
+    }));
+    expect(localStorage.getItem(CURSOR_KEY)).toBe('43');
   });
 
-  it('notifies rejections and cancellations', () => {
-    accounts.getOrders.mockReturnValue(of([order('a', 'NEW'), order('b', 'NEW')]));
+  it('skips outcomes that happened long ago (e.g. a first-time backfill) but moves past them', () => {
+    localStorage.setItem(CURSOR_KEY, '10');
+    const old = new Date(Date.now() - ORDER_NOTIFICATION_MAX_AGE_MS - 60_000).toISOString();
+    api.getOrderNotifications.mockReturnValue(of([item(11, 'FILLED', { occurredAt: old }), item(12, 'REJECTED')]));
+
     watcher.start();
-    accounts.getOrders.mockReturnValue(of([order('a', 'REJECTED'), order('b', 'CANCELLED')]));
+    vi.advanceTimersByTime(0);
 
-    vi.advanceTimersByTime(5000);
-
-    const kinds = notifications.notify.mock.calls.map((c) => c[0].kind);
-    expect(kinds).toEqual(['order-rejected', 'order-cancelled']);
-    expect(notifications.notify.mock.calls[0][0]).toMatchObject({
-      title: "Order couldn't be completed",
-      message: 'Your order to buy 10 AAPL at $189.35 was rejected. Open your order blotter for details.',
-    });
-    expect(notifications.notify.mock.calls[1][0].message).toBe('Your order to buy 10 AAPL at $189.35 has been cancelled.');
-  });
-
-  it('does not poll when nothing is NEW, but starts when a new order is tracked', () => {
-    accounts.getOrders.mockReturnValue(of([order('o2', 'FILLED')]));
-    watcher.start();
-    expect(watcher.isPolling).toBe(false);
-
-    watcher.track('o9', OrderStatus.New);
-    expect(watcher.isPolling).toBe(true);
-
-    accounts.getOrders.mockReturnValue(of([order('o9', 'FILLED')]));
-    vi.advanceTimersByTime(5000);
     expect(notifications.notify).toHaveBeenCalledTimes(1);
+    expect(notifications.notify).toHaveBeenCalledWith(expect.objectContaining({ dedupeKey: 'order-status:o12:REJECTED' }));
+    expect(localStorage.getItem(CURSOR_KEY)).toBe('12');
   });
 
-  it('stops after 10 idle minutes even if an order stays NEW', () => {
+  it('counts fills so views showing holdings can reload, but not rejections', () => {
+    localStorage.setItem(CURSOR_KEY, '10');
+    api.getOrderNotifications.mockReturnValue(of([item(11, 'FILLED'), item(12, 'REJECTED')]));
+
+    expect(watcher.fills()).toBe(0);
+
     watcher.start();
+    vi.advanceTimersByTime(0);
 
-    vi.advanceTimersByTime(10 * 60_000 + 5000);
-
-    expect(watcher.isPolling).toBe(false);
+    expect(watcher.fills()).toBe(1);
   });
 
-  it('starts only once, needs an account, and survives request errors', () => {
+  it('starts again from the feed when it was reset below the saved cursor (e.g. table recreated)', () => {
+    localStorage.setItem(CURSOR_KEY, '40');
+    api.getOrderNotifications.mockImplementation((_id: number, after?: number, limit?: number) =>
+      limit === 1 ? of([item(3, 'FILLED')]) : of([item(4, 'FILLED')]),
+    );
+
+    watcher.start();
+    vi.advanceTimersByTime(0);
+
+    // newest is 3 < 40: rebaseline to 3 without announcing
+    expect(localStorage.getItem(CURSOR_KEY)).toBe('3');
+    expect(notifications.notify).not.toHaveBeenCalled();
+
+    watcher.track('o4', 'NEW');
+    vi.advanceTimersByTime(ORDER_FEED_FAST_MS);
+    expect(api.getOrderNotifications).toHaveBeenLastCalledWith(7, 3);
+    expect(notifications.notify).toHaveBeenCalledWith(expect.objectContaining({ dedupeKey: 'order-status:o4:FILLED' }));
+  });
+
+  it('polls slowly by default and every few seconds after an order is placed here', () => {
+    localStorage.setItem(CURSOR_KEY, '0');
+    watcher.start();
+    vi.advanceTimersByTime(0);
+    // first poll of the session: check the cursor against the newest id, then read after it
+    expect(api.getOrderNotifications).toHaveBeenCalledTimes(2);
+
+    vi.advanceTimersByTime(ORDER_FEED_FAST_MS * 2);
+    expect(api.getOrderNotifications).toHaveBeenCalledTimes(2); // not due yet
+    vi.advanceTimersByTime(ORDER_FEED_SLOW_MS);
+    expect(api.getOrderNotifications).toHaveBeenCalledTimes(3);
+
+    watcher.track('o99', 'NEW');
+    vi.advanceTimersByTime(ORDER_FEED_FAST_MS);
+    vi.advanceTimersByTime(ORDER_FEED_FAST_MS);
+    expect(api.getOrderNotifications).toHaveBeenCalledTimes(5);
+  });
+
+  it('never announces an outcome just because an order was tracked', () => {
+    localStorage.setItem(CURSOR_KEY, '0');
+    watcher.track('o1', 'FILLED');
+
+    expect(notifications.notify).not.toHaveBeenCalled();
+    expect(watcher.isPolling).toBe(true);
+  });
+
+  it('keeps the cursor and retries on the next tick when the feed fails', () => {
+    localStorage.setItem(CURSOR_KEY, '5');
+    api.getOrderNotifications.mockReturnValueOnce(throwError(() => new Error('down')));
+    watcher.track();
+
+    api.getOrderNotifications.mockReturnValue(of([item(6, 'CANCELLED')]));
+    vi.advanceTimersByTime(ORDER_FEED_FAST_MS);
+
+    expect(api.getOrderNotifications).toHaveBeenLastCalledWith(7, 5);
+    expect(notifications.notify).toHaveBeenCalledWith(expect.objectContaining({ kind: 'order-cancelled' }));
+    expect(localStorage.getItem(CURSOR_KEY)).toBe('6');
+  });
+
+  it('does nothing without a signed-in account, and stops cleanly', () => {
     currentUser.mockReturnValue(null);
     watcher.start();
-    expect(accounts.getOrders).not.toHaveBeenCalled();
+    expect(watcher.isPolling).toBe(false);
+    expect(api.getOrderNotifications).not.toHaveBeenCalled();
 
     currentUser.mockReturnValue({ accountId: 7 });
     watcher.start();
-    watcher.start();
-    expect(accounts.getOrders).toHaveBeenCalledTimes(1);
-
-    accounts.getOrders.mockReturnValue(throwError(() => new Error('down')));
-    vi.advanceTimersByTime(5000);
-    expect(watcher.isPolling).toBe(true);
-    expect(notifications.notify).not.toHaveBeenCalled();
-  });
-
-  it('stays idle when the initial load fails', () => {
-    accounts.getOrders.mockReturnValue(throwError(() => new Error('down')));
-
-    watcher.start();
-
+    watcher.stop();
     expect(watcher.isPolling).toBe(false);
   });
 });

@@ -1,7 +1,8 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { DOCUMENT } from '@angular/common';
 import { DestroyRef, Injectable, effect, inject, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { EMPTY, catchError, from, interval, map, mergeMap, of } from 'rxjs';
+import { catchError, filter, from, fromEvent, interval, map, merge, mergeMap, of } from 'rxjs';
 import { CachedQuoteResponse, MarketDataService } from '../../api/generated/market-data';
 
 /**
@@ -60,13 +61,18 @@ export class LiveQuoteStore {
    * Symbols already being fetched are skipped.
    */
   refresh(symbols: readonly string[], force = false): void {
+    this.refreshOlderThan(symbols, force ? 0 : LIVE_QUOTE_TTL_MS - DUE_TOLERANCE_MS);
+  }
+
+  /** Fetches quotes for symbols last fetched at least `maxAgeMs` ago (or never) */
+  private refreshOlderThan(symbols: readonly string[], maxAgeMs: number): void {
     const now = Date.now();
     const due = [...new Set(symbols.map(key))].filter((symbol) => {
       if (!symbol || this.inFlight.has(symbol)) {
         return false;
       }
       const entry = this.entries().get(symbol);
-      return force || !entry || now - entry.fetchedAt >= LIVE_QUOTE_TTL_MS - DUE_TOLERANCE_MS;
+      return maxAgeMs <= 0 || !entry || now - entry.fetchedAt >= maxAgeMs;
     });
     if (!due.length) {
       return;
@@ -98,25 +104,25 @@ export class LiveQuoteStore {
 
   /**
    * Keeps the given symbols' quotes fresh for the lifetime of the calling component:
-   * fetches whenever the symbol list changes and again every five minutes (LIVE_QUOTE_TTL_MS).
+   * fetches whenever the symbol list changes and again every `everyMs` (five minutes by default). Ticks are skipped while the browser tab is hidden,
+   * and quotes are caught up as soon as it is shown again.
    * Views showing the same symbol share one request per cycle.
    * Must be called in an injection context (e.g. a field initialiser or constructor).
    */
-  track(symbols: () => readonly string[]): void {
+  track(symbols: () => readonly string[], everyMs = LIVE_QUOTE_TTL_MS): void {
     const destroyRef = inject(DestroyRef);
+    const document = inject(DOCUMENT);
+    const maxAgeMs = everyMs - DUE_TOLERANCE_MS;
     effect(() => {
       const list = symbols();
       untracked(() => this.refresh(list));
     });
-    interval(LIVE_QUOTE_TTL_MS)
+    merge(interval(everyMs), fromEvent(document, 'visibilitychange'))
       .pipe(
+        filter(() => document.visibilityState !== 'hidden'),
         takeUntilDestroyed(destroyRef),
-        mergeMap(() => {
-          this.refresh(untracked(symbols));
-          return EMPTY;
-        }),
       )
-      .subscribe();
+      .subscribe(() => this.refreshOlderThan(untracked(symbols), maxAgeMs));
   }
 
   private failed(symbol: string, err: unknown): [string, LiveQuoteEntry] {

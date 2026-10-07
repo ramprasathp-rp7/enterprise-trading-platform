@@ -1,14 +1,16 @@
 import { NotificationKind } from './notification.service';
 import { formatInstrumentPrice } from '../../features/instruments/services/instrument-catalog.service';
 
-/** The order fields the notification wording needs. */
+/** The order fields the notification wording needs (details may be missing on a trade event). */
 export interface OrderLike {
-  side: string;
-  quantity: number;
-  symbol: string;
-  price: number;
+  side: string | null;
+  quantity: number | null;
+  symbol: string | null;
+  price: number | null;
   executedPrice?: number | null;
   status: string;
+  /** Why a rejected order was rejected, as reported on trade-events */
+  reason?: string | null;
 }
 
 export interface OrderNotice {
@@ -23,44 +25,53 @@ const money = (n: number, symbol: string) => formatInstrumentPrice(n, symbol);
 const isSell = (o: OrderLike) => o.side?.toUpperCase() === 'SELL';
 
 /** "buy 10 AAPL at 189.35" */
-const describe = (o: OrderLike) => `${isSell(o) ? 'sell' : 'buy'} ${units(o.quantity)} ${o.symbol} at ${money(o.price, o.symbol)}`;
+const describe = (o: OrderLike) => `${isSell(o) ? 'sell' : 'buy'} ${units(o.quantity)} ${o.symbol} at ${money(o.price)}`;
+
+/** " Reason: Insufficient funds." when the event carried one */
+const reasonOf = (o: OrderLike) => (o.reason?.trim() ? ` Reason: ${o.reason.trim().replace(/\.$/, '')}.` : '');
 
 /**
- * Plain-language notice for an order status change, or null for statuses
+ * Plain-language notice for an order outcome from the trade-events feed, or null for statuses
  * that aren't worth announcing.
  */
 export function orderStatusNotice(o: OrderLike): OrderNotice | null {
+  const fillPrice = o.executedPrice ?? o.price;
   switch (o.status) {
     case 'FILLED':
       return {
         kind: 'order-filled',
         title: 'Order completed',
-        message: `Good news! You ${isSell(o) ? 'sold' : 'bought'} ${units(o.quantity)} ${o.symbol} at ${money(o.executedPrice ?? o.price, o.symbol)}.`,
+        message: o.symbol && o.quantity != null
+          ? `Good news! You ${isSell(o) ? 'sold' : 'bought'} ${units(o.quantity)} ${o.symbol}${fillPrice != null ? ` at ${money(fillPrice)}` : ''}.`
+          : `Good news! Your order was filled${fillPrice != null ? ` at ${money(fillPrice)}` : ''}.`,
       };
     case 'REJECTED':
       return {
         kind: 'order-rejected',
         title: "Order couldn't be completed",
-        message: `Your order to ${describe(o)} was rejected. Open your order blotter for details.`,
+        message: `${hasDetails(o) ? `Your order to ${describe(o)}` : 'Your order'} was rejected.${reasonOf(o)} Open your order blotter for details.`,
       };
     case 'CANCELLED':
       return {
         kind: 'order-cancelled',
         title: 'Order cancelled',
-        message: `Your order to ${describe(o)} has been cancelled.`,
+        message: `${hasDetails(o) ? `Your order to ${describe(o)}` : 'Your order'} has been cancelled.`,
       };
     default:
       return null;
   }
 }
 
-/** Notice shown right after an order is submitted from the ticket. */
+/**
+ * Notice shown right after an order is submitted from the ticket. Always "received": whether the
+ * order then fills or is rejected is only ever announced from the trade-events feed.
+ */
 export function orderPlacedNotice(o: OrderLike): OrderNotice {
-  return (
-    orderStatusNotice(o) ?? {
-      kind: 'order-created',
-      title: 'Order received',
-      message: `We've received your order to ${describe(o)}. We'll let you know as soon as it's completed.`,
-    }
-  );
+  return {
+    kind: 'order-created',
+    title: 'Order received',
+    message: hasDetails(o)
+      ? `We've received your order to ${describe(o)}. We'll let you know as soon as it's completed.`
+      : "We've received your order. We'll let you know as soon as it's completed.",
+  };
 }

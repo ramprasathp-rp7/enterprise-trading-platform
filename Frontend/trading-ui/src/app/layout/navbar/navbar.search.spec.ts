@@ -41,6 +41,22 @@ describe('NavbarComponent – instrument search', () => {
     isAdmin = vi.fn(() => false);
   });
 
+  it('shows a Preferences shortcut next to the bell for customers', async () => {
+    await create();
+
+    const link: HTMLAnchorElement = fixture.nativeElement.querySelector('[data-testid="nav-preferences-icon"]');
+    expect(link).not.toBeNull();
+    expect(link.getAttribute('href')).toBe('/settings');
+    expect(link.getAttribute('aria-label')).toBe('Preferences');
+  });
+
+  it('has no Preferences shortcut for admins', async () => {
+    isAdmin.mockReturnValue(true);
+    await create();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="nav-preferences-icon"]')).toBeNull();
+  });
+
   it('opens the search dialog from the search icon', async () => {
     await create();
 

@@ -74,6 +74,21 @@ describe('SettingsComponent', () => {
     expect(el('reset-preferences')).not.toBeNull();
   });
 
+  it('shows when the preferences were last saved, or that the default is in use', () => {
+    const status = () => fixture.nativeElement.querySelector('[data-testid="preferences-status"]').textContent;
+    expect(status()).toContain('Using the default: in-app only');
+
+    preferences.set({ accountId: 7, alertChannels: [{ channel: 'IN_APP' }], configured: true, updatedAt: '2026-10-06T09:00:00Z' } as PreferencesResponse);
+    fixture.detectChanges();
+    expect(component.lastSaved()).toEqual(new Date('2026-10-06T09:00:00Z'));
+    expect(status()).toContain('Last saved Oct 6, 2026');
+
+    preferences.set({ accountId: 7, alertChannels: [{ channel: 'IN_APP' }], configured: true, updatedAt: 'not-a-date' } as PreferencesResponse);
+    fixture.detectChanges();
+    expect(component.lastSaved()).toBeNull();
+    expect(status()).toContain('Saved');
+  });
+
   it('requires at least one channel', () => {
     component.toggle('IN_APP');
     fixture.detectChanges();

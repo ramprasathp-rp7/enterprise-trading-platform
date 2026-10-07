@@ -37,11 +37,16 @@ public interface PriceAlertTriggerMapper {
     @Update("UPDATE price_alert_triggers SET delivery_status = #{status} WHERE trigger_id = #{triggerId}")
     int updateDeliveryStatus(@Param("triggerId") Long triggerId, @Param("status") DeliveryStatus status);
 
+    /** Records the channels a firing goes out on (from the customer's preferences) and whether the bell shows it. */
+    @Update("UPDATE price_alert_triggers SET channels = #{channels}, in_app = #{inApp} WHERE trigger_id = #{triggerId}")
+    int updateChannels(@Param("triggerId") Long triggerId, @Param("channels") String channels, @Param("inApp") boolean inApp);
+
     @Select(SELECT_JOINED + "WHERE t.alert_id = #{alertId} AND t.account_id = #{accountId} "
             + "ORDER BY t.triggered_at DESC, t.trigger_id DESC")
     List<PriceAlertTrigger> findByAlertId(@Param("alertId") Long alertId, @Param("accountId") Long accountId);
 
-    @Select("<script>" + SELECT_JOINED + "WHERE t.account_id = #{accountId}"
+    /** Recent triggers for the UI bell: only those the customer gets in-app (preferences). */
+    @Select("<script>" + SELECT_JOINED + "WHERE t.account_id = #{accountId} AND t.in_app"
             + "<if test='since != null'> AND t.triggered_at &gt; #{since}</if>"
             + " ORDER BY t.triggered_at DESC, t.trigger_id DESC LIMIT #{limit}</script>")
     List<PriceAlertTrigger> findRecentByAccountId(@Param("accountId") Long accountId,

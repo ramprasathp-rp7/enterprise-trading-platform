@@ -48,6 +48,10 @@ class PriceAlertControllerTest {
                 Map.of("AAPL", Instrument.tradable(1L, "AAPL", "Apple Inc.", AssetClass.EQUITY, "USD"));
             @Override public Instrument findBySymbol(String symbol) { return bySymbol.get(symbol); }
             @Override public Instrument findById(Long id) { return null; }
+            @Override public List<Instrument> findAllInstruments() { return List.copyOf(bySymbol.values()); }
+            @Override public List<Instrument> findTradableInstruments() {
+                return bySymbol.values().stream().filter(Instrument::isTradable).toList();
+            }
             @Override public List<String> findAllSymbols() { return List.copyOf(bySymbol.keySet()); }
             @Override public List<Instrument> findTradableInstruments() { return List.copyOf(bySymbol.values()); }
             @Override public List<Instrument> findAllInstruments() { return List.copyOf(bySymbol.values()); }

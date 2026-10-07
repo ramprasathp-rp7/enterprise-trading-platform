@@ -14,7 +14,11 @@ import { PortfolioService, PortfolioSummary } from '../../../../api/generated/po
 describe('DashboardComponent', () => {
   let fixture: ComponentFixture<DashboardComponent>;
   let component: DashboardComponent;
-  let dashboardService: { getBalance: ReturnType<typeof vi.fn>; getAccount: ReturnType<typeof vi.fn> };
+  let dashboardService: {
+    getBalance: ReturnType<typeof vi.fn>;
+    getAccount: ReturnType<typeof vi.fn>;
+    getNetWorthHistory: ReturnType<typeof vi.fn>;
+  };
   let blotterStore: { orders: ReturnType<typeof signal<any[]>>; loadOrderHistory: ReturnType<typeof vi.fn> };
   let currentUser: ReturnType<typeof vi.fn>;
   let watchlistsApi: { getWatchlists: ReturnType<typeof vi.fn> };
@@ -55,6 +59,7 @@ describe('DashboardComponent', () => {
     dashboardService = {
       getBalance: vi.fn(() => of({ accountId: 7, cashBalance: 48250.75, currency: 'USD', asOf: '2026-10-05T08:00:00Z' })),
       getAccount: vi.fn(() => of({ id: 1, accountId: 'ACC-000007', holderName: 'Rahul Kumar', cashBalance: 48250.75, status: 'ACTIVE', version: 1, lastUpdated: '' })),
+      getNetWorthHistory: vi.fn(() => of([])),
     };
     blotterStore = { orders: signal<any[]>(orders), loadOrderHistory: vi.fn() };
     currentUser = vi.fn(() => ({ accountId: 7 }));
@@ -143,6 +148,27 @@ describe('DashboardComponent', () => {
     consoleError.mockRestore();
   });
 
+  it('loads the net worth history for the chart', async () => {
+    const history = [{ date: new Date('2026-10-04T00:00:00Z'), value: 49_000 }];
+    dashboardService.getNetWorthHistory.mockReturnValue(of(history));
+    await create();
+
+    expect(dashboardService.getNetWorthHistory).toHaveBeenCalledWith(7);
+    expect(component.netWorthHistory()).toEqual(history);
+    expect(component.netWorthHistoryFailed()).toBe(false);
+  });
+
+  it('flags the net worth history as failed when it cannot load', async () => {
+    dashboardService.getNetWorthHistory.mockReturnValue(throwError(() => new Error('503')));
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    await create();
+
+    expect(component.netWorthHistory()).toBeNull();
+    expect(component.netWorthHistoryFailed()).toBe(true);
+    expect(fixture.nativeElement.querySelector('[data-testid="net-worth-state"]').textContent).toContain('unavailable');
+    consoleError.mockRestore();
+  });
+
   it('says nothing is pending when there are no NEW orders', async () => {
     blotterStore.orders.set([orders[0]]);
     await create();
@@ -157,6 +183,7 @@ describe('DashboardComponent', () => {
     expect(blotterStore.loadOrderHistory).not.toHaveBeenCalled();
     expect(dashboardService.getBalance).not.toHaveBeenCalled();
     expect(portfolio.getPortfolioSummary).not.toHaveBeenCalled();
+    expect(dashboardService.getNetWorthHistory).not.toHaveBeenCalled();
     expect(component.portfolioStats()[0].value).toBe('0.00');
     expect(component.accountDisplayName()).toBeNull();
   });
@@ -182,6 +209,7 @@ describe('DashboardComponent', () => {
 
     expect(blotterStore.loadOrderHistory).toHaveBeenCalledTimes(2);
     expect(portfolio.getPortfolioSummary).toHaveBeenCalledTimes(2);
+    expect(dashboardService.getNetWorthHistory).toHaveBeenCalledTimes(2);
     expect(component.portfolioStats()[0].value).toBe('$100.00');
   });
 

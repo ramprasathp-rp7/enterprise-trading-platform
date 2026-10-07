@@ -67,6 +67,10 @@ public interface OrderMapper {
             "FROM orders WHERE account_id = #{accountId} AND status = #{status}")
     List<Order> findOrdersByAccountIdAndStatus(@Param("accountId") Long accountId, @Param("status") OrderStatus status);
 
+    /** Current status, without locking; used to drop cancelled orders before they reach the executor. */
+    @Select("SELECT status FROM orders WHERE id = #{id}")
+    com.tradingplatform.enums.OrderStatus findOrderStatus(@Param("id") UUID id);
+
     @Select("SELECT status FROM orders WHERE id = #{id} FOR UPDATE")
     com.tradingplatform.enums.OrderStatus findOrderStatusForUpdate(@Param("id") UUID id);
 

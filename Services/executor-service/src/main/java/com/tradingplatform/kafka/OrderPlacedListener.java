@@ -152,9 +152,9 @@ public class OrderPlacedListener {
 				if (attempts >= MAX_ATTEMPTS) {
 					logger.warn("Rejecting order after pricing outage: orderId={}, attempts={}, reason={}",
 						payload.orderId(), attempts, ex.getMessage());
-					// Update order to REJECTED instead of dead-lettering
-					orderMapper.updateOrderStatus(orderUuid, OrderStatus.REJECTED, 
-						"Pricing service unavailable: " + ex.getMessage(), null, null, java.time.Instant.now());
+					// Update order to REJECTED instead of dead-lettering, and publish it to trade-events
+					executorService.rejectNew(orderUuid, payload.accountId(),
+						"Pricing service unavailable: " + ex.getMessage(), payload.price(), payload.fee());
 					if (ack != null) {
 						ack.acknowledge();
 					}
@@ -189,6 +189,14 @@ public class OrderPlacedListener {
 	private void processOnce(OrderPlacedPayload payload, UUID orderUuid) throws PricingUnavailableException {
 		if (orderMapper.findOrderById(orderUuid) == null) {
 			throw new NoSuchElementException("Order not found in Postgres: " + payload.orderId());
+		}
+
+		// A cancelled order never enters the executor: no quote, no fill or reject, no trade event.
+		// (The order service already published ORDER_CANCELLED when the customer cancelled it.)
+		if (orderMapper.findOrderStatus(orderUuid) == OrderStatus.CANCELLED) {
+			logger.info("Skipping cancelled order, not sent to the executor: orderId={}, accountId={}",
+				payload.orderId(), payload.accountId());
+			return;
 		}
 
 		Instrument instrument = instrumentMapper.findBySymbol(payload.symbol());

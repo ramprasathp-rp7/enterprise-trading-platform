@@ -43,8 +43,8 @@ const KIND_ICON: Record<NotificationKind, string> = {
       <section class="panel-pop" role="dialog" aria-label="Notifications" data-testid="notification-panel">
         <header class="pop-header">
           <h2>Notifications</h2>
-          @if (service.unreadCount() > 0) {
-            <button type="button" class="link-btn" (click)="service.markAllRead()" data-testid="mark-all-read">Mark all read</button>
+          @if (seenNow().size > 0) {
+            <span class="new-count" data-testid="new-count">{{ seenNow().size }} new</span>
           }
         </header>
 
@@ -55,7 +55,7 @@ const KIND_ICON: Record<NotificationKind, string> = {
                 <button
                   type="button"
                   class="item"
-                  [class.unread]="!n.read"
+                  [class.unread]="isNew(n)"
                   [attr.data-kind]="n.kind"
                   (click)="openNotification(n)"
                   data-testid="notification-item"
@@ -66,8 +66,8 @@ const KIND_ICON: Record<NotificationKind, string> = {
                     <span class="message">{{ n.message }}</span>
                     <span class="time">{{ relativeTime(n.createdAt) }}</span>
                   </span>
-                  @if (!n.read) {
-                    <span class="dot" aria-label="Unread"></span>
+                  @if (isNew(n)) {
+                    <span class="dot" aria-label="New"></span>
                   }
                 </button>
               </li>
@@ -171,6 +171,15 @@ const KIND_ICON: Record<NotificationKind, string> = {
       font-family: var(--font-display);
       font-size: 15px;
       font-weight: 600;
+    }
+
+    .new-count {
+      padding: 2px 8px;
+      border-radius: var(--r-pill);
+      background: var(--brand-soft);
+      color: var(--brand-strong);
+      font-size: 11.5px;
+      font-weight: 700;
     }
 
     .link-btn {
@@ -312,6 +321,11 @@ export class NotificationBellComponent {
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   readonly open = signal(false);
+  /**
+   * Notifications that were unread when the panel was opened. Opening the bell marks everything
+   * read (the badge clears), but these keep their "new" highlight until the panel closes.
+   */
+  readonly seenNow = signal<ReadonlySet<string>>(new Set());
 
   label(): string {
     const unread = this.service.unreadCount();
@@ -320,12 +334,33 @@ export class NotificationBellComponent {
 
   toggle(event: MouseEvent): void {
     event.stopPropagation();
-    this.open.update((v) => !v);
+    if (this.open()) {
+      this.close();
+    } else {
+      this.openPanel();
+    }
+  }
+
+  /** Opening the bell reads everything in it */
+  private openPanel(): void {
+    this.seenNow.set(new Set(this.service.notifications().filter((n) => !n.read).map((n) => n.id)));
+    this.service.markAllRead();
+    this.open.set(true);
+  }
+
+  private close(): void {
+    this.open.set(false);
+    this.seenNow.set(new Set());
+  }
+
+  /** Unread, or unread when this panel was opened */
+  isNew(n: AppNotification): boolean {
+    return !n.read || this.seenNow().has(n.id);
   }
 
   openNotification(n: AppNotification): void {
     this.service.markRead(n.id);
-    this.open.set(false);
+    this.close();
     if (n.link) {
       this.router.navigate([n.link.path], { queryParams: n.link.queryParams });
     }
@@ -351,12 +386,14 @@ export class NotificationBellComponent {
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {
     if (this.open() && !this.host.nativeElement.contains(event.target as Node)) {
-      this.open.set(false);
+      this.close();
     }
   }
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
-    this.open.set(false);
+    if (this.open()) {
+      this.close();
+    }
   }
 }
