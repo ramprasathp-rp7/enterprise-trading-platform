@@ -2,7 +2,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, of } from 'rxjs';
+import { InstrumentCatalogService } from '../../../instruments/services/instrument-catalog.service';
 import { OrderSide } from '../../../../api/generated/trade';
 import { OrderTicketStore } from '../../order-ticket.store';
 import { OrderTicketComponent } from './order-ticket.component';
@@ -34,6 +35,9 @@ describe('OrderTicketComponent – prefill from a holding', () => {
         },
       ],
     }).compileComponents();
+    // The instrument panel's chart loads candles from the candle API; serve the catalogue's own candles
+    const catalog = TestBed.inject(InstrumentCatalogService);
+    vi.spyOn(catalog, 'candlesInRangeFromApi').mockImplementation((symbol, range) => of(catalog.candlesInRange(symbol, range)));
     const fixture = TestBed.createComponent(OrderTicketComponent);
     fixture.detectChanges();
     await fixture.whenStable();

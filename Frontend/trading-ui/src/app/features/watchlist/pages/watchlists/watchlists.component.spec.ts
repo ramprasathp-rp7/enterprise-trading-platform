@@ -80,7 +80,7 @@ describe('WatchlistsComponent', () => {
   });
 
   it('adds an instrument picked from search to the selected watchlist', () => {
-    component.addInstrument({ id: 9, symbol: 'MSFT', name: 'Microsoft Corporation', assetClass: 'EQUITY', currency: 'USD', tradable: true });
+    component.addInstrument({ id: 8, symbol: 'MSFT', name: 'Microsoft Corporation', assetClass: 'EQUITY', currency: 'USD', tradable: true });
 
     expect(api['addWatchlistItem']).toHaveBeenCalledWith(7, 1, { symbol: 'MSFT' });
     expect(component.rows().map((r) => r.item.symbol)).toContain('MSFT');

@@ -68,5 +68,20 @@ public record TradeEventPayload(
     BigDecimal averageCostAfter,
     
     @JsonProperty("executedOn")
-    Instant executedOn
-) {}
+    Instant executedOn,
+    
+    @JsonProperty("fillFxRate")
+    BigDecimal fillFxRate
+) {
+    /**
+     * Pre-multi-currency shape. {@code fillFxRate} is the instrument-to-account rate fetched by the
+     * executor at fill; events without it settle at a rate of 1 (same currency).
+     */
+    public TradeEventPayload(String orderId, Long accountId, String symbol, String side, Integer quantity,
+                             BigDecimal price, BigDecimal quotedPrice, BigDecimal executedPrice,
+                             BigDecimal originalFee, String status, String reason, BigDecimal cashDelta,
+                             Integer positionQuantityAfter, BigDecimal averageCostAfter, Instant executedOn) {
+        this(orderId, accountId, symbol, side, quantity, price, quotedPrice, executedPrice, originalFee, status,
+            reason, cashDelta, positionQuantityAfter, averageCostAfter, executedOn, null);
+    }
+}

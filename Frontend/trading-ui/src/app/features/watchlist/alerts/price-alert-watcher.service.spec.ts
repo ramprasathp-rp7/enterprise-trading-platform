@@ -74,12 +74,12 @@ describe('PriceAlertWatcherService', () => {
     expect(notifications.notify).toHaveBeenNthCalledWith(1, {
       kind: 'price-alert',
       title: 'Price alert: AAPL',
-      message: 'AAPL is at 191.20, above your 190.00 level. This alert is now off.',
+      message: 'AAPL is at $191.20, above your $190.00 level. This alert is now off.',
       link: { path: '/watchlists' },
       dedupeKey: 'price-alert:1',
     });
     expect(notifications.notify.mock.calls[1][0]).toMatchObject({
-      message: 'MSFT is at 399.50, below your 400.00 level.',
+      message: 'MSFT is at $399.50, below your $400.00 level.',
       dedupeKey: 'price-alert:2',
     });
     expect(alertsStore.load).toHaveBeenCalled();

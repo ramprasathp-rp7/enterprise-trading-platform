@@ -17,7 +17,8 @@ import java.util.List;
  * Available balance accounts for pending (NEW) orders:
  * availableBalance = cashBalance - reservedFunds
  * 
- * where reservedFunds = SUM(notional + fee) for all NEW orders
+ * where reservedFunds = SUM(notional + fee) for all NEW orders, in account currency
+ * (notional = limit price * quantity * the order's placement FX rate)
  * 
  * This prevents double-booking of funds when multiple orders are pending.
  */
@@ -52,11 +53,7 @@ public class AvailableBalanceService {
         
         // Step 3: Calculate reserved funds (sum of notional + fee for each NEW order)
         BigDecimal reservedFunds = newOrders.stream()
-            .map(order -> {
-                BigDecimal notional = order.getPrice().multiply(BigDecimal.valueOf(order.getQuantity()));
-                BigDecimal fee = order.getFee() != null ? order.getFee() : BigDecimal.ZERO;
-                return notional.add(fee);
-            })
+            .map(Order::reservedAmount)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
         
         // Step 4: Calculate available balance

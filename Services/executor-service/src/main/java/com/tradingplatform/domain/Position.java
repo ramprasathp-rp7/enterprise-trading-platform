@@ -12,12 +12,23 @@ public final class Position {
 
     private int quantity;
     private BigDecimal averageCost;
+    /** Average cost per unit in the account's currency, at the fill rates of the buys. */
+    private BigDecimal averageCostAccount;
 
     public Position(Long accountId, Long instrumentId, int quantity, BigDecimal averageCost) {
         this(accountId, instrumentId, quantity, averageCost, 0);
     }
 
     public Position(Long accountId, Long instrumentId, int quantity, BigDecimal averageCost, int version) {
+        this(accountId, instrumentId, quantity, averageCost, averageCost, version);
+    }
+
+    /**
+     * @param averageCost        average cost per unit in the instrument's currency
+     * @param averageCostAccount average cost per unit in the account's currency (null: same as averageCost)
+     */
+    public Position(Long accountId, Long instrumentId, int quantity, BigDecimal averageCost,
+                    BigDecimal averageCostAccount, int version) {
         this.accountId = Objects.requireNonNull(accountId, "accountId");
         this.instrumentId = Objects.requireNonNull(instrumentId, "instrumentId");
         if (quantity < 0) {
@@ -25,6 +36,7 @@ public final class Position {
         }
         this.quantity = quantity;
         this.averageCost = normalise(Objects.requireNonNull(averageCost, "averageCost"));
+        this.averageCostAccount = normalise(averageCostAccount != null ? averageCostAccount : averageCost);
         if (version < 0) {
             throw new IllegalArgumentException("version must not be negative: " + version);
         }
@@ -47,6 +59,10 @@ public final class Position {
         return averageCost;
     }
 
+    public BigDecimal getAverageCostAccount() {
+        return averageCostAccount;
+    }
+
     public int getVersion() {
         return version;
     }
@@ -61,16 +77,28 @@ public final class Position {
 
     /** A buyrecalculates the weighted average across the old holding and the new units bought at {@code price}. */
     public void applyBuy(int boughtQuantity, BigDecimal price) {
+        applyBuy(boughtQuantity, price, price);
+    }
+
+    /**
+     * A buy in a foreign-currency instrument: both average costs are re-weighted, the instrument-currency
+     * one at {@code price} and the account-currency one at {@code priceAccount} (price times the fill rate).
+     */
+    public void applyBuy(int boughtQuantity, BigDecimal price, BigDecimal priceAccount) {
         if (boughtQuantity <= 0) {
             throw new IllegalArgumentException("boughtQuantity must be greater than zero: " + boughtQuantity);
         }
         BigDecimal normalisedPrice = normalise(Objects.requireNonNull(price, "price"));
+        BigDecimal normalisedPriceAccount = normalise(Objects.requireNonNull(priceAccount, "priceAccount"));
 
         int newQuantity = quantity + boughtQuantity;
         BigDecimal existingCostBasis = averageCost.multiply(BigDecimal.valueOf(quantity));
         BigDecimal newCostBasis = normalisedPrice.multiply(BigDecimal.valueOf(boughtQuantity));
 
         this.averageCost = existingCostBasis.add(newCostBasis)
+            .divide(BigDecimal.valueOf(newQuantity), 6, RoundingMode.HALF_UP);
+        this.averageCostAccount = averageCostAccount.multiply(BigDecimal.valueOf(quantity))
+            .add(normalisedPriceAccount.multiply(BigDecimal.valueOf(boughtQuantity)))
             .divide(BigDecimal.valueOf(newQuantity), 6, RoundingMode.HALF_UP);
         this.quantity = newQuantity;
     }

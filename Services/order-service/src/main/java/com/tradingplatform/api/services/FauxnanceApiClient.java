@@ -189,7 +189,8 @@ public class FauxnanceApiClient {
                     BigDecimal price = new BigDecimal(quote.path("price").asText());
                     BigDecimal bid = new BigDecimal(quote.path("bid").asText());
                     BigDecimal ask = new BigDecimal(quote.path("ask").asText());
-                    String currency = quote.path("currency").asText();
+                    // The contract allows a null currency; asText() would turn that into the string "null"
+                    String currency = optionalText(quote, "currency");
                     Instant quoteAsOf = Instant.parse(quote.path("asOf").asText());
                     
                     // Optional fields: absent or null for some instruments
@@ -363,7 +364,7 @@ public class FauxnanceApiClient {
             this.price = Objects.requireNonNull(price);
             this.bid = Objects.requireNonNull(bid);
             this.ask = Objects.requireNonNull(ask);
-            this.currency = Objects.requireNonNull(currency);
+            this.currency = currency;  // nullable: Fauxnance may not know a symbol's currency
             this.quoteAsOf = Objects.requireNonNull(quoteAsOf);
             this.stale = stale;
             this.change = change;

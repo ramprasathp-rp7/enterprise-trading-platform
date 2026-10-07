@@ -73,6 +73,7 @@ class RealisedPnlCalculatorTest {
         Order sellOrder = new Order(UUID.randomUUID(), accountId, 1L, OrderSide.SELL, 100,
                 new BigDecimal("150.00"), "idem-2");
         sellOrder.markFilled(new BigDecimal("155.00"));
+        sellOrder.setRealisedPnl(new BigDecimal("500.00")); // booked by settlement at fill
 
         when(orderMapper.findOrdersByAccountIdAndStatus(accountId, OrderStatus.FILLED))
                 .thenReturn(List.of(buyOrder, sellOrder));
@@ -96,6 +97,7 @@ class RealisedPnlCalculatorTest {
         Order sellOrder = new Order(UUID.randomUUID(), accountId, 1L, OrderSide.SELL, 100,
                 new BigDecimal("150.00"), "idem");
         sellOrder.markFilled(new BigDecimal("155.00"));
+        sellOrder.setRealisedPnl(new BigDecimal("500.00")); // booked by settlement at fill
 
         when(orderMapper.findOrdersByAccountIdAndStatus(accountId, OrderStatus.FILLED))
                 .thenReturn(List.of(sellOrder));
@@ -119,6 +121,7 @@ class RealisedPnlCalculatorTest {
         Order sellOrder = new Order(UUID.randomUUID(), accountId, 1L, OrderSide.SELL, 100,
                 new BigDecimal("150.00"), "idem");
         sellOrder.markFilled(new BigDecimal("145.00"));
+        sellOrder.setRealisedPnl(new BigDecimal("-500.00")); // booked by settlement at fill
 
         when(orderMapper.findOrdersByAccountIdAndStatus(accountId, OrderStatus.FILLED))
                 .thenReturn(List.of(sellOrder));
@@ -146,10 +149,12 @@ class RealisedPnlCalculatorTest {
         Order oldOrder = new Order(UUID.randomUUID(), accountId, 1L, OrderSide.SELL, 100,
                 new BigDecimal("140.00"), "idem-1");
         oldOrder.markFilled(new BigDecimal("145.00"));
+        oldOrder.setRealisedPnl(new BigDecimal("500.00")); // booked by settlement at fill
 
         Order newOrder = new Order(UUID.randomUUID(), accountId, 1L, OrderSide.SELL, 100,
                 new BigDecimal("150.00"), "idem-2");
         newOrder.markFilled(new BigDecimal("155.00"));
+        newOrder.setRealisedPnl(new BigDecimal("500.00")); // booked by settlement at fill
 
         when(orderMapper.findOrdersByAccountIdAndStatus(accountId, OrderStatus.FILLED))
                 .thenReturn(List.of(oldOrder, newOrder));
@@ -178,14 +183,17 @@ class RealisedPnlCalculatorTest {
         Order aaplSell1 = new Order(UUID.randomUUID(), accountId, 1L, OrderSide.SELL, 50,
                 new BigDecimal("150.00"), "idem-1");
         aaplSell1.markFilled(new BigDecimal("155.00"));
+        aaplSell1.setRealisedPnl(new BigDecimal("250.00")); // booked by settlement at fill
 
         Order aaplSell2 = new Order(UUID.randomUUID(), accountId, 1L, OrderSide.SELL, 50,
                 new BigDecimal("150.00"), "idem-2");
         aaplSell2.markFilled(new BigDecimal("160.00"));
+        aaplSell2.setRealisedPnl(new BigDecimal("500.00")); // booked by settlement at fill
 
         Order msftSell = new Order(UUID.randomUUID(), accountId, 2L, OrderSide.SELL, 100,
                 new BigDecimal("300.00"), "idem-3");
         msftSell.markFilled(new BigDecimal("310.00"));
+        msftSell.setRealisedPnl(new BigDecimal("1000.00")); // booked by settlement at fill
 
         when(orderMapper.findOrdersByAccountIdAndStatus(accountId, OrderStatus.FILLED))
                 .thenReturn(List.of(aaplSell1, aaplSell2, msftSell));
@@ -211,6 +219,7 @@ class RealisedPnlCalculatorTest {
         Order sellOrder = new Order(UUID.randomUUID(), accountId, 999L, OrderSide.SELL, 100,
                 new BigDecimal("150.00"), "idem");
         sellOrder.markFilled(new BigDecimal("155.00"));
+        sellOrder.setRealisedPnl(new BigDecimal("500.00")); // booked by settlement at fill
 
         when(orderMapper.findOrdersByAccountIdAndStatus(accountId, OrderStatus.FILLED))
                 .thenReturn(List.of(sellOrder));

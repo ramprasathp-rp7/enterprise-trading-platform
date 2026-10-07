@@ -16,7 +16,7 @@ describe('TransactionsComponent', () => {
   let service: { getTransactionHistory: ReturnType<typeof vi.fn> };
   let currentUser: ReturnType<typeof vi.fn>;
   let statementPdf: { download: ReturnType<typeof vi.fn> };
-  let accounts: { getAccount: ReturnType<typeof vi.fn> };
+  let accounts: { getAccount: ReturnType<typeof vi.fn>; getBalance: ReturnType<typeof vi.fn> };
 
   const history: TransactionHistoryEntry[] = [
     { transactionId: 'abc-111', transactionType: 'DEPOSIT', actionType: 'CREDIT', amount: 1500, createdOn: '2026-10-01T10:00:00Z' },
@@ -44,7 +44,10 @@ describe('TransactionsComponent', () => {
     service = { getTransactionHistory: vi.fn(() => of(history)) };
     currentUser = vi.fn(() => ({ accountId: 7, username: 'rkumar' }));
     statementPdf = { download: vi.fn().mockResolvedValue(undefined) };
-    accounts = { getAccount: vi.fn(() => of({ id: 7, accountId: 'ACC-000007', holderName: 'Rahul Kumar', cashBalance: 1, status: 'ACTIVE', version: 1, lastUpdated: '' })) };
+    accounts = {
+      getAccount: vi.fn(() => of({ id: 7, accountId: 'ACC-000007', holderName: 'Rahul Kumar', cashBalance: 1, status: 'ACTIVE', version: 1, lastUpdated: '' })),
+      getBalance: vi.fn(() => of({ accountId: 7, cashBalance: 1, currency: 'USD', asOf: '' })),
+    };
   });
 
   it('loads history for the signed-in account and renders a row per transaction', async () => {
@@ -109,8 +112,8 @@ describe('TransactionsComponent', () => {
   describe('formatting helpers', () => {
     beforeEach(async () => create());
 
-    it('formats currency with two decimals', () => {
-      expect(component.formatCurrency(1234.5)).toBe('1,234.50');
+    it("formats amounts in the account's currency with two decimals", () => {
+      expect(component.formatCurrency(1234.5)).toBe('$1,234.50');
     });
 
     it('maps each transaction type to an icon', () => {
@@ -157,12 +160,12 @@ describe('TransactionsComponent', () => {
       expect(def.details).toContainEqual(['Filters', 'None (all transactions)']);
       expect(def.summary).toEqual([
         ['Transactions', '3'],
-        ['Total credits', '1,500.00'],
-        ['Total debits', '204.95'],
-        ['Net', '1,295.05'],
+        ['Total credits', '$1,500.00'],
+        ['Total debits', '$204.95'],
+        ['Net', '$1,295.05'],
       ]);
       expect(def.rows.length).toBe(3);
-      expect(def.rows[0].slice(1)).toEqual(['DEPOSIT', 'CREDIT', '1,500.00', 'abc-111']);
+      expect(def.rows[0].slice(1)).toEqual(['DEPOSIT', 'CREDIT', '$1,500.00', 'abc-111']);
       expect(def.fileName).toMatch(/^transaction-statement-ACC-000007-\d{4}-\d{2}-\d{2}$/);
       expect(notify).toHaveBeenCalledWith({
         kind: 'report',

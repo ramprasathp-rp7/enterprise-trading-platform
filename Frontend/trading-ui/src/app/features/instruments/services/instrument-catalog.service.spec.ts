@@ -18,14 +18,15 @@ describe('InstrumentCatalogService', () => {
   describe('catalogue', () => {
     it('mirrors the seeded INSTRUMENTS table, including the non-tradable one', () => {
       expect(service.all().map((i) => i.symbol)).toEqual([
-        // 003_instruments.sql
-        'AAPL', 'ACME', 'INFY.NS', 'RELIANCE.NS', 'TATASTEEL.BO', 'FX:EURUSD', 'X:BTC-USD',
+        // 003_instruments.sql, in insert order so the catalogue ids match instruments.id
+        'ACME', 'AAPL', 'INFY.NS', 'RELIANCE.NS', 'TATASTEEL.BO', 'FX:EURUSD', 'X:BTC-USD',
         // 007_additional_instruments.sql
         'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'TSLA', 'META', 'JPM', 'NFLX',
         'TCS.NS', 'HDFCBANK.NS', 'ICICIBANK.NS', 'WIPRO.NS',
         'FX:GBPUSD', 'FX:USDJPY', 'FX:USDINR', 'X:ETH-USD', 'X:SOL-USD', 'X:XRP-USD',
       ]);
       expect(service.find('TATASTEEL.BO')?.tradable).toBe(false);
+      expect(service.all().map((i) => i.id)).toEqual(service.all().map((_, index) => index + 1));
     });
 
     it('finds by symbol case-insensitively', () => {
@@ -117,8 +118,10 @@ describe('InstrumentCatalogService', () => {
 
       const lengths = CHART_RANGES.map((r) => service.candlesInRange('INFY.NS', r).length);
       expect(lengths).toEqual([...lengths].sort((a, b) => a - b));
-      // '3M' is now the longest range (1Y was removed)
-      expect(service.candlesInRange('INFY.NS', '3M').length).toBeLessThanOrEqual(INFY_NS_DAILY.candles.length);
+      expect(service.candlesInRange('INFY.NS', '1Y').length).toBe(INFY_NS_DAILY.candles.length);
+      const quarter = service.candlesInRange('INFY.NS', '3M');
+      expect(quarter.length).toBeLessThan(INFY_NS_DAILY.candles.length);
+      expect(quarter[quarter.length - 1]).toEqual(INFY_NS_DAILY.candles[INFY_NS_DAILY.candles.length - 1]);
     });
   });
 

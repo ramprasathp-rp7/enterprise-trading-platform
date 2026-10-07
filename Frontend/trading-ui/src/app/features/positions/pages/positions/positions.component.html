@@ -110,11 +110,10 @@
         </span>
       </div>
 
-      <div class="sum-item">
-        <span class="sum-label">Realised P&amp;L</span>
-        <span class="sum-value" [class]="'sum-value ' + pnlTone(summary()?.realisedPnl)"><span data-testid="summary-realised" [class]="pnlTone(summary()?.realisedPnl)">{{ formatSigned(summary()?.realisedPnl) }}</span></span>
-        <span class="sum-caption">From closed trades</span>
-      </div>
+    <div class="sum-item">
+      <span class="sum-label">Realised P&amp;L</span>
+      <span class="sum-value" [class]="'sum-value ' + pnlTone(summary()?.realisedPnl)"><span data-testid="summary-realised" [class]="pnlTone(summary()?.realisedPnl)">{{ formatSigned(summary()?.realisedPnl) }}</span></span>
+      <span class="sum-caption">From closed trades</span>
     </div>
   </section>
 
@@ -122,7 +121,7 @@
     <header class="panel-header">
       <h2 class="panel-title">Holdings <span class="count-chip">{{ positions().length }}</span></h2>
       @if (summary(); as s) {
-        <span class="as-of" data-testid="portfolio-as-of"><span class="live-dot" aria-hidden="true"></span> Live prices · refreshed every 5 minutes</span>
+        <span class="as-of" data-testid="portfolio-as-of"><span class="live-dot" aria-hidden="true"></span> Live prices{{ pricesAsOf() ? ' · as of ' + (pricesAsOf() | date: 'h:mm:ss a') : '' }}</span>
       }
     </header>
 
@@ -184,10 +183,18 @@
                 </td>
                 <td class="num">
                   <span class="cell-strong">{{ position.marketValue != null ? money(position.marketValue, position.currency) : '—' }}</span>
-                  <span class="sub">cost {{ formatNumber(position.costBasis, 2) }}</span>
+                  @if (isForeign(position)) {
+                    <span class="sub" data-testid="market-value-account"
+                      [attr.title]="position.fxRate != null ? 'At ' + position.fxRate + ' ' + baseCurrency() + ' per ' + position.currency : 'No exchange rate available'"
+                    >≈ {{ baseMoney(position.marketValueAccount) }}</span>
+                  }
+                  <span class="sub">cost {{ money(position.costBasis, position.currency) }}</span>
                 </td>
                 <td class="num">
-                  <span class="cell-strong" [class]="'cell-strong ' + pnlTone(position.unrealisedPnl)">{{ formatSigned(position.unrealisedPnl) }}</span>
+                  <span class="cell-strong" [class]="'cell-strong ' + pnlTone(position.unrealisedPnl)">{{ signedMoney(position.unrealisedPnl, position.currency) }}</span>
+                  @if (isForeign(position) && position.unrealisedPnlAccount != null) {
+                    <span class="sub" [class]="'sub ' + pnlTone(position.unrealisedPnlAccount)" title="In your account's currency, including exchange-rate moves since purchase">≈ {{ baseMoney(position.unrealisedPnlAccount, true) }}</span>
+                  }
                   @if (position.unrealisedPnlPercent != null) {
                     <span class="sub pnl-percent" [class]="'sub pnl-percent ' + pnlTone(position.unrealisedPnlPercent)">{{ formatSigned(position.unrealisedPnlPercent) }}%</span>
                   }
@@ -232,10 +239,10 @@
               <td></td>
               <td></td>
               <td class="num">
-                <span class="cell-strong">{{ formatNumber(totalMarketValue(), 2) }}</span>
-                <span class="sub">cost {{ formatNumber(totalCostBasis(), 2) }}</span>
+                <span class="cell-strong">{{ baseMoney(totalMarketValue()) }}</span>
+                <span class="sub">cost {{ baseMoney(totalCostBasis()) }}</span>
               </td>
-              <td class="num"><span class="cell-strong" [class]="'cell-strong ' + pnlTone(totalUnrealised())">{{ formatSigned(totalUnrealised()) }}</span></td>
+              <td class="num"><span class="cell-strong" [class]="'cell-strong ' + pnlTone(totalUnrealised())">{{ baseMoney(totalUnrealised(), true) }}</span></td>
               <td></td>
               <td></td>
             </tr>

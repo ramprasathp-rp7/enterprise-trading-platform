@@ -40,7 +40,8 @@ public interface OrderMapper {
         @Arg(column = "executed_price", javaType = BigDecimal.class),
         @Arg(column = "fee", javaType = BigDecimal.class)
     })
-    @Select("SELECT id, account_id, instrument_id, side, quantity, price, status, executed_price, fee, idempotency_key, created_on " +
+    @Select("SELECT id, account_id, instrument_id, side, quantity, price, status, executed_price, fee, idempotency_key, created_on, " +
+            "placement_fx_rate, fill_fx_rate, realised_pnl " +
             "FROM orders WHERE id = #{id}")
     Order findOrderById(@Param("id") UUID id);
 
@@ -61,7 +62,8 @@ public interface OrderMapper {
         @Arg(column = "executed_price", javaType = BigDecimal.class),
         @Arg(column = "fee", javaType = BigDecimal.class)
     })
-    @Select("SELECT id, account_id, instrument_id, side, quantity, price, status, executed_price, fee, idempotency_key, created_on " +
+    @Select("SELECT id, account_id, instrument_id, side, quantity, price, status, executed_price, fee, idempotency_key, created_on, " +
+            "placement_fx_rate, fill_fx_rate, realised_pnl " +
             "FROM orders WHERE account_id = #{accountId} AND status = #{status}")
     List<Order> findOrdersByAccountIdAndStatus(@Param("accountId") Long accountId, @Param("status") OrderStatus status);
 
@@ -74,6 +76,13 @@ public interface OrderMapper {
 
     @Update("UPDATE orders SET status = 'CANCELLED' WHERE id = #{id} AND status = 'NEW'")
     int cancelOrderIfNew(@Param("id") UUID id);
+
+    /**
+     * Records the FX rate of record for a fill (instrument-to-account, fetched fresh at fill) and, for a
+     * SELL, the realised P&L booked in account currency.
+     */
+    @Update("UPDATE orders SET fill_fx_rate = #{fillFxRate}, realised_pnl = #{realisedPnl} WHERE id = #{id}")
+    int recordFill(@Param("id") UUID id, @Param("fillFxRate") BigDecimal fillFxRate, @Param("realisedPnl") BigDecimal realisedPnl);
 
     @Update("UPDATE orders SET status = #{status}, rejected_reason = #{rejectedReason}, executed_price = #{executedPrice}, fee = COALESCE(#{fee}, 0), executed_on = #{executedOn} WHERE id = #{id} AND status = 'NEW'")
     int updateOrderStatus(@Param("id") UUID id, @Param("status") com.tradingplatform.enums.OrderStatus status, @Param("rejectedReason") String rejectedReason, @Param("executedPrice") BigDecimal executedPrice, @Param("fee") BigDecimal fee, @Param("executedOn") java.time.Instant executedOn);

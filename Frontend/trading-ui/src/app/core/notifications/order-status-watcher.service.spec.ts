@@ -74,7 +74,7 @@ describe('OrderStatusWatcherService (trade-events feed)', () => {
     expect(notifications.notify).toHaveBeenNthCalledWith(1, expect.objectContaining({
       kind: 'order-filled',
       title: 'Order completed',
-      message: 'Good news! You bought 10 AAPL at 189.30.',
+      message: 'Good news! You bought 10 AAPL at $189.30.',
       link: { path: '/blotter' },
       dedupeKey: 'order-status:o42:FILLED',
     }));
@@ -97,6 +97,18 @@ describe('OrderStatusWatcherService (trade-events feed)', () => {
     expect(notifications.notify).toHaveBeenCalledTimes(1);
     expect(notifications.notify).toHaveBeenCalledWith(expect.objectContaining({ dedupeKey: 'order-status:o12:REJECTED' }));
     expect(localStorage.getItem(CURSOR_KEY)).toBe('12');
+  });
+
+  it('counts fills so views showing holdings can reload, but not rejections', () => {
+    localStorage.setItem(CURSOR_KEY, '10');
+    api.getOrderNotifications.mockReturnValue(of([item(11, 'FILLED'), item(12, 'REJECTED')]));
+
+    expect(watcher.fills()).toBe(0);
+
+    watcher.start();
+    vi.advanceTimersByTime(0);
+
+    expect(watcher.fills()).toBe(1);
   });
 
   it('starts again from the feed when it was reset below the saved cursor (e.g. table recreated)', () => {

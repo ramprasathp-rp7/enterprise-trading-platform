@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { AdminService } from '../../services/admin.service';
 import { FeeStructureResponse } from '../../../../api/generated/admin';
+import { PLATFORM_ACCOUNT_CURRENCY, formatMoney } from '../../../../shared/currency';
 
 /**
  * Admin Fee Management Component
@@ -45,11 +46,9 @@ export class AdminFeeManagementComponent implements OnInit {
     });
   }
 
+  /** The flat fee, charged in the account's currency (the fee schedule is USD) */
   formatCurrency(value: number): string {
-    return new Intl.NumberFormat('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 6,
-    }).format(value);
+    return formatMoney(value, PLATFORM_ACCOUNT_CURRENCY, { maxDecimals: 6 });
   }
 
   formatAssetClass(assetType: string): string {

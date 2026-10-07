@@ -6,11 +6,12 @@ import { WatchlistWidgetComponent } from '../../../watchlist/components/watchlis
 import { NetWorthChartComponent } from '../../components/net-worth-chart/net-worth-chart.component';
 import { CoreAuthService } from '../../../../core/auth/core-auth.service';
 import { BlotterStore } from '../../../blotter/blotter.store';
-import { DashboardService } from '../../services/dashboard.service';
+import { DashboardService, NetWorthPoint } from '../../services/dashboard.service';
 import { OrderStatus } from '../../../../api/generated/trade';
 import { PortfolioService, PortfolioSummary } from '../../../../api/generated/porfolio';
 import { PositionResponse } from '../../../../api/generated/trade';
 import { computed } from '@angular/core';
+import { formatMoney } from '../../../../shared/currency';
 
 interface StatCard {
   title: string;
@@ -44,10 +45,16 @@ export class DashboardComponent implements OnInit {
 
   // Real-time portfolio data signals
   private cashBalanceSignal = signal<number>(0);
+  /** The account's currency, from the balance endpoint; cash and portfolio value are shown in it */
+  private cashCurrencySignal = signal<string | null>(null);
   private accountSignal = signal<any>(null);
   /** Null until the portfolio summary has loaded */
   private portfolioSummarySignal = signal<PortfolioSummary | null>(null);
   private portfolioSummaryFailed = signal(false);
+
+  /** End-of-day net worth snapshots for the chart; null until loaded */
+  readonly netWorthHistory = signal<NetWorthPoint[] | null>(null);
+  readonly netWorthHistoryFailed = signal(false);
 
   // Portfolio stats - computed from real data
   accountDisplayId = computed(() => {
@@ -74,7 +81,7 @@ export class DashboardComponent implements OnInit {
     );
   }
 
-  /** Today's net worth for the chart: the portfolio total (cash + positions), null until loaded */
+  /** Today's net worth for the chart's last point: the portfolio total (cash + positions), null until loaded */
   netWorth = computed(() => this.portfolioSummarySignal()?.totalValue ?? null);
   netWorthCurrency = computed(() => this.portfolioSummarySignal()?.baseCurrency ?? null);
 
@@ -89,7 +96,7 @@ export class DashboardComponent implements OnInit {
     return [
       {
         title: 'Cash balance',
-        value: this.formatAmount(cashBalance || 0),
+        value: formatMoney(cashBalance || 0, this.cashCurrencySignal()),
         caption: 'Available to trade',
         icon: 'fas fa-wallet',
         link: '/transactions',
@@ -97,7 +104,7 @@ export class DashboardComponent implements OnInit {
       },
       {
         title: 'Portfolio value',
-        value: portfolioValue === null ? '—' : this.formatAmount(portfolioValue),
+        value: portfolioValue === null ? '—' : formatMoney(portfolioValue, summary?.baseCurrency),
         caption:
           summary === null
             ? this.portfolioSummaryFailed()
@@ -135,6 +142,7 @@ export class DashboardComponent implements OnInit {
       this.dashboardService.getBalance(currentUser.accountId).subscribe({
         next: (balance) => {
           this.cashBalanceSignal.set(balance.cashBalance);
+          this.cashCurrencySignal.set(balance.currency ?? null);
         },
         error: (err) => {
           console.error('Failed to load balance:', err);
@@ -142,6 +150,7 @@ export class DashboardComponent implements OnInit {
       });
 
       this.loadPortfolioSummary(currentUser.accountId);
+      this.loadNetWorthHistory(currentUser.accountId);
 
       this.dashboardService.getAccount(currentUser.accountId).subscribe({
         next: (account) => {
@@ -168,6 +177,20 @@ export class DashboardComponent implements OnInit {
     });
   }
 
+  /** Daily net worth snapshots (order-service account history) for the chart */
+  private loadNetWorthHistory(accountId: number): void {
+    this.netWorthHistoryFailed.set(false);
+    this.dashboardService.getNetWorthHistory(accountId).subscribe({
+      next: (history) => {
+        this.netWorthHistory.set(history);
+      },
+      error: (err) => {
+        console.error('Failed to load net worth history:', err);
+        this.netWorthHistoryFailed.set(true);
+      }
+    });
+  }
+
   private formatAmount(value: number): string {
     return value.toLocaleString('en-US', {
       minimumFractionDigits: 2,
@@ -184,10 +207,12 @@ export class DashboardComponent implements OnInit {
       this.dashboardService.getBalance(currentUser.accountId).subscribe({
         next: (balance) => {
           this.cashBalanceSignal.set(balance.cashBalance);
+          this.cashCurrencySignal.set(balance.currency ?? null);
         }
       });
 
       this.loadPortfolioSummary(currentUser.accountId);
+      this.loadNetWorthHistory(currentUser.accountId);
     }
   }
 }
