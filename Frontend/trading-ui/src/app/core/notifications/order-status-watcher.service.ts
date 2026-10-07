@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject , signal } from '@angular/core';
 import { Subscription, timer } from 'rxjs';
 import { OrderNotificationResponse, OrderNotificationsService } from '../../api/generated/order-notifications';
 import { CoreAuthService } from '../auth/core-auth.service';
@@ -36,6 +36,10 @@ export class OrderStatusWatcherService {
   private readonly authService = inject(CoreAuthService);
   private readonly notifications = inject(NotificationService);
 
+  private readonly known = new Map<string, string>();
+  private readonly fillCount = signal(0);
+  /** Bumped each time a watched order fills, so views showing holdings can reload them */
+  readonly fills = this.fillCount.asReadonly();
   private polling: Subscription | null = null;
   private accountId: number | null = null;
   private inFlight = false;
@@ -144,6 +148,9 @@ export class OrderStatusWatcherService {
       const recent = Number.isNaN(occurredAt) || occurredAt >= oldest;
       if (baselined && recent) {
         this.announce(item);
+        if (item.status?.toLowerCase() === 'filled') {
+          this.fillCount.update((n) => n + 1);
+        }
       }
       cursor = Math.max(cursor, item.id);
     }
