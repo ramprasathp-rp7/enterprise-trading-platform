@@ -8,6 +8,9 @@ import { OrderSide } from '../../../../api/generated/trade';
 import { OrderTicketStore } from '../../order-ticket.store';
 import { OrderTicketComponent } from './order-ticket.component';
 import { LiveQuoteStore } from '../../../../core/market-data/live-quote.store';
+import { of } from 'rxjs';
+import { CandleService } from '../../../instruments/services/candle.service';
+import { QuoteIntraDayService } from '../../../instruments/services/quote-intraday.service';
 
 describe('OrderTicketComponent', () => {
   let component: OrderTicketComponent;
@@ -46,7 +49,18 @@ describe('OrderTicketComponent', () => {
       providers: [
         provideRouter([]),
         { provide: OrderTicketStore, useValue: store },
-        { provide: LiveQuoteStore, useValue: { quote: (symbol: string) => fxQuotes[symbol] ?? null, track: vi.fn() } },
+        {
+          provide: LiveQuoteStore,
+          useValue: {
+            quote: (symbol: string) => fxQuotes[symbol] ?? null,
+            entry: (symbol: string) => (fxQuotes[symbol] ? { status: 'ready', quote: fxQuotes[symbol], fetchedAt: 0 } : undefined),
+            track: vi.fn(),
+            refresh: vi.fn(),
+          },
+        },
+        // The instrument panel's candles and intraday quotes
+        { provide: CandleService, useValue: { getHistory: () => of([]) } },
+        { provide: QuoteIntraDayService, useValue: { getQuotesForToday: () => of([]) } },
       ],
     }).compileComponents();
 

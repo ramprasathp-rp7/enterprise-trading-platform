@@ -71,8 +71,6 @@ describe('InstrumentPanelComponent', () => {
     // Monday 5 Oct 2026, 11:00 in New York
     const catalog = TestBed.inject(InstrumentCatalogService);
     catalog.now = () => new Date('2026-10-05T15:00:00Z');
-    // The chart's candles come from the candle API; serve the catalogue's own candles for the range
-    vi.spyOn(catalog, 'candlesInRangeFromApi').mockImplementation((symbol, range) => of(catalog.candlesInRange(symbol, range)));
     fixture = TestBed.createComponent(InstrumentPanelComponent);
     component = fixture.componentInstance;
   });
@@ -105,7 +103,7 @@ describe('InstrumentPanelComponent', () => {
       // last candle close is 144 (45 weekdays from 3 Aug)
       expect(text('[data-testid="instrument-symbol"]')).toBe('AAPL');
       expect(text('[data-testid="instrument-last"]')).toBe('150.00');
-      expect(text('[data-testid="instrument-change"]')).toBe('+6.00 (+4.17%)');
+      expect(text('[data-testid="instrument-change"]')).toBe('+$6.00 (+4.17%)');
       expect(text('[data-testid="market-state"]')).toBe('Market open');
       expect(el('[data-testid="quote-stale"]')).toBeNull();
       expect(text('[data-testid="quote-as-of"]')).toBe('as of Oct 5, 11:00 AM ET');
@@ -113,15 +111,15 @@ describe('InstrumentPanelComponent', () => {
 
     it('shows the cached bid, ask and spread', () => {
       const book = text('[data-testid="quote-book"]');
-      expect(book).toContain('Bid 149.95');
-      expect(book).toContain('Ask 150.05');
-      expect(book).toContain('Spread 0.10');
+      expect(book).toContain('Bid $149.95');
+      expect(book).toContain('Ask $150.05');
+      expect(book).toContain('Spread $0.10');
     });
 
     it('shows previous-session stats from the candles and labels the high/low by the period covered', () => {
       const stats = text('[data-testid="instrument-stats"]');
-      expect(stats).toContain('Prev close144.00');
-      expect(stats).toContain('Prev day range143.00 – 145.00');
+      expect(stats).toContain('Prev close$144.00');
+      expect(stats).toContain('Prev day range$143.00 – $145.00');
       expect(stats).toContain('Prev volume5,000');
       expect(stats).toContain('Avg vol (30D)5,000');
       expect(component.sessionTitle()).toBe('Previous session: Fri, Oct 2, 2026');
@@ -163,7 +161,7 @@ describe('InstrumentPanelComponent', () => {
     expect(el('[data-testid="quote-status"]')?.getAttribute('data-status')).toBe('missing');
     expect(text('[data-testid="quote-status"]')).toContain('No quote cached for MSFT yet');
     expect(el('[data-testid="instrument-chart"]')).not.toBeNull();
-    expect(text('[data-testid="instrument-stats"]')).toContain('Prev close144.00');
+    expect(text('[data-testid="instrument-stats"]')).toContain('Prev close$144.00');
   });
 
   it('shows an error with Retry when candles fail, and recovers', () => {
