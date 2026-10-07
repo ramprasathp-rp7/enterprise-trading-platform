@@ -15,6 +15,7 @@ import { provideApi as provideMarketDataApi } from './api/generated/market-data/
 import { provideApi as provideOrderNotificationsApi } from './api/generated/order-notifications/provide-api';
 import { provideApi as providePortfolioApi } from './api/generated/porfolio/provide-api';
 import { provideApi as provideAccountHistoryApi } from './api/generated/account-history/provide-api';
+import { provideApi as provideCandleApi } from './api/generated/candle/provide-api';
 import { environment } from './core/config/environment';
 
 export const appConfig: ApplicationConfig = {
@@ -32,6 +33,7 @@ export const appConfig: ApplicationConfig = {
     provideOrderNotificationsApi(environment.TRADE_API_URL),
     providePortfolioApi(environment.TRADE_API_URL),
     provideAccountHistoryApi(environment.TRADE_API_URL),
+    provideCandleApi(environment.TRADE_API_URL),
     {
       provide: HTTP_INTERCEPTORS,
       useClass: AuthInterceptor,

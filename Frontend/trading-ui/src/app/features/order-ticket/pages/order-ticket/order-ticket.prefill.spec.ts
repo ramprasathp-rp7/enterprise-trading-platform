@@ -2,7 +2,11 @@ import { describe, it, expect, vi } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, of, throwError } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
+import { MarketDataService } from '../../../../api/generated/market-data';
+import { CandleService } from '../../../instruments/services/candle.service';
+import { QuoteIntraDayService } from '../../../instruments/services/quote-intraday.service';
 import { OrderSide } from '../../../../api/generated/trade';
 import { OrderTicketStore } from '../../order-ticket.store';
 import { OrderTicketComponent } from './order-ticket.component';
@@ -17,6 +21,18 @@ describe('OrderTicketComponent – prefill from a holding', () => {
       imports: [OrderTicketComponent],
       providers: [
         provideRouter([]),
+        // Market data for the instrument panel: two daily candles, no cached quote yet
+        {
+          provide: CandleService,
+          useValue: {
+            getHistory: () => of([
+              { date: '2026-10-01', open: 1, high: 2, low: 1, close: 2, adjclose: 2, volume: 10, synthetic: false },
+              { date: '2026-10-02', open: 2, high: 3, low: 2, close: 3, adjclose: 3, volume: 10, synthetic: false },
+            ]),
+          },
+        },
+        { provide: MarketDataService, useValue: { getLatestQuote: () => throwError(() => new HttpErrorResponse({ status: 404 })) } },
+        { provide: QuoteIntraDayService, useValue: { getQuotesForToday: () => of([]) } },
         { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: convertToParamMap(queryParams) }, queryParamMap: params$ } },
         {
           provide: OrderTicketStore,

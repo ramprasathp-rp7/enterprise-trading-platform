@@ -113,12 +113,11 @@ describe('InstrumentChartComponent', () => {
     expect(labels.every((l) => /^\d\.\d{4}$/.test(l))).toBe(true);
   });
 
-  it('formats date labels for the selected range', () => {
+  it('labels five evenly spaced days, month and day, whatever the range', () => {
     const series = candles(Array.from({ length: 30 }, (_, i) => 100 + i));
 
-    render(series, '1Y');
-    expect(component.xLabels().length).toBe(5);
-    expect(component.xLabels()[0]).toBe('Jun 26');
+    render(series, '3M');
+    expect(component.xLabels()).toEqual(['Jun 1', 'Jun 8', 'Jun 16', 'Jun 23', 'Jun 30']);
 
     render(series, '1M');
     expect(component.xLabels()[0]).toBe('Jun 1');

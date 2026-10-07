@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { InstrumentCatalogService } from './instrument-catalog.service';
-import { CHART_RANGES } from '../instrument.models';
-import { INFY_NS_DAILY } from '../data/infy-ns.candles';
+import { CHART_RANGES, Candle } from '../instrument.models';
+import { CachedQuoteResponse } from '../../../api/generated/market-data';
 
 describe('InstrumentCatalogService', () => {
   let service: InstrumentCatalogService;
@@ -19,7 +19,7 @@ describe('InstrumentCatalogService', () => {
     it('mirrors the seeded INSTRUMENTS table, including the non-tradable one', () => {
       expect(service.all().map((i) => i.symbol)).toEqual([
         // 003_instruments.sql
-        'AAPL', 'ACME', 'INFY.NS', 'RELIANCE.NS', 'TATASTEEL.BO', 'FX:EURUSD', 'X:BTC-USD',
+        'ACME', 'AAPL', 'INFY.NS', 'RELIANCE.NS', 'TATASTEEL.BO', 'FX:EURUSD', 'X:BTC-USD',
         // 007_additional_instruments.sql
         'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'TSLA', 'META', 'JPM', 'NFLX',
         'TCS.NS', 'HDFCBANK.NS', 'ICICIBANK.NS', 'WIPRO.NS',
@@ -64,128 +64,146 @@ describe('InstrumentCatalogService', () => {
     });
   });
 
-  describe('INFY.NS snapshot', () => {
-    it('serves the captured Fauxnance candles as-is', () => {
-      const series = service.candles('infy.ns')!;
+  describe('market data from the APIs', () => {
+    /** Daily candles from the candle API, Mon 3 Aug to Fri 2 Oct 2026 (weekdays) */
+    const history: Candle[] = (() => {
+      const out: Candle[] = [];
+      for (let d = new Date('2026-08-03T00:00:00Z'); d <= new Date('2026-10-02T00:00:00Z'); d = new Date(d.getTime() + 86_400_000)) {
+        if (d.getUTCDay() === 0 || d.getUTCDay() === 6) continue;
+        const close = 100 + out.length;
+        out.push({
+          date: d.toISOString().slice(0, 10),
+          open: close - 0.5, high: close + 1, low: close - 1, close, adjclose: close,
+          volume: 1000 + out.length, synthetic: false,
+        });
+      }
+      return out;
+    })();
+    const last = history[history.length - 1];
+    const aapl = () => service.find('AAPL')!;
+    const cached = (over: Partial<CachedQuoteResponse> = {}): CachedQuoteResponse => ({
+      symbol: 'AAPL', price: 150, bid: 149.98, ask: 150.02, currency: 'USD',
+      change: null, changePercent: null, previousClose: null, marketState: null, stale: false,
+      quoteAsOf: '2026-10-05T15:00:00Z', receivedAt: '2026-10-05T15:00:05Z', ...over,
+    });
 
-      expect(service.dataSource('INFY.NS')).toBe('snapshot');
-      expect(series).toBe(INFY_NS_DAILY);
-      expect(series.currency).toBe('INR');
-      expect(series.candles[0]).toEqual({
-        date: '2025-10-06', open: 1446.6, high: 1478.8, low: 1442.3, close: 1476, adjclose: 1422.953, volume: 4630590, synthetic: false,
+    it('slices candle ranges back from the latest candle, and none for Today', () => {
+      expect(service.candlesInRange(history, '1W').map((c) => c.date)).toEqual([
+        '2026-09-28', '2026-09-29', '2026-09-30', '2026-10-01', '2026-10-02',
+      ]);
+      expect(service.candlesInRange(history, '1M')[0].date).toBe('2026-09-03');
+      expect(service.candlesInRange(history, '3M').length).toBe(history.length);
+      expect(service.candlesInRange(history, 'Today')).toEqual([]);
+      expect(service.candlesInRange([], '3M')).toEqual([]);
+      expect(CHART_RANGES).toEqual(['Today', '1W', '1M', '3M']);
+    });
+
+    it('builds the quote from the cache, deriving change and state the Fauxnance feed leaves out', () => {
+      const quote = service.toQuote(aapl(), cached(), history);
+
+      expect(quote).toEqual({
+        symbol: 'AAPL', price: 150, bid: 149.98, ask: 150.02, currency: 'USD',
+        previousClose: last.close,
+        change: 150 - last.close,
+        changePercent: Math.round(((150 - last.close) / last.close) * 10000) / 100,
+        marketState: 'open', // 11:00 ET on a Monday
+        stale: false,
+        delayMinutes: null,
+        quoteAsOf: '2026-10-05T15:00:00Z',
       });
-      expect(series.candles.filter((c) => c.synthetic).every((c) => c.volume === null)).toBe(true);
     });
 
-    it('quotes the last session close against the previous close, as a delayed, closed-market quote', () => {
-      const q = service.quote('INFY.NS')!;
-
-      expect(q.price).toBe(1036.7);
-      expect(q.previousClose).toBe(1041.2);
-      expect(q.change).toBe(-4.5);
-      expect(q.changePercent).toBe(-0.43);
-      expect(q.bid).toBeLessThan(q.price);
-      expect(q.ask).toBeGreaterThan(q.price);
-      expect(q.currency).toBe('INR');
-      expect(q.marketState).toBe('closed');
-      expect(q.stale).toBe(true);
-      // 29 Jun 2026, 15:30 IST
-      expect(q.quoteAsOf).toBe('2026-06-29T10:00:00.000Z');
+    it("works out the market state from the exchange clock when the feed says 'unknown'", () => {
+      expect(service.toQuote(aapl(), cached({ marketState: 'unknown' }), history).marketState).toBe('open'); // 11:00 ET
+      expect(service.toQuote(service.find('INFY.NS')!, cached({ symbol: 'INFY.NS', marketState: 'unknown' }), history).marketState)
+        .toBe('closed'); // 20:30 IST
     });
 
-    it('describes the session before the quote (no open: candles never hold the quote day)', () => {
-      const s = service.stats('INFY.NS', '3M')!;
-      const candles = INFY_NS_DAILY.candles;
+    it("ignores the feed's stale flag: delayed only while the market is open and the quote is over 15 minutes old", () => {
+      // Fresh quote flagged stale by Fauxnance's own cache
+      expect(service.toQuote(aapl(), cached({ stale: true }), history).stale).toBe(false);
 
-      // The quote is the 29 Jun close, so the previous session is 26 Jun (a flat, zero-volume day)
-      expect(s.sessionDate).toBe('2026-06-26');
-      expect(s.previousClose).toBe(1041.2);
-      expect(s.previousHigh).toBe(1041.2);
-      expect(s.previousLow).toBe(1041.2);
-      expect(s.previousVolume).toBe(0);
-      expect(s).not.toHaveProperty('open');
-      expect(s.price).toBe(1036.7);
-      expect(s.yearHigh).toBe(Math.max(...candles.map((c) => c.high)));
-      expect(s.yearLow).toBe(Math.min(...candles.map((c) => c.low)));
-      expect(s.averageVolume30d).toBeGreaterThan(0);
-      expect(s.rangeReturnPercent).toBeLessThan(0);
+      // Market open, quote from 10:35 ET (25 minutes ago)
+      const late = service.toQuote(aapl(), cached({ quoteAsOf: '2026-10-05T14:35:00Z' }), history);
+      expect(late.stale).toBe(true);
+      expect(late.delayMinutes).toBe(25);
+
+      // 15 minutes exactly is still fresh
+      expect(service.toQuote(aapl(), cached({ quoteAsOf: '2026-10-05T14:45:00Z' }), history).stale).toBe(false);
+
+      // NSE is closed at 20:30 IST: yesterday's price is expected, not delayed
+      const infy = service.toQuote(service.find('INFY.NS')!, cached({ symbol: 'INFY.NS', quoteAsOf: '2026-10-05T10:00:00Z', stale: true }), history);
+      expect(infy.stale).toBe(false);
+      expect(infy.delayMinutes).toBeNull();
     });
 
-    it('slices ranges back from the latest candle', () => {
-      const week = service.candlesInRange('INFY.NS', '1W');
-      expect(week.map((c) => c.date)).toEqual(['2026-06-23', '2026-06-24', '2026-06-25', '2026-06-26', '2026-06-29']);
+    it('prefers the figures the quote carries (market-data topic quotes)', () => {
+      const quote = service.toQuote(aapl(), cached({ previousClose: 148, change: 2, changePercent: 1.35, marketState: 'CLOSED', stale: true }), history);
 
-      const lengths = CHART_RANGES.map((r) => service.candlesInRange('INFY.NS', r).length);
-      expect(lengths).toEqual([...lengths].sort((a, b) => a - b));
-      expect(service.candlesInRange('INFY.NS', '1Y').length).toBe(INFY_NS_DAILY.candles.length);
-    });
-  });
-
-  describe('sample instruments', () => {
-    it('generates weekday candles for completed sessions only, never today', () => {
-      const series = service.candles('AAPL')!;
-      const last = series.candles[series.candles.length - 1];
-
-      expect(service.dataSource('AAPL')).toBe('sample');
-      expect(series.candles.length).toBe(260);
-      // NOW is Monday 5 Oct, so the latest candle is Friday 2 Oct
-      expect(last.date).toBe('2026-10-02');
-      expect(series.candles.some((c) => c.date === '2026-10-05')).toBe(false);
-      expect(last.synthetic).toBe(false);
-      expect(series.candles.every((c) => c.low <= Math.min(c.open, c.close) && c.high >= Math.max(c.open, c.close))).toBe(true);
-      expect(series.candles.every((c) => ![0, 6].includes(new Date(`${c.date}T00:00:00Z`).getUTCDay()))).toBe(true);
+      expect(quote.previousClose).toBe(148);
+      expect(quote.change).toBe(2);
+      expect(quote.changePercent).toBe(1.35);
+      expect(quote.marketState).toBe('closed');
+      // Closed market: an old quote is expected, so not shown as delayed
+      expect(quote.stale).toBe(false);
     });
 
-    it('is deterministic and cached per symbol', () => {
-      expect(service.candles('ACME')).toBe(service.candles('ACME'));
-      expect(service.candles('INFY.NS')!.candles).not.toEqual(service.candles('ACME')!.candles);
+    it('uses receivedAt when quoteAsOf is missing, and has no change without candles', () => {
+      const quote = service.toQuote(aapl(), cached({ quoteAsOf: null }), []);
+
+      expect(quote.quoteAsOf).toBe('2026-10-05T15:00:05Z');
+      expect(quote.previousClose).toBeNull();
+      expect(quote.change).toBeNull();
+      expect(quote.changePercent).toBeNull();
     });
 
-    it('trades crypto every day and gives FX no volume', () => {
-      const btc = service.candles('X:BTC-USD')!.candles;
-      expect(btc.some((c) => new Date(`${c.date}T00:00:00Z`).getUTCDay() === 0)).toBe(true);
+    it('computes previous-session, volume and high/low stats from candles and the quote', () => {
+      const quote = service.toQuote(aapl(), cached(), history);
+      const stats = service.stats(aapl(), history, quote, '1W')!;
+      const recent = history.slice(-30);
 
-      const fx = service.candles('FX:EURUSD')!.candles;
-      expect(fx.every((c) => c.volume === null)).toBe(true);
+      expect(stats.sessionDate).toBe('2026-10-02');
+      expect(stats.previousClose).toBe(last.close);
+      expect(stats.previousHigh).toBe(last.high);
+      expect(stats.previousLow).toBe(last.low);
+      expect(stats.previousVolume).toBe(last.volume);
+      expect(stats.averageVolume30d).toBe(Math.round(recent.reduce((s, c) => s + c.volume!, 0) / 30));
+      expect(stats.price).toBe(150);
+      expect(stats.yearHigh).toBe(150); // the quote is above every candle high
+      expect(stats.yearLow).toBe(history[0].low);
+      expect(stats.historyFrom).toBe('2026-08-03');
+      const firstOfWeek = service.candlesInRange(history, '1W')[0].close;
+      expect(stats.rangeReturnPercent).toBeCloseTo(((150 - firstOfWeek) / firstOfWeek) * 100, 10);
+    });
+
+    it('skips synthetic bars for volume and falls back to the last close without a quote', () => {
+      const withGap = [...history.slice(0, -1), { ...last, synthetic: true, volume: null }];
+      const stats = service.stats(aapl(), withGap, null, 'Today')!;
+
+      expect(stats.previousVolume).toBeNull();
+      expect(stats.price).toBe(last.close);
+      expect(stats.previousClose).toBe(last.close);
+      expect(stats.rangeReturnPercent).toBeNull();
+      expect(service.stats(aapl(), [], null, '3M')).toBeNull();
+    });
+
+    it('treats a candle on the quote day as today, not the previous session', () => {
+      const today = { ...last, date: '2026-10-05' };
+      const stats = service.stats(aapl(), [...history, today], service.toQuote(aapl(), cached(), history), '3M')!;
+
+      expect(stats.sessionDate).toBe('2026-10-02');
+    });
+
+    it('dates trading days in the exchange time zone', () => {
+      // 20:00 UTC Monday is already Tuesday in India; still Monday in New York and UTC
+      expect(service.tradingDay(service.find('INFY.NS')!, '2026-10-05T20:00:00Z')).toBe('2026-10-06');
+      expect(service.tradingDay(aapl(), '2026-10-05T20:00:00Z')).toBe('2026-10-05');
+      expect(service.tradingDay(service.find('X:BTC-USD')!, '2026-10-05T20:00:00Z')).toBe('2026-10-05');
+    });
+
+    it('formats FX to 4 decimals and everything else to 2', () => {
       expect(service.decimals('FX:EURUSD')).toBe(4);
       expect(service.decimals('AAPL')).toBe(2);
-    });
-
-    it('quotes a live price for today against the last candle as previous close', () => {
-      const q = service.quote('AAPL')!;
-      const candles = service.candles('AAPL')!.candles;
-      const lastClose = candles[candles.length - 1].close;
-
-      expect(q.price).toBe(189.35);
-      expect(q.previousClose).toBe(lastClose);
-      expect(q.change).toBeCloseTo(189.35 - lastClose, 2);
-      expect(q.stale).toBe(false);
-      expect(q.quoteAsOf).toBe(NOW.toISOString());
-      expect(q.marketState).toBe('open');
-    });
-
-    it('takes "previous session" stats from the last candle and price stats from the quote', () => {
-      const s = service.stats('AAPL', '1M')!;
-      const candles = service.candles('AAPL')!.candles;
-      const last = candles[candles.length - 1];
-      const first = service.candlesInRange('AAPL', '1M')[0];
-
-      expect(s.sessionDate).toBe(last.date);
-      expect(s.previousClose).toBe(last.close);
-      expect(s.previousHigh).toBe(last.high);
-      expect(s.previousLow).toBe(last.low);
-      expect(s.previousVolume).toBe(last.volume);
-      expect(s.rangeReturnPercent).toBeCloseTo(((189.35 - first.close) / first.close) * 100, 6);
-      expect(s.yearLow).toBeLessThanOrEqual(189.35);
-      expect(s.yearHigh).toBeGreaterThanOrEqual(189.35);
-    });
-
-    it('has no data for unknown symbols', () => {
-      expect(service.candles('NOPE')).toBeNull();
-      expect(service.candlesInRange('NOPE', '1M')).toEqual([]);
-      expect(service.stats('NOPE', '1M')).toBeNull();
-      expect(service.quote('NOPE')).toBeNull();
-      expect(service.dataSource('NOPE')).toBe('sample');
     });
   });
 

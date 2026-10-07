@@ -1,125 +1,76 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { map, catchError } from 'rxjs/operators';
-import { of } from 'rxjs';
-import { CandlesService, CandleResponse } from '../../../api/generated/candle';
-import { Candle, ChartRange } from '../instrument.models';
+import { map } from 'rxjs/operators';
+import { CandlesService, CandleResponse, CandleHistoryResponse } from '../../../api/generated/candle';
+import { Candle } from '../instrument.models';
+
+/** Days of candle history requested for the chart and the high/low stats (52 weeks) */
+export const HISTORY_DAYS = 365;
+/** The candle API's page size cap */
+const MAX_CANDLES = 500;
+const DAY_MS = 86_400_000;
 
 /**
- * Candle data service wrapper
- *
- * Fetches daily candlestick data from the backend API.
- * Maps date ranges to API date parameters.
- * Converts CandleResponse DTO to Candle domain model.
- *
- * Date range mapping:
- * - '1W' = 7 days ago
- * - '1M' = 30 days ago
- * - '3M' = 89 days ago (backend max is 90)
- * - 'Today' = same day only (for intraday quotes)
+ * Daily candles from the candle API (contracts/candle-api.yaml), served from the order
+ * service's candle store (synced from Fauxnance). Responses are mapped to the `Candle`
+ * domain model, oldest first. Errors are passed on so callers can show them.
  */
-@Injectable({
-  providedIn: 'root',
-})
+@Injectable({ providedIn: 'root' })
 export class CandleService {
-  constructor(private candlesApi: CandlesService) {}
+  private readonly candlesApi = inject(CandlesService);
+
+  /** Clock for the requested date window; overridable in tests */
+  now: () => Date = () => new Date();
 
   /**
-   * Get candles for an instrument within a date range
-   * @param instrumentId Backend instrument ID
-   * @param range Chart range (1W, 1M, 3M, Today)
-   * @returns Observable<Candle[]> sorted oldest to newest
+   * Up to a year of daily candles ending today. One request covers every chart range
+   * and the stats, so switching range never refetches.
    */
-  getCandlesForRange(instrumentId: number, range: ChartRange): Observable<Candle[]> {
-    const today = new Date();
-    const { fromDate, toDate } = this.calculateDateRange(today, range);
-
+  getHistory(instrumentId: number, days = HISTORY_DAYS): Observable<Candle[]> {
+    const to = this.now();
+    const from = new Date(to.getTime() - days * DAY_MS);
+    // interval is left to the API default: one bar per trading day
     return this.candlesApi
-      .getCandlesByInstrument(
-        instrumentId,
-        fromDate,
-        toDate,
-        undefined, // interval
-        500, // limit
-        0 // offset
-      )
-      .pipe(
-        map((response) => this.mapCandlesToDomain(response.candles || [])),
-        catchError(() => of([]))
-      );
+      .getCandlesByInstrument(instrumentId, isoDate(from), isoDate(to), undefined, MAX_CANDLES, 0)
+      .pipe(map((response) => toCandles(response?.candles)));
   }
 
-  /**
-   * Get the N latest candles for an instrument
-   * @param instrumentId Backend instrument ID
-   * @param count Number of candles (max 500)
-   * @returns Observable<Candle[]>
-   */
-  getLatestCandles(instrumentId: number, count: number = 20): Observable<Candle[]> {
+  /** The `count` latest candles, oldest first */
+  getLatestCandles(instrumentId: number, count = 20): Observable<Candle[]> {
     return this.candlesApi.getLatestCandles(instrumentId, count).pipe(
-      map((candles) => this.mapCandlesToDomain(candles || [])),
-      catchError(() => of([]))
+      // The API documents an array, but the order service wraps it in a CandleHistoryResponse
+      map((body: CandleResponse[] | CandleHistoryResponse) => toCandles(Array.isArray(body) ? body : body?.candles)),
     );
   }
 
-  /**
-   * Get candle for a specific date
-   * @param instrumentId Backend instrument ID
-   * @param date Trading date (YYYY-MM-DD)
-   * @returns Observable<Candle | null>
-   */
-  getCandleByDate(instrumentId: number, date: string): Observable<Candle | null> {
-    return this.candlesApi.getCandleByDate(instrumentId, date).pipe(
-      map((response) => this.mapCandle(response)),
-      catchError(() => of(null))
-    );
+  /** The candle for one trading day (YYYY-MM-DD) */
+  getCandleByDate(instrumentId: number, date: string): Observable<Candle> {
+    return this.candlesApi.getCandleByDate(instrumentId, date).pipe(map(toCandle));
   }
+}
 
-  // ===== Private helpers =====
+function toCandles(rows: CandleResponse[] | null | undefined): Candle[] {
+  return (rows ?? [])
+    .map(toCandle)
+    .filter((c) => c.date && [c.open, c.high, c.low, c.close].every(Number.isFinite))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
 
-  private calculateDateRange(today: Date, range: ChartRange): { fromDate: string; toDate: string } {
-    const toDate = this.toDateString(today);
-    let fromDate: string;
+function toCandle(row: CandleResponse): Candle {
+  const close = Number(row.close);
+  const adjclose = row.adjclose ?? (row as { adjClose?: number }).adjClose;
+  return {
+    date: String(row.date ?? '').slice(0, 10),
+    open: Number(row.open),
+    high: Number(row.high),
+    low: Number(row.low),
+    close,
+    adjclose: adjclose === null || adjclose === undefined ? close : Number(adjclose),
+    volume: row.volume ?? null,
+    synthetic: row.synthetic ?? false,
+  };
+}
 
-    switch (range) {
-      case 'Today':
-        fromDate = toDate;
-        break;
-      case '1W':
-        fromDate = this.toDateString(new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000));
-        break;
-      case '1M':
-        fromDate = this.toDateString(new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000));
-        break;
-      case '3M':
-        // Use 89 days to stay within backend's 90-day max
-        fromDate = this.toDateString(new Date(today.getTime() - 89 * 24 * 60 * 60 * 1000));
-        break;
-      default:
-        fromDate = toDate;
-    }
-
-    return { fromDate, toDate };
-  }
-
-  private toDateString(date: Date): string {
-    return date.toISOString().slice(0, 10);
-  }
-
-  private mapCandlesToDomain(responses: CandleResponse[]): Candle[] {
-    return responses.map((r) => this.mapCandle(r));
-  }
-
-  private mapCandle(response: CandleResponse): Candle {
-    return {
-      date: response.date || '',
-      open: Number(response.open),
-      high: Number(response.high),
-      low: Number(response.low),
-      close: Number(response.close),
-      adjclose: Number(response.adjclose),
-      volume: response.volume ?? null,
-      synthetic: response.synthetic ?? false,
-    };
-  }
+function isoDate(date: Date): string {
+  return date.toISOString().slice(0, 10);
 }

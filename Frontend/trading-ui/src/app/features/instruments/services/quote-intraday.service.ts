@@ -1,51 +1,35 @@
-import { Injectable } from '@angular/core';
-import { Observable, of } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
-import { QuotesService, CachedQuoteResponse } from '../../../api/generated/quotes';
+import { Injectable, inject } from '@angular/core';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
+import { CachedQuoteResponse, MarketDataService } from '../../../api/generated/market-data';
+import { QuotePoint } from '../instrument.models';
 
 /**
- * Intraday quote service
- *
- * Fetches real-time and cached quote history for today (every 5 minutes from MarketDataCache).
- * Returns time-series data (price points over time) suitable for line charts.
- *
- * Calls:
- * - GET /api/v1/market-data/quotes (today's quotes for a symbol)
+ * Today's quote history for one symbol, from the order service's quote cache via
+ * GET /api/v1/market-data/quotes (contracts/market-data-api.yaml). The cache is refreshed
+ * from Fauxnance every five minutes (or by the market-data topic), so this costs no quota.
+ * Errors are passed on so callers can show them.
  */
-export interface QuotePoint {
-  timestamp: string;  // ISO 8601 timestamp from receivedAt
-  price: number;
-  bid: number;
-  ask: number;
+@Injectable({ providedIn: 'root' })
+export class QuoteIntraDayService {
+  private readonly api = inject(MarketDataService);
+
+  /** Quotes the cache received today (UTC day), oldest first */
+  getQuotesForToday(symbol: string): Observable<QuotePoint[]> {
+    return this.api
+      .getQuotesForDay(undefined, symbol.trim().toUpperCase())
+      .pipe(map((response) => toPoints(response?.quotes)));
+  }
 }
 
-@Injectable({
-  providedIn: 'root',
-})
-export class QuoteIntraDayService {
-  constructor(private quotesApi: QuotesService) {}
-
-  /**
-   * Get today's quote history for an instrument
-   * Returns time-series points (price, bid, ask) received throughout the day
-   */
-  getQuotesForToday(symbol: string): Observable<QuotePoint[]> {
-    return this.quotesApi
-      .getQuotesForDay(undefined, symbol.toUpperCase(), undefined)
-      .pipe(
-        map((response) => this.mapQuotesToPoints(response.rows || [])),
-        catchError(() => of([]))  // No data: return empty array
-      );
-  }
-
-  // ===== Private helpers =====
-
-  private mapQuotesToPoints(quotes: CachedQuoteResponse[]): QuotePoint[] {
-    return quotes.map((q) => ({
-      timestamp: q.receivedAt ?? q.quoteAsOf ?? new Date().toISOString(),
+function toPoints(rows: CachedQuoteResponse[] | null | undefined): QuotePoint[] {
+  return (rows ?? [])
+    .map((q) => ({
+      time: q.receivedAt ?? q.quoteAsOf ?? '',
       price: Number(q.price),
       bid: Number(q.bid),
       ask: Number(q.ask),
-    }));
-  }
+    }))
+    .filter((p) => p.time && Number.isFinite(p.price))
+    .sort((a, b) => a.time.localeCompare(b.time));
 }
