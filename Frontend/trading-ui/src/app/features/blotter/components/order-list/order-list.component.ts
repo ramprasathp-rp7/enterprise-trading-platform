@@ -1,7 +1,9 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { OrderStatusBadgeComponent } from '../order-status-badge/order-status-badge.component';
 import { BlotterOrder } from '../../blotter.models';
+import { formatMoney } from '../../../../shared/currency';
+import { InstrumentCatalogService } from '../../../instruments/services/instrument-catalog.service';
 
 /**
  * Order list component
@@ -52,8 +54,8 @@ import { BlotterOrder } from '../../blotter.models';
                   </span>
                 </td>
                 <td class="cell-quantity num">{{ order.quantity.toLocaleString() }}</td>
-                <td class="cell-price num">{{ formatCurrency(order.price) }}</td>
-                <td class="cell-executed num" [class.cell-muted]="order.executedPrice == null">{{ order.executedPrice != null ? formatCurrency(order.executedPrice) : '—' }}</td>
+                <td class="cell-price num">{{ formatPrice(order.price, order.symbol) }}</td>
+                <td class="cell-executed num" [class.cell-muted]="order.executedPrice == null">{{ order.executedPrice != null ? formatPrice(order.executedPrice, order.symbol) : '—' }}</td>
                 <td class="cell-status"><app-order-status-badge [status]="order.status"></app-order-status-badge></td>
                 <td class="cell-created" [title]="formatDate(order.createdOn)">
                   @if (formatDateParts(order.createdOn); as parts) {
@@ -221,6 +223,8 @@ import { BlotterOrder } from '../../blotter.models';
   `],
 })
 export class OrderListComponent {
+  private readonly catalog = inject(InstrumentCatalogService);
+
   @Input() orders: BlotterOrder[] | null = null;
   /** Order IDs with a cancel request in flight */
   @Input() cancellingIds: ReadonlySet<string> = new Set();
@@ -240,8 +244,14 @@ export class OrderListComponent {
     this.cancelOrder.emit(orderId);
   }
 
-  formatCurrency(value: number): string {
-    return value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  /** A price in the instrument's currency, e.g. ₹1,600.00 (bare number when the currency is unknown) */
+  formatCurrency(value: number, currency?: string | null): string {
+    return formatMoney(value, currency);
+  }
+
+  /** A price in the order's instrument currency at the instrument's precision, e.g. ₹1,600.00 or $1.0842 */
+  formatPrice(value: number, symbol: string): string {
+    return formatMoney(value, this.catalog.find(symbol)?.currency, { decimals: this.catalog.decimals(symbol) });
   }
 
   formatDate(value: string | number | null | undefined): string {

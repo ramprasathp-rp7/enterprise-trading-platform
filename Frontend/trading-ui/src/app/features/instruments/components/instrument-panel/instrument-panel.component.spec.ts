@@ -69,7 +69,10 @@ describe('InstrumentPanelComponent', () => {
       ],
     }).compileComponents();
     // Monday 5 Oct 2026, 11:00 in New York
-    TestBed.inject(InstrumentCatalogService).now = () => new Date('2026-10-05T15:00:00Z');
+    const catalog = TestBed.inject(InstrumentCatalogService);
+    catalog.now = () => new Date('2026-10-05T15:00:00Z');
+    // The chart's candles come from the candle API; serve the catalogue's own candles for the range
+    vi.spyOn(catalog, 'candlesInRangeFromApi').mockImplementation((symbol, range) => of(catalog.candlesInRange(symbol, range)));
     fixture = TestBed.createComponent(InstrumentPanelComponent);
     component = fixture.componentInstance;
   });

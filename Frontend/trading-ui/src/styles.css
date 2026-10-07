@@ -1321,6 +1321,9 @@ select.form-input,
   margin-left: auto;
   width: 28px;
   height: 28px;
+  /* Don't let the button make the alert taller than its text */
+  margin-top: -4px;
+  margin-bottom: -4px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1330,6 +1333,23 @@ select.form-input,
   color: inherit;
   cursor: pointer;
   opacity: 0.7;
+}
+
+/* A one-line message with a close or action button: keep text and button on one centred line,
+   with no extra space under the text */
+.alert:has(> .alert-close),
+.alert:has(> .btn) {
+  align-items: center;
+}
+
+.alert:has(> .alert-close) > i,
+.alert:has(> .btn) > i {
+  margin-top: 0;
+}
+
+.alert > .btn {
+  margin-top: -4px;
+  margin-bottom: -4px;
 }
 
 .alert-close:hover {

@@ -29,7 +29,7 @@ export interface PricedPosition {
     unrealisedPnl?: number | null;
     unrealisedPnlPercent?: number | null;
     /**
-     * The instrument\'s own currency, from `INSTRUMENTS.currency`.
+     * The instrument\'s own currency, from `INSTRUMENTS.currency` (the Fauxnance quote\'s currency wins if they disagree). `averageCost`, `costBasis`, `lastPrice`, `marketValue` and `unrealisedPnl` are in it. 
      */
     currency: string;
     /**
@@ -40,5 +40,25 @@ export interface PricedPosition {
      * True when the quote is past its freshness window or could not be fetched. Surface it in the UI. Do not silently present a stale price as current. 
      */
     stale: boolean;
+    /**
+     * Live instrument-to-account currency rate (account-currency units per instrument-currency unit; 1 when they match), from a Fauxnance `FX:` pair. Null when no rate is available. 
+     */
+    fxRate?: number | null;
+    /**
+     * Average cost per unit in the account\'s currency, at the fill rates of the buys.
+     */
+    averageCostAccount?: number;
+    /**
+     * quantity multiplied by averageCostAccount. Summary `costBasis` is the sum of these.
+     */
+    costBasisAccount?: number;
+    /**
+     * marketValue multiplied by fxRate. Summary `marketValue` is the sum of these. Null when the position could not be priced or converted, which also makes the summary `partial`. 
+     */
+    marketValueAccount?: number | null;
+    /**
+     * marketValueAccount minus costBasisAccount; includes the effect of FX moves.
+     */
+    unrealisedPnlAccount?: number | null;
 }
 

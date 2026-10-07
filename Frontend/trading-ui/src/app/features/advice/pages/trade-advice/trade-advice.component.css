@@ -1,0 +1,346 @@
+/* Trade Advice — layout, panels and buttons come from the global design system */
+
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.page.advice-page {
+  gap: 18px;
+}
+
+/* ===== TOOLBAR: tally + filters ===== */
+.advice-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px 20px;
+  flex-wrap: wrap;
+}
+
+.tally {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.tally-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  align-items: center;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-500);
+}
+
+.tally-item strong {
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tally-item.buy strong { color: var(--positive); }
+.tally-item.sell strong { color: var(--negative); }
+.tally-item.hold strong { color: var(--ink-700, var(--ink-900)); }
+
+.filters {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--r-pill);
+  background: var(--surface-sunken);
+}
+
+.filter {
+  height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--ink-500);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.filter.active {
+  background: var(--surface);
+  color: var(--brand-strong);
+  box-shadow: var(--shadow-card);
+}
+
+.generated {
+  margin-left: auto;
+  font-size: 12.5px;
+  color: var(--ink-500);
+}
+
+/* ===== SIGNAL CARDS ===== */
+.signal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+  gap: 16px;
+}
+
+.signal-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 20px;
+  overflow: hidden;
+}
+
+/* Accent line in the signal's colour */
+.signal-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--ink-400, var(--line-strong));
+}
+
+.signal-card[data-signal='buy']::before { background: var(--positive); }
+.signal-card[data-signal='sell']::before { background: var(--negative); }
+
+.card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.symbol {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink-900);
+}
+
+.name {
+  font-size: 12.5px;
+  color: var(--ink-500);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sources {
+  display: inline-flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.source {
+  padding: 1px 8px;
+  border-radius: var(--r-pill);
+  background: var(--surface-sunken);
+  color: var(--ink-500);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.verdict {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.signal-badge {
+  min-width: 64px;
+  padding: 5px 12px;
+  border-radius: var(--r-md);
+  background: var(--neutral-soft);
+  color: var(--neutral);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-align: center;
+}
+
+.signal-badge[data-signal='buy'] { background: var(--positive-soft); color: var(--positive); }
+.signal-badge[data-signal='sell'] { background: var(--negative-soft); color: var(--negative); }
+
+.confidence {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--ink-500);
+  font-variant-numeric: tabular-nums;
+}
+
+.confidence-track {
+  width: 64px;
+  height: 5px;
+  border-radius: var(--r-pill);
+  background: var(--surface-sunken);
+  overflow: hidden;
+}
+
+.confidence-fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--brand);
+}
+
+.figures {
+  display: flex;
+  gap: 8px 22px;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: var(--surface-sunken);
+}
+
+.figures dt {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-500);
+}
+
+.figures dd {
+  margin: 2px 0 0;
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--ink-900);
+  font-variant-numeric: tabular-nums;
+}
+
+.figures dd.up { color: var(--positive); }
+.figures dd.down { color: var(--negative); }
+
+.summary {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-900);
+}
+
+.reasons {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reason {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-700, var(--ink-900));
+}
+
+.reason > i {
+  width: 16px;
+  margin-top: 3px;
+  flex-shrink: 0;
+  font-size: 11px;
+  text-align: center;
+  color: var(--ink-400, var(--ink-500));
+}
+
+.reason[data-impact='positive'] > i { color: var(--positive); }
+.reason[data-impact='negative'] > i { color: var(--negative); }
+
+.reason strong {
+  margin-right: 4px;
+  color: var(--ink-900);
+}
+
+.card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+.trade-btn {
+  min-width: 64px;
+  background: var(--surface);
+  border-color: var(--line-strong);
+  font-weight: 600;
+}
+
+.trade-btn.buy { color: var(--positive); }
+.trade-btn.buy:hover { background: var(--positive-soft); border-color: var(--positive-line); }
+.trade-btn.sell { color: var(--negative); }
+.trade-btn.sell:hover { background: var(--negative-soft); border-color: var(--negative-line); }
+
+/* ===== NOT ENOUGH DATA ===== */
+.insufficient .panel-header {
+  padding: 12px 20px;
+}
+
+.insufficient-list {
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+}
+
+.insufficient-list li {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 180px) minmax(0, 1fr);
+  gap: 12px;
+  align-items: baseline;
+  padding: 10px 20px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.insufficient-list li:first-child {
+  border-top: 0;
+}
+
+.symbol-sm {
+  font-weight: 650;
+  color: var(--ink-900);
+}
+
+.why {
+  color: var(--ink-500);
+}
+
+.disclaimer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--ink-500);
+}
+
+@media (max-width: 720px) {
+  .signal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .generated {
+    margin-left: 0;
+  }
+
+  .insufficient-list li {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}

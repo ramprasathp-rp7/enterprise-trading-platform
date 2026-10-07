@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { AdminService } from '../../services/admin.service';
+import { PLATFORM_ACCOUNT_CURRENCY, formatMoney } from '../../../../shared/currency';
 import {
   OrderStatusChange,
   TransactionHistoryEntry,
@@ -144,13 +145,13 @@ export class AdminAnalyticsComponent {
       });
   }
 
+  /**
+   * Trade and fee totals are sums of account-currency transactions across every account: trades settle
+   * in the account's currency at the fill FX rate. If accounts in other currencies are introduced,
+   * these totals must be grouped by account currency.
+   */
   formatCurrency(value: number): string {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
+    return formatMoney(value, PLATFORM_ACCOUNT_CURRENCY);
   }
 
   formatPercent(value: number): string {

@@ -60,6 +60,13 @@ export class SidebarComponent {
       section: 'Trading'
     },
     {
+      label: 'Trade Advice',
+      route: '/advice',
+      icon: 'fas fa-lightbulb',
+      description: 'Buy, sell & hold signals',
+      section: 'Trading'
+    },
+    {
       label: 'Order Blotter',
       route: '/blotter',
       icon: 'fas fa-list-ul',

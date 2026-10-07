@@ -16,8 +16,12 @@ import com.tradingplatform.domain.enums.OrderStatus;
 import com.tradingplatform.domain.model.Order;
 
 public interface OrderMapper {
-    @Insert("INSERT INTO orders (id, account_id, instrument_id, side, quantity, price, status, idempotency_key) " +
-            "VALUES (#{id}, #{accountId}, #{instrumentId}, #{side}, #{quantity}, #{price}, #{status}, #{idempotencyKey})")
+    /**
+     * @param placementFxRate instrument-to-account FX rate at placement (1 when the currencies match);
+     *                        prices the funds check and the reservation while the order is NEW
+     */
+    @Insert("INSERT INTO orders (id, account_id, instrument_id, side, quantity, price, status, idempotency_key, placement_fx_rate) " +
+            "VALUES (#{id}, #{accountId}, #{instrumentId}, #{side}, #{quantity}, #{price}, #{status}, #{idempotencyKey}, #{placementFxRate})")
     int insertOrder(UUID id,
             long accountId,
             long instrumentId,
@@ -25,7 +29,8 @@ public interface OrderMapper {
             int quantity,
             BigDecimal price,
             OrderStatus status,
-            String idempotencyKey);
+            String idempotencyKey,
+            BigDecimal placementFxRate);
 
     @ConstructorArgs({
     @Arg(column = "id", javaType = java.util.UUID.class),          // ← ADD THIS
@@ -36,7 +41,8 @@ public interface OrderMapper {
     @Arg(column = "price", javaType = BigDecimal.class),
     @Arg(column = "idempotency_key", javaType = String.class)
     })
-    @Select("SELECT id, account_id, instrument_id, side, quantity, price, status, executed_price, fee, idempotency_key, created_on " +
+    @Select("SELECT id, account_id, instrument_id, side, quantity, price, status, executed_price, fee, idempotency_key, created_on, " +
+            "placement_fx_rate, fill_fx_rate, realised_pnl " +
             "FROM orders WHERE id = #{id}")
     Order findOrderById(@Param("id") UUID id);
 
@@ -52,7 +58,8 @@ public interface OrderMapper {
         @Arg(column = "price", javaType = BigDecimal.class),
         @Arg(column = "idempotency_key", javaType = String.class)
     })
-    @Select("SELECT id, account_id, instrument_id, side, quantity, price, status, executed_price, fee, idempotency_key, created_on " +
+    @Select("SELECT id, account_id, instrument_id, side, quantity, price, status, executed_price, fee, idempotency_key, created_on, " +
+            "placement_fx_rate, fill_fx_rate, realised_pnl " +
             "FROM orders WHERE account_id = #{accountId} AND status = #{status}")
     List<Order> findOrdersByAccountIdAndStatus(@Param("accountId") Long accountId, @Param("status") OrderStatus status);
 
@@ -66,6 +73,14 @@ public interface OrderMapper {
      */
     @Update("UPDATE orders SET status = #{status}, executed_price = #{executedPrice}, executed_on = CURRENT_TIMESTAMP WHERE id = #{id}")
     int updateOrderStatus(@Param("id") UUID id, @Param("status") OrderStatus status, @Param("executedPrice") BigDecimal executedPrice);
+
+    /**
+     * Records the FX rate of record for a fill (instrument-to-account) and, for a SELL, the realised
+     * P&L booked in account currency. In SYNC mode the fill happens in the placement request, so the
+     * fill rate is the rate fetched at placement.
+     */
+    @Update("UPDATE orders SET fill_fx_rate = #{fillFxRate}, realised_pnl = #{realisedPnl} WHERE id = #{id}")
+    int recordFill(@Param("id") UUID id, @Param("fillFxRate") BigDecimal fillFxRate, @Param("realisedPnl") BigDecimal realisedPnl);
 
     /**
      * Marks an order REJECTED with a reason, as ck_orders_rejected_reason_iff_rejected and

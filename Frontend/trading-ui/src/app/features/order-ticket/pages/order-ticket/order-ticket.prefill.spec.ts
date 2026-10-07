@@ -50,6 +50,9 @@ describe('OrderTicketComponent – prefill from a holding', () => {
         },
       ],
     }).compileComponents();
+    // The instrument panel's chart loads candles from the candle API; serve the catalogue's own candles
+    const catalog = TestBed.inject(InstrumentCatalogService);
+    vi.spyOn(catalog, 'candlesInRangeFromApi').mockImplementation((symbol, range) => of(catalog.candlesInRange(symbol, range)));
     const fixture = TestBed.createComponent(OrderTicketComponent);
     fixture.detectChanges();
     await fixture.whenStable();

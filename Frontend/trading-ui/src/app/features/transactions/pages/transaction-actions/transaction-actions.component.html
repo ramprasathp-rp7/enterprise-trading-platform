@@ -190,7 +190,7 @@
                 <span class="recent-date">{{ shortDate(t.createdOn) }}</span>
               </span>
               <span class="recent-amount" [class.credit]="t.actionType === 'CREDIT'">
-                {{ t.actionType === 'CREDIT' ? '+' : '−' }}{{ t.amount | number:'1.2-2' }}
+                {{ t.actionType === 'CREDIT' ? '+' : '−' }}{{ t.amount | number:'1.2-2' }} <small>{{ currency() }}</small>
               </span>
             </li>
           } @empty {

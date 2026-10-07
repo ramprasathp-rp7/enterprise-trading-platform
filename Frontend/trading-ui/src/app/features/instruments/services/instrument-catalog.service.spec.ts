@@ -26,6 +26,7 @@ describe('InstrumentCatalogService', () => {
         'FX:GBPUSD', 'FX:USDJPY', 'FX:USDINR', 'X:ETH-USD', 'X:SOL-USD', 'X:XRP-USD',
       ]);
       expect(service.find('TATASTEEL.BO')?.tradable).toBe(false);
+      expect(service.all().map((i) => i.id)).toEqual(service.all().map((_, index) => index + 1));
     });
 
     it('finds by symbol case-insensitively', () => {

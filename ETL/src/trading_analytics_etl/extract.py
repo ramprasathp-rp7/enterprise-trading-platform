@@ -59,7 +59,9 @@ def extract_orders_since(conn, watermark: Optional[datetime]) -> list[dict]:
                o.price,
                o.executed_price,
                o.status,
-               o.created_on
+               o.created_on,
+               o.placement_fx_rate,
+               o.fill_fx_rate
           FROM orders o
           JOIN accounts a ON a.id = o.account_id
           JOIN instruments i ON i.id = o.instrument_id

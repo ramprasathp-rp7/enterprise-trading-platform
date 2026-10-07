@@ -7,7 +7,6 @@ import java.util.List;
 
 import com.tradingplatform.domain.model.Instrument;
 
-import java.util.List;
 
 public interface InstrumentMapper {
 
@@ -25,4 +24,13 @@ public interface InstrumentMapper {
     /** Every instrument symbol, delisted included, so each one has a cached quote. */
     @Select("SELECT symbol FROM instruments ORDER BY symbol")
     List<String> findAllSymbols();
+
+    /**
+     * FX pairs needed to convert instrument currencies into account currencies, quoted as
+     * FX:{account}{instrument} (e.g. FX:USDINR), so the quote cache holds a rate for every
+     * currency an instrument trades in, even one with no tradable FX instrument.
+     */
+    @Select("SELECT DISTINCT 'FX:' || a.currency || i.currency FROM instruments i "
+        + "CROSS JOIN (SELECT DISTINCT currency FROM accounts) a WHERE i.currency <> a.currency")
+    List<String> findConversionFxSymbols();
 }

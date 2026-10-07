@@ -242,5 +242,10 @@ class WatchlistServiceTest {
             return bySymbol.keySet().stream().sorted().toList();
         
         }
+
+        @Override
+        public List<String> findConversionFxSymbols() {
+            return List.of();
+        }
     }
 }

@@ -1,9 +1,9 @@
 import { Component, ElementRef, HostListener, OnDestroy, OnInit, computed, inject, input, signal } from '@angular/core';
-import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AlertDirection, AlertMode } from '../../../../../api/generated/watchlist';
 import { LiveQuoteStore } from '../../../../../core/market-data/live-quote.store';
 import { MAX_ACTIVE_ALERTS, PriceAlertsStore } from '../../price-alerts.store';
+import { formatInstrumentPrice } from '../../../../instruments/services/instrument-catalog.service';
 
 const MENU_WIDTH = 260;
 /** Approximate height of the open form, used to decide whether it fits below the bell */
@@ -16,7 +16,7 @@ const MENU_HEIGHT = 340;
 @Component({
   selector: 'app-price-alert-button',
   standalone: true,
-  imports: [DecimalPipe, FormsModule],
+  imports: [FormsModule],
   template: `
     <button
       type="button"
@@ -42,7 +42,7 @@ const MENU_HEIGHT = 340;
         <p class="menu-title">Alert me on {{ symbol() }}</p>
         <p class="now">
           Now
-          <strong>{{ livePrice() !== null ? (livePrice()! | number: '1.2-4') : '—' }}</strong>
+          <strong>{{ price(livePrice()) }}</strong>
         </p>
 
         <div class="segmented" role="radiogroup" aria-label="Direction">
@@ -234,6 +234,11 @@ export class PriceAlertButtonComponent implements OnInit, OnDestroy {
   threshold: number | null = null;
 
   readonly livePrice = computed(() => this.liveQuotes.quote(this.symbol())?.price ?? null);
+
+  /** A price in the instrument's currency; '—' when unknown */
+  price(value: number | null | undefined): string {
+    return formatInstrumentPrice(value, this.symbol());
+  }
   readonly hasActive = computed(() => this.store.hasActiveAlert(this.symbol()));
 
   ngOnInit(): void {
@@ -288,7 +293,7 @@ export class PriceAlertButtonComponent implements OnInit, OnDestroy {
       next: () => {
         this.busy.set(false);
         const side = this.direction === AlertDirection.Above ? 'above' : 'below';
-        this.message.set({ text: `Alert set: ${this.symbol()} ${side} ${threshold}.`, error: false });
+        this.message.set({ text: `Alert set: ${this.symbol()} ${side} ${this.price(threshold)}.`, error: false });
       },
       error: (err: Error) => {
         this.busy.set(false);

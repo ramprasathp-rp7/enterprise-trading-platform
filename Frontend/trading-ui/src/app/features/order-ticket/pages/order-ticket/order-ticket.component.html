@@ -193,8 +193,16 @@
 
             <div class="summary-line summary-total">
               <dt class="summary-label">Est. notional</dt>
-              <dd class="summary-value" data-testid="summary-notional">{{ estimatedNotional() !== null ? (estimatedNotional() | number:'1.2-2') : '—' }}</dd>
+              <dd class="summary-value" data-testid="summary-notional">{{ estimatedNotional() !== null ? (instrumentCurrency() ? formatMoney(estimatedNotional(), instrumentCurrency()) : (estimatedNotional() | number:'1.2-2')) : '—' }}</dd>
             </div>
+            @if (foreignAccountCurrency(); as accountCurrency) {
+              <div class="summary-line summary-detail">
+                <dt class="summary-label">In {{ accountCurrency }}</dt>
+                <dd class="summary-value-sm" data-testid="summary-notional-account"
+                  [attr.title]="(estimatedFxRate() !== null ? 'At ' + (estimatedFxRate() | number:'1.4-6') + ' ' + accountCurrency + ' per ' + instrumentCurrency() + ' today. ' : '') + 'Your cash is debited at the exchange rate when the order fills.'"
+                >{{ estimatedNotionalAccount() !== null ? '≈ ' + formatMoney(estimatedNotionalAccount(), accountCurrency) : 'Rate unavailable' }}</dd>
+              </div>
+            }
           </dl>
         </section>
 

@@ -58,11 +58,11 @@
         </div>
         <div class="detail">
           <dt>Limit price</dt>
-          <dd class="num">{{ o.price | number: '1.2-2' }}</dd>
+          <dd class="num">{{ formatPrice(o.price, o.symbol) }}</dd>
         </div>
         <div class="detail">
           <dt>Est. notional</dt>
-          <dd class="num">{{ notional() | number: '1.2-2' }}</dd>
+          <dd class="num">{{ formatAmount(notional(), o.symbol) }}</dd>
         </div>
       </dl>
 

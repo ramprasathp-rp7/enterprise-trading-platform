@@ -325,7 +325,7 @@ components:
           format: double
           minimum: 0.01
           multipleOf: 0.01
-          description: Amount in USD. Must be greater than zero, with at most two decimal places.
+          description: Amount in the account's currency. Must be greater than zero, with at most two decimal places.
           example: 1000.00
 
     TransactionResponse:
@@ -361,7 +361,7 @@ components:
         amount:
           type: number
           format: double
-          description: Amount in USD
+          description: Amount in the account's currency
           example: 1000.00
         createdOn:
           type: string
@@ -391,7 +391,7 @@ components:
         amount:
           type: number
           format: double
-          description: Amount in USD
+          description: Amount in the account's currency
           example: 1000.00
         createdOn:
           type: string

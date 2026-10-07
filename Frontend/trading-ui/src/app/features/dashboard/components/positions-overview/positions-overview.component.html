@@ -29,7 +29,7 @@
             <span class="share-pct">{{ row.percentage | number: '1.1-1' }}%</span>
           </td>
           <td class="num">{{ row.quantity | number }}</td>
-          <td class="num">{{ formatAmount(row.averageCost, 2) }}</td>
+          <td class="num">{{ formatPrice(row.averageCost, row.symbol) }}</td>
         </tr>
       }
     </tbody>

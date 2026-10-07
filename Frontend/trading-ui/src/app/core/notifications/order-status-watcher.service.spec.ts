@@ -74,7 +74,7 @@ describe('OrderStatusWatcherService (trade-events feed)', () => {
     expect(notifications.notify).toHaveBeenNthCalledWith(1, expect.objectContaining({
       kind: 'order-filled',
       title: 'Order completed',
-      message: 'Good news! You bought 10 AAPL at 189.30.',
+      message: 'Good news! You bought 10 AAPL at $189.30.',
       link: { path: '/blotter' },
       dedupeKey: 'order-status:o42:FILLED',
     }));

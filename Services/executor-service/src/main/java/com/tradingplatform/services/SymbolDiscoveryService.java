@@ -14,6 +14,7 @@ import com.tradingplatform.mappers.InstrumentMapper;
  * Service to discover which symbols should be polled for market data.
  * Every symbol in the instruments table is polled, so held, watched and untraded instruments
  * all have a quote on the market-data topic (the order service caches them for its APIs).
+ * The FX pairs that convert instrument currencies into account currencies are polled too.
  * Up to 25 instruments cost one Fauxnance request per poll.
  */
 @Service
@@ -36,6 +37,11 @@ public class SymbolDiscoveryService {
         try {
             List<String> symbols = instrumentMapper.findAllSymbols();
             Set<String> result = new HashSet<>(symbols);
+            // FX pairs for converting instrument currencies into account currencies (multi-currency)
+            List<String> fxSymbols = instrumentMapper.findConversionFxSymbols();
+            if (fxSymbols != null) {
+                result.addAll(fxSymbols);
+            }
             
             if (logger.isDebugEnabled()) {
                 if (result.isEmpty()) {

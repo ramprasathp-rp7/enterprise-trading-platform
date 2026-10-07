@@ -51,7 +51,7 @@ describe('PriceAlertButtonComponent', () => {
       threshold: 191.25,
       mode: AlertMode.Once,
     });
-    expect(el.textContent).toContain('Alert set: AAPL above 191.25.');
+    expect(el.textContent).toContain('Alert set: AAPL above $191.25.');
   });
 
   it('marks the bell when the symbol already has an active alert', async () => {

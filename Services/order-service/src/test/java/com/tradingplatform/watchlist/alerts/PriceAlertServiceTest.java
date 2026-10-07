@@ -189,5 +189,10 @@ class PriceAlertServiceTest {
         public List<String> findAllSymbols() {
             return bySymbol.keySet().stream().sorted().toList();
         }
+
+        @Override
+        public List<String> findConversionFxSymbols() {
+            return List.of();
+        }
     }
 }

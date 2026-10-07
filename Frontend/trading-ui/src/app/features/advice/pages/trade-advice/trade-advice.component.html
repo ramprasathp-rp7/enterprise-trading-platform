@@ -1,0 +1,124 @@
+<div class="page advice-page">
+  <header class="page-header">
+    <div class="page-heading">
+      <p class="page-eyebrow">Research</p>
+      <h1 class="page-title">Trade Advice</h1>
+      <p class="page-subtitle">Buy, sell and hold signals for what you hold and watch, with the reasons behind each.</p>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-secondary" (click)="load()" [disabled]="loading()" data-testid="refresh-advice">
+        <i class="fas fa-rotate-right" [class.fa-spin]="loading()"></i> Refresh
+      </button>
+    </div>
+  </header>
+
+  @if (error(); as message) {
+    <div class="alert alert-error" role="alert" data-testid="advice-error">
+      <i class="fas fa-circle-exclamation"></i>
+      <p>{{ message }}</p>
+      <button type="button" class="btn btn-outline btn-sm" (click)="load()">Retry</button>
+    </div>
+  }
+
+  @if (advice(); as a) {
+    <!-- Overview: counts and filters -->
+    <section class="advice-toolbar" aria-label="Advice overview">
+      <div class="tally">
+        <span class="tally-item buy" data-testid="count-buy"><strong>{{ counts().buy }}</strong> Buy</span>
+        <span class="tally-item sell" data-testid="count-sell"><strong>{{ counts().sell }}</strong> Sell</span>
+        <span class="tally-item hold" data-testid="count-hold"><strong>{{ counts().hold }}</strong> Hold</span>
+      </div>
+      <div class="filters" role="group" aria-label="Show">
+        <button type="button" class="filter" [class.active]="filter() === 'all'" [attr.aria-pressed]="filter() === 'all'" (click)="filter.set('all')">All {{ counts().all }}</button>
+        <button type="button" class="filter" [class.active]="filter() === 'held'" [attr.aria-pressed]="filter() === 'held'" (click)="filter.set('held')" data-testid="filter-held">Holdings {{ counts().held }}</button>
+        <button type="button" class="filter" [class.active]="filter() === 'watched'" [attr.aria-pressed]="filter() === 'watched'" (click)="filter.set('watched')" data-testid="filter-watched">Watchlist {{ counts().watched }}</button>
+      </div>
+      <span class="generated">Updated {{ a.generatedAt | date: 'MMM d, h:mm a' }}</span>
+    </section>
+
+    @if (counts().all === 0) {
+      <section class="panel empty-panel" data-testid="advice-empty">
+        <div class="empty-state">
+          <i class="fas fa-lightbulb"></i>
+          <p>Nothing to advise on yet</p>
+          <small>Buy an instrument or <a routerLink="/watchlists">add some to a watchlist</a> to get signals here.</small>
+        </div>
+      </section>
+    } @else {
+      <!-- Signals -->
+      <div class="signal-grid">
+        @for (s of withSignal(); track s.symbol) {
+          <article class="panel signal-card" [attr.data-signal]="signalClass(s)" [attr.data-testid]="'advice-' + s.symbol">
+            <header class="card-head">
+              <div class="who">
+                <h2 class="symbol">{{ s.symbol }}</h2>
+                <span class="name">{{ s.name }}</span>
+                <span class="sources">
+                  @if (s.held) { <span class="source">Held</span> }
+                  @if (s.watched) { <span class="source">Watching</span> }
+                </span>
+              </div>
+              <div class="verdict">
+                <span class="signal-badge" [attr.data-signal]="signalClass(s)" data-testid="signal-badge">{{ s.signal }}</span>
+                <span class="confidence" [title]="'How strongly the factors agree: ' + s.confidence + '%'">
+                  <span class="confidence-track"><span class="confidence-fill" [style.width.%]="s.confidence"></span></span>
+                  {{ s.confidence }}%
+                </span>
+              </div>
+            </header>
+
+            <dl class="figures">
+              <div><dt>Price</dt><dd>{{ price(s) }}</dd></div>
+              <div><dt>RSI (14)</dt><dd>{{ s.indicators.rsi14 ?? '—' }}</dd></div>
+              <div><dt>20-day</dt><dd [class]="tone(s.indicators.momentum20Percent)">{{ signed(s.indicators.momentum20Percent) }}</dd></div>
+              @if (s.held) {
+                <div><dt>On your cost</dt><dd [class]="tone(s.indicators.unrealisedPercent)">{{ signed(s.indicators.unrealisedPercent) }}</dd></div>
+              }
+            </dl>
+
+            <p class="summary" data-testid="signal-summary">{{ s.summary }}</p>
+
+            <ul class="reasons" aria-label="Why">
+              @for (r of s.reasons; track r.factor) {
+                <li class="reason" [attr.data-impact]="r.impact.toLowerCase()">
+                  <i class="fas" [ngClass]="reasonIcon(r)" aria-hidden="true"></i>
+                  <span><strong>{{ r.factor }}</strong> {{ r.detail }}</span>
+                </li>
+              }
+            </ul>
+
+            <footer class="card-actions">
+              <a class="btn btn-sm trade-btn buy" routerLink="/order-ticket" [queryParams]="{ symbol: s.symbol, side: 'BUY', from: 'advice' }">Buy</a>
+              @if (s.held) {
+                <a class="btn btn-sm trade-btn sell" routerLink="/order-ticket" [queryParams]="{ symbol: s.symbol, side: 'SELL', from: 'advice' }">Sell</a>
+              }
+            </footer>
+          </article>
+        }
+      </div>
+
+      <!-- Not enough data -->
+      @if (withoutSignal().length) {
+        <section class="panel insufficient" data-testid="advice-insufficient">
+          <header class="panel-header">
+            <h2 class="panel-title">No signal yet <span class="count-chip">{{ withoutSignal().length }}</span></h2>
+            <span class="panel-subtitle">Not enough price history to judge these</span>
+          </header>
+          <ul class="insufficient-list">
+            @for (s of withoutSignal(); track s.symbol) {
+              <li [attr.data-testid]="'no-signal-' + s.symbol">
+                <span class="symbol-sm">{{ s.symbol }}</span>
+                <span class="name">{{ s.name }}</span>
+                <span class="why">{{ s.summary }}</span>
+              </li>
+            }
+          </ul>
+        </section>
+      }
+    }
+
+    <p class="disclaimer"><i class="fas fa-circle-info" aria-hidden="true"></i> {{ a.disclaimer }}</p>
+  } @else if (loading()) {
+    <div class="loading-state"><div class="spinner"></div><p>Working out signals…</p></div>
+  }
+</div>

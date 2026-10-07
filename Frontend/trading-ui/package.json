@@ -20,8 +20,9 @@
     "generate:preferences": "openapi-generator-cli generate -c openapi/preferences-api-config.json",
     "generate:market-data": "openapi-generator-cli generate -c openapi/market-data-api-config.json",
     "generate:order-notifications": "openapi-generator-cli generate -c openapi/order-notifications-api-config.json",
+    "generate:advice": "openapi-generator-cli generate -c openapi/advice-api-config.json",
     "generate:account-history": "openapi-generator-cli generate -c openapi/account-history-api-config.json",
-    "generate": "npm run generate:auth && npm run generate:trade && npm run generate:transactions && npm run generate:admin && npm run generate:watchlist && npm run generate:portfolio && npm run generate:preferences && npm run generate:market-data && npm run generate:account-history && npm run generate:order-notifications && npm run generate:candle"
+    "generate": "npm run generate:auth && npm run generate:trade && npm run generate:transactions && npm run generate:admin && npm run generate:watchlist && npm run generate:portfolio && npm run generate:preferences && npm run generate:market-data && npm run generate:account-history && npm run generate:order-notifications && npm run generate:candle && npm run generate:advice"
   },
   "private": true,
   "packageManager": "npm@11.16.0",

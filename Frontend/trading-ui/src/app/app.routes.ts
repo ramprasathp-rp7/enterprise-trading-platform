@@ -86,6 +86,15 @@ export const routes: Routes = [
         data: { title: 'Watchlists' },
       },
       {
+        path: 'advice',
+        canActivateChild: [canActivateChildGuard],
+        loadComponent: () =>
+          import('./features/advice/pages/trade-advice/trade-advice.component').then(
+            (m) => m.TradeAdviceComponent
+          ),
+        data: { title: 'Trade Advice' },
+      },
+      {
         path: 'settings',
         canActivateChild: [canActivateChildGuard],
         loadComponent: () =>

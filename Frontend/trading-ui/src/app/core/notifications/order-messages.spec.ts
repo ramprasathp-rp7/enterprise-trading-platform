@@ -8,7 +8,7 @@ describe('order notification wording', () => {
     expect(orderPlacedNotice(order)).toEqual({
       kind: 'order-created',
       title: 'Order received',
-      message: "We've received your order to sell 1,500 INFY.NS at 1,520.50. We'll let you know as soon as it's completed.",
+      message: "We've received your order to sell 1,500 INFY.NS at ₹1,520.50. We'll let you know as soon as it's completed.",
     });
   });
 
@@ -22,14 +22,17 @@ describe('order notification wording', () => {
     expect(orderStatusNotice({ ...order, status: 'FILLED', executedPrice: 1521 })).toEqual({
       kind: 'order-filled',
       title: 'Order completed',
-      message: 'Good news! You sold 1,500 INFY.NS at 1,521.00.',
+      message: 'Good news! You sold 1,500 INFY.NS at ₹1,521.00.',
     });
-    expect(orderStatusNotice({ ...order, side: 'BUY', status: 'FILLED' })?.message).toBe('Good news! You bought 1,500 INFY.NS at 1,520.50.');
+  });
+
+  it('falls back to the limit price when no executed price is known', () => {
+    expect(orderStatusNotice({ ...order, side: 'BUY', status: 'FILLED' })?.message).toBe('Good news! You bought 1,500 INFY.NS at ₹1,520.50.');
   });
 
   it('includes the rejection reason from the trade event', () => {
     expect(orderStatusNotice({ ...order, status: 'REJECTED', reason: 'Insufficient funds' })?.message).toBe(
-      'Your order to sell 1,500 INFY.NS at 1,520.50 was rejected. Reason: Insufficient funds. Open your order blotter for details.',
+      'Your order to sell 1,500 INFY.NS at ₹1,520.50 was rejected. Reason: Insufficient funds. Open your order blotter for details.',
     );
   });
 

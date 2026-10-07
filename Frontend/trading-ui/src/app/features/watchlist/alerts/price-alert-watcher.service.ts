@@ -4,6 +4,7 @@ import { AlertDirection, AlertMode, PriceAlertTriggerResponse, PriceAlertsServic
 import { CoreAuthService } from '../../../core/auth/core-auth.service';
 import { NotificationService } from '../../../core/notifications/notification.service';
 import { PriceAlertsStore } from './price-alerts.store';
+import { formatInstrumentPrice } from '../../instruments/services/instrument-catalog.service';
 
 export const PRICE_ALERT_POLL_MS = 30_000;
 const CURSOR_PREFIX = 'etp-price-alert-cursor:';
@@ -128,12 +129,9 @@ function toNotification(trigger: PriceAlertTriggerResponse) {
   return {
     kind: 'price-alert' as const,
     title: `Price alert: ${trigger.symbol}`,
-    message: `${trigger.symbol} is at ${format(trigger.price)}, ${side} your ${format(trigger.threshold)} level.${off}`,
+    message: `${trigger.symbol} is at ${formatInstrumentPrice(trigger.price, trigger.symbol)}, ${side} your ${formatInstrumentPrice(trigger.threshold, trigger.symbol)} level.${off}`,
     link: { path: '/watchlists' },
     dedupeKey: `price-alert:${trigger.triggerId}`,
   };
 }
 
-function format(value: number): string {
-  return value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
-}

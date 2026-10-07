@@ -55,7 +55,7 @@ public class MarketDataRefreshScheduler {
     public void refreshQuotes() {
         List<String> symbols;
         try {
-            symbols = instrumentMapper.findAllSymbols();
+            symbols = withConversionFxSymbols(instrumentMapper.findAllSymbols());
         } catch (Exception ex) {
             logger.error("Quote refresh skipped: could not load instrument symbols: {}", ex.getMessage());
             return;
@@ -84,6 +84,20 @@ public class MarketDataRefreshScheduler {
         } else {
             logger.info("Quote refresh: cached {} quotes from Fauxnance", quotes.size());
         }
+    }
+
+    /** Adds the FX pairs that convert instrument currencies into account currencies (multi-currency). */
+    private List<String> withConversionFxSymbols(List<String> symbols) {
+        if (symbols == null) {
+            return null;
+        }
+        List<String> fxSymbols = instrumentMapper.findConversionFxSymbols();
+        if (fxSymbols == null || fxSymbols.isEmpty()) {
+            return symbols;
+        }
+        java.util.LinkedHashSet<String> all = new java.util.LinkedHashSet<>(symbols);
+        all.addAll(fxSymbols);
+        return List.copyOf(all);
     }
 
     /** Same fields the executor's market-data poller publishes to the topic. */

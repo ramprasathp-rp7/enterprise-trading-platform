@@ -65,6 +65,10 @@ class OrderPlacedListenerTest {
             public void publishTradeEvent(java.util.UUID orderId, long accountId, com.tradingplatform.enums.OrderStatus status, java.math.BigDecimal quotedPrice, java.math.BigDecimal executedPrice, java.math.BigDecimal originalFee, String rejectReason, java.time.Instant executedOn) {
                 // no-op
             }
+            @Override
+            public void publishTradeEvent(java.util.UUID orderId, long accountId, com.tradingplatform.enums.OrderStatus status, java.math.BigDecimal quotedPrice, java.math.BigDecimal executedPrice, java.math.BigDecimal originalFee, String rejectReason, java.time.Instant executedOn, java.math.BigDecimal fillFxRate) {
+                // no-op
+            }
         };
 
         executorService = new OrderExecutorService(null, null, null, null, null, null, noopPublisher) {
