@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { CachedQuoteResponse } from '../../../api/generated/market-data';
 import { Candle, CandleStats, ChartRange, Instrument, MarketState, Quote } from '../instrument.models';
+import { formatMoney } from '../../../shared/currency';
 
 /**
  * Instrument catalogue and search, plus the pure helpers that turn real market data into
