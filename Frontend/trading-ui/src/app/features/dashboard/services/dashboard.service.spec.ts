@@ -3,17 +3,25 @@ import { TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
 import { DashboardService } from './dashboard.service';
 import { AccountsService } from '../../../api/generated/trade';
+import { AccountHistoryService } from '../../../api/generated/account-history';
 
 describe('DashboardService', () => {
   let service: DashboardService;
   let accounts: { getBalance: ReturnType<typeof vi.fn>; getAccount: ReturnType<typeof vi.fn> };
+  let accountHistory: { getAccountHistory: ReturnType<typeof vi.fn> };
 
   const balance = { accountId: 7, cashBalance: 1000, currency: 'USD', asOf: '2026-10-05T08:00:00Z' };
   const account = { id: 1, accountId: 'ACC-000007', holderName: 'Rahul', cashBalance: 1000, status: 'ACTIVE', version: 1, lastUpdated: '' };
 
   beforeEach(() => {
     accounts = { getBalance: vi.fn(() => of(balance)), getAccount: vi.fn(() => of(account)) };
-    TestBed.configureTestingModule({ providers: [{ provide: AccountsService, useValue: accounts }] });
+    accountHistory = { getAccountHistory: vi.fn(() => of([])) };
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: AccountsService, useValue: accounts },
+        { provide: AccountHistoryService, useValue: accountHistory },
+      ],
+    });
     service = TestBed.inject(DashboardService);
   });
 
@@ -28,6 +36,25 @@ describe('DashboardService', () => {
     expect(accounts.getAccount).toHaveBeenCalledWith(7);
     expect(gotBalance).toEqual(balance);
     expect(gotAccount).toEqual(account);
+  });
+
+  it('maps net worth snapshots to daily points, oldest first', () => {
+    accountHistory.getAccountHistory.mockReturnValue(
+      of([
+        { accountId: 7, snapshotDate: '2026-10-05T23:59:59Z', cashBalance: 500, networth: 1250.5 },
+        { accountId: 7, snapshotDate: '2026-10-04T23:59:59Z', cashBalance: 500, networth: 1200 },
+        { accountId: 7, snapshotDate: 'garbage', cashBalance: 0, networth: 1 },
+      ]),
+    );
+    let points: unknown;
+
+    service.getNetWorthHistory(7).subscribe((p) => (points = p));
+
+    expect(accountHistory.getAccountHistory).toHaveBeenCalledWith(7, 90);
+    expect(points).toEqual([
+      { date: new Date('2026-10-04T00:00:00Z'), value: 1200 },
+      { date: new Date('2026-10-05T00:00:00Z'), value: 1250.5 },
+    ]);
   });
 
   it('combines account and balance into one dashboard payload', () => {

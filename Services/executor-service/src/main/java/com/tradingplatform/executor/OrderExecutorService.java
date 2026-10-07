@@ -75,7 +75,7 @@ public class OrderExecutorService {
         Instrument instrument = instrumentMapper.findById(order.getInstrumentId());
         if (instrument == null || !instrument.isTradable()) {
             logger.warn("Rejecting order because instrument is not tradable: orderId={}, instrumentId={}", orderId, order.getInstrumentId());
-            orderMapper.updateOrderStatus(orderId, OrderStatus.REJECTED, "Instrument is not tradable", null, null, java.time.Instant.now());
+            reject(orderId, accountId, "Instrument is not tradable", quotedPrice, originalFee);
             return;
         }
 
@@ -90,10 +90,7 @@ public class OrderExecutorService {
         switch (d) {
                 case NO_PRICE -> {
                 logger.warn("Rejecting order because no price is available: orderId={}", orderId);
-                int rows = orderMapper.updateOrderStatus(orderId, OrderStatus.REJECTED, "No price available", null, null, java.time.Instant.now());
-                if (rows == 0) {
-                    logger.info("Skipping NoPrice update: order not NEW (already processed) orderId={}", orderId);
-                }
+                reject(orderId, accountId, "No price available", quotedPrice, originalFee);
             }
             case REJECT -> {
                 logger.warn("Rejecting order by fill rule: orderId={}", orderId);
@@ -116,14 +113,14 @@ public class OrderExecutorService {
                     }
                 if (account == null || account.getStatus() != AccountStatus.ACTIVE) {
                     logger.warn("Rejecting order because account is not active: orderId={}, accountId={}", orderId, accountId);
-                    orderMapper.updateOrderStatus(orderId, OrderStatus.REJECTED, "Suspended Account", null, null, java.time.Instant.now());
+                    reject(orderId, accountId, "Suspended Account", quotedPrice, originalFee);
                 } else {
                     // determine executed price based on side (ask for BUY, bid for SELL)
                     com.tradingplatform.quote.model.Quote q = quoted.get();
                     BigDecimal sidePrice = order.getSide() == OrderSide.BUY ? q.getAsk() : q.getBid();
                     if (sidePrice == null) {
                         logger.warn("Rejecting order because quote side price missing: orderId={}", orderId);
-                        orderMapper.updateOrderStatus(orderId, OrderStatus.REJECTED, "No price available", null, null, java.time.Instant.now());
+                        reject(orderId, accountId, "No price available", quotedPrice, originalFee);
                         return;
                     }
                     BigDecimal executed = sidePrice.setScale(order.getPrice().scale(), java.math.RoundingMode.HALF_UP);
@@ -132,7 +129,7 @@ public class OrderExecutorService {
                         BigDecimal needed = executed.multiply(BigDecimal.valueOf(order.getQuantity()));
                         if (!account.canAfford(needed)) {
                             logger.warn("Rejecting order because account cannot afford fill: orderId={}, accountId={}", orderId, accountId);
-                            orderMapper.updateOrderStatus(orderId, OrderStatus.REJECTED, "Insufficient funds", null, null, java.time.Instant.now());
+                            reject(orderId, accountId, "Insufficient funds", quotedPrice, originalFee);
                             return;
                         }
                     }
@@ -163,5 +160,29 @@ public class OrderExecutorService {
                 }
             }
         }
+    }
+
+    /**
+     * Rejects an order that is still NEW and publishes ORDER_REJECTED; does nothing to an order that
+     * already reached another status (e.g. CANCELLED). Used by the order listener when pricing stays
+     * unavailable after its retries.
+     */
+    @Transactional
+    public void rejectNew(UUID orderId, long accountId, String reason, BigDecimal quotedPrice, BigDecimal originalFee) {
+        reject(orderId, accountId, reason, quotedPrice, originalFee);
+    }
+
+    /**
+     * Rejects the order and, if this call changed it (it was still NEW), publishes ORDER_REJECTED to
+     * trade-events, so every rejection reaches the topic that customer notifications are built from.
+     */
+    private void reject(UUID orderId, long accountId, String reason, BigDecimal quotedPrice, BigDecimal originalFee) {
+        java.time.Instant executedOn = java.time.Instant.now();
+        int rows = orderMapper.updateOrderStatus(orderId, OrderStatus.REJECTED, reason, null, null, executedOn);
+        if (rows == 0) {
+            logger.info("Skipping reject update: order not NEW (already processed) orderId={}, reason={}", orderId, reason);
+            return;
+        }
+        tradeEventPublisher.publishTradeEvent(orderId, accountId, OrderStatus.REJECTED, quotedPrice, null, originalFee, reason, executedOn);
     }
 }

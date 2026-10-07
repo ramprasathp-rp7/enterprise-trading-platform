@@ -172,6 +172,25 @@ public class FakePriceAlertStore implements PriceAlertMapper, PriceAlertTriggerM
         return 1;
     }
 
+    /** The stored trigger row, or null */
+    public PriceAlertTrigger trigger(Long triggerId) {
+        return triggers.get(triggerId);
+    }
+
+    /** Channels recorded per trigger id (the real table stores them in channels / in_app) */
+    public final java.util.Map<Long, String> channelsByTrigger = new java.util.HashMap<>();
+    public final java.util.Map<Long, Boolean> inAppByTrigger = new java.util.HashMap<>();
+
+    @Override
+    public int updateChannels(Long triggerId, String channels, boolean inApp) {
+        if (!triggers.containsKey(triggerId)) {
+            return 0;
+        }
+        channelsByTrigger.put(triggerId, channels);
+        inAppByTrigger.put(triggerId, inApp);
+        return 1;
+    }
+
     @Override
     public List<PriceAlertTrigger> findByAlertId(Long alertId, Long accountId) {
         return triggers.values().stream()

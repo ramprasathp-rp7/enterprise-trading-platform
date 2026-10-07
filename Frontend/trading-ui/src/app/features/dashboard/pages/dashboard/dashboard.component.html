@@ -35,7 +35,12 @@
 
   <!-- Net worth over time; takes the height left between the KPIs and the bottom row -->
   <section class="panel networth-panel" aria-label="Net worth">
-    <app-net-worth-chart [currentValue]="netWorth()" [currency]="netWorthCurrency()" />
+    <app-net-worth-chart
+      [history]="netWorthHistory()"
+      [failed]="netWorthHistoryFailed()"
+      [currentValue]="netWorth()"
+      [currency]="netWorthCurrency()"
+    />
   </section>
 
   <!-- Holdings + watchlist share the bottom row -->

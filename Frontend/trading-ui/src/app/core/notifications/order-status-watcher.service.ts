@@ -1,117 +1,200 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject , signal } from '@angular/core';
 import { Subscription, timer } from 'rxjs';
-import { AccountsService, OrderHistoryEntry, OrderStatus } from '../../api/generated/trade';
+import { OrderNotificationResponse, OrderNotificationsService } from '../../api/generated/order-notifications';
 import { CoreAuthService } from '../auth/core-auth.service';
 import { NotificationService } from './notification.service';
 import { orderStatusNotice } from './order-messages';
 
-const POLL_MS = 5_000;
-/** Stop watching this long after the last placed order if something stays NEW */
-const IDLE_LIMIT_MS = 10 * 60_000;
+/** How often the feed is checked while an order placed in this session may still complete */
+export const ORDER_FEED_FAST_MS = 5_000;
+/** How often the feed is checked otherwise (orders placed elsewhere, late outcomes) */
+export const ORDER_FEED_SLOW_MS = 30_000;
+/** Fast polling lasts this long after the last order placed here */
+const FAST_WINDOW_MS = 10 * 60_000;
+const CURSOR_PREFIX = 'etp-order-notification-cursor:';
+/**
+ * Outcomes older than this are skipped (the cursor still moves past them). Real outcomes arrive
+ * within seconds; this stops a first-time backfill of the topic's history from flooding the bell.
+ */
+export const ORDER_NOTIFICATION_MAX_AGE_MS = 60 * 60_000;
 
 /**
- * Watches the signed-in customer's orders app-wide and raises a notification
- * when an order changes status (NEW → FILLED / REJECTED / CANCELLED),
- * whichever page the user is on.
- * Polls only while at least one order is NEW.
+ * Puts order outcomes (filled, rejected, cancelled) into the navbar bell, whichever page the
+ * customer is on. Every one of them comes from the `trade-events` Kafka topic: the order service
+ * consumes it and serves GET /accounts/{id}/order-notifications, which this service polls.
+ * Nothing here infers an outcome from order history or from the place-order response.
+ *
+ * The cursor (largest notification id already handled) is kept per account in localStorage.
+ * On the very first start there is no cursor: the latest id only sets it, so history is not
+ * replayed into the bell. Each session first checks the saved cursor against the feed's newest
+ * id; if the feed was reset (newest < cursor) the cursor restarts from it instead of waiting
+ * forever. Polling is fast for a while after an order is placed, slow otherwise.
  */
 @Injectable({ providedIn: 'root' })
 export class OrderStatusWatcherService {
-  private readonly accounts = inject(AccountsService);
+  private readonly api = inject(OrderNotificationsService);
   private readonly authService = inject(CoreAuthService);
   private readonly notifications = inject(NotificationService);
 
-  private readonly known = new Map<string, OrderStatus>();
+  private readonly known = new Map<string, string>();
+  private readonly fillCount = signal(0);
+  /** Bumped each time a watched order fills, so views showing holdings can reload them */
+  readonly fills = this.fillCount.asReadonly();
   private polling: Subscription | null = null;
-  private lastActivity = 0;
-  private started = false;
+  private accountId: number | null = null;
+  private inFlight = false;
+  private lastPoll = 0;
+  private fastUntil = 0;
+  /** Whether this session has checked the saved cursor against the feed's newest id */
+  private cursorChecked = false;
 
-  /** Learn the current statuses (no notifications), then watch any NEW orders. */
+  /** Start watching the signed-in customer's order notifications. */
   start(): void {
-    const accountId = this.authService.currentUser()?.accountId;
-    if (this.started || !accountId) {
+    const accountId = this.authService.currentUser()?.accountId ?? null;
+    if (this.polling || !accountId) {
       return;
     }
-    this.started = true;
-    this.lastActivity = Date.now();
-    this.accounts.getOrders(accountId).subscribe({
-      next: (orders) => {
-        (orders ?? []).forEach((o) => this.known.set(o.orderId, o.status));
-        this.ensurePolling();
-      },
-      error: () => {
-        // The blotter surfaces load errors; the watcher just stays idle.
-      },
-    });
+    this.accountId = accountId;
+    this.lastPoll = 0;
+    this.cursorChecked = false;
+    this.polling = timer(0, ORDER_FEED_FAST_MS).subscribe(() => this.tick());
   }
 
-  /** Called after an order is placed: track it and (re)start polling. */
-  track(orderId: string, status: OrderStatus | string): void {
-    this.known.set(orderId, status as OrderStatus);
-    this.lastActivity = Date.now();
-    this.ensurePolling();
+  /**
+   * Called after an order is placed: check the feed often until its outcome is likely in.
+   * The outcome itself is only ever announced from the feed.
+   */
+  track(_orderId?: string, _status?: string): void {
+    this.fastUntil = Date.now() + FAST_WINDOW_MS;
+    this.start();
   }
 
   stop(): void {
     this.polling?.unsubscribe();
     this.polling = null;
-    this.known.clear();
-    this.started = false;
+    this.accountId = null;
+    this.inFlight = false;
+    this.fastUntil = 0;
+    this.cursorChecked = false;
   }
 
   get isPolling(): boolean {
     return this.polling !== null;
   }
 
-  private ensurePolling(): void {
-    if (this.polling || !this.hasNew()) {
-      return;
+  /** Polls now if due: every tick while fast, every ORDER_FEED_SLOW_MS otherwise */
+  private tick(): void {
+    const now = Date.now();
+    const fast = now < this.fastUntil;
+    if (fast || this.lastPoll === 0 || now - this.lastPoll >= ORDER_FEED_SLOW_MS) {
+      this.poll();
     }
-    this.polling = timer(POLL_MS, POLL_MS).subscribe(() => this.poll());
   }
 
-  private stopPolling(): void {
-    this.polling?.unsubscribe();
-    this.polling = null;
-  }
-
-  private poll(): void {
-    const accountId = this.authService.currentUser()?.accountId;
-    if (!accountId || Date.now() - this.lastActivity > IDLE_LIMIT_MS) {
-      this.stopPolling();
+  /** One read of the feed; public for tests */
+  poll(): void {
+    const accountId = this.accountId;
+    if (!accountId || this.inFlight) {
       return;
     }
-    this.accounts.getOrders(accountId).subscribe({
-      next: (orders) => {
-        for (const order of orders ?? []) {
-          const previous = this.known.get(order.orderId);
-          if (previous && previous !== order.status) {
-            this.announce(order);
+    const cursor = this.readCursor(accountId);
+    this.inFlight = true;
+    this.lastPoll = Date.now();
+
+    if (cursor === null || !this.cursorChecked) {
+      // No cursor yet, or first poll this session: learn the feed's newest id. A saved cursor
+      // ahead of it means the feed was reset (e.g. the table recreated), so start again from it.
+      this.api.getOrderNotifications(accountId, undefined, 1).subscribe({
+        next: (latest) => {
+          this.inFlight = false;
+          if (accountId !== this.accountId) {
+            return;
           }
-          this.known.set(order.orderId, order.status);
+          this.cursorChecked = true;
+          const newest = latest?.[latest.length - 1]?.id ?? 0;
+          if (cursor === null || newest < cursor) {
+            this.writeCursor(accountId, newest);
+          } else {
+            this.poll(); // cursor is valid: read what is new since it
+          }
+        },
+        error: () => {
+          this.inFlight = false;
+        },
+      });
+      return;
+    }
+
+    this.api.getOrderNotifications(accountId, cursor).subscribe({
+      next: (items) => {
+        this.inFlight = false;
+        if (accountId !== this.accountId) {
+          return;
         }
-        if (!this.hasNew()) {
-          this.stopPolling();
-        }
+        this.handle(accountId, items ?? [], true);
       },
       error: () => {
         // Transient failure: try again on the next tick.
+        this.inFlight = false;
       },
     });
   }
 
-  private hasNew(): boolean {
-    return [...this.known.values()].some((s) => s === OrderStatus.New);
+  private handle(accountId: number, oldestFirst: OrderNotificationResponse[], baselined: boolean): void {
+    let cursor = this.readCursor(accountId) ?? 0;
+    const oldest = Date.now() - ORDER_NOTIFICATION_MAX_AGE_MS;
+    for (const item of oldestFirst) {
+      const occurredAt = Date.parse(item.occurredAt);
+      const recent = Number.isNaN(occurredAt) || occurredAt >= oldest;
+      if (baselined && recent) {
+        this.announce(item);
+        if (item.status?.toLowerCase() === 'filled') {
+          this.fillCount.update((n) => n + 1);
+        }
+      }
+      cursor = Math.max(cursor, item.id);
+    }
+    this.writeCursor(accountId, cursor);
   }
 
-  private announce(order: OrderHistoryEntry): void {
-    const notice = orderStatusNotice(order);
+  private announce(item: OrderNotificationResponse): void {
+    const notice = orderStatusNotice({
+      status: item.status,
+      side: item.side ?? null,
+      quantity: item.quantity ?? null,
+      symbol: item.symbol ?? null,
+      price: item.price ?? null,
+      executedPrice: item.executedPrice ?? null,
+      reason: item.reason ?? null,
+    });
     if (notice) {
       this.notifications.notify({
         ...notice,
         link: { path: '/blotter' },
-        dedupeKey: `order-status:${order.orderId}:${order.status}`,
+        dedupeKey: `order-status:${item.orderId}:${item.status}`,
       });
+    }
+  }
+
+  private readCursor(accountId: number): number | null {
+    try {
+      const raw = localStorage.getItem(CURSOR_PREFIX + accountId);
+      if (raw === null) {
+        return null;
+      }
+      const id = Number(raw);
+      return Number.isFinite(id) && id >= 0 ? id : 0;
+    } catch {
+      // Storage unavailable: treat as baselined from the start; dedupe keys stop repeats this session
+      return 0;
+    }
+  }
+
+  private writeCursor(accountId: number, id: number): void {
+    try {
+      localStorage.setItem(CURSOR_PREFIX + accountId, String(id));
+    } catch {
+      // Storage unavailable: dedupe keys still stop repeats within this session.
     }
   }
 }

@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, effect, inject, signal, untracked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -14,6 +14,7 @@ import { StatementPdfService, fileDate } from '../../../../shared/statement-pdf.
 import { NotificationService } from '../../../../core/notifications/notification.service';
 import { currencySymbol } from '../../../../shared/currency';
 import { LiveQuoteStore } from '../../../../core/market-data/live-quote.store';
+import { OrderStatusWatcherService } from '../../../../core/notifications/order-status-watcher.service';
 import { InstrumentCatalogService } from '../../../instruments/services/instrument-catalog.service';
 
 /** A holding valued at its live price: the latest quote in the order service's cache,
@@ -27,9 +28,11 @@ export interface LivePosition extends PricedPosition {
  * Positions Component
  *
  * Displays the portfolio summary and holdings from the portfolio API, valued at live prices:
- * the latest quotes from the order service's cache (LiveQuoteStore, refreshed every 5 minutes),
+ * the latest quotes from the order service's cache (LiveQuoteStore, re-read every 5 minutes, matching the backend's refresh),
  * falling back to the portfolio API's price for symbols the cache has no quote for.
- * Market value, P&L, weights, totals and the summary are all derived from those prices.
+ * Market value, P&L, weights, totals and the summary are all derived from those prices, so they
+ * update automatically as quotes arrive. Holdings themselves are reloaded when an order fills; the
+ * portfolio API is never polled on a timer because each call quotes Fauxnance (daily request quota).
  */
 @Component({
   selector: 'app-positions',
@@ -46,6 +49,7 @@ export class PositionsComponent implements OnInit {
   private readonly notifications = inject(NotificationService);
   private readonly liveQuotes = inject(LiveQuoteStore);
   private readonly catalog = inject(InstrumentCatalogService);
+  private readonly orderWatcher = inject(OrderStatusWatcherService);
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
@@ -94,7 +98,8 @@ export class PositionsComponent implements OnInit {
   /**
    * Summary figures at live prices. Cash, cost basis and realised P&L come from the summary
    * endpoint; holdings value and unrealised P&L are the live totals of the table, so the bar
-   * and the table always agree. Until the holdings have loaded the endpoint's figures are used.
+   * and the table always agree. `cost` is the base of the unrealised %, shown beside it.
+   * Until the holdings have loaded the endpoint's figures are used.
    */
   readonly liveSummary = computed(() => {
     const s = this.summary();
@@ -102,15 +107,25 @@ export class PositionsComponent implements OnInit {
       return null;
     }
     if (this.error() || this.positions().length === 0) {
-      return { holdings: s.marketValue, total: s.totalValue, unrealised: s.unrealisedPnl, unrealisedPercent: s.unrealisedPnlPercent ?? null };
+      return { holdings: s.marketValue, total: s.totalValue, unrealised: s.unrealisedPnl, unrealisedPercent: s.unrealisedPnlPercent ?? null, cost: s.costBasis };
     }
     const holdings = this.totalMarketValue();
     const unrealised = this.totalUnrealised();
     const cost = this.pricedCostBasis();
-    return { holdings, total: s.cashBalance + holdings, unrealised, unrealisedPercent: cost ? (unrealised / cost) * 100 : null };
+    return { holdings, total: s.cashBalance + holdings, unrealised, unrealisedPercent: cost ? (unrealised / cost) * 100 : null, cost };
   });
   /** Symbol of the summary's base currency, e.g. $ for USD */
   readonly baseSymbol = computed(() => currencySymbol(this.summary()?.baseCurrency));
+  /**
+   * When the holdings' live prices were last fetched (epoch ms): moves on every 5-minute poll
+   * and on a manual refresh, even when the backend's cached quote has not changed.
+   */
+  readonly pricesAsOf = computed(() =>
+    this.livePositions().reduce<number | null>((latest, p) => {
+      const fetchedAt = p.live ? this.liveQuotes.entry(p.symbol)?.fetchedAt : undefined;
+      return fetchedAt && (!latest || fetchedAt > latest) ? fetchedAt : latest;
+    }, null)
+  );
   /** Holdings priced from a stale quote or not priced at all */
   readonly stalePositionCount = computed(() => this.positions().filter((p) => p.stale).length);
   /** Stale/partial pricing banner, hidden for now. */
@@ -119,8 +134,18 @@ export class PositionsComponent implements OnInit {
   readonly showStaleBadge = false;
 
   constructor() {
-    // Keep every held symbol's live price fresh (same 5-minute cycle as the watchlists)
+    // Keep every held symbol's live price fresh from the quote cache
     this.liveQuotes.track(() => this.positions().map((p) => p.symbol));
+
+    // An order filled: quantities, cost and cash changed, so reload holdings and summary in place
+    let seenFills = this.orderWatcher.fills();
+    effect(() => {
+      const fills = this.orderWatcher.fills();
+      if (fills !== seenFills) {
+        seenFills = fills;
+        untracked(() => this.reloadQuietly());
+      }
+    });
   }
 
   ngOnInit(): void {
@@ -142,18 +167,28 @@ export class PositionsComponent implements OnInit {
     }
   }
 
-  private loadPortfolio(accountId: number): void {
-    this.loadSummary(accountId);
-    this.loadPositions(accountId);
+  /** Reload holdings and summary without spinners, keeping the table on screen meanwhile */
+  private reloadQuietly(): void {
+    const accountId = this.authService.currentUser()?.accountId;
+    if (accountId) {
+      this.loadPortfolio(accountId, true);
+    }
   }
 
-  private loadSummary(accountId: number): void {
-    this.summaryLoading.set(true);
+  private loadPortfolio(accountId: number, quiet = false): void {
+    this.loadSummary(accountId, quiet);
+    this.loadPositions(accountId, quiet);
+  }
+
+  private loadSummary(accountId: number, quiet = false): void {
+    if (!quiet) {
+      this.summaryLoading.set(true);
+    }
     this.summaryError.set(null);
 
     this.portfolioService
       .getPortfolioSummary(accountId)
-      .pipe(finalize(() => this.summaryLoading.set(false)))
+      .pipe(finalize(() => quiet || this.summaryLoading.set(false)))
       .subscribe({
         next: (summary) => {
           this.summary.set(summary ?? null);
@@ -164,13 +199,15 @@ export class PositionsComponent implements OnInit {
       });
   }
 
-  private loadPositions(accountId: number): void {
-    this.loading.set(true);
+  private loadPositions(accountId: number, quiet = false): void {
+    if (!quiet) {
+      this.loading.set(true);
+    }
     this.error.set(null);
 
     this.portfolioService
       .getPricedPositions(accountId)
-      .pipe(finalize(() => this.loading.set(false)))
+      .pipe(finalize(() => quiet || this.loading.set(false)))
       .subscribe({
         next: (positions) => {
           this.positions.set(positions ?? []);

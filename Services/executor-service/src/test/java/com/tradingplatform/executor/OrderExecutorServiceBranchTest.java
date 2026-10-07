@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -155,6 +156,52 @@ class OrderExecutorServiceBranchTest {
     }
 
     @Test
+    void noPriceRejectionIsPublished() throws Exception {
+        when(fillRule.decide(eq(order), any())).thenReturn(Decision.NO_PRICE);
+
+        executor.process(order, QUOTED, ORIGINAL_FEE);
+
+        verifyRejected("No price available");
+        verify(publisher).publishTradeEvent(eq(order.getId()), eq(1L), eq(OrderStatus.REJECTED), eq(QUOTED),
+            isNull(), eq(ORIGINAL_FEE), eq("No price available"), any(Instant.class));
+    }
+
+    @Test
+    void untradableInstrumentRejectionIsPublished() throws Exception {
+        when(instrumentMapper.findById(100L)).thenReturn(
+            Instrument.delisted(100L, "AAPL", "Apple", AssetClass.EQUITY, "USD"));
+
+        executor.process(order, QUOTED, ORIGINAL_FEE);
+
+        verify(publisher).publishTradeEvent(eq(order.getId()), eq(1L), eq(OrderStatus.REJECTED), eq(QUOTED),
+            isNull(), eq(ORIGINAL_FEE), eq("Instrument is not tradable"), any(Instant.class));
+    }
+
+    @Test
+    void suspendedAccountRejectionIsPublished() throws Exception {
+        when(fillRule.decide(eq(order), any())).thenReturn(Decision.FILL);
+        when(accountMapper.findByAccountId(1L)).thenReturn(null);
+
+        executor.process(order, QUOTED, ORIGINAL_FEE);
+
+        verify(publisher).publishTradeEvent(eq(order.getId()), eq(1L), eq(OrderStatus.REJECTED), eq(QUOTED),
+            isNull(), eq(ORIGINAL_FEE), eq("Suspended Account"), any(Instant.class));
+    }
+
+    @Test
+    void rejectNewPublishesOnlyWhenTheOrderWasStillNew() {
+        executor.rejectNew(order.getId(), 1L, "Pricing service unavailable: down", QUOTED, ORIGINAL_FEE);
+        verify(publisher).publishTradeEvent(eq(order.getId()), eq(1L), eq(OrderStatus.REJECTED), eq(QUOTED),
+            isNull(), eq(ORIGINAL_FEE), eq("Pricing service unavailable: down"), any(Instant.class));
+
+        // e.g. the customer cancelled it meanwhile: nothing is updated, nothing is published
+        clearInvocations(publisher);
+        when(orderMapper.updateOrderStatus(any(), any(), any(), any(), any(), any())).thenReturn(0);
+        executor.rejectNew(order.getId(), 1L, "Pricing service unavailable: down", QUOTED, ORIGINAL_FEE);
+        verifyNoInteractions(publisher);
+    }
+
+    @Test
     void fillRuleRejectionIsPublished() throws Exception {
         when(fillRule.decide(eq(order), any())).thenReturn(Decision.REJECT);
 
@@ -229,7 +276,10 @@ class OrderExecutorServiceBranchTest {
         executor.process(order, QUOTED, ORIGINAL_FEE);
 
         verifyRejected("Insufficient funds");
-        verifyNoInteractions(settlementService, publisher);
+        verifyNoInteractions(settlementService);
+        // The rejection reaches trade-events, so the customer is notified
+        verify(publisher).publishTradeEvent(eq(order.getId()), eq(1L), eq(OrderStatus.REJECTED), eq(QUOTED),
+            isNull(), eq(ORIGINAL_FEE), eq("Insufficient funds"), any(Instant.class));
     }
 
     @Test

@@ -146,4 +146,57 @@ describe('LiveQuoteStore', () => {
     vi.advanceTimersByTime(LIVE_QUOTE_TTL_MS * 3);
     expect(api.getLatestQuote).toHaveBeenCalledTimes(4);
   });
+
+  describe('track() with a custom interval', () => {
+    const LIVE_QUOTE_FAST_POLL_MS = 15_000;
+    let visibility: DocumentVisibilityState;
+
+    const host = (symbols: () => string[]) => {
+      @Component({ standalone: true, template: '' })
+      class LiveHostComponent {
+        constructor() {
+          TestBed.inject(LiveQuoteStore).track(symbols, LIVE_QUOTE_FAST_POLL_MS);
+        }
+      }
+      const fixture = TestBed.runInInjectionContext(() => TestBed.createComponent(LiveHostComponent));
+      fixture.detectChanges();
+      TestBed.tick();
+      return fixture;
+    };
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      visibility = 'visible';
+      vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility);
+    });
+
+    afterEach(() => vi.restoreAllMocks());
+
+    it('re-reads the quote cache every poll interval', () => {
+      const fixture = host(() => ['INFY.NS']);
+      expect(api.getLatestQuote).toHaveBeenCalledTimes(1);
+
+      vi.advanceTimersByTime(LIVE_QUOTE_FAST_POLL_MS);
+      expect(api.getLatestQuote).toHaveBeenCalledTimes(2);
+      vi.advanceTimersByTime(LIVE_QUOTE_FAST_POLL_MS);
+      expect(api.getLatestQuote).toHaveBeenCalledTimes(3);
+
+      fixture.destroy();
+    });
+
+    it('pauses while the tab is hidden and catches up when it is shown again', () => {
+      const fixture = host(() => ['INFY.NS']);
+      visibility = 'hidden';
+      document.dispatchEvent(new Event('visibilitychange'));
+
+      vi.advanceTimersByTime(LIVE_QUOTE_FAST_POLL_MS * 4);
+      expect(api.getLatestQuote).toHaveBeenCalledTimes(1);
+
+      visibility = 'visible';
+      document.dispatchEvent(new Event('visibilitychange'));
+      expect(api.getLatestQuote).toHaveBeenCalledTimes(2);
+
+      fixture.destroy();
+    });
+  });
 });

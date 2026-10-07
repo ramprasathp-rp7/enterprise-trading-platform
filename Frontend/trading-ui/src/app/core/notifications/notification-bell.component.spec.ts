@@ -73,15 +73,28 @@ describe('NotificationBellComponent', () => {
     expect(component.open()).toBe(false);
   });
 
-  it('marks all read and clears from the panel', () => {
+  it('reads everything when the bell is opened, keeping the new ones highlighted until it closes', () => {
     service.notify({ kind: 'report', title: 'A', message: '' });
     service.notify({ kind: 'report', title: 'B', message: '' });
+    expect(service.unreadCount()).toBe(2);
+
     openPanel();
 
-    q('[data-testid="mark-all-read"]').click();
-    fixture.detectChanges();
+    // read as soon as the bell opens: badge gone, saved as read
     expect(service.unreadCount()).toBe(0);
+    expect(service.notifications().every((n) => n.read)).toBe(true);
+    expect(q('[data-testid="notification-badge"]')).toBeNull();
+    // still shown as new while the panel is open
+    expect(q('[data-testid="new-count"]').textContent).toContain('2 new');
+    expect(qa('[data-testid="notification-item"]').every((el) => el.classList.contains('unread'))).toBe(true);
     expect(q('[data-testid="mark-all-read"]')).toBeNull();
+
+    // closing and reopening: nothing new any more
+    document.body.click();
+    fixture.detectChanges();
+    openPanel();
+    expect(q('[data-testid="new-count"]')).toBeNull();
+    expect(qa('[data-testid="notification-item"]').some((el) => el.classList.contains('unread'))).toBe(false);
 
     q('[data-testid="clear-notifications"]').click();
     fixture.detectChanges();

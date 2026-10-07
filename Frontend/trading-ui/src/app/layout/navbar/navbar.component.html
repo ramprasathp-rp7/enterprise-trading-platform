@@ -48,6 +48,20 @@
           </button>
         }
 
+        <!-- Preferences (customers only, like search: /settings is a customer route) -->
+        @if (canSearch()) {
+          <a
+            class="action-icon prefs-link"
+            routerLink="/settings"
+            routerLinkActive="active"
+            title="Preferences"
+            aria-label="Preferences"
+            data-testid="nav-preferences-icon"
+          >
+            <i class="fas fa-sliders"></i>
+          </a>
+        }
+
         <!-- In-app notifications -->
         <app-notification-bell />
       </div>

@@ -103,7 +103,7 @@
       <span class="sum-value" [class]="'sum-value ' + pnlTone(liveSummary()?.unrealised)"><span data-testid="summary-unrealised" [class]="pnlTone(liveSummary()?.unrealised)">{{ formatSigned(liveSummary()?.unrealised) }}</span></span>
       <span class="sum-caption">
         @if (liveSummary()?.unrealisedPercent != null) {
-          <span [class]="pnlTone(liveSummary()?.unrealisedPercent)">{{ formatSigned(liveSummary()!.unrealisedPercent) }}%</span> on cost {{ formatNumber(summary()!.costBasis, 2) }}
+          <span [class]="pnlTone(liveSummary()?.unrealisedPercent)">{{ formatSigned(liveSummary()!.unrealisedPercent) }}%</span> on cost {{ formatNumber(liveSummary()!.cost, 2) }}
         } @else if (summary()) {
           On cost {{ formatNumber(summary()!.costBasis, 2) }}
         }
@@ -121,7 +121,7 @@
     <header class="panel-header">
       <h2 class="panel-title">Holdings <span class="count-chip">{{ positions().length }}</span></h2>
       @if (summary(); as s) {
-        <span class="as-of" data-testid="portfolio-as-of"><span class="live-dot" aria-hidden="true"></span> Live prices · refreshed every 5 minutes</span>
+        <span class="as-of" data-testid="portfolio-as-of"><span class="live-dot" aria-hidden="true"></span> Live prices{{ pricesAsOf() ? ' · as of ' + (pricesAsOf() | date: 'h:mm:ss a') : '' }}</span>
       }
     </header>
 

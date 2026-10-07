@@ -76,6 +76,16 @@ export class SettingsComponent implements OnInit {
       : 'Enter the number in international format, for example +447700900123.';
   });
 
+  /** When the stored preferences were last saved, or null if never / unknown */
+  readonly lastSaved = computed<Date | null>(() => {
+    const prefs = this.store.preferences();
+    if (!prefs?.configured || !prefs.updatedAt) {
+      return null;
+    }
+    const date = new Date(prefs.updatedAt);
+    return Number.isNaN(date.getTime()) ? null : date;
+  });
+
   readonly canSave = computed(
     () => !this.saving() && !this.nothingSelected() && !this.emailError() && !this.smsError(),
   );
