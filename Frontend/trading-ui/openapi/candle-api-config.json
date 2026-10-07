@@ -1,0 +1,12 @@
+{
+  "inputSpec": "./contracts/candle-api.yaml",
+  "outputDir": "./src/app/api/generated/candle",
+  "generatorName": "typescript-angular",
+  "skipValidateSpec": true,
+  "validateSpec": false,
+  "packageName": "api.candle",
+  "additionalProperties": {
+    "apiModulePrefix": "CandleApi",
+    "ngVersion": "21.0.0"
+  }
+}

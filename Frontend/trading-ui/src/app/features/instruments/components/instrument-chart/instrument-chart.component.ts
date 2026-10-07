@@ -558,9 +558,7 @@ export class InstrumentChartComponent {
 
   private formatAxisDate(date: string): string {
     const day = parseDay(date);
-    return this.rangeSignal() === '1Y' || this.rangeSignal() === '6M'
-      ? day.toLocaleDateString('en-US', { month: 'short', year: '2-digit', timeZone: 'UTC' })
-      : day.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+    return day.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
   }
 }
 

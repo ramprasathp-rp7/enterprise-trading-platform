@@ -228,8 +228,19 @@ class WatchlistServiceTest {
         }
 
         @Override
+        public List<Instrument> findAllInstruments() {
+            return bySymbol.values().stream().toList();
+        }
+
+        @Override
+        public List<Instrument> findTradableInstruments() {
+            return bySymbol.values().stream().filter(Instrument::isTradable).toList();
+        }
+
+        @Override
         public List<String> findAllSymbols() {
             return bySymbol.keySet().stream().sorted().toList();
+        
         }
     }
 }

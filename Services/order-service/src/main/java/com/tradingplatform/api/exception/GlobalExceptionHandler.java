@@ -276,6 +276,18 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(CandleDataNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleCandleDataNotFound(
+            CandleDataNotFoundException ex,
+            WebRequest request) {
+
+        logger.error("Candle data not found: instrumentId={}, date={}", ex.getInstrumentId(), ex.getDate());
+
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.CDL_404, "Candle data not found for requested date."),
+            HttpStatus.NOT_FOUND
+        );
+    }
     // ALR-404: Price alert not found for this account Maps to HTTP 404 (Not Found)
 
     @ExceptionHandler(PriceAlertNotFoundException.class)
@@ -288,6 +300,19 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(
             new ErrorResponse(ErrorCode.ALR_404, ex.getMessage()),
             HttpStatus.NOT_FOUND
+        );
+    }
+
+    @ExceptionHandler(CandleDataException.class)
+    public ResponseEntity<ErrorResponse> handleCandleDataException(
+            CandleDataException ex,
+            WebRequest request) {
+
+        logger.error("Candle data error: {}", ex.getMessage());
+
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.VAL_422, ex.getMessage()),
+            HttpStatus.UNPROCESSABLE_ENTITY
         );
     }
 
@@ -427,7 +452,7 @@ public class GlobalExceptionHandler {
     private HttpStatus mapErrorCodeToHttpStatus(ErrorCode code) {
         return switch(code) {
             case AUTH_401 -> HttpStatus.UNAUTHORIZED;
-            case ACC_404, INS_404, TRANS_404, WL_404, ALR_404, MKT_404 -> HttpStatus.NOT_FOUND;
+            case ACC_404, INS_404, TRANS_404, WL_404, ALR_404, CDL_404, MKT_404 -> HttpStatus.NOT_FOUND;
             case ACC_403 -> HttpStatus.FORBIDDEN;
             case ORD_400, TRANS_400 -> HttpStatus.BAD_REQUEST;
             case ORD_409, WL_409, ALR_409 -> HttpStatus.CONFLICT;
