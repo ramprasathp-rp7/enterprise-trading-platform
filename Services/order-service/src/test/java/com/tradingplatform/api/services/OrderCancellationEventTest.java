@@ -81,7 +81,7 @@ class OrderCancellationEventTest {
         assertEquals(30, payload.quantity());
         assertEquals(new BigDecimal("1215.70"), payload.price());
         assertEquals("CANCELLED", payload.status());
-        assertEquals("Cancelled by customer", payload.reason());
+        assertEquals("CANCELLED_BY_CUSTOMER", payload.reason());
         assertNull(payload.executedPrice());
         assertNotNull(payload.executedOn());
     }

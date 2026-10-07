@@ -1,5 +1,5 @@
 /**
- * Market Data Quotes REST API
+ * Transactions REST API
  *
  * 
  *
@@ -9,14 +9,10 @@
  */
 
 
-export interface ErrorResponse { 
+export interface TransactionRequest { 
     /**
-     * Machine-readable error code
+     * Amount in the account\'s currency. Must be greater than zero, with at most two decimal places.
      */
-    errorCode: string;
-    /**
-     * Human-readable error message
-     */
-    message: string;
+    amount: number;
 }
 

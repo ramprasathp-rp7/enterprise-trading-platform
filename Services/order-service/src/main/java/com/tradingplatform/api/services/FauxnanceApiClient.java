@@ -44,12 +44,15 @@ public class FauxnanceApiClient {
     private volatile Instant lastQuotaCheck = Instant.now();
 
     public FauxnanceApiClient(RestTemplate restTemplate, ObjectMapper objectMapper,
-                              @Value("${FAUXNANCE_API_KEY}") String apiKey,
+                              @Value("${FAUXNANCE_API_KEY:}") String apiKey,
                               @Value("${FAUXNANCE_BASE_URL}") String baseUrl) {
         this.restTemplate = Objects.requireNonNull(restTemplate, "restTemplate cannot be null");
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper cannot be null");
         this.apiKey = Objects.requireNonNull(apiKey, "apiKey cannot be null");
         this.baseUrl = Objects.requireNonNull(baseUrl, "baseUrl cannot be null");
+        if (apiKey.isBlank()) {
+            log.warn("FAUXNANCE_API_KEY is not set; Fauxnance requests will be rejected until it is");
+        }
     }
 
     /**
@@ -102,7 +105,6 @@ public class FauxnanceApiClient {
             log.info("Fetching quotes from Fauxnance: URL={}, symbols={}", url, symbols);
             HttpHeaders headers = new HttpHeaders();
             headers.set("X-Api-Key", apiKey);
-            log.debug("Using API key (first 10 chars): {}...", apiKey.substring(0, Math.min(10, apiKey.length())));
             
             HttpEntity<String> entity = new HttpEntity<>(headers);
             ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
@@ -241,8 +243,9 @@ public class FauxnanceApiClient {
     }
 
     /**
-     * Get the remaining daily quota.
-     * Updated after each API call; call rarely as polling costs quota.
+     * Last known remaining daily quota. A field read: it makes no Fauxnance call and costs no quota,
+     * which is why the public /health endpoint uses it. Only checkHealth() and getQuotaStatus() refresh
+     * it, via GET /usage, which costs one quota unit per call; until then it holds the default.
      */
     public int getQuotaRemaining() {
         return quotaRemaining;

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideApi as provideTransactionsApi } from '../../../api/generated/transactions/provide-api';
 import { TransactionService } from './transaction.service';
 
 describe('TransactionService', () => {
@@ -11,7 +12,11 @@ describe('TransactionService', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideTransactionsApi('http://localhost:8080'),
+      ],
     });
     service = TestBed.inject(TransactionService);
     http = TestBed.inject(HttpTestingController);
@@ -60,8 +65,9 @@ describe('TransactionService', () => {
 
     const req = http.expectOne((r) => r.url === `${base}/7/transactions`);
     expect(req.request.params.get('type')).toBe('DEPOSIT');
-    expect(req.request.params.get('from')).toBe('2026-01-01T00:00:00Z');
-    expect(req.request.params.get('to')).toBe('2026-12-31T23:59:59Z');
+    // The generated client percent-encodes values once before handing them to HttpParams
+    expect(decodeURIComponent(req.request.params.get('from')!)).toBe('2026-01-01T00:00:00Z');
+    expect(decodeURIComponent(req.request.params.get('to')!)).toBe('2026-12-31T23:59:59Z');
     req.flush([]);
   });
 });

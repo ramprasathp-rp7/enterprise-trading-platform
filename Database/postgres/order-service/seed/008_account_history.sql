@@ -5,7 +5,7 @@
 -- All accounts are USD; INR holdings are converted at the seed reference FX:USDINR = 83.47.
 -- Accounts are looked up by account number, matching the other seed files.
 
--- ACC-000001 (Priya Menon) - ACTIVE - cash 24500.75; 100 ACME ($2550.00) + 40 INFY.NS (INR 63210.00 = $757.28); cost $3307.28
+-- ACC-000001 (Priya Menon) - ACTIVE - cash 24500.75; 100 PFE ($2550.00) + 40 INFY.NS (INR 63210.00 = $757.28); cost $3307.28
 INSERT INTO account_history (account_id, snapshot_date, cash_balance, networth, created_on)
 SELECT a.id, v.snapshot_date::timestamptz, v.cash_balance, v.networth, now()
 FROM accounts a

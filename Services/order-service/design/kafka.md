@@ -52,6 +52,10 @@ This document records the design decisions for the three Kafka topics required b
 - `cashDelta`, `positionQuantityAfter`, `averageCostAfter` are included so consumers can maintain their own portfolio projection without querying the trade database.
 - This enables the Portfolio and P&L extension to operate without a read dependency on Postgres.
 
+**Other payload fields:**
+- `fillFxRate` (multi-currency, decision 0008): the instrument-to-account rate the executor fetched at fill, on `ORDER_FILLED`. Optional; absent or null means 1 (same currency), so events from before the change still settle correctly.
+- `reason` on `ORDER_CANCELLED` is the code `CANCELLED_BY_CUSTOMER`, one of the reason codes listed in migration 007.
+
 **Consumer Groups:**
 - `trade-executor`: None (no read)
 - `portfolio-service`: Maintains portfolio state from events

@@ -1,5 +1,6 @@
 package com.tradingplatform.api.exception;
 
+import com.tradingplatform.api.services.PortfolioPnlService;
 import com.tradingplatform.domain.dto.ErrorResponse;
 import com.tradingplatform.domain.enums.ErrorCode;
 import com.tradingplatform.domain.exception.*;
@@ -357,6 +358,21 @@ public class GlobalExceptionHandler {
 
         return new ResponseEntity<>(
             new ErrorResponse(ErrorCode.INVALID_PREFERENCE, ex.getMessage()),
+            HttpStatus.UNPROCESSABLE_ENTITY
+        );
+    }
+
+    // VAL-422: Invalid portfolio P&L request (e.g. from after to) Maps to HTTP 422 (Unprocessable Entity)
+
+    @ExceptionHandler(PortfolioPnlService.PortfolioPnlException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidPnlRequest(
+            PortfolioPnlService.PortfolioPnlException ex,
+            WebRequest request) {
+
+        logger.error("Invalid P&L request: {}", ex.getMessage());
+
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.VAL_422, ex.getMessage()),
             HttpStatus.UNPROCESSABLE_ENTITY
         );
     }

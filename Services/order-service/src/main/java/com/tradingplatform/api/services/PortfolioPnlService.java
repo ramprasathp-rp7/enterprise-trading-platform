@@ -6,6 +6,9 @@ import com.tradingplatform.domain.dto.PortfolioSummary;
 import com.tradingplatform.domain.dto.PricedPosition;
 import com.tradingplatform.domain.dto.PnlResponse;
 import com.tradingplatform.domain.dto.SymbolPnl;
+import com.tradingplatform.domain.enums.ErrorCode;
+import com.tradingplatform.domain.exception.AccountNotFoundException;
+import com.tradingplatform.domain.exception.DomainException;
 import com.tradingplatform.domain.model.Account;
 import com.tradingplatform.domain.model.Instrument;
 import com.tradingplatform.domain.model.Position;
@@ -62,7 +65,7 @@ public class PortfolioPnlService {
      *
      * @param accountId Account ID
      * @return Portfolio summary
-     * @throws PortfolioPnlException on errors (404, 503)
+     * @throws AccountNotFoundException if the account does not exist (ACC-404)
      */
     public PortfolioSummary getPortfolioSummary(Long accountId) {
         Account account = getAccountOrThrow404(accountId);
@@ -127,7 +130,7 @@ public class PortfolioPnlService {
      * @param accountId Account ID
      * @param symbol Optional filter to one symbol
      * @return List of priced positions
-     * @throws PortfolioPnlException on errors (404, 503)
+     * @throws AccountNotFoundException if the account does not exist (ACC-404)
      */
     public List<PricedPosition> getPricedPositions(Long accountId, String symbol) {
         Account account = getAccountOrThrow404(accountId);
@@ -270,14 +273,15 @@ public class PortfolioPnlService {
      * @param to Optional upper bound (inclusive)
      * @param bySymbol Whether to include per-symbol breakdown
      * @return P&L response
-     * @throws PortfolioPnlException on errors (404, 503)
+     * @throws AccountNotFoundException if the account does not exist (ACC-404)
+     * @throws PortfolioPnlException if from is after to (VAL-422)
      */
     public PnlResponse getPnl(Long accountId, LocalDate from, LocalDate to, boolean bySymbol) {
         Account account = getAccountOrThrow404(accountId);
 
         // Validate date range
         if (from != null && to != null && from.isAfter(to)) {
-            throw new PortfolioPnlException("VAL-422", "from date must not be after to date");
+            throw new PortfolioPnlException("from date must not be after to date");
         }
 
         // Get unrealised P&L (always as at now), converted into account currency
@@ -347,7 +351,7 @@ public class PortfolioPnlService {
     private Account getAccountOrThrow404(Long accountId) {
         Account account = accountMapper.findByAccountId(accountId);
         if (account == null) {
-            throw new PortfolioPnlException("ACC-404", "Account not found");
+            throw new AccountNotFoundException(accountId);
         }
         return account;
     }
@@ -361,18 +365,12 @@ public class PortfolioPnlService {
     }
 
     /**
-     * Portfolio P&L exception.
+     * Invalid portfolio P&L request (VAL-422, 422), handled by GlobalExceptionHandler.
+     * An unknown account is AccountNotFoundException (ACC-404, 404).
      */
-    public static final class PortfolioPnlException extends RuntimeException {
-        private final String errorCode;
-
-        public PortfolioPnlException(String errorCode, String message) {
-            super(message);
-            this.errorCode = Objects.requireNonNull(errorCode);
-        }
-
-        public String getErrorCode() {
-            return errorCode;
+    public static final class PortfolioPnlException extends DomainException {
+        public PortfolioPnlException(String message) {
+            super(ErrorCode.VAL_422, message);
         }
     }
 }

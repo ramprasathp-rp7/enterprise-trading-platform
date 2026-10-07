@@ -33,7 +33,7 @@ All paths are under `/api/v1/accounts/{accountId}`.
 
 ## Tables
 
-Both tables are created by migration `014_create_price_alerts.sql`.
+Both tables are created by migration `016_create_price_alerts.sql`.
 
 - `price_alerts` holds one row per alert: symbol, direction, threshold, mode, active, and the last firing.
   - `ix_price_alerts_active_symbol` is a partial index on `symbol WHERE active`, and serves the per-quote lookup.

@@ -9,7 +9,7 @@
 --   Roles: ADMIN
 --
 -- Password Hash Details:
---   Algorithm: argon2id (Argon2id v=19, m=65540, t=3, p=4)
+--   Algorithm: argon2id (Argon2id v=19, m=19456, t=2, p=1), matching PasswordService.hashPassword
 --   Pre-hashed for demo purposes. Regenerate for production:
 --   node -e "const argon2 = require('argon2'); argon2.hash('Admin@123456').then(console.log)"
 --
@@ -31,7 +31,7 @@ INSERT INTO auth.users (username, password_hash, account_id, roles)
 VALUES (
     'demo.customer',
     -- Argon2id hash of 'Customer@123456'
-    '$argon2id$v=19$m=65540,t=3,p=4$e8LN9WQvz3c8qQvHgLq1rg$XvBzGf6bK5Kq2yZ8vJpS7q5L4mN6rP2X9sQ1wT3uV6W',
+    '$argon2id$v=19$m=19456,p=1,t=2$qJRj+eYz2mVA4XcRYtJt2g$dtPxgMKPReUkvHHVgJeF1xOwTgkBNKj4XRSUxYnnYx4',
     2,
     ARRAY['CUSTOMER']
 )

@@ -41,7 +41,7 @@ def ensure_schema(con, schema_sql_path: str) -> None:
     if not exists:
         sql_text = Path(schema_sql_path).read_text()
         con.execute(sql_text)
-    # Multi-currency columns (migration 018), for stores created before the schema had them
+    # Multi-currency columns (migration 022), for stores created before the schema had them
     con.execute("ALTER TABLE fact_trades ADD COLUMN IF NOT EXISTS fx_rate DECIMAL(20,10) DEFAULT 1")
     con.execute("ALTER TABLE fact_trades ADD COLUMN IF NOT EXISTS trade_value_account DECIMAL(18,2)")
     con.execute("UPDATE fact_trades SET trade_value_account = trade_value WHERE trade_value_account IS NULL")

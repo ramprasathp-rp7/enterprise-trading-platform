@@ -44,10 +44,20 @@ test.describe('Order Blotter Journey', () => {
     }
   });
 
+  /** Orders table, or the empty state when the account has no orders */
+  const ORDER_LIST = '.transactions-table, .empty-state';
+  const ORDER_ROWS = 'tr.transaction-row';
+  const STATUSES = ['NEW', 'FILLED', 'REJECTED', 'CANCELLED'];
+
+  /** GET /api/v1/accounts/{id}/orders, the request the blotter loads its history from */
+  const isOrderHistoryResponse = (r: any) =>
+    /\/api\/v1\/accounts\/\d+\/orders(\?|$)/.test(r.url()) && r.request().method() === 'GET';
+
   /**
-   * Helper: Sign in and navigate to blotter
+   * Helper: Sign in and navigate to blotter.
+   * Returns the order history the blotter loaded (newest first, per the contract).
    */
-  async function signInAndViewBlotter(page: any) {
+  async function signInAndViewBlotter(page: any): Promise<{ orderId: string; createdOn: string; status: string }[]> {
     console.log(`\n🔐 Signing in as: ${E2E_USERNAME}`);
     await page.goto(`${E2E_BASE_URL}/sign-in`, { waitUntil: 'networkidle' });
     
@@ -55,8 +65,6 @@ test.describe('Order Blotter Journey', () => {
     const usernameInput = page.locator('[data-testid="username-input"]');
     const passwordInput = page.locator('[data-testid="password-input"]');
     const submitBtn = page.locator('[data-testid="submit-btn"]');
-    
-    console.log(`✓ Form elements visible`);
     
     await usernameInput.fill(E2E_USERNAME);
     await passwordInput.fill(E2E_PASSWORD);
@@ -84,29 +92,30 @@ test.describe('Order Blotter Journey', () => {
     
     console.log(`✅ Token acquired`);
     
-    // Navigate to blotter
+    // Navigate to blotter, capturing the history it loads
     console.log(`📊 Navigating to blotter...`);
+    const historyResponse = page.waitForResponse(isOrderHistoryResponse, { timeout: 10000 });
     await page.goto(`${E2E_BASE_URL}/blotter`);
-    await page.waitForSelector('[data-testid="order-table"], [class*="order"]', { timeout: 10000 }).catch(() => null);
+    const response = await historyResponse;
+    expect(response.ok()).toBe(true);
+    await expect(page.locator(ORDER_LIST).first()).toBeVisible({ timeout: 10000 });
     console.log(`✅ Blotter page loaded`);
+    return response.json();
   }
 
   /**
    * Test: Blotter loads with order history
    */
   test('should display order history on blotter', async ({ page }) => {
-    await signInAndViewBlotter(page);
+    const orders = await signInAndViewBlotter(page);
     
-    // Blotter should be visible
     expect(page.url()).toContain('/blotter');
     
-    // Order list should be present (even if empty)
-    const orderList = page.locator('[data-testid="order-table"], [class*="order-list"]').first();
-    const isVisible = await orderList.isVisible().catch(() => false);
-    
-    if (isVisible) {
-      console.log(`✅ Blotter displayed`);
-      expect(true).toBe(true);
+    // One row per order, or the empty state when there are none
+    if (orders.length > 0) {
+      await expect(page.locator(ORDER_ROWS)).toHaveCount(orders.length);
+    } else {
+      await expect(page.locator('.empty-state')).toBeVisible();
     }
   });
 
@@ -114,30 +123,18 @@ test.describe('Order Blotter Journey', () => {
    * Test: Status badges visible (NEW, FILLED, REJECTED, CANCELLED)
    */
   test('should display status badges for orders', async ({ page }) => {
-    await signInAndViewBlotter(page);
+    const orders = await signInAndViewBlotter(page);
+    test.skip(orders.length === 0, 'Account has no orders to show badges for');
     
-    // Look for status badges
-    const statusBadges = page.locator('[class*="badge"], [class*="status"], [data-testid*="status"]');
-    const count = await statusBadges.count().catch(() => 0);
-    
-    // Even if no orders, the page should have badge elements defined
-    console.log(`Found ${count} status badge elements`);
-    
-    // Check for any visible badges
-    const visibleBadges = await statusBadges.filter({ hasNot: page.locator('_react=undefined') }).count().catch(() => 0);
-    
-    if (visibleBadges > 0) {
-      // Verify badges contain expected status text
-      const firstBadge = statusBadges.first();
-      const badgeText = await firstBadge.textContent().catch(() => '');
-      
-      const validStatuses = ['NEW', 'FILLED', 'REJECTED', 'CANCELLED'];
-      const hasValidStatus = validStatuses.some(s => badgeText.includes(s));
-      
-      if (hasValidStatus) {
-        console.log(`✅ Found status badge: ${badgeText}`);
-        expect(true).toBe(true);
-      }
+    // Every row has exactly one badge, showing that order's status
+    const rows = page.locator(ORDER_ROWS);
+    const rowCount = await rows.count();
+    for (let i = 0; i < rowCount; i++) {
+      const badge = rows.nth(i).locator('.status-badge');
+      await expect(badge).toHaveCount(1);
+      const status = (await badge.getAttribute('aria-label')) ?? '';
+      expect(STATUSES).toContain(status);
+      await expect(badge).toHaveText(status);
     }
   });
 
@@ -145,24 +142,19 @@ test.describe('Order Blotter Journey', () => {
    * Test: Newest orders first (most recent at top)
    */
   test('should display orders with newest first', async ({ page }) => {
-    await signInAndViewBlotter(page);
+    const orders = await signInAndViewBlotter(page);
+    test.skip(orders.length < 2, 'Need at least two orders to check ordering');
     
-    // Get all order rows
-    const orderRows = page.locator('[data-testid="order-row"], tr[data-testid*="order"]');
-    const rowCount = await orderRows.count().catch(() => 0);
+    // Rows carry the full order id in their title; look up each one's createdOn
+    const createdOn = new Map(orders.map(o => [o.orderId, Date.parse(o.createdOn)]));
+    const rowIds = await page.locator(`${ORDER_ROWS} td.cell-order-id`).evaluateAll(
+      (cells: Element[]) => cells.map(c => c.getAttribute('title') ?? ''),
+    );
+    const rowTimes = rowIds.map(id => createdOn.get(id));
     
-    if (rowCount > 1) {
-      // Get timestamps or order IDs from first and second row
-      const firstRow = orderRows.nth(0);
-      const firstTimestamp = await firstRow.locator('[class*="timestamp"], [class*="date"]').textContent().catch(() => '');
-      
-      const secondRow = orderRows.nth(1);
-      const secondTimestamp = await secondRow.locator('[class*="timestamp"], [class*="date"]').textContent().catch(() => '');
-      
-      console.log(`✅ Newest order first: ${firstTimestamp} > ${secondTimestamp}`);
-      expect(true).toBe(true);
-    } else {
-      console.log(`⚠️  No orders to verify ordering`);
+    expect(rowTimes).not.toContain(undefined);
+    for (let i = 1; i < rowTimes.length; i++) {
+      expect(rowTimes[i - 1]!).toBeGreaterThanOrEqual(rowTimes[i]!);
     }
   });
 
@@ -170,53 +162,31 @@ test.describe('Order Blotter Journey', () => {
    * Test: Orders at NEW status show refresh capability
    */
   test('should handle orders at NEW status with refresh', async ({ page }) => {
-    await signInAndViewBlotter(page);
+    const orders = await signInAndViewBlotter(page);
+    test.skip(!orders.some(o => o.status === 'NEW'), 'No NEW orders to test refresh');
     
-    // Look for orders at NEW status
-    const newStatusBadges = page.locator(':has-text("NEW")');
-    const newOrderCount = await newStatusBadges.count().catch(() => 0);
+    // Refresh re-requests the history and the list re-renders
+    const refreshBtn = page.locator('[data-testid="refresh-btn"]');
+    await expect(refreshBtn).toBeEnabled();
+    const refreshed = page.waitForResponse(isOrderHistoryResponse, { timeout: 10000 });
+    await refreshBtn.click();
+    const response = await refreshed;
     
-    if (newOrderCount > 0) {
-      console.log(`Found ${newOrderCount} orders at NEW status`);
-      
-      // Look for refresh button
-      const refreshBtn = page.locator('[data-testid="refresh-btn"], button:has-text("Refresh")').first();
-      const hasRefresh = await refreshBtn.isVisible().catch(() => false);
-      
-      if (hasRefresh) {
-        // Click refresh
-        await refreshBtn.click();
-        await page.waitForTimeout(2000);
-        
-        console.log(`✅ Refresh works for NEW orders`);
-        expect(true).toBe(true);
-      } else {
-        // Auto-refresh might be enabled - just wait and verify page still shows orders
-        await page.waitForTimeout(5000);
-        console.log(`✅ Blotter handles NEW orders (auto-refresh or manual)`);
-        expect(true).toBe(true);
-      }
-    } else {
-      console.log(`⚠️  No NEW orders to test refresh`);
-    }
+    expect(response.ok()).toBe(true);
+    const latest: unknown[] = await response.json();
+    await expect(refreshBtn).toBeEnabled();
+    await expect(page.locator(ORDER_ROWS)).toHaveCount(latest.length);
   });
 
   /**
    * Test: Rejected orders included in blotter
    */
   test('should include rejected orders in history', async ({ page }) => {
-    await signInAndViewBlotter(page);
+    const orders = await signInAndViewBlotter(page);
+    const rejected = orders.filter(o => o.status === 'REJECTED').length;
+    test.skip(rejected === 0, 'No rejected orders in history (may not have any yet)');
     
-    // Look for REJECTED status badges
-    const rejectedBadges = page.locator(':has-text("REJECTED")');
-    const rejectedCount = await rejectedBadges.count().catch(() => 0);
-    
-    if (rejectedCount > 0) {
-      console.log(`✅ Found ${rejectedCount} rejected orders in blotter`);
-      expect(true).toBe(true);
-    } else {
-      console.log(`⚠️  No rejected orders in history (may not have any yet)`);
-    }
+    await expect(page.locator(`${ORDER_ROWS} .status-badge[aria-label="REJECTED"]`)).toHaveCount(rejected);
   });
 
   /**

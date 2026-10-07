@@ -1,4 +1,4 @@
--- Migration 017: Order notifications
+-- Migration 021: Order notifications
 --
 -- The Trade Executor publishes the outcome of every order (ORDER_FILLED, ORDER_REJECTED, and
 -- ORDER_CANCELLED when it applies) to the `trade-events` Kafka topic. The Trade REST API consumes

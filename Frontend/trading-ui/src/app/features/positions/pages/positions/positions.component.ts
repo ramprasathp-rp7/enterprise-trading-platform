@@ -144,10 +144,6 @@ export class PositionsComponent implements OnInit {
   );
   /** Holdings priced from a stale quote or not priced at all */
   readonly stalePositionCount = computed(() => this.positions().filter((p) => p.stale).length);
-  /** Stale/partial pricing banner, hidden for now. */
-  readonly showPricingWarning = false;
-  /** Per-row Stale badge next to the last price, hidden for now; the No price badge still shows. */
-  readonly showStaleBadge = false;
 
   constructor() {
     // Keep every held symbol's live price fresh from the quote cache

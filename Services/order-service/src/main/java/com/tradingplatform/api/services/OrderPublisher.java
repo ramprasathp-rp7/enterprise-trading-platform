@@ -38,7 +38,7 @@ public class OrderPublisher {
     private static final Logger logger = LoggerFactory.getLogger(OrderPublisher.class);
     private static final String ORDERS_TOPIC = "orders";
     private static final String TRADE_EVENTS_TOPIC = "trade-events";
-    static final String CANCELLED_BY_CUSTOMER = "Cancelled by customer";
+    static final String CANCELLED_BY_CUSTOMER = "CANCELLED_BY_CUSTOMER";
 
     private final KafkaTemplate<String, MessageEnvelope<?>> kafkaTemplate;
 

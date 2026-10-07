@@ -72,7 +72,7 @@ without a code change. All accounts are USD, but nothing hard-codes USD: the cod
 
 ## Consequences
 
-- **Schema:** migration 018 adds these columns:
+- **Schema:** migration 022 (`022_multi_currency.sql`) adds these columns:
   - `orders.placement_fx_rate`, `orders.fill_fx_rate` and `orders.realised_pnl`
   - `positions.average_cost_account`
   - CHECKs that every currency is a three-letter code
@@ -99,3 +99,18 @@ without a code change. All accounts are USD, but nothing hard-codes USD: the cod
   a buffer, for example 2%, as well as re-checking at fill.
 - **Non-USD accounts:** if accounts in other currencies are introduced, the admin analytics totals,
   which sum across accounts, must be grouped by account currency.
+
+## Contract changes
+
+This decision changes three binding contracts. Every change is additive: no field was removed, renamed
+or retyped, and no existing field changed meaning. So a consumer written against the earlier contract
+keeps working, and only consumers that want the account-currency figures need to read the new fields.
+
+| Contract | Added | Why it is additive |
+|---|---|---|
+| `Frontend/trading-ui/contracts/portfolio-api.yaml`, `PricedPosition` | `fxRate` (nullable), `averageCostAccount`, `costBasisAccount`, `marketValueAccount` (nullable), `unrealisedPnlAccount` (nullable) | The existing `averageCost`, `costBasis`, `lastPrice`, `marketValue` and `unrealisedPnl` stay in the instrument's currency, as the contract already defined them. The summary totals were always in `baseCurrency`. They are now the sum of the `*Account` fields, which is the conversion the contract asked for, rather than a 1:1 sum of mixed currencies |
+| `analytics-schema.sql`, `fact_trades` (both copies: `Database/duckdb/analytics/` and `ETL/src/trading_analytics_etl/sql/`) | `fx_rate DECIMAL(20,10) NOT NULL DEFAULT 1`, `trade_value_account DECIMAL(18,2) NOT NULL` | `trade_value` keeps its meaning (instrument currency). `ETL/.../load.py` adds both columns to stores created before them, so existing DuckDB files load without being rebuilt. Volume and average-trade-size queries move to `trade_value_account`, because summing `trade_value` across currencies was the defect |
+| `trade-events` payload (`TradeEventPayload`, documented in `Services/order-service/design/kafka.md`) | `fillFxRate` (optional) | Absent or null means 1, the same-currency rate. So events published before the change, and producers that do not set it (the Trade API's `ORDER_CANCELLED`), are still valid. Consumers that ignore unknown fields are unaffected |
+
+The generated Angular portfolio client was regenerated from the updated `portfolio-api.yaml`, so the new
+fields are typed in the UI.

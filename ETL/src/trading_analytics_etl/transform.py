@@ -269,7 +269,7 @@ def validate_and_build_fact_row(
     # Multi-currency: trade_value is in the instrument's currency (right for exposure by
     # instrument); trade_value_account converts it into the account's currency (all USD), the
     # measure that sums across instruments. A FILLED order converts at the rate fetched at fill,
-    # anything else at the rate captured at placement. Orders from before migration 018 have 1.
+    # anything else at the rate captured at placement. Orders from before migration 022 have 1.
     fx_rate = fx_rate_of_record(order, status, source_order_id)
     trade_value_account = (trade_value * fx_rate).quantize(Decimal("0.01"))
 

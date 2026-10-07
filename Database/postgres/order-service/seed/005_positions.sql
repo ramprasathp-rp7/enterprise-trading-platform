@@ -1,6 +1,6 @@
 INSERT INTO positions (account_id, instrument_id, quantity, average_cost, last_updated)
 SELECT a.id, i.id, 100, 25.50, TIMESTAMP '2026-01-20 14:05:04+00'
-FROM accounts a, instruments i WHERE a.account_id = 'ACC-000001' AND i.symbol = 'ACME';
+FROM accounts a, instruments i WHERE a.account_id = 'ACC-000001' AND i.symbol = 'PFE';
 
 INSERT INTO positions (account_id, instrument_id, quantity, average_cost, last_updated)
 SELECT a.id, i.id, 40, 1580.25, TIMESTAMP '2026-02-05 10:00:03+00'

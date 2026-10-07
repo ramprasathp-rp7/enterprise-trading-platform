@@ -6,15 +6,15 @@
   "author": "Team",
   "license": "ISC",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.9.0"
   },
   "scripts": {
     "build": "tsc",
-    "start": "node --env-file=../../.env dist/main.js",
-    "dev": "node --env-file=../../.env -r ts-node/register src/main.ts",
-    "test": "node --env-file=../../.env ./node_modules/jest/bin/jest.js --passWithNoTests",
-    "test:watch": "node --env-file=../../.env ./node_modules/jest/bin/jest.js --watch",
-    "test:cov": "node --env-file=../../.env ./node_modules/jest/bin/jest.js --coverage"
+    "start": "node --env-file-if-exists=../../.env dist/main.js",
+    "dev": "node --env-file-if-exists=../../.env -r ts-node/register src/main.ts",
+    "test": "node --env-file-if-exists=../../.env ./node_modules/jest/bin/jest.js --passWithNoTests",
+    "test:watch": "node --env-file-if-exists=../../.env ./node_modules/jest/bin/jest.js --watch",
+    "test:cov": "node --env-file-if-exists=../../.env ./node_modules/jest/bin/jest.js --coverage"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",

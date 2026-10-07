@@ -13,7 +13,7 @@ import { formatMoney } from '../../../shared/currency';
  * Nothing here generates prices.
  */
 const CATALOGUE: Instrument[] = [
-  { id: 1, symbol: 'ACME', name: 'Acme Corporation', assetClass: 'EQUITY', currency: 'USD', tradable: true },
+  { id: 1, symbol: 'PFE', name: 'Pfizer Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true },
   { id: 2, symbol: 'AAPL', name: 'Apple Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true },
   { id: 3, symbol: 'INFY.NS', name: 'Infosys Limited', assetClass: 'EQUITY', currency: 'INR', tradable: true },
   { id: 4, symbol: 'RELIANCE.NS', name: 'Reliance Industries', assetClass: 'EQUITY', currency: 'INR', tradable: true },

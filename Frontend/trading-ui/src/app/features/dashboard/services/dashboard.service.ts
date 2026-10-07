@@ -1,5 +1,4 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 import { AccountsService, BalanceResponse, AccountResponse } from '../../../api/generated/trade';
 import { AccountHistoryService } from '../../../api/generated/account-history';

@@ -195,7 +195,7 @@ describe('PositionsComponent', () => {
     expect(fixture.nativeElement.querySelector('[data-testid="holdings-totals"]').textContent).toContain('26,800.00');
   });
 
-  it('flags unpriced holdings without showing stale badges or the pricing banner', async () => {
+  it('flags stale and unpriced holdings and warns that the valuation is partial', async () => {
     portfolio.getPricedPositions.mockReturnValue(of([
       { ...positions[0], stale: true },
       { ...positions[1], lastPrice: null, marketValue: null, unrealisedPnl: null, unrealisedPnlPercent: null, priceAsOf: null, stale: true },
@@ -203,10 +203,23 @@ describe('PositionsComponent', () => {
     portfolio.getPortfolioSummary.mockReturnValue(of({ ...summary, partial: true }));
     await create();
 
-    expect(fixture.nativeElement.querySelectorAll('[data-testid="stale-badge"]').length).toBe(0);
+    // The priced holding gets a Stale badge; the unpriced one gets No price instead
+    expect(fixture.nativeElement.querySelectorAll('[data-testid="stale-badge"]').length).toBe(1);
     expect(fixture.nativeElement.querySelectorAll('[data-testid="unpriced-badge"]').length).toBe(1);
-    expect(fixture.nativeElement.querySelector('[data-testid="pricing-warning"]')).toBeNull();
+    const warning = fixture.nativeElement.querySelector('[data-testid="pricing-warning"]');
+    expect(warning).not.toBeNull();
+    expect(warning.textContent).toContain('could not be priced');
     expect(component.stalePositionCount()).toBe(2);
+  });
+
+  it('warns about delayed quotes when every holding is priced but some are stale', async () => {
+    portfolio.getPricedPositions.mockReturnValue(of([{ ...positions[0], stale: true }, positions[1]]));
+    await create();
+
+    expect(fixture.nativeElement.querySelectorAll('[data-testid="stale-badge"]').length).toBe(1);
+    const warning = fixture.nativeElement.querySelector('[data-testid="pricing-warning"]');
+    expect(warning).not.toBeNull();
+    expect(warning.textContent).toContain('1 holding is valued from a delayed quote');
   });
 
   it('still shows holdings when the summary request fails', async () => {

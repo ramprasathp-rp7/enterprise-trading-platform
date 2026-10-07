@@ -236,7 +236,7 @@ CREATE TABLE fact_trades (
 --                  measure nearly every question aggregates.
 -- executed_price   NULL for orders that never filled.
 -- fx_rate          Instrument-to-account currency rate of record (multi-currency, migration
---                  018): the rate fetched at fill for a FILLED order, otherwise the rate captured
+--                  022): the rate fetched at fill for a FILLED order, otherwise the rate captured
 --                  at placement. 1 when the instrument trades in the account's currency.
 -- trade_value_account
 --                  trade_value multiplied by fx_rate, in the account's currency (all accounts are

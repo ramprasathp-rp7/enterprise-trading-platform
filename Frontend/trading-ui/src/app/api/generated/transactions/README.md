@@ -1,6 +1,6 @@
 # @
 
-Provides real-time and historical quote data (price, bid/ask) from the in-memory cache. Updated by Fauxnance refresh (every 5 minutes) or market-data Kafka topic. Data retention is 24 hours by default. 
+Binding contract for the Sprint 7 Event Backbone service. Implement it exactly. The Angular UI generates its typed client from this file, so a field renamed here is a compile error there.  ## Identifiers  `accountId` means the numeric surrogate key `ACCOUNTS.id` everywhere in this contract: in the path parameter and in the JWT `accountId` claim.  ## Transaction Types  Transactions capture all fund movements and trading activities: - DEPOSIT: Cash deposit from external source - WITHDRAW: Cash withdrawal to external destination - FEE: Platform, exchange or trading fee - BUY: Purchase of securities - SELL: Sale of securities  ## Action Types  Each transaction has an action type indicating the cash flow: - CREDIT: Cash increases (deposits, sales) - DEBIT: Cash decreases (withdrawals, fees, purchases)  ## Authentication  Every `/api/v1/_**` route requires a valid signed JWT in the `Authorization` header. A missing, malformed, expired or wrongly signed token is `AUTH-401`, 401. A valid token whose `accountId` claim does not match the account being addressed is `ACC-403`, 403: a token proves who you are, not what you may reach. 
 
 The version of the OpenAPI document: 1.0.0
 
@@ -75,7 +75,7 @@ export const appConfig: ApplicationConfig = {
 **NOTE**
 If you're still using `AppModule` and haven't [migrated](https://angular.dev/reference/migrations/standalone) yet, you can still import an Angular module:
 ```typescript
-import { QuotesApiApiModule } from '';
+import { TransactionsApiApiModule } from '';
 ```
 
 If different from the generated base path, during app bootstrap, you can provide the base path to your service.

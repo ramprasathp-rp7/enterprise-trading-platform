@@ -19,6 +19,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
 /**
@@ -49,8 +50,11 @@ import java.util.stream.Stream;
  *   and scan the newest quote for all symbols via getAllQuotes()
  * - Monitoring services check freshness via getQuoteTimestamp()
  *
+ * Persistence:
+ * - MarketDataCacheFileStore snapshots the cache to a JSON file and restores it on startup,
+ *   so quotes survive a restart (see market-data.cache.file / wipe-on-startup)
+ *
  * Limitations:
- * - No persistence: quotes lost on service restart
  * - Symbols are never evicted: a symbol keeps its newest quote until clearCache()
  *
  * Related:
@@ -72,6 +76,9 @@ public class MarketDataCache {
      * Supports concurrent reads while writes are happening.
      */
     private final Map<String, Deque<CachedQuote>> quoteCache = new ConcurrentHashMap<>();
+
+    /** Bumped on every write or clear, so the file store can skip saving an unchanged cache. */
+    private final AtomicLong version = new AtomicLong();
 
     private final Duration historyWindow;
     private final Clock clock;
@@ -132,6 +139,7 @@ public class MarketDataCache {
             trim(deque);
             return deque;
         });
+        version.incrementAndGet();
 
         logger.debug(
             "Quote cached: symbol={}, price={}, receivedAt={}, historySize={}, cacheSize={}",
@@ -309,7 +317,43 @@ public class MarketDataCache {
     public void clearCache() {
         int size = quoteCache.size();
         quoteCache.clear();
+        version.incrementAndGet();
         logger.warn("Market data cache cleared. Removed {} symbols", size);
+    }
+
+    /**
+     * Copy of every symbol's history (oldest first), as held right now.
+     * Used by MarketDataCacheFileStore to save the cache.
+     *
+     * @return symbol -> history snapshot
+     */
+    public Map<String, List<CachedQuote>> snapshot() {
+        Map<String, List<CachedQuote>> copy = new ConcurrentHashMap<>();
+        quoteCache.forEach((symbol, history) -> copy.put(symbol, List.copyOf(history)));
+        return copy;
+    }
+
+    /**
+     * Replays saved histories into the cache in reception order, trimming anything now outside
+     * the history window. Call once at startup, before any live writer runs: a restored quote
+     * appended after a live one would become the symbol's "newest".
+     *
+     * @param saved symbol -> history, as returned by snapshot()
+     * @return number of quotes restored (before trimming)
+     */
+    public int restore(Map<String, List<CachedQuote>> saved) {
+        List<Map.Entry<String, CachedQuote>> entries = saved.entrySet().stream()
+            .flatMap(e -> e.getValue().stream().map(q -> Map.entry(e.getKey(), q)))
+            .filter(e -> e.getValue() != null && e.getValue().quote() != null && e.getValue().receivedAt() != null)
+            .sorted(Comparator.comparing((Map.Entry<String, CachedQuote> e) -> e.getValue().receivedAt()))
+            .toList();
+        entries.forEach(e -> updateQuote(e.getKey(), e.getValue().quote(), e.getValue().receivedAt()));
+        return entries.size();
+    }
+
+    /** Monotonic change counter; differs whenever the cache content may have changed. */
+    public long version() {
+        return version.get();
     }
 
     /**

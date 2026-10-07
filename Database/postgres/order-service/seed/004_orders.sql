@@ -1,10 +1,10 @@
 INSERT INTO orders (account_id, instrument_id, side, quantity, price, executed_price, status, idempotency_key, created_on, updated_on, executed_on, rejected_reason)
 SELECT a.id, i.id, 'BUY', 60, 25.00, 25.00, 'FILLED', 'SEED-0001-A', TIMESTAMP '2026-01-12 09:30:00+00', TIMESTAMP '2026-01-12 09:30:05+00', TIMESTAMP '2026-01-12 09:30:05+00', NULL
-FROM accounts a, instruments i WHERE a.account_id = 'ACC-000001' AND i.symbol = 'ACME';
+FROM accounts a, instruments i WHERE a.account_id = 'ACC-000001' AND i.symbol = 'PFE';
 
 INSERT INTO orders (account_id, instrument_id, side, quantity, price, executed_price, status, idempotency_key, created_on, updated_on, executed_on, rejected_reason)
 SELECT a.id, i.id, 'BUY', 40, 26.25, 26.25, 'FILLED', 'SEED-0001-B', TIMESTAMP '2026-01-20 14:05:00+00', TIMESTAMP '2026-01-20 14:05:04+00', TIMESTAMP '2026-01-20 14:05:04+00', NULL
-FROM accounts a, instruments i WHERE a.account_id = 'ACC-000001' AND i.symbol = 'ACME';
+FROM accounts a, instruments i WHERE a.account_id = 'ACC-000001' AND i.symbol = 'PFE';
 
 INSERT INTO orders (account_id, instrument_id, side, quantity, price, executed_price, status, idempotency_key, created_on, updated_on, executed_on, rejected_reason)
 SELECT a.id, i.id, 'BUY', 40, 1580.25, 1580.25, 'FILLED', 'SEED-0001-C', TIMESTAMP '2026-02-05 10:00:00+00', TIMESTAMP '2026-02-05 10:00:03+00', TIMESTAMP '2026-02-05 10:00:03+00', NULL
@@ -16,7 +16,7 @@ FROM accounts a, instruments i WHERE a.account_id = 'ACC-000001' AND i.symbol = 
 
 INSERT INTO orders (account_id, instrument_id, side, quantity, price, executed_price, status, idempotency_key, created_on, updated_on, executed_on, rejected_reason)
 SELECT a.id, i.id, 'BUY', 50, 25.50, NULL, 'REJECTED', 'SEED-0002-A', TIMESTAMP '2026-02-10 12:00:00+00', TIMESTAMP '2026-02-10 12:00:01+00', TIMESTAMP '2026-02-10 12:00:01+00', 'INSUFFICIENT_FUNDS'
-FROM accounts a, instruments i WHERE a.account_id = 'ACC-000002' AND i.symbol = 'ACME';
+FROM accounts a, instruments i WHERE a.account_id = 'ACC-000002' AND i.symbol = 'PFE';
 
 INSERT INTO orders (account_id, instrument_id, side, quantity, price, executed_price, status, idempotency_key, created_on, updated_on, executed_on, rejected_reason)
 SELECT a.id, i.id, 'BUY', 20, 180.00, 180.00, 'FILLED', 'SEED-0004-A', TIMESTAMP '2026-01-18 09:15:00+00', TIMESTAMP '2026-01-18 09:15:02+00', TIMESTAMP '2026-01-18 09:15:02+00', NULL
@@ -54,7 +54,7 @@ INSERT INTO orders (account_id, instrument_id, side, quantity, price, executed_p
 SELECT a.id, i.id, 'BUY', 25, 1600.00, NULL, 'NEW', 'SEED-0006-C', TIMESTAMP '2026-08-20 09:05:00+00', TIMESTAMP '2026-08-20 09:05:00+00', NULL, NULL
 FROM accounts a, instruments i WHERE a.account_id = 'ACC-000006' AND i.symbol = 'INFY.NS';
 
--- Multi-currency (migration 018). Rates are account (USD) per instrument-currency unit, at the seed
+-- Multi-currency (migration 022). Rates are account (USD) per instrument-currency unit, at the seed
 -- reference FX:USDINR = 83.47, so INR -> USD = 1 / 83.47. USD instruments keep the default rate of 1.
 -- Seeded orders filled at the rate they were placed at.
 UPDATE orders o

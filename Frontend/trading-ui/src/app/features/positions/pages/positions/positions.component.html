@@ -56,7 +56,7 @@
     </div>
   }
 
-  @if (showPricingWarning && (summary()?.partial || stalePositionCount() > 0)) {
+  @if (summary()?.partial || stalePositionCount() > 0) {
     <div class="alert alert-warning" role="status" data-testid="pricing-warning">
       <i class="fas fa-triangle-exclamation"></i>
       <div>
@@ -175,7 +175,7 @@
                       [attr.title]="(position.live ? 'Live price' : 'Price from the portfolio service') + (position.priceAsOf ? ', updated ' + (position.priceAsOf | date: 'MMM d, h:mm a') : '')"
                       data-testid="live-price"
                     >{{ price(position.lastPrice, position) }}</span>
-                    @if (showStaleBadge && position.stale) {
+                    @if (position.stale) {
                       <span class="pill pill-warning no-dot price-flag" data-testid="stale-badge">Stale</span>
                     }
                   } @else {

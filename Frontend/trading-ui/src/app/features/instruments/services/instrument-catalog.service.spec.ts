@@ -19,7 +19,7 @@ describe('InstrumentCatalogService', () => {
     it('mirrors the seeded INSTRUMENTS table, including the non-tradable one', () => {
       expect(service.all().map((i) => i.symbol)).toEqual([
         // 003_instruments.sql
-        'ACME', 'AAPL', 'INFY.NS', 'RELIANCE.NS', 'TATASTEEL.BO', 'FX:EURUSD', 'X:BTC-USD',
+        'PFE', 'AAPL', 'INFY.NS', 'RELIANCE.NS', 'TATASTEEL.BO', 'FX:EURUSD', 'X:BTC-USD',
         // 007_additional_instruments.sql
         'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'TSLA', 'META', 'JPM', 'NFLX',
         'TCS.NS', 'HDFCBANK.NS', 'ICICIBANK.NS', 'WIPRO.NS',
@@ -44,8 +44,9 @@ describe('InstrumentCatalogService', () => {
     });
 
     it('ranks exact symbol, then symbol prefix, then name word, then substring', () => {
-      expect(service.search('acme')[0].symbol).toBe('ACME');
-      expect(service.search('a').map((i) => i.symbol).slice(0, 2)).toEqual(['AAPL', 'ACME']);
+      expect(service.search('pfe')[0].symbol).toBe('PFE');
+      expect(service.search('pfizer')[0].symbol).toBe('PFE');
+      expect(service.search('a').map((i) => i.symbol).slice(0, 2)).toEqual(['AAPL', 'AMZN']);
       expect(service.search('infosys').map((i) => i.symbol)).toEqual(['INFY.NS']);
       expect(service.search('steel').map((i) => i.symbol)).toEqual(['TATASTEEL.BO']);
     });
