@@ -1,0 +1,110 @@
+/* Preferences page — layout comes from the global .page / .panel system */
+
+:host {
+  display: block;
+  width: 100%;
+}
+
+.alert p {
+  flex: 1;
+}
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px;
+  max-width: 640px;
+}
+
+.channel-group {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.channel-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.channel-option {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid var(--border, #d0d7de);
+  border-radius: var(--r-md, 8px);
+  cursor: pointer;
+  transition: background var(--t-fast, 0.15s), border-color var(--t-fast, 0.15s);
+}
+
+.channel-option:hover {
+  background: var(--surface-sunken);
+}
+
+.channel-option.selected {
+  border-color: var(--brand, #2563eb);
+  background: var(--brand-soft);
+}
+
+.channel-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.channel-option:focus-within {
+  outline: 2px solid var(--brand, #2563eb);
+  outline-offset: 2px;
+}
+
+.channel-option i {
+  grid-row: span 2;
+  font-size: 1.1rem;
+}
+
+.channel-label {
+  font-weight: 600;
+}
+
+.channel-hint {
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+
+.form-field .form-input {
+  width: 100%;
+}
+
+.field-error {
+  margin: 6px 0 0;
+  color: var(--danger, #dc2626);
+  font-size: 0.85rem;
+}
+
+.field-help {
+  margin: 6px 0 0;
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+.form-actions {
+  display: flex;
+  gap: 10px;
+}
+
+@media (max-width: 720px) {
+  .channel-options {
+    grid-template-columns: 1fr;
+  }
+}

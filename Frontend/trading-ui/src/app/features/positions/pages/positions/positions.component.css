@@ -7,25 +7,175 @@
   overflow: hidden;
 }
 
-.transactions-table {
-  min-width: 1080px;
+.page.positions-container {
+  gap: 18px;
 }
 
-.transactions-table col.col-symbol { width: 11%; }
-.transactions-table col.col-quantity { width: 8%; }
-.transactions-table col.col-cost { width: 11%; }
-.transactions-table col.col-basis { width: 12%; }
-.transactions-table col.col-price { width: 14%; }
-.transactions-table col.col-value { width: 12%; }
-.transactions-table col.col-pnl { width: 14%; }
-.transactions-table col.col-actions { width: 18%; }
+/* ===== SUMMARY BAR: Total = Cash + Holdings | Unrealised | Realised ===== */
+.summary-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px 18px;
+  flex-wrap: wrap;
+  padding: 14px 22px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-card), var(--panel-edge);
+  overflow: hidden;
+}
 
-/* Context line under each summary figure */
-.stat-caption {
-  min-height: 18px;
+/* Thin accent line, as on the other summary tiles */
+.summary-bar::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: var(--accent-gradient);
+  opacity: 0.7;
+}
+
+.sum-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sum-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-500);
+}
+
+.sum-value {
+  font-size: 20px;
+  font-weight: 650;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--ink-900);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.sum-total .sum-value {
+  font-size: 24px;
+}
+
+.sum-value .cur {
+  margin-right: 1px;
+  font-size: 0.8em;
+  font-weight: 600;
+  color: var(--ink-500);
+}
+
+.sum-caption {
+  font-size: 12px;
+  color: var(--ink-500);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* "=" and "+" between Total, Cash and Holdings */
+.sum-op {
+  align-self: center;
+  margin-top: 6px;
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--ink-400, var(--ink-500));
+}
+
+.sum-divider {
+  align-self: stretch;
+  width: 1px;
+  margin: 2px 10px;
+  background: var(--line);
+}
+
+/* ===== HOLDINGS TABLE ===== */
+.holdings-panel .panel-header {
+  padding: 12px 20px;
+}
+
+.holdings-panel .panel-title {
+  font-size: 15px;
+}
+
+.as-of {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   font-size: 12.5px;
   color: var(--ink-500);
-  font-variant-numeric: tabular-nums;
+}
+
+/* Pulsing dot: prices on this table are live */
+.live-dot {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--positive);
+}
+
+.live-dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--positive);
+  animation: live-pulse 2s ease-out infinite;
+}
+
+@keyframes live-pulse {
+  from { transform: scale(1); opacity: 0.6; }
+  to { transform: scale(2.6); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-dot::after {
+    animation: none;
+  }
+}
+
+/* Columns size to their content (the global tables use fixed widths), so nothing is clipped;
+   the wrapper scrolls sideways if the panel is narrower than the table */
+.holdings-table {
+  table-layout: auto;
+}
+
+.holdings-table th,
+.holdings-table td {
+  padding-left: 14px;
+  padding-right: 14px;
+}
+
+.holdings-table th:first-child,
+.holdings-table td:first-child {
+  padding-left: 20px;
+}
+
+.holdings-table th:last-child,
+.holdings-table td:last-child {
+  padding-right: 20px;
+}
+
+.holdings-table td {
+  height: 50px;
+}
+
+/* Second line under a figure: currency, cost, percentage */
+.holdings-table .sub {
+  display: block;
+  margin-top: 1px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--ink-500);
+}
+
+.holdings-table .instrument {
+  display: block;
 }
 
 /* Profit and loss tones */
@@ -37,10 +187,12 @@
   color: var(--negative);
 }
 
-.pnl-percent {
-  display: block;
-  font-size: 12px;
-  opacity: 0.85;
+.holdings-table .sub.pnl-up {
+  color: var(--positive);
+}
+
+.holdings-table .sub.pnl-down {
+  color: var(--negative);
 }
 
 /* Stale / unpriced quote flag next to the last price */
@@ -52,25 +204,74 @@
   vertical-align: middle;
 }
 
+/* Weight: share of the holdings' market value */
+.weight-head,
+.weight {
+  width: 170px;
+}
+
+.weight {
+  white-space: nowrap;
+}
+
+.weight-track {
+  display: inline-block;
+  width: calc(100% - 52px);
+  min-width: 60px;
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--surface-sunken);
+  overflow: hidden;
+  vertical-align: middle;
+}
+
+.weight-fill {
+  display: block;
+  height: 100%;
+  min-width: 3px;
+  border-radius: var(--r-pill);
+  background: var(--brand);
+}
+
+.weight-pct {
+  display: inline-block;
+  width: 44px;
+  margin-left: 6px;
+  text-align: right;
+  font-size: 12.5px;
+  color: var(--ink-500);
+  font-variant-numeric: tabular-nums;
+  vertical-align: middle;
+}
+
+/* Totals under the holdings */
+.totals-row td {
+  height: 46px;
+  border-top: 1px solid var(--line-strong, var(--line));
+  border-bottom: 0;
+  background: var(--surface-sunken);
+  font-weight: 600;
+  color: var(--ink-900);
+}
+
 /* Trade actions sit at the row end, clear of the right-aligned numbers */
-.transactions-table .col-actions-head,
-.transactions-table .cell-actions {
+.holdings-table .col-actions-head,
+.holdings-table .cell-actions {
   text-align: right;
 }
 
 .trade-actions {
   display: inline-flex;
-  gap: 8px;
+  gap: 6px;
 }
 
 .trade-btn {
-  min-width: 76px;
+  min-width: 52px;
+  height: 30px;
+  padding: 0 12px;
   background: var(--surface);
   border-color: var(--line-strong);
-}
-
-.trade-btn i {
-  font-size: 11px;
+  font-weight: 600;
 }
 
 .trade-btn.buy {
@@ -91,4 +292,24 @@
   background: var(--negative-soft);
   border-color: var(--negative-line);
   color: var(--negative);
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 1100px) {
+  .sum-divider {
+    flex-basis: 100%;
+    width: auto;
+    height: 1px;
+    margin: 6px 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .sum-op {
+    display: none;
+  }
+
+  .summary-bar {
+    gap: 12px 20px;
+  }
 }

@@ -1,231 +1,128 @@
-/* Holdings overview shown inside the dashboard "Portfolio holdings" panel */
+/* Holdings overview shown inside the dashboard "Portfolio holdings" panel:
+   one compact row per holding, its share of units drawn as a small bar */
 
 :host {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+  display: block;
+  min-height: 0;
 }
 
-/* ===== ALLOCATION ===== */
-.positions-overview {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.allocation-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.allocation-caption {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--ink-500);
-}
-
-.alloc-status {
+.holdings-state {
+  margin: 0;
+  padding: 12px 0;
   font-size: 13px;
   color: var(--ink-500);
-  font-variant-numeric: tabular-nums;
 }
 
-.alloc-status .error {
+.holdings-state.error {
   color: var(--negative);
   font-weight: 600;
 }
 
-.allocation-bar {
-  display: flex;
-  gap: 3px;
+.holdings-list {
   width: 100%;
-  height: 14px;
-  border-radius: var(--r-pill);
-  overflow: hidden;
-  background: var(--surface-sunken);
-}
-
-.allocation-bar .segment {
-  height: 100%;
-  min-width: 6px;
-  cursor: pointer;
-  transition: filter var(--t-fast);
-}
-
-.allocation-bar .segment:first-child {
-  border-radius: var(--r-pill) 0 0 var(--r-pill);
-}
-
-.allocation-bar .segment:last-child {
-  border-radius: 0 var(--r-pill) var(--r-pill) 0;
-}
-
-.allocation-bar .segment:only-child {
-  border-radius: var(--r-pill);
-}
-
-.allocation-bar .segment:hover {
-  filter: brightness(1.12);
-}
-
-.allocation-bar .segment.empty {
-  flex-basis: 100%;
-  background: var(--surface-sunken);
-  cursor: default;
-}
-
-.allocation-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  list-style: none;
-  margin: 4px 0 0;
-  padding: 0;
-}
-
-.legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 28px;
-  padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-pill);
-  background: var(--surface);
-  font-size: 12.5px;
-}
-
-.legend-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
-
-.legend-symbol {
-  font-weight: 600;
-  color: var(--ink-900);
-}
-
-.legend-pct {
-  color: var(--ink-500);
+  border-collapse: collapse;
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
 
-/* ===== HOLDINGS DETAIL ===== */
-.holdings-detail {
-  display: grid;
-  grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1fr);
-  gap: 16px;
-  align-items: stretch;
-}
-
-.top-card {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 18px 20px;
-  border-radius: var(--r-lg);
-  background:
-    radial-gradient(circle at 100% 0%, rgba(59, 130, 246, 0.35), transparent 55%),
-    linear-gradient(145deg, #0f1d3d 0%, #13295c 100%);
-  color: #ffffff;
-  border: 1px solid var(--line);
-  box-shadow: var(--shadow-raised);
-}
-
-.top-eyebrow {
-  font-size: 12px;
+.holdings-list th {
+  height: 26px;
+  padding: 0 10px 4px;
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.top-symbol {
-  margin: 4px 0 12px;
-  font-size: 26px;
-  font-weight: 650;
-  letter-spacing: -0.02em;
-}
-
-/* Label / value rows so long amounts never truncate in the narrower card */
-.top-metrics {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 6px;
-  margin: 0;
-  padding-top: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.14);
-}
-
-.top-metrics .metric {
-  min-width: 0;
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.top-metrics .label {
-  font-size: 11.5px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.top-metrics .value {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  text-align: left;
+  color: var(--ink-500);
   white-space: nowrap;
 }
 
-.mini-table {
-  min-width: 0;
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
+.holdings-list td {
+  height: 30px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-900);
+  white-space: nowrap;
+}
+
+.holdings-list tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.holdings-list tbody tr:hover td {
+  background: var(--surface-hover, var(--surface-sunken));
+}
+
+.holdings-list th:first-child,
+.holdings-list td:first-child {
+  padding-left: 2px;
+}
+
+.holdings-list th:last-child,
+.holdings-list td:last-child {
+  padding-right: 2px;
+}
+
+.holdings-list .num {
+  text-align: right;
+}
+
+/* Symbol with its colour dot */
+.holding {
+  max-width: 160px;
+}
+
+.holding .dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
+.holding .symbol {
+  display: inline-block;
+  max-width: calc(100% - 16px);
   overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+  font-weight: 600;
 }
 
-.mini-table .data-table th {
-  height: 38px;
+/* Share: a thin bar plus the percentage */
+.share-head,
+.share {
+  width: 42%;
 }
 
-.mini-table .data-table th,
-.mini-table .data-table td {
-  padding-left: 14px;
-  padding-right: 14px;
+.share {
+  white-space: nowrap;
 }
 
-.mini-table .data-table td {
-  height: 40px;
+.share-track {
+  display: inline-block;
+  width: calc(100% - 54px);
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--surface-sunken);
+  overflow: hidden;
+  vertical-align: middle;
 }
 
-@media (max-width: 1100px) {
-  .holdings-detail {
-    grid-template-columns: 1fr;
-  }
+.share-fill {
+  display: block;
+  height: 100%;
+  min-width: 3px;
+  border-radius: var(--r-pill);
 }
 
-@media (max-width: 480px) {
-  .top-card {
-    padding: 20px;
-  }
-
-  .top-metrics {
-    gap: 10px;
-  }
-
-  .top-metrics .value {
-    font-size: 14px;
-    overflow: visible;
-    white-space: normal;
-    overflow-wrap: anywhere;
-  }
+.share-pct {
+  display: inline-block;
+  width: 48px;
+  margin-left: 6px;
+  text-align: right;
+  color: var(--ink-500);
+  vertical-align: middle;
 }

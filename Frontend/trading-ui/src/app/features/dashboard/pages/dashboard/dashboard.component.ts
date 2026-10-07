@@ -3,11 +3,13 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { PositionsOverviewComponent } from '../../components/positions-overview/positions-overview.component';
 import { WatchlistWidgetComponent } from '../../../watchlist/components/watchlist-widget/watchlist-widget.component';
+import { NetWorthChartComponent } from '../../components/net-worth-chart/net-worth-chart.component';
 import { CoreAuthService } from '../../../../core/auth/core-auth.service';
 import { BlotterStore } from '../../../blotter/blotter.store';
 import { DashboardService } from '../../services/dashboard.service';
 import { OrderStatus } from '../../../../api/generated/trade';
 import { PortfolioService, PortfolioSummary } from '../../../../api/generated/porfolio';
+import { PositionResponse } from '../../../../api/generated/trade';
 import { computed } from '@angular/core';
 
 interface StatCard {
@@ -29,7 +31,7 @@ interface StatCard {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterModule, PositionsOverviewComponent, WatchlistWidgetComponent],
+  imports: [CommonModule, RouterModule, PositionsOverviewComponent, WatchlistWidgetComponent, NetWorthChartComponent],
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.css']
 })
@@ -56,6 +58,25 @@ export class DashboardComponent implements OnInit {
     const account = this.accountSignal();
     return account?.holderName || null;
   });
+
+  /** "4 holdings · 1,170 units" next to the holdings title, once positions have loaded */
+  readonly holdingsSummary = signal<string | null>(null);
+
+  onPositionsLoaded(positions: PositionResponse[]): void {
+    const open = positions.filter((p) => (p.quantity ?? 0) > 0);
+    if (open.length === 0) {
+      this.holdingsSummary.set(null);
+      return;
+    }
+    const units = open.reduce((sum, p) => sum + (p.quantity ?? 0), 0);
+    this.holdingsSummary.set(
+      `${open.length} holding${open.length === 1 ? '' : 's'}${open.length > 4 ? ' · top 4 shown' : ''} · ${units.toLocaleString('en-US')} units`,
+    );
+  }
+
+  /** Today's net worth for the chart: the portfolio total (cash + positions), null until loaded */
+  netWorth = computed(() => this.portfolioSummarySignal()?.totalValue ?? null);
+  netWorthCurrency = computed(() => this.portfolioSummarySignal()?.baseCurrency ?? null);
 
   /** Headline figures, all from real account data */
   portfolioStats = computed<StatCard[]>(() => {

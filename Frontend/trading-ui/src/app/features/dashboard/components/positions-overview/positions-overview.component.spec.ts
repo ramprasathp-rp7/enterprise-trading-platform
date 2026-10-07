@@ -81,8 +81,13 @@ describe('PositionsOverviewComponent', () => {
     expect(allocation[0].percentage).toBeCloseTo(60);
     expect(allocation.reduce((sum, a) => sum + a.percentage, 0)).toBeCloseTo(100);
     expect(allocation.every((a) => /^#[0-9a-f]{6}$/i.test(a.color))).toBe(true);
-    expect(fixture.nativeElement.querySelectorAll('.allocation-bar .segment').length).toBe(5);
-    expect(fixture.nativeElement.querySelectorAll('.legend-item').length).toBe(5);
+    // The dashboard lists the four largest, each with a share bar in its colour
+    expect(component.rows().map((r) => r.symbol)).toEqual(['AAPL', 'MSFT', 'NVDA', 'INFY.NS']);
+    expect(component.rows()[0]).toEqual(expect.objectContaining({ averageCost: 180, color: allocation[0].color }));
+    const fills: HTMLElement[] = Array.from(fixture.nativeElement.querySelectorAll('.share-fill'));
+    expect(fills.length).toBe(4);
+    expect(fills[0].style.width).toBe('60%');
+    expect(fixture.nativeElement.querySelector('[data-testid="holding-AAPL"]').textContent).toContain('60.0%');
   });
 
   it('returns no allocation when every quantity is zero', async () => {
@@ -90,7 +95,7 @@ describe('PositionsOverviewComponent', () => {
     await create();
 
     expect(component.allocation()).toEqual([]);
-    expect(fixture.nativeElement.querySelector('.segment.empty')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="holdings-empty"]')).not.toBeNull();
   });
 
   it('picks the largest holding and lists the rest after it', async () => {
@@ -101,8 +106,11 @@ describe('PositionsOverviewComponent', () => {
     expect(component.tableHoldings()[0].symbol).toBe('AAPL');
     expect(component.topFour().length).toBe(4);
     expect(component.tableRows().map((p) => p.symbol)).toEqual(['AAPL', 'MSFT', 'NVDA', 'INFY.NS']);
-    expect(fixture.nativeElement.querySelector('.top-symbol').textContent).toContain('AAPL');
-    expect(fixture.nativeElement.querySelectorAll('.mini-table tbody tr').length).toBe(4);
+    // The compact dashboard lists the largest holding first in the table (no separate card)
+    expect(fixture.nativeElement.querySelector('.top-symbol')).toBeNull();
+    const rows = fixture.nativeElement.querySelectorAll('.mini-table tbody tr');
+    expect(rows.length).toBe(4);
+    expect(rows[0].textContent).toContain('AAPL');
   });
 
   it('has no other holdings when there is a single position', async () => {
@@ -130,7 +138,7 @@ describe('PositionsOverviewComponent', () => {
 
     expect(component.error()).toBe('Could not load positions');
     expect(component.loading()).toBe(false);
-    expect(fixture.nativeElement.querySelector('.alloc-status .error').textContent).toContain('Could not load positions');
+    expect(fixture.nativeElement.querySelector('.holdings-state.error').textContent).toContain('Could not load positions');
     consoleError.mockRestore();
   });
 
