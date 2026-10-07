@@ -22,6 +22,7 @@ export class OrderTicketStore {
   private readonly errorCodeSignal = signal<string | null>(null);
   private readonly errorMessageSignal = signal<string | null>(null);
   private readonly accountDisplayIdSignal = signal<string | null>(null);
+  private readonly accountCurrencySignal = signal<string | null>(null);
   private accountLookupSubscription: Subscription | null = null;
   private lastFetchedAccountId: number | null = null;
 
@@ -30,6 +31,8 @@ export class OrderTicketStore {
   errorCode = computed(() => this.errorCodeSignal());
   errorMessage = computed(() => this.errorMessageSignal());
   accountDisplayId = computed(() => this.accountDisplayIdSignal());
+  /** The account's currency: cash is debited in it, at the FX rate fetched when the order fills */
+  accountCurrency = computed(() => this.accountCurrencySignal());
   accountId = computed(() => {
     const currentUser = this.authService.currentUser();
     if (currentUser) {
@@ -77,6 +80,11 @@ export class OrderTicketStore {
         error: () => {
           this.accountDisplayIdSignal.set(null);
         },
+      });
+      // The account's currency comes from the balance (the account record does not carry one)
+      this.accountsService.getBalance(accountId).subscribe({
+        next: (balance) => this.accountCurrencySignal.set(balance.currency || null),
+        error: () => this.accountCurrencySignal.set(null),
       });
     });
   }

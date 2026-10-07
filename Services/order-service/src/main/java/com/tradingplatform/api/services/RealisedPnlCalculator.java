@@ -11,7 +11,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.HashMap;
@@ -20,9 +19,9 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Calculates realised profit and loss for an account.
+ * Calculates realised profit and loss for an account, in the account's currency.
  * Realised P&L is booked at the moment of a SELL order execution and never recomputed.
- * Formula: (executedPrice - averageCostAtSale) * quantitySold
+ * Formula: quantitySold * (executedPrice * fillFxRate - averageCostAccountAtSale), stored on the order.
  */
 @Service
 public class RealisedPnlCalculator {
@@ -128,34 +127,22 @@ public class RealisedPnlCalculator {
     }
 
     /**
-     * Calculate realised P&L for a single SELL order.
-     * Formula: (executedPrice - averageCostAtSale) * quantitySold
-     * 
-     * Note: averageCostAtSale is not directly stored; it is read from the position
-     * at the time the order was executed. For now, we use the order's price field
-     * as a proxy for average cost at sale. In a full implementation, this would
-     * be persisted on the order or reconstructed from order history.
-     * 
-     * @param sellOrder A SELL order with EXECUTED status
-     * @return Realised P&L (positive = profit, negative = loss)
+     * Realised P&L for a single filled SELL order, in account currency.
+     *
+     * It is booked by settlement at the moment the SELL fills, as
+     * {@code quantity * (executedPrice * fillFxRate - averageCostAccountAtSale)}, and stored on the
+     * order, so it is read here, never recomputed: it does not depend on today's price or today's FX rate.
+     *
+     * @param sellOrder A FILLED SELL order
+     * @return Realised P&L (positive = profit, negative = loss); zero if none was booked
      */
     private BigDecimal calculateOrderRealisedPnl(Order sellOrder) {
-        if (sellOrder.getExecutedPrice() == null) {
-            log.warn("Order {} has no executed price; skipping P&L calculation", sellOrder.getId());
+        BigDecimal pnl = sellOrder.getRealisedPnl();
+        if (pnl == null) {
+            log.warn("Order {} has no booked realised P&L; counting it as zero", sellOrder.getId());
             return BigDecimal.ZERO;
         }
-
-        // For now, use the order price as a proxy for average cost at sale
-        // In production, this should be read from a persisted average cost or order history
-        BigDecimal averageCostAtSale = sellOrder.getPrice();
-        BigDecimal pnl = sellOrder.getExecutedPrice()
-                .subtract(averageCostAtSale)
-                .multiply(BigDecimal.valueOf(sellOrder.getQuantity()))
-                .setScale(2, RoundingMode.HALF_UP);
-
-        log.debug("Realised P&L for order {}: {} = ({} - {}) * {}",
-                sellOrder.getId(), pnl, sellOrder.getExecutedPrice(), averageCostAtSale, sellOrder.getQuantity());
-
+        log.debug("Realised P&L for order {}: {}", sellOrder.getId(), pnl);
         return pnl;
     }
 }

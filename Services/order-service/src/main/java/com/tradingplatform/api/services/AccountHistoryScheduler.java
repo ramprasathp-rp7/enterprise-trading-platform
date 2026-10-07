@@ -175,7 +175,7 @@ public class AccountHistoryScheduler {
         List<Position> positions = positionMapper.findByAccountId(account.getId());
         
         // Step 3: Price each position and calculate market value
-        BigDecimal marketValue = calculateMarketValue(positions);
+        BigDecimal marketValue = calculateMarketValue(positions, account.getCurrency());
         
         // Step 4: Calculate networth = cash + market value
         BigDecimal networth = cashBalance.add(marketValue);
@@ -197,20 +197,23 @@ public class AccountHistoryScheduler {
     }
 
     /**
-     * Calculate total market value of all positions.
+     * Calculate total market value of all positions, in the account's currency.
      * Pricing order: market-data cache (kept fresh by the poller) → Fauxnance API (only for
      * symbols the cache is missing) → the position's average cost as a last resort.
+     * Each holding is valued in its instrument's currency and converted at the snapshot's FX rate
+     * (FX: pairs priced the same way as the instruments).
      *
      * @param positions List of positions to price
-     * @return Total market value (sum of quantity × price for all positions)
+     * @param accountCurrency Currency the snapshot is expressed in
+     * @return Total market value (sum of quantity × price × FX rate for all positions)
      */
-    private BigDecimal calculateMarketValue(List<Position> positions) {
+    private BigDecimal calculateMarketValue(List<Position> positions, String accountCurrency) {
         if (positions == null || positions.isEmpty()) {
             return BigDecimal.ZERO;
         }
 
         // Resolve symbols for non-zero positions and price them from the cache where possible
-        Map<Position, String> symbolsByPosition = new LinkedHashMap<>();
+        Map<Position, Instrument> instrumentsByPosition = new LinkedHashMap<>();
         Map<String, BigDecimal> pricesBySymbol = new HashMap<>();
         List<String> uncachedSymbols = new ArrayList<>();
 
@@ -219,14 +222,21 @@ public class AccountHistoryScheduler {
                 continue;
             }
             Instrument instrument = instrumentMapper.findById(position.getInstrumentId());
-            String symbol = instrument != null ? instrument.getSymbol() : null;
-            symbolsByPosition.put(position, symbol);
-            if (symbol == null || pricesBySymbol.containsKey(symbol) || uncachedSymbols.contains(symbol)) {
+            instrumentsByPosition.put(position, instrument);
+            if (instrument == null) {
                 continue;
             }
-            marketDataCache.getLatestQuote(symbol)
-                    .map(QuotePayload::price)
-                    .ifPresentOrElse(price -> pricesBySymbol.put(symbol, price), () -> uncachedSymbols.add(symbol));
+            List<String> needed = new ArrayList<>();
+            needed.add(instrument.getSymbol());
+            needed.addAll(FxRateService.pairSymbols(instrument.getCurrency(), accountCurrency));
+            for (String symbol : needed) {
+                if (pricesBySymbol.containsKey(symbol) || uncachedSymbols.contains(symbol)) {
+                    continue;
+                }
+                marketDataCache.getLatestQuote(symbol)
+                        .map(QuotePayload::price)
+                        .ifPresentOrElse(price -> pricesBySymbol.put(symbol, price), () -> uncachedSymbols.add(symbol));
+            }
         }
 
         // Only spend Fauxnance quota on symbols the cache could not price
@@ -240,23 +250,45 @@ public class AccountHistoryScheduler {
         }
 
         BigDecimal marketValue = BigDecimal.ZERO;
-        for (Map.Entry<Position, String> entry : symbolsByPosition.entrySet()) {
+        for (Map.Entry<Position, Instrument> entry : instrumentsByPosition.entrySet()) {
             Position position = entry.getKey();
-            String symbol = entry.getValue();
+            Instrument instrument = entry.getValue();
+            String symbol = instrument != null ? instrument.getSymbol() : null;
+            BigDecimal quantity = BigDecimal.valueOf(position.getQuantity());
 
             BigDecimal price = symbol != null ? pricesBySymbol.get(symbol) : null;
-            if (price == null) {
-                // Better an approximate networth than a permanently understated one
-                price = position.getAverageCost();
-                logger.warn("No market price for symbol={} (instrumentId={}). Using average cost {} for snapshot.",
-                        symbol, position.getInstrumentId(), price);
+            BigDecimal fxRate = instrument != null ? fxRate(instrument.getCurrency(), accountCurrency, pricesBySymbol) : null;
+            if (price == null || fxRate == null) {
+                // Better an approximate networth than a permanently understated one: the account-currency
+                // average cost needs neither a price nor an FX rate
+                logger.warn("No market price or FX rate for symbol={} (instrumentId={}). Using average cost {} {} for snapshot.",
+                        symbol, position.getInstrumentId(), position.getAverageCostAccount(), accountCurrency);
+                marketValue = marketValue.add(position.getAverageCostAccount().multiply(quantity));
+                continue;
             }
 
-            // Market value = quantity × price
-            marketValue = marketValue.add(price.multiply(BigDecimal.valueOf(position.getQuantity())));
+            // Market value = quantity × price × FX rate (instrument → account currency)
+            marketValue = marketValue.add(price.multiply(quantity).multiply(fxRate));
         }
 
-        return marketValue;
+        return marketValue.setScale(2, java.math.RoundingMode.HALF_UP);
+    }
+
+    /** Instrument-to-account rate from already-priced FX: pairs (direct, then inverse); null if neither. */
+    private static BigDecimal fxRate(String from, String to, Map<String, BigDecimal> pricesBySymbol) {
+        List<String> pairs = FxRateService.pairSymbols(from, to);
+        if (pairs.isEmpty()) {
+            return BigDecimal.ONE;
+        }
+        BigDecimal direct = pricesBySymbol.get(pairs.get(0));
+        if (direct != null && direct.signum() > 0) {
+            return direct;
+        }
+        BigDecimal inverse = pricesBySymbol.get(pairs.get(1));
+        if (inverse != null && inverse.signum() > 0) {
+            return BigDecimal.ONE.divide(inverse, 10, java.math.RoundingMode.HALF_UP);
+        }
+        return null;
     }
 
     /**

@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { of } from 'rxjs';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { InstrumentPanelComponent } from './instrument-panel.component';
 import { InstrumentCatalogService } from '../../services/instrument-catalog.service';
@@ -16,7 +17,10 @@ describe('InstrumentPanelComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({ imports: [InstrumentPanelComponent] }).compileComponents();
     // Monday 5 Oct 2026, 11:00 in New York
-    TestBed.inject(InstrumentCatalogService).now = () => new Date('2026-10-05T15:00:00Z');
+    const catalog = TestBed.inject(InstrumentCatalogService);
+    catalog.now = () => new Date('2026-10-05T15:00:00Z');
+    // The chart's candles come from the candle API; serve the catalogue's own candles for the range
+    vi.spyOn(catalog, 'candlesInRangeFromApi').mockImplementation((symbol, range) => of(catalog.candlesInRange(symbol, range)));
     fixture = TestBed.createComponent(InstrumentPanelComponent);
     component = fixture.componentInstance;
   });
@@ -40,7 +44,7 @@ describe('InstrumentPanelComponent', () => {
       expect(text('[data-testid="instrument-symbol"]')).toBe('INFY.NS');
       expect(text('[data-testid="data-source"]')).toBe('Fauxnance snapshot');
       expect(text('[data-testid="instrument-last"]')).toBe('1,036.70');
-      expect(text('[data-testid="instrument-change"]')).toBe('-4.50 (-0.43%)');
+      expect(text('[data-testid="instrument-change"]')).toBe('-₹4.50 (-0.43%)');
     });
 
     it('shows the market as closed, the quote as delayed, and the time in IST', () => {
@@ -51,20 +55,20 @@ describe('InstrumentPanelComponent', () => {
 
     it('shows bid, ask and spread', () => {
       const book = text('[data-testid="quote-book"]');
-      expect(book).toContain('Bid 1,036.49');
-      expect(book).toContain('Ask 1,036.91');
-      expect(book).toContain('Spread 0.42');
+      expect(book).toContain('Bid ₹1,036.49');
+      expect(book).toContain('Ask ₹1,036.91');
+      expect(book).toContain('Spread ₹0.42');
     });
 
     it('shows previous-session and 52-week stats (no open), with the price placed on the range bar', () => {
       const stats = text('[data-testid="instrument-stats"]');
       expect(stats).not.toContain('Open');
-      expect(stats).toContain('Prev close1,041.20');
-      expect(stats).toContain('Prev day range1,041.20 – 1,041.20');
+      expect(stats).toContain('Prev close₹1,041.20');
+      expect(stats).toContain('Prev day range₹1,041.20 – ₹1,041.20');
       expect(stats).toContain('Prev volume0');
       expect(component.sessionTitle()).toBe('Previous session: Fri, Jun 26, 2026');
-      expect(stats).toContain('1,026.00');
-      expect(stats).toContain('1,728.00');
+      expect(stats).toContain('₹1,026.00');
+      expect(stats).toContain('₹1,728.00');
       expect(component.yearPosition()).toBeGreaterThanOrEqual(0);
       expect(component.yearPosition()).toBeLessThan(5);
     });
@@ -74,10 +78,12 @@ describe('InstrumentPanelComponent', () => {
       expect(component.range()).toBe('3M');
       expect(text('[data-testid="range-return"]')).toMatch(/^3M -\d+\.\d{2}%$/);
 
-      fixture.nativeElement.querySelector('[data-testid="range-1Y"]').click();
+      // Ranges top out at 3 months (candle data is kept for 90 days); a shorter one shows fewer candles
+      fixture.nativeElement.querySelector('[data-testid="range-1M"]').click();
       fixture.detectChanges();
-      expect(component.series().length).toBeGreaterThan(threeMonths);
-      expect(fixture.nativeElement.querySelector('[data-testid="range-1Y"]').getAttribute('aria-selected')).toBe('true');
+      expect(component.series().length).toBeGreaterThan(0);
+      expect(component.series().length).toBeLessThan(threeMonths);
+      expect(fixture.nativeElement.querySelector('[data-testid="range-1M"]').getAttribute('aria-selected')).toBe('true');
 
       expect(fixture.nativeElement.querySelector('[data-testid="chart-candles"]')).not.toBeNull();
       fixture.nativeElement.querySelector('[data-testid="mode-line"]').click();

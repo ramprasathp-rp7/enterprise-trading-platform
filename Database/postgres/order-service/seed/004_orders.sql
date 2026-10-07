@@ -53,3 +53,21 @@ FROM accounts a, instruments i WHERE a.account_id = 'ACC-000006' AND i.symbol = 
 INSERT INTO orders (account_id, instrument_id, side, quantity, price, executed_price, status, idempotency_key, created_on, updated_on, executed_on, rejected_reason)
 SELECT a.id, i.id, 'BUY', 25, 1600.00, NULL, 'NEW', 'SEED-0006-C', TIMESTAMP '2026-08-20 09:05:00+00', TIMESTAMP '2026-08-20 09:05:00+00', NULL, NULL
 FROM accounts a, instruments i WHERE a.account_id = 'ACC-000006' AND i.symbol = 'INFY.NS';
+
+-- Multi-currency (migration 018). Rates are account (USD) per instrument-currency unit, at the seed
+-- reference FX:USDINR = 83.47, so INR -> USD = 1 / 83.47. USD instruments keep the default rate of 1.
+-- Seeded orders filled at the rate they were placed at.
+UPDATE orders o
+SET placement_fx_rate = 0.0119803522
+FROM instruments i
+WHERE i.id = o.instrument_id AND i.currency = 'INR' AND o.idempotency_key LIKE 'SEED-%';
+
+UPDATE orders
+SET fill_fx_rate = placement_fx_rate
+WHERE status = 'FILLED' AND idempotency_key LIKE 'SEED-%';
+
+-- Realised P&L booked on the filled SELLs, in USD:
+--   SEED-0004-B: 20 AAPL  * (185.00 - 180.00)                               = 100.00
+--   SEED-0005-C: 20 RELIANCE.NS * (2500.00 * 0.0119803522 - 28.752845)      =  23.96
+UPDATE orders SET realised_pnl = 100.00 WHERE idempotency_key = 'SEED-0004-B';
+UPDATE orders SET realised_pnl = 23.96  WHERE idempotency_key = 'SEED-0005-C';

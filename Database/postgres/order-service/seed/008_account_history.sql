@@ -2,21 +2,22 @@
 -- Seed data for account_history table.
 -- networth = cash_balance + market value of the account's seeded positions (005_positions.sql),
 -- valued around average cost with small daily moves, so the first real scheduler run lines up.
+-- All accounts are USD; INR holdings are converted at the seed reference FX:USDINR = 83.47.
 -- Accounts are looked up by account number, matching the other seed files.
 
--- ACC-000001 (Priya Menon) - ACTIVE - cash 24500.75; 100 ACME + 40 INFY.NS (cost 65760.00)
+-- ACC-000001 (Priya Menon) - ACTIVE - cash 24500.75; 100 ACME ($2550.00) + 40 INFY.NS (INR 63210.00 = $757.28); cost $3307.28
 INSERT INTO account_history (account_id, snapshot_date, cash_balance, networth, created_on)
 SELECT a.id, v.snapshot_date::timestamptz, v.cash_balance, v.networth, now()
 FROM accounts a
 CROSS JOIN (VALUES
-    ('2026-09-28 23:59:59+00', 24500.75, 90260.75),
-    ('2026-09-29 23:59:59+00', 24500.75, 90523.79),
-    ('2026-09-30 23:59:59+00', 24500.75, 90063.47),
-    ('2026-10-01 23:59:59+00', 24500.75, 90786.83),
-    ('2026-10-02 23:59:59+00', 24500.75, 91049.87),
-    ('2026-10-03 23:59:59+00', 24500.75, 90852.59),
-    ('2026-10-04 23:59:59+00', 24500.75, 91247.15),
-    ('2026-10-05 23:59:59+00', 24500.75, 91444.43)
+    ('2026-09-28 23:59:59+00', 24500.75, 27808.03),
+    ('2026-09-29 23:59:59+00', 24500.75, 27821.26),
+    ('2026-09-30 23:59:59+00', 24500.75, 27798.11),
+    ('2026-10-01 23:59:59+00', 24500.75, 27834.49),
+    ('2026-10-02 23:59:59+00', 24500.75, 27847.72),
+    ('2026-10-03 23:59:59+00', 24500.75, 27837.79),
+    ('2026-10-04 23:59:59+00', 24500.75, 27857.64),
+    ('2026-10-05 23:59:59+00', 24500.75, 27867.56)
 ) AS v(snapshot_date, cash_balance, networth)
 WHERE a.account_id = 'ACC-000001';
 
@@ -36,19 +37,19 @@ CROSS JOIN (VALUES
 ) AS v(snapshot_date, cash_balance, networth)
 WHERE a.account_id = 'ACC-000002';
 
--- ACC-000005 (Meera Nair) - ACTIVE - cash 15000.00; 200 TATASTEEL.BO + 30 RELIANCE.NS (cost 101150.00)
+-- ACC-000005 (Meera Nair) - ACTIVE - cash 15000.00; 200 TATASTEEL.BO + 30 RELIANCE.NS (INR 101150.00 = $1211.81)
 INSERT INTO account_history (account_id, snapshot_date, cash_balance, networth, created_on)
 SELECT a.id, v.snapshot_date::timestamptz, v.cash_balance, v.networth, now()
 FROM accounts a
 CROSS JOIN (VALUES
-    ('2026-09-28 23:59:59+00', 15000.00, 116150.00),
-    ('2026-09-29 23:59:59+00', 15000.00, 116554.60),
-    ('2026-09-30 23:59:59+00', 15000.00, 115846.55),
-    ('2026-10-01 23:59:59+00', 15000.00, 116959.20),
-    ('2026-10-02 23:59:59+00', 15000.00, 117363.80),
-    ('2026-10-03 23:59:59+00', 15000.00, 117060.35),
-    ('2026-10-04 23:59:59+00', 15000.00, 117667.25),
-    ('2026-10-05 23:59:59+00', 15000.00, 117970.70)
+    ('2026-09-28 23:59:59+00', 15000.00, 16211.81),
+    ('2026-09-29 23:59:59+00', 15000.00, 16216.66),
+    ('2026-09-30 23:59:59+00', 15000.00, 16208.18),
+    ('2026-10-01 23:59:59+00', 15000.00, 16221.51),
+    ('2026-10-02 23:59:59+00', 15000.00, 16226.35),
+    ('2026-10-03 23:59:59+00', 15000.00, 16222.72),
+    ('2026-10-04 23:59:59+00', 15000.00, 16229.99),
+    ('2026-10-05 23:59:59+00', 15000.00, 16233.63)
 ) AS v(snapshot_date, cash_balance, networth)
 WHERE a.account_id = 'ACC-000005';
 

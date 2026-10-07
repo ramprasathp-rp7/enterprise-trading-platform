@@ -28,7 +28,7 @@
       </div>
 
       <div class="confirmation-amount" data-testid="transaction-amount">
-        {{ isCredit() ? '+' : '−' }}{{ formatAmount(tx.amount) }}<small>USD</small>
+        {{ isCredit() ? '+' : '−' }}{{ formatAmount(tx.amount) }}<small data-testid="transaction-currency">{{ currency() ?? '' }}</small>
       </div>
 
       <dl class="detail-grid">

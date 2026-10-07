@@ -178,6 +178,20 @@ def _to_decimal(value, field_name: str, source_order_id: str) -> Decimal:
         )
 
 
+def fx_rate_of_record(order: dict, status: str, source_order_id: str) -> Decimal:
+    """Instrument-to-account rate for an order: the fill rate once FILLED, otherwise the
+    placement rate; 1 when the extract predates the rate columns."""
+    raw = order.get("fill_fx_rate") if status == "FILLED" else None
+    if raw is None:
+        raw = order.get("placement_fx_rate")
+    if raw is None:
+        return Decimal("1")
+    rate = _to_decimal(raw, "fx_rate", source_order_id)
+    if rate <= 0:
+        raise QualityError("FX_RATE_NOT_POSITIVE", f"fx rate must be > 0, got {rate}", source_order_id)
+    return rate
+
+
 def validate_and_build_fact_row(
     order: dict,
     instrument_key_map: dict[str, int],
@@ -252,6 +266,13 @@ def validate_and_build_fact_row(
     else:
         trade_value = Decimal(quantity) * price
 
+    # Multi-currency: trade_value is in the instrument's currency (right for exposure by
+    # instrument); trade_value_account converts it into the account's currency (all USD), the
+    # measure that sums across instruments. A FILLED order converts at the rate fetched at fill,
+    # anything else at the rate captured at placement. Orders from before migration 018 have 1.
+    fx_rate = fx_rate_of_record(order, status, source_order_id)
+    trade_value_account = (trade_value * fx_rate).quantize(Decimal("0.01"))
+
     return {
         "trade_key": trade_key,
         "account_key": account_key,
@@ -263,6 +284,8 @@ def validate_and_build_fact_row(
         "status": status,
         "executed_price": executed_price,
         "trade_value": trade_value,
+        "fx_rate": fx_rate,
+        "trade_value_account": trade_value_account,
         "source_order_id": source_order_id,
         "created_at": created_on,
         "loaded_at": loaded_at,

@@ -2,7 +2,6 @@ package com.tradingplatform.api.services;
 
 import com.tradingplatform.api.mappers.AccountMapper;
 import com.tradingplatform.api.mappers.InstrumentMapper;
-import com.tradingplatform.api.mappers.PositionMapper;
 import com.tradingplatform.domain.dto.PortfolioSummary;
 import com.tradingplatform.domain.dto.PricedPosition;
 import com.tradingplatform.domain.dto.PnlResponse;
@@ -20,43 +19,47 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
  * Portfolio and P&L service.
  * Coordinates pricing, position valuation, and P&L calculation.
  * Implements fallback logic: try Fauxnance first, fall back to market-data cache.
+ *
+ * Multi-currency: each position is valued in its instrument's currency and converted into the
+ * account's currency at the live FX rate (FX: pairs quoted in the same batch as the instruments).
+ * Totals are sums of the account-currency figures, so they are expressed in baseCurrency as the
+ * contract requires. A position with no FX rate is left out of the totals and marks them partial.
  */
 @Service
 public class PortfolioPnlService {
-    
+
     private static final Logger log = LoggerFactory.getLogger(PortfolioPnlService.class);
     private static final BigDecimal ZERO = BigDecimal.ZERO;
 
     private final AccountMapper accountMapper;
     private final InstrumentMapper instrumentMapper;
-    private final FauxnanceApiClient fauxnanceClient;
-    private final MarketDataCache marketDataCache;
+    private final QuoteResolver quoteResolver;
     private final RealisedPnlCalculator realisedPnlCalculator;
 
     public PortfolioPnlService(AccountMapper accountMapper, InstrumentMapper instrumentMapper,
-                               FauxnanceApiClient fauxnanceClient,
-                               MarketDataCache marketDataCache, RealisedPnlCalculator realisedPnlCalculator) {
+                               QuoteResolver quoteResolver, RealisedPnlCalculator realisedPnlCalculator) {
         this.accountMapper = Objects.requireNonNull(accountMapper, "accountMapper cannot be null");
         this.instrumentMapper = Objects.requireNonNull(instrumentMapper, "instrumentMapper cannot be null");
-        this.fauxnanceClient = Objects.requireNonNull(fauxnanceClient, "fauxnanceClient cannot be null");
-        this.marketDataCache = Objects.requireNonNull(marketDataCache, "marketDataCache cannot be null");
+        this.quoteResolver = Objects.requireNonNull(quoteResolver, "quoteResolver cannot be null");
         this.realisedPnlCalculator = Objects.requireNonNull(realisedPnlCalculator, "realisedPnlCalculator cannot be null");
     }
 
     /**
      * Get portfolio summary for an account.
-     * Cash, total market value, total cost basis, and P&L totals.
-     * 
+     * Cash, total market value, total cost basis, and P&L totals, all in the account's currency.
+     *
      * @param accountId Account ID
      * @return Portfolio summary
      * @throws PortfolioPnlException on errors (404, 503)
@@ -64,20 +67,22 @@ public class PortfolioPnlService {
     public PortfolioSummary getPortfolioSummary(Long accountId) {
         Account account = getAccountOrThrow404(accountId);
         List<Position> positions = getPositionsForAccount(accountId);
-        
+
         // Get priced positions
-        List<PricedPosition> pricedPositions = getPricedPositions(accountId, positions, null);
-        
-        // Aggregate metrics
+        List<PricedPosition> pricedPositions = priceAll(account, positions);
+
+        // Aggregate metrics, in account currency
         BigDecimal marketValue = ZERO;
         BigDecimal costBasis = ZERO;
         boolean partial = false;
 
         for (PricedPosition pos : pricedPositions) {
-            costBasis = costBasis.add(pos.getCostBasis());
-            if (pos.getMarketValue() != null) {
-                marketValue = marketValue.add(pos.getMarketValue());
+            // Cost basis in account currency is known for every holding (it is built at fill rates)
+            costBasis = costBasis.add(pos.getCostBasisAccount());
+            if (pos.getMarketValueAccount() != null) {
+                marketValue = marketValue.add(pos.getMarketValueAccount());
             } else {
+                // No price or no FX rate: leave the holding out rather than sum it in the wrong currency
                 partial = true;
             }
         }
@@ -91,7 +96,7 @@ public class PortfolioPnlService {
                     .setScale(2, RoundingMode.HALF_UP);
         }
 
-        // Get realised P&L
+        // Get realised P&L (booked in account currency at each SELL fill)
         BigDecimal realisedPnl = realisedPnlCalculator.calculateTotalRealisedPnl(accountId);
 
         // Calculate totals
@@ -116,8 +121,9 @@ public class PortfolioPnlService {
 
     /**
      * Get priced positions for an account.
-     * Each position includes market value, cost basis, and unrealised P&L.
-     * 
+     * Each position includes market value, cost basis, and unrealised P&L, in the instrument's
+     * currency and converted into the account's.
+     *
      * @param accountId Account ID
      * @param symbol Optional filter to one symbol
      * @return List of priced positions
@@ -126,7 +132,7 @@ public class PortfolioPnlService {
     public List<PricedPosition> getPricedPositions(Long accountId, String symbol) {
         Account account = getAccountOrThrow404(accountId);
         List<Position> positions = getPositionsForAccount(accountId);
-        
+
         // Filter by symbol if provided
         if (symbol != null && !symbol.isEmpty()) {
             positions = positions.stream()
@@ -134,82 +140,131 @@ public class PortfolioPnlService {
                     .collect(Collectors.toList());
         }
 
-        return getPricedPositions(accountId, positions, symbol);
+        return priceAll(account, positions);
     }
 
     /**
-     * Internal method to get priced positions.
+     * Prices positions in one quote batch: the instruments plus the FX pairs that convert their
+     * currencies into the account's.
      */
-    private List<PricedPosition> getPricedPositions(Long accountId, List<Position> positions, String filterSymbol) {
+    private List<PricedPosition> priceAll(Account account, List<Position> positions) {
         if (positions.isEmpty()) {
             return new ArrayList<>();
         }
+        String accountCurrency = account.getCurrency();
 
-        // Extract symbols and get quotes
-        List<String> symbols = positions.stream()
-                .map(p -> getInstrumentSymbol(p.getInstrumentId()))
-                .collect(Collectors.toList());
-
-        Map<String, QuoteAndInstrument> quotes = getQuotesWithFallback(symbols);
-
-        // Build priced positions
-        List<PricedPosition> result = new ArrayList<>();
+        Map<Long, Instrument> instruments = new HashMap<>();
+        Set<String> symbols = new LinkedHashSet<>();
         for (Position pos : positions) {
-            String instrumentSymbol = getInstrumentSymbol(pos.getInstrumentId());
             Instrument instrument = instrumentMapper.findById(pos.getInstrumentId());
-
             if (instrument == null) {
                 log.warn("Instrument {} not found", pos.getInstrumentId());
                 continue;
             }
-
-            QuoteAndInstrument qai = quotes.getOrDefault(instrumentSymbol, new QuoteAndInstrument(null, null, false));
-            
-            BigDecimal costBasis = pos.getAverageCost().multiply(BigDecimal.valueOf(pos.getQuantity()));
-            BigDecimal marketValue = null;
-            BigDecimal unrealisedPnl = null;
-            BigDecimal unrealisedPnlPercent = null;
-            Instant priceAsOf = null;
-            boolean stale = qai.stale;
-
-            if (qai.quote != null) {
-                BigDecimal lastPrice = qai.quote.getPrice();
-                marketValue = lastPrice.multiply(BigDecimal.valueOf(pos.getQuantity()));
-                unrealisedPnl = marketValue.subtract(costBasis);
-                if (costBasis.signum() > 0) {
-                    unrealisedPnlPercent = unrealisedPnl.divide(costBasis, 4, RoundingMode.HALF_UP)
-                            .multiply(BigDecimal.valueOf(100))
-                            .setScale(2, RoundingMode.HALF_UP);
-                }
-                priceAsOf = qai.quote.getQuoteAsOf();
-            } else {
-                stale = true;  // No price available
-            }
-
-            PricedPosition pricedPos = new PricedPosition(
-                    accountId,
-                    instrumentSymbol,
-                    pos.getQuantity(),
-                    pos.getAverageCost(),
-                    costBasis,
-                    qai.quote != null ? qai.quote.getPrice() : null,
-                    marketValue,
-                    unrealisedPnl,
-                    unrealisedPnlPercent,
-                    instrument.getCurrency(),
-                    priceAsOf,
-                    stale
-            );
-
-            result.add(pricedPos);
+            instruments.put(pos.getInstrumentId(), instrument);
+            symbols.add(instrument.getSymbol());
+            symbols.addAll(FxRateService.pairSymbols(instrument.getCurrency(), accountCurrency));
         }
 
+        Map<String, QuoteResolver.ResolvedQuote> quotes = quoteResolver.resolve(symbols);
+
+        // Build priced positions
+        List<PricedPosition> result = new ArrayList<>();
+        for (Position pos : positions) {
+            Instrument instrument = instruments.get(pos.getInstrumentId());
+            if (instrument == null) {
+                continue;
+            }
+            result.add(price(account.getId(), accountCurrency, pos, instrument, quotes));
+        }
         return result;
     }
 
+    private PricedPosition price(Long accountId, String accountCurrency, Position pos, Instrument instrument,
+                                 Map<String, QuoteResolver.ResolvedQuote> quotes) {
+        String instrumentSymbol = instrument.getSymbol();
+        QuoteResolver.ResolvedQuote qai = quotes.get(instrumentSymbol);
+        FauxnanceApiClient.QuoteData quote = qai != null ? qai.quote() : null;
+
+        // Fauxnance is the source of truth for the trading currency; fall back to the instruments table
+        String currency = instrumentCurrency(instrument, quote);
+        Optional<FxRateService.FxRate> fx = FxRateService.fromQuotes(currency, accountCurrency, quotes);
+        if (fx.isEmpty() && !currency.equalsIgnoreCase(instrument.getCurrency())) {
+            // The quote's currency was not the one the batch fetched pairs for
+            fx = FxRateService.fromQuotes(currency, accountCurrency,
+                quoteResolver.resolve(FxRateService.pairSymbols(currency, accountCurrency)));
+        }
+
+        BigDecimal quantity = BigDecimal.valueOf(pos.getQuantity());
+        BigDecimal costBasis = pos.getAverageCost().multiply(quantity);
+        BigDecimal costBasisAccount = pos.getAverageCostAccount().multiply(quantity).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal marketValue = null;
+        BigDecimal unrealisedPnl = null;
+        BigDecimal unrealisedPnlPercent = null;
+        BigDecimal marketValueAccount = null;
+        BigDecimal unrealisedPnlAccount = null;
+        Instant priceAsOf = null;
+        boolean stale = qai != null && qai.stale();
+
+        if (quote != null) {
+            BigDecimal lastPrice = quote.getPrice();
+            marketValue = lastPrice.multiply(quantity);
+            unrealisedPnl = marketValue.subtract(costBasis);
+            if (costBasis.signum() > 0) {
+                unrealisedPnlPercent = unrealisedPnl.divide(costBasis, 4, RoundingMode.HALF_UP)
+                        .multiply(BigDecimal.valueOf(100))
+                        .setScale(2, RoundingMode.HALF_UP);
+            }
+            priceAsOf = quote.getQuoteAsOf();
+            if (fx.isPresent()) {
+                marketValueAccount = marketValue.multiply(fx.get().rate()).setScale(2, RoundingMode.HALF_UP);
+                unrealisedPnlAccount = marketValueAccount.subtract(costBasisAccount);
+            }
+        } else {
+            stale = true;  // No price available
+        }
+        if (fx.isEmpty()) {
+            stale = true;  // No FX rate: the holding cannot be expressed in account currency
+        } else if (fx.get().stale()) {
+            stale = true;
+        }
+
+        return new PricedPosition(
+                accountId,
+                instrumentSymbol,
+                pos.getQuantity(),
+                pos.getAverageCost(),
+                costBasis,
+                quote != null ? quote.getPrice() : null,
+                marketValue,
+                unrealisedPnl,
+                unrealisedPnlPercent,
+                currency,
+                priceAsOf,
+                stale,
+                fx.map(FxRateService.FxRate::rate).orElse(null),
+                pos.getAverageCostAccount(),
+                costBasisAccount,
+                marketValueAccount,
+                unrealisedPnlAccount
+        );
+    }
+
+    private static String instrumentCurrency(Instrument instrument, FauxnanceApiClient.QuoteData quote) {
+        String quoted = quote != null ? quote.getCurrency() : null;
+        if (quoted == null || !quoted.trim().matches("[A-Za-z]{3}")) {
+            return instrument.getCurrency();
+        }
+        if (!quoted.trim().equalsIgnoreCase(instrument.getCurrency())) {
+            log.warn("Quote currency {} differs from instrument currency {} for {}; using the quote's",
+                quoted, instrument.getCurrency(), instrument.getSymbol());
+        }
+        return quoted.trim();
+    }
+
     /**
-     * Get P&L for an account.
-     * 
+     * Get P&L for an account, in the account's currency.
+     *
      * @param accountId Account ID
      * @param from Optional lower bound (inclusive)
      * @param to Optional upper bound (inclusive)
@@ -219,36 +274,26 @@ public class PortfolioPnlService {
      */
     public PnlResponse getPnl(Long accountId, LocalDate from, LocalDate to, boolean bySymbol) {
         Account account = getAccountOrThrow404(accountId);
-        
+
         // Validate date range
         if (from != null && to != null && from.isAfter(to)) {
             throw new PortfolioPnlException("VAL-422", "from date must not be after to date");
         }
 
-        // Get unrealised P&L (always as at now)
-        List<Position> positions = getPositionsForAccount(accountId);
-        List<String> symbols = positions.stream()
-                .map(p -> getInstrumentSymbol(p.getInstrumentId()))
-                .collect(Collectors.toList());
-        Map<String, QuoteAndInstrument> quotes = getQuotesWithFallback(symbols);
+        // Get unrealised P&L (always as at now), converted into account currency
+        List<PricedPosition> pricedPositions = priceAll(account, getPositionsForAccount(accountId));
 
         Map<String, BigDecimal> unrealisedBySymbol = new HashMap<>();
         BigDecimal totalUnrealisedPnl = ZERO;
 
-        for (Position pos : positions) {
-            String symbol = getInstrumentSymbol(pos.getInstrumentId());
-            QuoteAndInstrument qai = quotes.getOrDefault(symbol, new QuoteAndInstrument(null, null, false));
-
-            if (qai.quote != null) {
-                BigDecimal costBasis = pos.getAverageCost().multiply(BigDecimal.valueOf(pos.getQuantity()));
-                BigDecimal marketValue = qai.quote.getPrice().multiply(BigDecimal.valueOf(pos.getQuantity()));
-                BigDecimal unrealised = marketValue.subtract(costBasis);
-                unrealisedBySymbol.put(symbol, unrealised);
-                totalUnrealisedPnl = totalUnrealisedPnl.add(unrealised);
+        for (PricedPosition pos : pricedPositions) {
+            if (pos.getUnrealisedPnlAccount() != null) {
+                unrealisedBySymbol.put(pos.getSymbol(), pos.getUnrealisedPnlAccount());
+                totalUnrealisedPnl = totalUnrealisedPnl.add(pos.getUnrealisedPnlAccount());
             }
         }
 
-        // Get realised P&L
+        // Get realised P&L (booked in account currency at each SELL fill)
         Map<String, BigDecimal> realisedBySymbol = realisedPnlCalculator.calculateRealisedPnlBySymbol(
                 accountId, from, to, null);
         BigDecimal totalRealisedPnl = realisedBySymbol.values().stream()
@@ -258,8 +303,8 @@ public class PortfolioPnlService {
         List<SymbolPnl> symbolPnlList = null;
         if (bySymbol) {
             symbolPnlList = new ArrayList<>();
-            for (Position pos : positions) {
-                String symbol = getInstrumentSymbol(pos.getInstrumentId());
+            for (PricedPosition pos : pricedPositions) {
+                String symbol = pos.getSymbol();
                 BigDecimal realised = realisedBySymbol.getOrDefault(symbol, ZERO);
                 BigDecimal unrealised = unrealisedBySymbol.getOrDefault(symbol, ZERO);
                 BigDecimal total = realised.add(unrealised);
@@ -280,58 +325,6 @@ public class PortfolioPnlService {
                 symbolPnlList,
                 Instant.now()
         );
-    }
-
-    /**
-     * Get quotes with fallback logic.
-     * 1. Try Fauxnance API
-     * 2. Fall back to market-data cache
-     */
-    private Map<String, QuoteAndInstrument> getQuotesWithFallback(List<String> symbols) {
-        Map<String, QuoteAndInstrument> result = new HashMap<>();
-
-        log.info("getQuotesWithFallback called for {} symbols: {}", symbols.size(), symbols);
-
-        // Try Fauxnance first
-        try {
-            Map<String, FauxnanceApiClient.QuoteData> fauxnanceQuotes = fauxnanceClient.getBatchedQuotes(symbols);
-            log.info("Fauxnance returned {} quotes", fauxnanceQuotes.size());
-            for (FauxnanceApiClient.QuoteData quote : fauxnanceQuotes.values()) {
-                result.put(quote.getSymbol(), new QuoteAndInstrument(quote, quote, quote.isStale()));
-                log.debug("Added Fauxnance quote: {} = {}", quote.getSymbol(), quote.getPrice());
-            }
-            log.debug("Got {} quotes from Fauxnance", fauxnanceQuotes.size());
-        } catch (Exception ex) {
-            log.warn("Fauxnance API failed, falling back to cache: {}", ex.getMessage());
-        }
-
-        // Fall back to cache for symbols not in Fauxnance result
-        for (String symbol : symbols) {
-            if (!result.containsKey(symbol)) {
-                log.debug("Symbol {} not in Fauxnance results, checking cache", symbol);
-                Optional<com.tradingplatform.api.events.QuotePayload> cachedQuote = marketDataCache.getLatestQuote(symbol);
-                if (cachedQuote.isPresent()) {
-                    com.tradingplatform.api.events.QuotePayload quote = cachedQuote.get();
-                    // Convert QuotePayload to QuoteData
-                    FauxnanceApiClient.QuoteData qd = new FauxnanceApiClient.QuoteData(
-                            quote.symbol(),
-                            quote.price(),
-                            quote.bid(),
-                            quote.ask(),
-                            quote.currency(),
-                            quote.quoteAsOf(),
-                            quote.stale() != null && quote.stale()
-                    );
-                    result.put(symbol, new QuoteAndInstrument(qd, quote, true));  // Mark as stale from cache
-                    log.debug("Using cached quote for {}: {}", symbol, quote.price());
-                } else {
-                    log.warn("No quote available for symbol {}", symbol);
-                }
-            }
-        }
-
-        log.info("getQuotesWithFallback returning {} total quotes", result.size());
-        return result;
     }
 
     /**
@@ -365,21 +358,6 @@ public class PortfolioPnlService {
     private String getInstrumentSymbol(Long instrumentId) {
         Instrument instrument = instrumentMapper.findById(instrumentId);
         return instrument != null ? instrument.getSymbol() : "UNKNOWN";
-    }
-
-    /**
-     * Internal wrapper for quote data.
-     */
-    private static final class QuoteAndInstrument {
-        private final FauxnanceApiClient.QuoteData quote;
-        private final Object original;
-        private final boolean stale;
-
-        QuoteAndInstrument(FauxnanceApiClient.QuoteData quote, Object original, boolean stale) {
-            this.quote = quote;
-            this.original = original;
-            this.stale = stale;
-        }
     }
 
     /**

@@ -21,3 +21,12 @@ FROM accounts a, instruments i WHERE a.account_id = 'ACC-000005' AND i.symbol = 
 INSERT INTO positions (account_id, instrument_id, quantity, average_cost, last_updated)
 SELECT a.id, i.id, 1000, 0.925000, TIMESTAMP '2026-03-10 08:05:01+00'
 FROM accounts a, instruments i WHERE a.account_id = 'ACC-000006' AND i.symbol = 'FX:EURUSD';
+
+-- Average cost in account currency (USD). USD instruments match average_cost; INR holdings are
+-- converted at the seed reference FX:USDINR = 83.47 (see 004_orders.sql).
+UPDATE positions SET average_cost_account = average_cost;
+
+UPDATE positions p
+SET average_cost_account = ROUND(p.average_cost * 0.0119803522, 6)
+FROM instruments i
+WHERE i.id = p.instrument_id AND i.currency = 'INR';

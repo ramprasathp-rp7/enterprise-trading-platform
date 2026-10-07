@@ -139,8 +139,13 @@ public class FeeDeductionService {
                 return;
             }
             
-            // Calculate actual fee based on executed price
-            BigDecimal actualNotional = executedPrice.multiply(BigDecimal.valueOf(order.getQuantity()));
+            // Calculate actual fee based on executed price, in account currency: the executed price is in
+            // the instrument's currency and converts at the rate the executor fetched at fill
+            BigDecimal fillFxRate = payload.fillFxRate() != null ? payload.fillFxRate()
+                : order.getFillFxRate() != null ? order.getFillFxRate() : BigDecimal.ONE;
+            BigDecimal actualNotional = executedPrice.multiply(BigDecimal.valueOf(order.getQuantity()))
+                .multiply(fillFxRate)
+                .setScale(2, java.math.RoundingMode.HALF_UP);
             String assetType = instrument.getAssetClass().name();
             AssetFeeStructure feeStructure = assetFeeMapper.findByAssetType(assetType);
             BigDecimal actualFee = (feeStructure != null) ? feeStructure.calculateFee(actualNotional) : BigDecimal.ZERO;

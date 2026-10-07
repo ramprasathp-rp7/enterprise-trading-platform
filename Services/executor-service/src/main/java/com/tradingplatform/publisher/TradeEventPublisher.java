@@ -62,6 +62,27 @@ public class TradeEventPublisher {
         String rejectReason,
         Instant executedOn
     ) {
+        publishTradeEvent(orderId, accountId, status, quotedPrice, executedPrice, originalFee, rejectReason,
+            executedOn, null);
+    }
+
+    /**
+     * As above, carrying the instrument-to-account FX rate the executor fetched at fill. The fee
+     * deduction service settles the BUY/SELL transaction and the fee in account currency at this rate.
+     *
+     * @param fillFxRate Account-currency units per instrument-currency unit at fill (null if rejected)
+     */
+    public void publishTradeEvent(
+        UUID orderId,
+        long accountId,
+        OrderStatus status,
+        BigDecimal quotedPrice,
+        BigDecimal executedPrice,
+        BigDecimal originalFee,
+        String rejectReason,
+        Instant executedOn,
+        BigDecimal fillFxRate
+    ) {
         // Determine event type based on status
         EventType eventType = (status == OrderStatus.FILLED)
             ? EventType.ORDER_FILLED
@@ -83,7 +104,8 @@ public class TradeEventPublisher {
             null,  // cashDelta - not calculated by executor
             null,  // positionQuantityAfter - not returned by executor
             null,  // averageCostAfter - not returned by executor
-            executedOn
+            executedOn,
+            fillFxRate
         );
 
         // Wrap in message envelope

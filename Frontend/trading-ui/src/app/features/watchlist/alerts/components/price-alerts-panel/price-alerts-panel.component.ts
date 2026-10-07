@@ -1,8 +1,9 @@
-import { DatePipe, DecimalPipe, LowerCasePipe } from '@angular/common';
+import { DatePipe, LowerCasePipe } from '@angular/common';
 import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { AlertDirection, AlertMode, PriceAlertResponse, PriceAlertTriggerResponse } from '../../../../../api/generated/watchlist';
 import { LiveQuoteStore } from '../../../../../core/market-data/live-quote.store';
 import { MAX_ACTIVE_ALERTS, PriceAlertsStore } from '../../price-alerts.store';
+import { formatInstrumentPrice } from '../../../../instruments/services/instrument-catalog.service';
 
 type AlertStatus = 'active' | 'triggered' | 'paused';
 
@@ -13,7 +14,7 @@ type AlertStatus = 'active' | 'triggered' | 'paused';
 @Component({
   selector: 'app-price-alerts-panel',
   standalone: true,
-  imports: [DatePipe, DecimalPipe, LowerCasePipe],
+  imports: [DatePipe, LowerCasePipe],
   template: `
     <section class="panel alerts-panel" aria-label="Price alerts" data-testid="price-alerts-panel">
       <header class="panel-header">
@@ -64,15 +65,15 @@ type AlertStatus = 'active' | 'triggered' | 'paused';
               @for (alert of visible(); track alert.alertId) {
                 <tr [attr.data-testid]="'alert-row-' + alert.alertId">
                   <td><span class="cell-strong">{{ alert.symbol }}</span></td>
-                  <td>{{ alert.direction === Direction.Above ? '≥' : '≤' }} {{ alert.threshold | number: '1.2-6' }}</td>
+                  <td>{{ alert.direction === Direction.Above ? '≥' : '≤' }} {{ price(alert.threshold, alert.symbol) }}</td>
                   <td class="cell-muted">{{ alert.mode === Mode.Once ? 'Once' : 'Every update' }}</td>
-                  <td class="num">{{ livePrice(alert.symbol) !== null ? (livePrice(alert.symbol)! | number: '1.2-4') : '—' }}</td>
+                  <td class="num">{{ price(livePrice(alert.symbol), alert.symbol) }}</td>
                   <td>
                     <span class="pill" [attr.data-status]="status(alert)">{{ statusLabel(alert) }}</span>
                   </td>
                   <td class="cell-muted">
                     @if (alert.lastTriggeredAt) {
-                      {{ alert.lastTriggeredPrice | number: '1.2-4' }} · {{ alert.lastTriggeredAt | date: 'MMM d, h:mm a' }}
+                      {{ price(alert.lastTriggeredPrice, alert.symbol) }} · {{ alert.lastTriggeredAt | date: 'MMM d, h:mm a' }}
                       @if (alert.triggerCount > 1) { <small>({{ alert.triggerCount }}×)</small> }
                     } @else {
                       Not yet
@@ -243,6 +244,11 @@ export class PriceAlertsPanelComponent implements OnInit {
   ngOnInit(): void {
     // Fresh state on each visit: alerts may have fired (and ONCE alerts turned off) since the last load
     this.store.load();
+  }
+
+  /** A price in the alert instrument's currency; '—' when unknown */
+  price(value: number | null | undefined, symbol: string): string {
+    return formatInstrumentPrice(value, symbol);
   }
 
   livePrice(symbol: string): number | null {

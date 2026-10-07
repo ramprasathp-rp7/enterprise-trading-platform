@@ -10,6 +10,11 @@ import java.util.Objects;
  * Priced position: every open holding with its cost basis, market value and unrealised P&L.
  * Fields match the binding contract in portfolio-api.yaml exactly.
  * lastPrice, marketValue, unrealisedPnl, unrealisedPnlPercent, priceAsOf can be null when instrument cannot be priced.
+ *
+ * Instrument-level fields (averageCost, costBasis, lastPrice, marketValue, unrealisedPnl) are in
+ * {@code currency}, the instrument's own. The *Account fields are the same figures in the account's
+ * currency: cost at the fill rates of the buys, value at {@code fxRate}, the live instrument-to-account
+ * rate. Portfolio totals sum the *Account fields. They are null when no FX rate is available.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public final class PricedPosition {
@@ -50,10 +55,26 @@ public final class PricedPosition {
     @JsonProperty("stale")
     private final Boolean stale;
 
+    @JsonProperty("fxRate")
+    private final BigDecimal fxRate;
+
+    @JsonProperty("averageCostAccount")
+    private final BigDecimal averageCostAccount;
+
+    @JsonProperty("costBasisAccount")
+    private final BigDecimal costBasisAccount;
+
+    @JsonProperty("marketValueAccount")
+    private final BigDecimal marketValueAccount;
+
+    @JsonProperty("unrealisedPnlAccount")
+    private final BigDecimal unrealisedPnlAccount;
+
     public PricedPosition(Long accountId, String symbol, Integer quantity, BigDecimal averageCost,
                          BigDecimal costBasis, BigDecimal lastPrice, BigDecimal marketValue,
                          BigDecimal unrealisedPnl, BigDecimal unrealisedPnlPercent, String currency,
-                         Instant priceAsOf, Boolean stale) {
+                         Instant priceAsOf, Boolean stale, BigDecimal fxRate, BigDecimal averageCostAccount,
+                         BigDecimal costBasisAccount, BigDecimal marketValueAccount, BigDecimal unrealisedPnlAccount) {
         this.accountId = Objects.requireNonNull(accountId, "accountId cannot be null");
         this.symbol = Objects.requireNonNull(symbol, "symbol cannot be null");
         this.quantity = Objects.requireNonNull(quantity, "quantity cannot be null");
@@ -66,6 +87,11 @@ public final class PricedPosition {
         this.currency = Objects.requireNonNull(currency, "currency cannot be null");
         this.priceAsOf = priceAsOf;
         this.stale = Objects.requireNonNull(stale, "stale cannot be null");
+        this.fxRate = fxRate;
+        this.averageCostAccount = averageCostAccount;
+        this.costBasisAccount = costBasisAccount;
+        this.marketValueAccount = marketValueAccount;
+        this.unrealisedPnlAccount = unrealisedPnlAccount;
     }
 
     public Long getAccountId() {
@@ -116,6 +142,26 @@ public final class PricedPosition {
         return stale;
     }
 
+    public BigDecimal getFxRate() {
+        return fxRate;
+    }
+
+    public BigDecimal getAverageCostAccount() {
+        return averageCostAccount;
+    }
+
+    public BigDecimal getCostBasisAccount() {
+        return costBasisAccount;
+    }
+
+    public BigDecimal getMarketValueAccount() {
+        return marketValueAccount;
+    }
+
+    public BigDecimal getUnrealisedPnlAccount() {
+        return unrealisedPnlAccount;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -132,13 +178,19 @@ public final class PricedPosition {
                 Objects.equals(unrealisedPnlPercent, that.unrealisedPnlPercent) &&
                 Objects.equals(currency, that.currency) &&
                 Objects.equals(priceAsOf, that.priceAsOf) &&
-                Objects.equals(stale, that.stale);
+                Objects.equals(stale, that.stale) &&
+                Objects.equals(fxRate, that.fxRate) &&
+                Objects.equals(averageCostAccount, that.averageCostAccount) &&
+                Objects.equals(costBasisAccount, that.costBasisAccount) &&
+                Objects.equals(marketValueAccount, that.marketValueAccount) &&
+                Objects.equals(unrealisedPnlAccount, that.unrealisedPnlAccount);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(accountId, symbol, quantity, averageCost, costBasis, lastPrice,
-                marketValue, unrealisedPnl, unrealisedPnlPercent, currency, priceAsOf, stale);
+                marketValue, unrealisedPnl, unrealisedPnlPercent, currency, priceAsOf, stale, fxRate,
+                averageCostAccount, costBasisAccount, marketValueAccount, unrealisedPnlAccount);
     }
 
     @Override

@@ -5,6 +5,7 @@ import { CoreAuthService } from '../../../../core/auth/core-auth.service';
 import { TransactionsStore } from '../../transactions.store';
 import { TransactionService } from '../../services/transaction.service';
 import { TransactionHistoryEntry } from '../../models/transaction.models';
+import { AccountsService } from '../../../../api/generated/trade';
 
 /**
  * Transaction confirmation page
@@ -26,11 +27,14 @@ export class TransactionConfirmationComponent implements OnInit {
   private readonly store = inject(TransactionsStore);
   private readonly transactionService = inject(TransactionService);
   private readonly authService = inject(CoreAuthService);
+  private readonly accounts = inject(AccountsService);
 
   readonly transactionId = signal<string>('');
   readonly transaction = signal<TransactionHistoryEntry | null>(null);
   readonly loading = signal(false);
   readonly notFound = signal(false);
+  /** The account's currency: deposits and withdrawals are always in it */
+  readonly currency = signal<string | null>(null);
 
   readonly accountId = computed(() => this.authService.currentUser()?.accountId ?? null);
   readonly isCredit = computed(() => this.transaction()?.actionType === 'CREDIT');
@@ -58,6 +62,7 @@ export class TransactionConfirmationComponent implements OnInit {
   ngOnInit(): void {
     const transactionId = this.route.snapshot.paramMap.get('transactionId') ?? '';
     this.transactionId.set(transactionId);
+    this.loadCurrency();
 
     const fromStore = this.store.transactions().find((t) => t.transactionId === transactionId);
     if (fromStore) {
@@ -66,6 +71,17 @@ export class TransactionConfirmationComponent implements OnInit {
     }
 
     this.lookUpTransaction(transactionId);
+  }
+
+  private loadCurrency(): void {
+    const accountId = this.accountId();
+    if (!accountId) {
+      return;
+    }
+    this.accounts.getBalance(accountId).subscribe({
+      next: (balance) => this.currency.set(balance.currency ?? null),
+      error: () => this.currency.set(null),
+    });
   }
 
   formatAmount(value: number): string {

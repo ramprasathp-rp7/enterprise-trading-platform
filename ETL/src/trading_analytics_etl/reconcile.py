@@ -24,6 +24,9 @@ class ReconciliationResult:
     postgres_count: int
     postgres_total: Decimal
     dead_lettered_count: int
+    # Summed trade_value_account (account currency, USD); defaults keep older callers working
+    duckdb_total_account: Decimal = Decimal("0")
+    postgres_total_account: Decimal = Decimal("0")
 
     @property
     def counts_match(self) -> bool:
@@ -34,8 +37,45 @@ class ReconciliationResult:
         return abs(self.duckdb_total - self.postgres_total) <= TOLERANCE
 
     @property
+    def account_totals_match(self) -> bool:
+        return abs(self.duckdb_total_account - self.postgres_total_account) <= TOLERANCE
+
+    @property
     def ok(self) -> bool:
-        return self.counts_match and self.totals_match
+        return self.counts_match and self.totals_match and self.account_totals_match
+
+
+def postgres_daily_account_total(pg_conn, trade_date: date) -> Decimal:
+    """Same day's trade value in account currency, at each order's rate of record."""
+    with pg_conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT COALESCE(SUM(ROUND(
+                       CASE WHEN status = 'FILLED'
+                            THEN quantity * executed_price * COALESCE(fill_fx_rate, placement_fx_rate)
+                            ELSE quantity * price * placement_fx_rate
+                       END, 2)
+                   ), 0)
+              FROM orders
+             WHERE created_on::date = %s
+            """,
+            (trade_date,),
+        )
+        (total,) = cur.fetchone()
+        return Decimal(total)
+
+
+def duckdb_daily_account_total(duck_con, trade_date: date) -> Decimal:
+    row = duck_con.execute(
+        """
+        SELECT COALESCE(SUM(f.trade_value_account), 0)
+          FROM fact_trades f
+          JOIN dim_date d ON d.date_key = f.date_key
+         WHERE d.full_date = ?
+        """,
+        [trade_date],
+    ).fetchone()
+    return Decimal(str(row[0]))
 
 
 def postgres_daily_aggregate(pg_conn, trade_date: date) -> tuple[int, Decimal]:
@@ -97,4 +137,6 @@ def reconcile_day(pg_conn, duck_con, trade_date: date) -> ReconciliationResult:
         postgres_count=pg_count,
         postgres_total=pg_total,
         dead_lettered_count=dlq_count,
+        duckdb_total_account=duckdb_daily_account_total(duck_con, trade_date),
+        postgres_total_account=postgres_daily_account_total(pg_conn, trade_date),
     )

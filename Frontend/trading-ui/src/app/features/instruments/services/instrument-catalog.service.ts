@@ -12,6 +12,7 @@ import {
 } from '../instrument.models';
 import { INFY_NS_DAILY } from '../data/infy-ns.candles';
 import { CandleService } from './candle.service';
+import { formatMoney } from '../../../shared/currency';
 
 /**
  * Instrument catalogue, search and market data for the front end.
@@ -127,6 +128,23 @@ const RANGE_START: Record<ChartRange, (end: Date) => Date> = {
   '1M': (end) => addMonths(end, -1),
   '3M': (end) => addMonths(end, -3),
 };
+
+/** The instrument's trading currency from the catalogue, or null if the symbol is unknown. Usable outside DI. */
+export function instrumentCurrency(symbol: string | null | undefined): string | null {
+  const wanted = (symbol ?? '').trim().toUpperCase();
+  return CATALOGUE.find((i) => i.symbol === wanted)?.currency ?? null;
+}
+
+/** Display precision for an instrument's prices: 4 decimals for FX, 2 otherwise. Usable outside DI. */
+export function priceDecimals(symbol: string | null | undefined): number {
+  const wanted = (symbol ?? '').trim().toUpperCase();
+  return CATALOGUE.find((i) => i.symbol === wanted)?.assetClass === 'FX' ? 4 : 2;
+}
+
+/** A per-unit price in the instrument's currency at its precision, e.g. ₹1,600.00 or $1.0842 */
+export function formatInstrumentPrice(value: number | null | undefined, symbol: string | null | undefined): string {
+  return formatMoney(value, instrumentCurrency(symbol), { decimals: priceDecimals(symbol) });
+}
 
 @Injectable({ providedIn: 'root' })
 export class InstrumentCatalogService {

@@ -1,4 +1,5 @@
 import { NotificationKind } from './notification.service';
+import { formatInstrumentPrice } from '../../features/instruments/services/instrument-catalog.service';
 
 /** The order fields the notification wording needs (details may be missing on a trade event). */
 export interface OrderLike {
@@ -19,14 +20,12 @@ export interface OrderNotice {
 }
 
 const units = (n: number) => n.toLocaleString('en-US');
-const money = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+/** A price in the instrument's currency, e.g. $189.35 or ₹1,600.00 */
+const money = (n: number, symbol: string) => formatInstrumentPrice(n, symbol);
 const isSell = (o: OrderLike) => o.side?.toUpperCase() === 'SELL';
 
-const hasDetails = (o: OrderLike) => !!o.symbol && o.quantity != null && o.price != null;
-
-/** "buy 10 AAPL at 189.35", or "an order" when the details are unknown */
-const describe = (o: OrderLike) =>
-  hasDetails(o) ? `${isSell(o) ? 'sell' : 'buy'} ${units(o.quantity!)} ${o.symbol} at ${money(o.price!)}` : '';
+/** "buy 10 AAPL at 189.35" */
+const describe = (o: OrderLike) => `${isSell(o) ? 'sell' : 'buy'} ${units(o.quantity)} ${o.symbol} at ${money(o.price)}`;
 
 /** " Reason: Insufficient funds." when the event carried one */
 const reasonOf = (o: OrderLike) => (o.reason?.trim() ? ` Reason: ${o.reason.trim().replace(/\.$/, '')}.` : '');
