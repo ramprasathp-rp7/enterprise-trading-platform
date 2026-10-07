@@ -22,7 +22,8 @@
     "generate:order-notifications": "openapi-generator-cli generate -c openapi/order-notifications-api-config.json",
     "generate:advice": "openapi-generator-cli generate -c openapi/advice-api-config.json",
     "generate:account-history": "openapi-generator-cli generate -c openapi/account-history-api-config.json",
-    "generate": "npm run generate:auth && npm run generate:trade && npm run generate:transactions && npm run generate:admin && npm run generate:watchlist && npm run generate:portfolio && npm run generate:preferences && npm run generate:market-data && npm run generate:account-history && npm run generate:order-notifications && npm run generate:candle && npm run generate:advice"
+    "generate:strategy": "openapi-generator-cli generate -c openapi/strategy-api-config.json",
+    "generate": "npm run generate:auth && npm run generate:trade && npm run generate:transactions && npm run generate:admin && npm run generate:watchlist && npm run generate:portfolio && npm run generate:preferences && npm run generate:market-data && npm run generate:account-history && npm run generate:order-notifications && npm run generate:candle && npm run generate:advice && npm run generate:strategy"
   },
   "private": true,
   "packageManager": "npm@11.16.0",

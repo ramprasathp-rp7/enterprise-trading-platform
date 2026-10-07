@@ -67,6 +67,13 @@ export class SidebarComponent {
       section: 'Trading'
     },
     {
+      label: 'Strategies',
+      route: '/strategies',
+      icon: 'fas fa-robot',
+      description: 'Automated rules that trade for you',
+      section: 'Trading'
+    },
+    {
       label: 'Order Blotter',
       route: '/blotter',
       icon: 'fas fa-list-ul',

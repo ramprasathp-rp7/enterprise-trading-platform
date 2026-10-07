@@ -1,0 +1,12 @@
+{
+  "inputSpec": "./contracts/strategy-api.yaml",
+  "outputDir": "./src/app/api/generated/strategy",
+  "generatorName": "typescript-angular",
+  "skipValidateSpec": true,
+  "validateSpec": false,
+  "packageName": "api.strategy",
+  "additionalProperties": {
+    "apiModulePrefix": "StrategyApi",
+    "ngVersion": "21.0.0"
+  }
+}

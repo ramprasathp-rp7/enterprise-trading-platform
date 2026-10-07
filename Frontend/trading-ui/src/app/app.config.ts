@@ -17,6 +17,7 @@ import { provideApi as provideAdviceApi } from './api/generated/advice/provide-a
 import { provideApi as providePortfolioApi } from './api/generated/porfolio/provide-api';
 import { provideApi as provideAccountHistoryApi } from './api/generated/account-history/provide-api';
 import { provideApi as provideCandleApi } from './api/generated/candle/provide-api';
+import { provideApi as provideStrategyApi } from './api/generated/strategy/provide-api';
 import { environment } from './core/config/environment';
 
 export const appConfig: ApplicationConfig = {
@@ -36,6 +37,7 @@ export const appConfig: ApplicationConfig = {
     providePortfolioApi(environment.TRADE_API_URL),
     provideAccountHistoryApi(environment.TRADE_API_URL),
     provideCandleApi(environment.TRADE_API_URL),
+    provideStrategyApi(environment.TRADE_API_URL),
     {
       provide: HTTP_INTERCEPTORS,
       useClass: AuthInterceptor,
