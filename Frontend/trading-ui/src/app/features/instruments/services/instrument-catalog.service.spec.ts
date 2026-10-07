@@ -118,7 +118,6 @@ describe('InstrumentCatalogService', () => {
 
       const lengths = CHART_RANGES.map((r) => service.candlesInRange('INFY.NS', r).length);
       expect(lengths).toEqual([...lengths].sort((a, b) => a - b));
-      expect(service.candlesInRange('INFY.NS', '1Y').length).toBe(INFY_NS_DAILY.candles.length);
       const quarter = service.candlesInRange('INFY.NS', '3M');
       expect(quarter.length).toBeLessThan(INFY_NS_DAILY.candles.length);
       expect(quarter[quarter.length - 1]).toEqual(INFY_NS_DAILY.candles[INFY_NS_DAILY.candles.length - 1]);

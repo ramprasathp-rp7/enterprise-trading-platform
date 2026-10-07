@@ -191,16 +191,6 @@ class PriceAlertServiceTest {
         }
 
         @Override
-        public List<Instrument> findTradableInstruments() {
-            return List.copyOf(bySymbol.values());
-        }
-
-        @Override
-        public List<Instrument> findAllInstruments() {
-            return List.copyOf(bySymbol.values());
-        }
-
-        @Override
         public List<String> findConversionFxSymbols() {
             return List.of();
         }

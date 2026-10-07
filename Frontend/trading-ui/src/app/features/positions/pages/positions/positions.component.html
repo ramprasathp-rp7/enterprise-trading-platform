@@ -100,20 +100,21 @@
     <div class="sum-pnl">
       <div class="sum-item">
         <span class="sum-label">Unrealised P&amp;L</span>
-        <span class="sum-value" [class]="'sum-value ' + pnlTone(liveSummary()?.unrealised)"><span data-testid="summary-unrealised" [class]="pnlTone(liveSummary()?.unrealised)">{{ formatSigned(liveSummary()?.unrealised) }}</span></span>
+        <span class="sum-value" [class]="'sum-value ' + pnlTone(liveSummary()?.unrealised)"><span data-testid="summary-unrealised" [class]="pnlTone(liveSummary()?.unrealised)">{{ baseMoney(liveSummary()?.unrealised, true) }}</span></span>
         <span class="sum-caption">
           @if (liveSummary()?.unrealisedPercent != null) {
-            <span [class]="pnlTone(liveSummary()?.unrealisedPercent)">{{ formatSigned(liveSummary()!.unrealisedPercent) }}%</span> on cost {{ formatNumber(summary()!.costBasis, 2) }}
+            <span [class]="pnlTone(liveSummary()?.unrealisedPercent)">{{ formatSigned(liveSummary()!.unrealisedPercent) }}%</span> on cost {{ formatNumber(liveSummary()!.cost, 2) }}
           } @else if (summary()) {
-            On cost {{ formatNumber(summary()!.costBasis, 2) }}
+            On cost {{ baseMoney(summary()!.costBasis) }}
           }
         </span>
       </div>
 
-    <div class="sum-item">
-      <span class="sum-label">Realised P&amp;L</span>
-      <span class="sum-value" [class]="'sum-value ' + pnlTone(summary()?.realisedPnl)"><span data-testid="summary-realised" [class]="pnlTone(summary()?.realisedPnl)">{{ formatSigned(summary()?.realisedPnl) }}</span></span>
-      <span class="sum-caption">From closed trades</span>
+      <div class="sum-item">
+        <span class="sum-label">Realised P&amp;L</span>
+        <span class="sum-value" [class]="'sum-value ' + pnlTone(summary()?.realisedPnl)"><span data-testid="summary-realised" [class]="pnlTone(summary()?.realisedPnl)">{{ baseMoney(summary()?.realisedPnl, true) }}</span></span>
+        <span class="sum-caption">From closed trades</span>
+      </div>
     </div>
   </section>
 

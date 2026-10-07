@@ -32,7 +32,7 @@ describe('order notification wording', () => {
 
   it('includes the rejection reason from the trade event', () => {
     expect(orderStatusNotice({ ...order, status: 'REJECTED', reason: 'Insufficient funds' })?.message).toBe(
-      'Your order to sell 1,500 INFY.NS at 1,520.50 was rejected. Reason: Insufficient funds. Open your order blotter for details.',
+      'Your order to sell 1,500 INFY.NS at ₹1,520.50 was rejected. Reason: Insufficient funds. Open your order blotter for details.',
     );
   });
 

@@ -21,11 +21,13 @@ export interface OrderNotice {
 
 const units = (n: number) => n.toLocaleString('en-US');
 /** A price in the instrument's currency, e.g. $189.35 or ₹1,600.00 */
-const money = (n: number, symbol: string) => formatInstrumentPrice(n, symbol);
+const money = (n: number, symbol: string | null) => formatInstrumentPrice(n, symbol);
 const isSell = (o: OrderLike) => o.side?.toUpperCase() === 'SELL';
+const hasDetails = (o: OrderLike) => !!o.symbol && o.quantity != null && o.price != null;
 
-/** "buy 10 AAPL at 189.35" */
-const describe = (o: OrderLike) => `${isSell(o) ? 'sell' : 'buy'} ${units(o.quantity)} ${o.symbol} at ${money(o.price)}`;
+/** "buy 10 AAPL at $189.35", or '' when the details are unknown */
+const describe = (o: OrderLike) =>
+  hasDetails(o) ? `${isSell(o) ? 'sell' : 'buy'} ${units(o.quantity!)} ${o.symbol} at ${money(o.price!, o.symbol)}` : '';
 
 /** " Reason: Insufficient funds." when the event carried one */
 const reasonOf = (o: OrderLike) => (o.reason?.trim() ? ` Reason: ${o.reason.trim().replace(/\.$/, '')}.` : '');
@@ -42,8 +44,8 @@ export function orderStatusNotice(o: OrderLike): OrderNotice | null {
         kind: 'order-filled',
         title: 'Order completed',
         message: o.symbol && o.quantity != null
-          ? `Good news! You ${isSell(o) ? 'sold' : 'bought'} ${units(o.quantity)} ${o.symbol}${fillPrice != null ? ` at ${money(fillPrice)}` : ''}.`
-          : `Good news! Your order was filled${fillPrice != null ? ` at ${money(fillPrice)}` : ''}.`,
+          ? `Good news! You ${isSell(o) ? 'sold' : 'bought'} ${units(o.quantity)} ${o.symbol}${fillPrice != null ? ` at ${money(fillPrice, o.symbol)}` : ''}.`
+          : `Good news! Your order was filled${fillPrice != null ? ` at ${money(fillPrice, o.symbol)}` : ''}.`,
       };
     case 'REJECTED':
       return {

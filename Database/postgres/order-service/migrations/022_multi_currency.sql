@@ -1,4 +1,4 @@
--- Migration 018: Multi-currency support
+-- Migration 022: Multi-currency support
 --
 -- Orders are placed and executed in the instrument's currency; account money (cash, transactions,
 -- fees, P&L, net worth) is in the account's currency. Conversion uses Fauxnance FX: pair quotes.

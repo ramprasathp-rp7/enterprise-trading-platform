@@ -366,7 +366,10 @@ class OrderExecutorServiceBranchTest {
         executor.process(order, QUOTED, ORIGINAL_FEE);
 
         verifyRejected("Insufficient funds");
-        verifyNoInteractions(settlementService, publisher);
+        verifyNoInteractions(settlementService);
+        // Like every rejection, it is published to trade-events so the customer is notified
+        verify(publisher).publishTradeEvent(eq(order.getId()), eq(1L), eq(OrderStatus.REJECTED), eq(QUOTED),
+            isNull(), eq(ORIGINAL_FEE), eq("Insufficient funds"), any(Instant.class));
     }
 
     @Test

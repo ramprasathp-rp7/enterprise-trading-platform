@@ -53,8 +53,6 @@ class PriceAlertControllerTest {
                 return bySymbol.values().stream().filter(Instrument::isTradable).toList();
             }
             @Override public List<String> findAllSymbols() { return List.copyOf(bySymbol.keySet()); }
-            @Override public List<Instrument> findTradableInstruments() { return List.copyOf(bySymbol.values()); }
-            @Override public List<Instrument> findAllInstruments() { return List.copyOf(bySymbol.values()); }
             @Override public List<String> findConversionFxSymbols() { return List.of(); }
         };
         PriceAlertService service = new PriceAlertService(store, store, instruments, new ActiveAlertIndex(), 20, 100);
