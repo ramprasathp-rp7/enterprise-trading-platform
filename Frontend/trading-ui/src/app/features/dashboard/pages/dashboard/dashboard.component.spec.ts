@@ -194,4 +194,20 @@ describe('DashboardComponent', () => {
     expect(blotterStore.loadOrderHistory).toHaveBeenCalledTimes(1);
   });
 
+
+  it('summarises the holdings next to the panel title', async () => {
+    await create();
+    component.onPositionsLoaded([
+      { symbol: 'AAPL', quantity: 300, averageCost: 180 },
+      { symbol: 'MSFT', quantity: 1200, averageCost: 350 },
+      { symbol: 'OLD', quantity: 0, averageCost: 10 },
+    ] as never);
+    fixture.detectChanges();
+
+    expect(component.holdingsSummary()).toBe('2 holdings · 1,500 units');
+    expect(fixture.nativeElement.querySelector('[data-testid="holdings-summary"]').textContent).toContain('2 holdings');
+
+    component.onPositionsLoaded([]);
+    expect(component.holdingsSummary()).toBeNull();
+  });
 });

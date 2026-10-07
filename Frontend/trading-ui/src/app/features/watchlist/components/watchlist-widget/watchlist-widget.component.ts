@@ -144,12 +144,21 @@ const MAX_ROWS = 5;
       padding: 0;
     }
 
+    /* Compact header and one-line rows so five fit in the dashboard's bottom row */
+    .panel-header {
+      padding: 12px 18px;
+    }
+
+    .panel-subtitle {
+      display: none;
+    }
+
     .row {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      padding: 9px 12px;
+      padding: 6px 10px;
       border-radius: var(--r-md);
       color: inherit;
       text-decoration: none;
@@ -163,16 +172,22 @@ const MAX_ROWS = 5;
     .who,
     .quote {
       display: flex;
-      flex-direction: column;
+      align-items: baseline;
+      gap: 8px;
       min-width: 0;
     }
 
     .quote {
-      align-items: flex-end;
       flex-shrink: 0;
     }
 
+    .chg {
+      min-width: 52px;
+      text-align: right;
+    }
+
     .sym {
+      flex-shrink: 0;
       font-weight: 600;
       color: var(--ink-900);
     }

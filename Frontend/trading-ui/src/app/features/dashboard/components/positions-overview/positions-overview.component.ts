@@ -98,6 +98,14 @@ export class PositionsOverviewComponent implements OnInit {
   // Convenience: tableRows limited to 4 for compact display
   readonly tableRows = computed(() => this.tableHoldings().slice(0,4));
 
+  /** Dashboard rows: the four largest holdings with their share of units and colour */
+  readonly rows = computed(() => {
+    const byKey = new Map(this.positions().map((p) => [p.symbol, p]));
+    return this.allocation()
+      .slice(0, 4)
+      .map((seg) => ({ ...seg, averageCost: byKey.get(seg.symbol)?.averageCost ?? 0 }));
+  });
+
   formatAmount(value: number, digits: number = 2): string {
     return new Intl.NumberFormat('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(value);
   }

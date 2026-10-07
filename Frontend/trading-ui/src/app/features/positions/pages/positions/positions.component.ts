@@ -12,13 +12,24 @@ import {
 import { CoreAuthService } from '../../../../core/auth/core-auth.service';
 import { StatementPdfService, fileDate } from '../../../../shared/statement-pdf.service';
 import { NotificationService } from '../../../../core/notifications/notification.service';
+import { currencySymbol } from '../../../../shared/currency';
+import { LiveQuoteStore } from '../../../../core/market-data/live-quote.store';
+import { InstrumentCatalogService } from '../../../instruments/services/instrument-catalog.service';
+
+/** A holding valued at its live price: the latest quote in the order service's cache,
+ * or the portfolio API's price when the cache has none */
+export interface LivePosition extends PricedPosition {
+  /** True when the price came from the live quote cache */
+  live: boolean;
+}
 
 /**
  * Positions Component
  *
- * Displays the portfolio summary and priced holdings from the portfolio API.
- * Prices come from Fauxnance (or the market-data cache when it is unavailable),
- * so stale and unpriced holdings are flagged rather than shown as current.
+ * Displays the portfolio summary and holdings from the portfolio API, valued at live prices:
+ * the latest quotes from the order service's cache (LiveQuoteStore, refreshed every 5 minutes),
+ * falling back to the portfolio API's price for symbols the cache has no quote for.
+ * Market value, P&L, weights, totals and the summary are all derived from those prices.
  */
 @Component({
   selector: 'app-positions',
@@ -33,6 +44,8 @@ export class PositionsComponent implements OnInit {
   private readonly portfolioService = inject(PortfolioService);
   private readonly statementPdf = inject(StatementPdfService);
   private readonly notifications = inject(NotificationService);
+  private readonly liveQuotes = inject(LiveQuoteStore);
+  private readonly catalog = inject(InstrumentCatalogService);
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
@@ -48,12 +61,67 @@ export class PositionsComponent implements OnInit {
   readonly totalCostBasis = computed(() =>
     this.positions().reduce((sum, p) => sum + (p.costBasis || 0), 0)
   );
+  /** Holdings revalued at their live price, recomputed whenever a quote refreshes */
+  readonly livePositions = computed<LivePosition[]>(() =>
+    this.positions().map((p) => {
+      const quote = this.liveQuotes.quote(p.symbol);
+      const price = quote?.price ?? p.lastPrice ?? null;
+      const marketValue = price == null ? null : p.quantity * price;
+      const unrealisedPnl = marketValue == null ? null : marketValue - p.costBasis;
+      return {
+        ...p,
+        lastPrice: price,
+        marketValue,
+        unrealisedPnl,
+        unrealisedPnlPercent: unrealisedPnl == null || !p.costBasis ? null : (unrealisedPnl / p.costBasis) * 100,
+        priceAsOf: quote?.receivedAt ?? p.priceAsOf,
+        stale: quote ? quote.stale === true : p.stale,
+        live: !!quote,
+      };
+    })
+  );
+  /** Market value of the priced holdings (the Weight column is a share of this) */
+  readonly totalMarketValue = computed(() =>
+    this.livePositions().reduce((sum, p) => sum + (p.marketValue ?? 0), 0)
+  );
+  readonly totalUnrealised = computed(() =>
+    this.livePositions().reduce((sum, p) => sum + (p.unrealisedPnl ?? 0), 0)
+  );
+  /** Cost basis of the holdings that have a price, the base for the unrealised P&L % */
+  private readonly pricedCostBasis = computed(() =>
+    this.livePositions().reduce((sum, p) => sum + (p.marketValue == null ? 0 : p.costBasis), 0)
+  );
+  /**
+   * Summary figures at live prices. Cash, cost basis and realised P&L come from the summary
+   * endpoint; holdings value and unrealised P&L are the live totals of the table, so the bar
+   * and the table always agree. Until the holdings have loaded the endpoint's figures are used.
+   */
+  readonly liveSummary = computed(() => {
+    const s = this.summary();
+    if (!s) {
+      return null;
+    }
+    if (this.error() || this.positions().length === 0) {
+      return { holdings: s.marketValue, total: s.totalValue, unrealised: s.unrealisedPnl, unrealisedPercent: s.unrealisedPnlPercent ?? null };
+    }
+    const holdings = this.totalMarketValue();
+    const unrealised = this.totalUnrealised();
+    const cost = this.pricedCostBasis();
+    return { holdings, total: s.cashBalance + holdings, unrealised, unrealisedPercent: cost ? (unrealised / cost) * 100 : null };
+  });
+  /** Symbol of the summary's base currency, e.g. $ for USD */
+  readonly baseSymbol = computed(() => currencySymbol(this.summary()?.baseCurrency));
   /** Holdings priced from a stale quote or not priced at all */
   readonly stalePositionCount = computed(() => this.positions().filter((p) => p.stale).length);
   /** Stale/partial pricing banner, hidden for now. */
   readonly showPricingWarning = false;
   /** Per-row Stale badge next to the last price, hidden for now; the No price badge still shows. */
   readonly showStaleBadge = false;
+
+  constructor() {
+    // Keep every held symbol's live price fresh (same 5-minute cycle as the watchlists)
+    this.liveQuotes.track(() => this.positions().map((p) => p.symbol));
+  }
 
   ngOnInit(): void {
     const accountId = this.authService.currentUser()?.accountId;
@@ -65,11 +133,12 @@ export class PositionsComponent implements OnInit {
     this.loadPortfolio(accountId);
   }
 
-  /** Reload the summary and holdings so prices are re-quoted. */
+  /** Reload the summary and holdings, and re-fetch their live prices. */
   refresh(): void {
     const accountId = this.authService.currentUser()?.accountId;
     if (accountId) {
       this.loadPortfolio(accountId);
+      this.liveQuotes.refresh(this.positions().map((p) => p.symbol), true);
     }
   }
 
@@ -190,6 +259,25 @@ export class PositionsComponent implements OnInit {
     }
     const formatted = this.formatNumber(Math.abs(value), fractionDigits);
     return value > 0 ? `+${formatted}` : value < 0 ? `-${formatted}` : formatted;
+  }
+
+  /** Price or amount with its currency symbol, e.g. ₹1,006.35 */
+  money(value: number, currency: string | null | undefined, fractionDigits = 2): string {
+    return `${currencySymbol(currency)}${this.formatNumber(value, fractionDigits)}`;
+  }
+
+  /** A per-unit price with its currency symbol and the instrument's precision (4 decimals for FX) */
+  price(value: number, position: PricedPosition): string {
+    return this.money(value, position.currency, this.catalog.decimals(position.symbol));
+  }
+
+  /** Share of the holdings' market value, in percent; null when the holding has no price */
+  weight(position: PricedPosition): number | null {
+    const total = this.totalMarketValue();
+    if (position.marketValue == null || total <= 0) {
+      return null;
+    }
+    return (position.marketValue / total) * 100;
   }
 
   /** CSS tone for a P&L value. */

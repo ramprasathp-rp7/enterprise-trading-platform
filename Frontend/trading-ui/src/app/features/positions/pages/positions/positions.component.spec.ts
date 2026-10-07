@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
@@ -8,6 +9,7 @@ import { AccountsService } from '../../../../api/generated/trade';
 import { PortfolioService, PortfolioSummary, PricedPosition } from '../../../../api/generated/porfolio';
 import { CoreAuthService } from '../../../../core/auth/core-auth.service';
 import { StatementPdfService } from '../../../../shared/statement-pdf.service';
+import { MarketDataService } from '../../../../api/generated/market-data';
 
 describe('PositionsComponent', () => {
   let fixture: ComponentFixture<PositionsComponent>;
@@ -16,6 +18,7 @@ describe('PositionsComponent', () => {
   let portfolio: { getPricedPositions: ReturnType<typeof vi.fn>; getPortfolioSummary: ReturnType<typeof vi.fn> };
   let currentUser: ReturnType<typeof vi.fn>;
   let statementPdf: { download: ReturnType<typeof vi.fn> };
+  let marketData: { getLatestQuote: ReturnType<typeof vi.fn> };
 
   const positions: PricedPosition[] = [
     {
@@ -45,6 +48,7 @@ describe('PositionsComponent', () => {
         { provide: PortfolioService, useValue: portfolio },
         { provide: CoreAuthService, useValue: { currentUser } },
         { provide: StatementPdfService, useValue: statementPdf },
+        { provide: MarketDataService, useValue: marketData },
       ],
     }).compileComponents();
     fixture = TestBed.createComponent(PositionsComponent);
@@ -57,6 +61,8 @@ describe('PositionsComponent', () => {
     accounts = { getAccount: vi.fn(() => of({ id: 7, accountId: 'ACC-000007', holderName: 'Rahul Kumar', cashBalance: 1, status: 'ACTIVE', version: 1, lastUpdated: '' })) };
     currentUser = vi.fn(() => ({ accountId: 7, username: 'rkumar' }));
     statementPdf = { download: vi.fn().mockResolvedValue(undefined) };
+    // By default the live quote cache has nothing, so the portfolio API's prices are used
+    marketData = { getLatestQuote: vi.fn(() => throwError(() => new HttpErrorResponse({ status: 404 }))) };
   });
 
   it('loads priced positions and renders a row per holding with cost basis', async () => {
@@ -101,6 +107,69 @@ describe('PositionsComponent', () => {
     expect(rows[0].textContent).toContain('+760.00');
     expect(rows[1].textContent).toContain('-222.00');
     expect(rows[1].textContent).toContain('-3.16%');
+  });
+
+  it('reads the summary as Total = Cash + Holdings, with the base currency symbol', async () => {
+    await create();
+
+    const bar: HTMLElement = fixture.nativeElement.querySelector('.summary-bar');
+    expect(bar.querySelectorAll('.sum-op').length).toBe(2);
+    expect(Array.from(bar.querySelectorAll('.sum-label')).map((e) => e.textContent!.trim())).toEqual([
+      'Total value', 'Cash', 'Holdings', 'Unrealised P&L', 'Realised P&L',
+    ]);
+    expect(component.baseSymbol()).toBe('$');
+    expect(bar.querySelector('.sum-total .sum-value')!.textContent!.trim()).toBe('$30,800.00');
+    expect(fixture.nativeElement.querySelector('[data-testid="portfolio-as-of"]').textContent).toContain('Live prices');
+  });
+
+  it("shows each holding's weight by market value, prices with currency symbols, and a totals row", async () => {
+    await create();
+
+    expect(component.weight(positions[0])).toBeCloseTo((19000 / 25800) * 100);
+    expect(component.weight({ ...positions[0], marketValue: null })).toBeNull();
+    expect(component.money(1006.35, 'INR')).toBe('₹1,006.35');
+
+    const rows = fixture.nativeElement.querySelectorAll('tbody tr.transaction-row');
+    expect(rows[0].textContent).toContain('$190.00');
+    expect(rows[0].querySelector('.weight-pct').textContent).toContain('73.6%');
+    expect(rows[0].querySelector('.weight-fill').style.width).toMatch(/^73\.6/);
+
+    const totals: HTMLElement = fixture.nativeElement.querySelector('[data-testid="holdings-totals"]');
+    expect(totals.textContent).toContain('25,800.00');
+    expect(totals.textContent).toContain('cost 25,262.00');
+    expect(totals.textContent).toContain('+538.00');
+  });
+
+  it('values holdings at the live price from the quote cache and keeps the table and summary in step', async () => {
+    marketData.getLatestQuote.mockImplementation((symbol: string) =>
+      symbol === 'AAPL'
+        ? of({ symbol: 'AAPL', price: 200, bid: 199.9, ask: 200.1, currency: 'USD', stale: false, receivedAt: '2026-10-06T10:00:00Z' })
+        : throwError(() => new HttpErrorResponse({ status: 404 })),
+    );
+    await create();
+    fixture.detectChanges();
+
+    expect(marketData.getLatestQuote).toHaveBeenCalledWith('AAPL');
+    expect(marketData.getLatestQuote).toHaveBeenCalledWith('MSFT');
+    const [aapl, msft] = component.livePositions();
+    // AAPL revalued at the live 200.00; MSFT keeps the portfolio API's 340.00
+    expect(aapl).toEqual(expect.objectContaining({ lastPrice: 200, marketValue: 20000, unrealisedPnl: 1760, live: true }));
+    expect(aapl.unrealisedPnlPercent).toBeCloseTo((1760 / 18240) * 100);
+    expect(msft).toEqual(expect.objectContaining({ lastPrice: 340, marketValue: 6800, live: false }));
+
+    const rows = fixture.nativeElement.querySelectorAll('tbody tr.transaction-row');
+    expect(rows[0].querySelector('[data-testid="live-price"]').textContent).toContain('$200.00');
+    expect(rows[0].querySelector('[data-testid="live-price"]').getAttribute('title')).toContain('Live price');
+    expect(rows[1].querySelector('[data-testid="live-price"]').getAttribute('title')).toContain('portfolio service');
+    expect(fixture.nativeElement.querySelector('thead').textContent).toContain('Live price');
+
+    // Totals and the summary bar follow the live prices: holdings 26,800, total = 5,000 cash + 26,800
+    const text = (id: string) => fixture.nativeElement.querySelector(`[data-testid="${id}"]`).textContent.trim();
+    expect(text('summary-market-value')).toBe('26,800.00');
+    expect(text('summary-total-value')).toBe('31,800.00');
+    expect(text('summary-unrealised')).toBe('+1,538.00');
+    expect(text('summary-cash')).toBe('5,000.00');
+    expect(fixture.nativeElement.querySelector('[data-testid="holdings-totals"]').textContent).toContain('26,800.00');
   });
 
   it('flags unpriced holdings without showing stale badges or the pricing banner', async () => {

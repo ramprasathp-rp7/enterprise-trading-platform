@@ -2,12 +2,7 @@
   <header class="page-header">
     <div class="page-heading">
       <h1 class="page-title">Positions</h1>
-      <p class="page-subtitle">
-        Current holdings by instrument
-        @if (summary(); as s) {
-          <span data-testid="portfolio-as-of"> · Prices as of {{ s.asOf | date: 'medium' }}</span>
-        }
-      </p>
+      <p class="page-subtitle">What you hold, what it is worth now, and how it has done</p>
     </div>
     <div class="page-actions">
       <button
@@ -77,67 +72,71 @@
     </div>
   }
 
-  <section class="stat-strip" aria-label="Portfolio summary">
-    <div class="stat-tile">
-      <span class="stat-label">Total value</span>
-      <span class="stat-value" data-testid="summary-total-value">{{ summary() ? formatNumber(summary()!.totalValue, 2) : '—' }}</span>
-      <span class="stat-caption">{{ summary()?.baseCurrency ?? '' }} · cash plus holdings</span>
+  <!-- Summary as one bar that reads as an equation: Total = Cash + Holdings, then P&L -->
+  <section class="summary-bar" aria-label="Portfolio summary">
+    <div class="sum-item sum-total">
+      <span class="sum-label">Total value</span>
+      <span class="sum-value"><span class="cur">{{ baseSymbol() }}</span><span data-testid="summary-total-value">{{ liveSummary() ? formatNumber(liveSummary()!.total, 2) : '—' }}</span></span>
+      <span class="sum-caption">{{ summary()?.baseCurrency ?? '' }}{{ summary() ? ' · cash plus holdings' : '' }}</span>
     </div>
-    <div class="stat-tile">
-      <span class="stat-label">Market value</span>
-      <span class="stat-value" data-testid="summary-market-value">{{ summary() ? formatNumber(summary()!.marketValue, 2) : '—' }}</span>
-      <span class="stat-caption">{{ summary() ? summary()!.positionCount + ' open position' + (summary()!.positionCount === 1 ? '' : 's') : '' }}</span>
+
+    <span class="sum-op" aria-hidden="true">=</span>
+
+    <div class="sum-item">
+      <span class="sum-label">Cash</span>
+      <span class="sum-value"><span class="cur">{{ baseSymbol() }}</span><span data-testid="summary-cash">{{ summary() ? formatNumber(summary()!.cashBalance, 2) : '—' }}</span></span>
+      <span class="sum-caption">Available to trade</span>
     </div>
-    <div class="stat-tile">
-      <span class="stat-label">Unrealised P&amp;L</span>
-      <span class="stat-value" [class]="pnlTone(summary()?.unrealisedPnl)" data-testid="summary-unrealised">{{ formatSigned(summary()?.unrealisedPnl) }}</span>
-      <span class="stat-caption" [class]="pnlTone(summary()?.unrealisedPnlPercent)">
-        @if (summary()?.unrealisedPnlPercent != null) {
-          {{ formatSigned(summary()!.unrealisedPnlPercent) }}% vs cost {{ formatNumber(summary()!.costBasis, 2) }}
+
+    <span class="sum-op" aria-hidden="true">+</span>
+
+    <div class="sum-item">
+      <span class="sum-label">Holdings</span>
+      <span class="sum-value"><span class="cur">{{ baseSymbol() }}</span><span data-testid="summary-market-value">{{ liveSummary() ? formatNumber(liveSummary()!.holdings, 2) : '—' }}</span></span>
+      <span class="sum-caption">{{ summary() ? summary()!.positionCount + ' open position' + (summary()!.positionCount === 1 ? '' : 's') : '' }}</span>
+    </div>
+
+    <span class="sum-divider" aria-hidden="true"></span>
+
+    <div class="sum-item">
+      <span class="sum-label">Unrealised P&amp;L</span>
+      <span class="sum-value" [class]="'sum-value ' + pnlTone(liveSummary()?.unrealised)"><span data-testid="summary-unrealised" [class]="pnlTone(liveSummary()?.unrealised)">{{ formatSigned(liveSummary()?.unrealised) }}</span></span>
+      <span class="sum-caption">
+        @if (liveSummary()?.unrealisedPercent != null) {
+          <span [class]="pnlTone(liveSummary()?.unrealisedPercent)">{{ formatSigned(liveSummary()!.unrealisedPercent) }}%</span> on cost {{ formatNumber(summary()!.costBasis, 2) }}
         } @else if (summary()) {
-          Cost basis {{ formatNumber(summary()!.costBasis, 2) }}
+          On cost {{ formatNumber(summary()!.costBasis, 2) }}
         }
       </span>
     </div>
-    <div class="stat-tile">
-      <span class="stat-label">Realised P&amp;L</span>
-      <span class="stat-value" [class]="pnlTone(summary()?.realisedPnl)" data-testid="summary-realised">{{ formatSigned(summary()?.realisedPnl) }}</span>
-      <span class="stat-caption">Lifetime, from closed trades</span>
-    </div>
-    <div class="stat-tile">
-      <span class="stat-label">Cash balance</span>
-      <span class="stat-value" data-testid="summary-cash">{{ summary() ? formatNumber(summary()!.cashBalance, 2) : '—' }}</span>
-      <span class="stat-caption">Available to trade</span>
+
+    <div class="sum-item">
+      <span class="sum-label">Realised P&amp;L</span>
+      <span class="sum-value" [class]="'sum-value ' + pnlTone(summary()?.realisedPnl)"><span data-testid="summary-realised" [class]="pnlTone(summary()?.realisedPnl)">{{ formatSigned(summary()?.realisedPnl) }}</span></span>
+      <span class="sum-caption">From closed trades</span>
     </div>
   </section>
 
-  <section class="panel">
+  <section class="panel holdings-panel">
     <header class="panel-header">
       <h2 class="panel-title">Holdings <span class="count-chip">{{ positions().length }}</span></h2>
+      @if (summary(); as s) {
+        <span class="as-of" data-testid="portfolio-as-of"><span class="live-dot" aria-hidden="true"></span> Live prices · refreshed every 5 minutes</span>
+      }
     </header>
 
     <div class="table-wrapper">
-      <table class="data-table transactions-table">
-        <colgroup>
-          <col class="col-symbol" />
-          <col class="col-quantity" />
-          <col class="col-cost" />
-          <col class="col-basis" />
-          <col class="col-price" />
-          <col class="col-value" />
-          <col class="col-pnl" />
-          <col class="col-actions" />
-        </colgroup>
+      <table class="data-table holdings-table transactions-table">
         <thead>
           <tr>
-            <th>Symbol</th>
+            <th>Instrument</th>
             <th class="num">Quantity</th>
-            <th class="num">Average cost</th>
-            <th class="num">Cost basis</th>
-            <th class="num">Last price</th>
+            <th class="num">Avg cost</th>
+            <th class="num">Live price</th>
             <th class="num">Market value</th>
             <th class="num">Unrealised P&amp;L</th>
-            <th class="col-actions-head">Trade</th>
+            <th class="weight-head">Weight</th>
+            <th class="col-actions-head"><span class="sr-only">Trade</span></th>
           </tr>
         </thead>
         <tbody>
@@ -161,27 +160,45 @@
               </td>
             </tr>
           } @else {
-            @for (position of positions(); track position.symbol) {
+            @for (position of livePositions(); track position.symbol) {
               <tr class="transaction-row">
-                <td class="cell-strong">{{ position.symbol }}</td>
+                <td>
+                  <span class="cell-strong instrument">{{ position.symbol }}</span>
+                  <span class="sub">{{ position.currency }}</span>
+                </td>
                 <td class="num">{{ formatNumber(position.quantity, 0) }}</td>
-                <td class="num">{{ formatNumber(position.averageCost, 2) }}</td>
-                <td class="num">{{ formatNumber(position.costBasis, 2) }}</td>
+                <td class="num">{{ price(position.averageCost, position) }}</td>
                 <td class="num">
                   @if (position.lastPrice != null) {
-                    <span [attr.title]="position.priceAsOf ? 'Quoted ' + (position.priceAsOf | date: 'medium') : null">{{ formatNumber(position.lastPrice, 2) }}</span>
+                    <span
+                      [attr.title]="(position.live ? 'Live price' : 'Price from the portfolio service') + (position.priceAsOf ? ', updated ' + (position.priceAsOf | date: 'MMM d, h:mm a') : '')"
+                      data-testid="live-price"
+                    >{{ price(position.lastPrice, position) }}</span>
                     @if (showStaleBadge && position.stale) {
                       <span class="pill pill-warning no-dot price-flag" data-testid="stale-badge">Stale</span>
                     }
                   } @else {
-                    <span class="pill pill-warning no-dot price-flag" data-testid="unpriced-badge">No price</span>
+                    <span class="pill pill-warning no-dot price-flag" data-testid="unpriced-badge" title="No quote available right now">No price</span>
                   }
                 </td>
-                <td class="num">{{ position.marketValue != null ? formatNumber(position.marketValue, 2) : '—' }}</td>
-                <td class="num" [class]="pnlTone(position.unrealisedPnl)">
-                  {{ formatSigned(position.unrealisedPnl) }}
+                <td class="num">
+                  <span class="cell-strong">{{ position.marketValue != null ? money(position.marketValue, position.currency) : '—' }}</span>
+                  <span class="sub">cost {{ formatNumber(position.costBasis, 2) }}</span>
+                </td>
+                <td class="num">
+                  <span class="cell-strong" [class]="'cell-strong ' + pnlTone(position.unrealisedPnl)">{{ formatSigned(position.unrealisedPnl) }}</span>
                   @if (position.unrealisedPnlPercent != null) {
-                    <small class="pnl-percent">{{ formatSigned(position.unrealisedPnlPercent) }}%</small>
+                    <span class="sub pnl-percent" [class]="'sub pnl-percent ' + pnlTone(position.unrealisedPnlPercent)">{{ formatSigned(position.unrealisedPnlPercent) }}%</span>
+                  }
+                </td>
+                <td class="weight">
+                  @if (weight(position) !== null) {
+                    <span class="weight-track" [title]="position.symbol + ' is ' + (weight(position)! | number: '1.1-1') + '% of your holdings by market value'">
+                      <span class="weight-fill" [style.width.%]="weight(position)"></span>
+                    </span>
+                    <span class="weight-pct">{{ weight(position)! | number: '1.1-1' }}%</span>
+                  } @else {
+                    <span class="sub">—</span>
                   }
                 </td>
                 <td class="cell-actions">
@@ -192,20 +209,37 @@
                       [queryParams]="{ symbol: position.symbol, side: 'BUY', from: 'holding' }"
                       [attr.aria-label]="'Buy ' + position.symbol"
                       data-testid="holding-buy-btn"
-                    ><i class="fas fa-arrow-up"></i> Buy</a>
+                    >Buy</a>
                     <a
                       class="btn btn-sm trade-btn sell"
                       routerLink="/order-ticket"
                       [queryParams]="{ symbol: position.symbol, side: 'SELL', from: 'holding' }"
                       [attr.aria-label]="'Sell ' + position.symbol"
                       data-testid="holding-sell-btn"
-                    ><i class="fas fa-arrow-down"></i> Sell</a>
+                    >Sell</a>
                   </div>
                 </td>
               </tr>
             }
           }
         </tbody>
+        @if (!loading() && positions().length > 0) {
+          <tfoot>
+            <tr class="totals-row" data-testid="holdings-totals">
+              <td>Total</td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td class="num">
+                <span class="cell-strong">{{ formatNumber(totalMarketValue(), 2) }}</span>
+                <span class="sub">cost {{ formatNumber(totalCostBasis(), 2) }}</span>
+              </td>
+              <td class="num"><span class="cell-strong" [class]="'cell-strong ' + pnlTone(totalUnrealised())">{{ formatSigned(totalUnrealised()) }}</span></td>
+              <td></td>
+              <td></td>
+            </tr>
+          </tfoot>
+        }
       </table>
     </div>
   </section>
