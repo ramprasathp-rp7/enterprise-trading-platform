@@ -1,0 +1,260 @@
+openapi: 3.1.0
+
+info:
+  title: Candle Data REST API
+  version: 1.0.0
+  summary: Candle chart data endpoints for the Enterprise Trading Platform.
+  description: |
+    Provides historical candlestick (OHLCV) data for instruments.
+    Data is sourced from the Fauxnance market data API and aggregated daily.
+    Maximum retention is 90 days (3-month rolling window).
+
+servers:
+  - url: http://localhost:8080
+
+paths:
+  /api/v1/instruments/{instrumentId}/candles:
+    get:
+      operationId: getCandlesByInstrument
+      summary: Get candlestick data for an instrument within a date range
+      tags:
+        - Candles
+      parameters:
+        - name: instrumentId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: The numeric surrogate key of the instrument
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Start date (ISO 8601 format YYYY-MM-DD)
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: End date (ISO 8601 format YYYY-MM-DD)
+        - name: interval
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [1d]
+            default: 1d
+          description: |
+            Aggregation interval. Currently only '1d' (daily) is supported.
+            Fauxnance API provides daily candles only.
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 500
+          description: Maximum number of candles to return per page
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Number of candles to skip for pagination
+      responses:
+        '200':
+          description: Candlestick data within the requested date range
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandleHistoryResponse'
+        '400':
+          description: Invalid date range or parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Instrument not found or no candle data available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation error (e.g., invalid date format)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/instruments/{instrumentId}/candles/latest:
+    get:
+      operationId: getLatestCandles
+      summary: Get the most recent candlestick data for an instrument
+      tags:
+        - Candles
+      parameters:
+        - name: instrumentId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: The numeric surrogate key of the instrument
+        - name: count
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 100
+          description: Number of most recent candles to return
+      responses:
+        '200':
+          description: Most recent candlestick data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandleHistoryResponse'
+        '404':
+          description: Instrument not found or no candle data available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/instruments/{instrumentId}/candles/{date}:
+    get:
+      operationId: getCandleByDate
+      summary: Get candlestick data for a specific date
+      tags:
+        - Candles
+      parameters:
+        - name: instrumentId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: The numeric surrogate key of the instrument
+        - name: date
+          in: path
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Date in ISO 8601 format (YYYY-MM-DD)
+      responses:
+        '200':
+          description: Candlestick data for the requested date
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandleResponse'
+        '404':
+          description: Instrument or candle data not found for the date
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    CandleResponse:
+      type: object
+      required:
+        - date
+        - open
+        - high
+        - low
+        - close
+        - adjClose
+        - volume
+        - synthetic
+      properties:
+        date:
+          type: string
+          format: date
+          description: Trading date in ISO 8601 format (YYYY-MM-DD)
+        open:
+          type: number
+          format: decimal
+          description: Opening price
+        high:
+          type: number
+          format: decimal
+          description: Highest price during the session
+        low:
+          type: number
+          format: decimal
+          description: Lowest price during the session
+        close:
+          type: number
+          format: decimal
+          description: Closing price
+        adjClose:
+          type: number
+          format: decimal
+          description: Adjusted closing price (split and dividend adjusted)
+        volume:
+          type: integer
+          format: int64
+          description: Volume traded during the session
+        synthetic:
+          type: boolean
+          description: |
+            True if this candle was gap-filled (no actual trading data).
+            Synthetic candles use the previous day's closing price for all OHLC fields.
+
+    CandleHistoryResponse:
+      type: object
+      required:
+        - symbol
+        - name
+        - assetClass
+        - candles
+        - totalCount
+        - hasMore
+      properties:
+        symbol:
+          type: string
+          description: Instrument symbol (e.g., 'AAPL')
+        name:
+          type: string
+          description: Instrument name (e.g., 'Apple Inc.')
+        assetClass:
+          type: string
+          enum: [EQUITY, FX, CRYPTO]
+          description: Asset class of the instrument
+        candles:
+          type: array
+          items:
+            $ref: '#/components/schemas/CandleResponse'
+          description: Array of candlestick data
+        totalCount:
+          type: integer
+          description: Total number of candles in the result set (before pagination)
+        hasMore:
+          type: boolean
+          description: True if more candles exist beyond the current page
+
+    ErrorResponse:
+      type: object
+      required:
+        - errorCode
+        - message
+      properties:
+        errorCode:
+          type: string
+          description: Machine-readable error code (e.g., 'CDL-404', 'VAL-422')
+        message:
+          type: string
+          description: Human-readable error message
