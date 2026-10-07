@@ -37,7 +37,7 @@
     </div>
   }
 
-  <div class="watchlists-grid">
+  <div class="watchlists-grid" [class.equal-height]="nothingListed()" data-testid="watchlists-grid">
     <!-- All watchlists -->
     <section class="panel lists-panel" aria-label="Your watchlists">
       <header class="panel-header">

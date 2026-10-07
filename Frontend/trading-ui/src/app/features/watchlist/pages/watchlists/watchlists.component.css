@@ -27,6 +27,32 @@
   align-items: start;
 }
 
+/* Until there are instruments to list, both panels share one height and their empty
+   states sit centred in it; once a watchlist has rows, each panel hugs its content */
+.watchlists-grid.equal-height {
+  align-items: stretch;
+}
+
+.watchlists-grid.equal-height > .panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.watchlists-grid.equal-height .list-nav,
+.watchlists-grid.equal-height .detail-panel > .empty-state,
+.watchlists-grid.equal-height .detail-panel > .table-wrapper {
+  flex: 1;
+}
+
+.watchlists-grid.equal-height .list-nav {
+  display: flex;
+  flex-direction: column;
+}
+
+.watchlists-grid.equal-height .list-nav > .empty-state {
+  flex: 1;
+}
+
 /* ===== LIST OF WATCHLISTS ===== */
 .list-nav {
   list-style: none;

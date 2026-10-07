@@ -68,6 +68,9 @@ export class WatchlistsComponent implements OnInit {
     return lists.find((w) => w.watchlistId === this.requestedId()) ?? lists[0] ?? null;
   });
 
+  /** No watchlist yet, or the shown one has no instruments: the two panels are drawn at equal height */
+  readonly nothingListed = computed(() => (this.selected()?.items.length ?? 0) === 0);
+
   readonly rows = computed<WatchlistRow[]>(() =>
     (this.selected()?.items ?? []).map((item) => {
       const instrument = this.catalog.find(item.symbol);

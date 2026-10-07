@@ -10,7 +10,7 @@ interface NavItem {
   badge?: string;
   badgeClass?: string;
   /** Sidebar group the item belongs to */
-  section: 'Trading' | 'Funds';
+  section: 'Trading' | 'Market Tools' | 'Funds';
 }
 
 interface NavSection {
@@ -22,7 +22,7 @@ interface NavSection {
  * Sidebar Component
  * 
  * Left sidebar containing:
- * - Feature navigation (Orders, Blotter, Account)
+ * - Feature navigation in three groups: Trading, Market Tools, Funds
  * - Collapsible menu
  * - Feature quick access
  */
@@ -42,35 +42,21 @@ export class SidebarComponent {
       label: 'Dashboard',
       route: '/dashboard',
       icon: 'fas fa-chart-line',
-      description: 'Overview & analytics',
+      description: 'Account overview',
+      section: 'Trading'
+    },
+    {
+      label: 'Positions',
+      route: '/positions',
+      icon: 'fas fa-layer-group',
+      description: 'Holdings & P&L',
       section: 'Trading'
     },
     {
       label: 'Place Order',
       route: '/order-ticket',
       icon: 'fas fa-edit',
-      description: 'Search & trade instruments',
-      section: 'Trading'
-    },
-    {
-      label: 'Watchlists',
-      route: '/watchlists',
-      icon: 'fas fa-bookmark',
-      description: 'Instruments you follow',
-      section: 'Trading'
-    },
-    {
-      label: 'Trade Advice',
-      route: '/advice',
-      icon: 'fas fa-lightbulb',
-      description: 'Buy, sell & hold signals',
-      section: 'Trading'
-    },
-    {
-      label: 'Strategies',
-      route: '/strategies',
-      icon: 'fas fa-robot',
-      description: 'Automated rules that trade for you',
+      description: 'Buy & sell',
       section: 'Trading'
     },
     {
@@ -79,6 +65,27 @@ export class SidebarComponent {
       icon: 'fas fa-list-ul',
       description: 'Track your orders',
       section: 'Trading'
+    },
+    {
+      label: 'Watchlists',
+      route: '/watchlists',
+      icon: 'fas fa-bookmark',
+      description: 'Symbols you follow',
+      section: 'Market Tools'
+    },
+    {
+      label: 'Trade Advice',
+      route: '/advice',
+      icon: 'fas fa-lightbulb',
+      description: 'Buy & sell signals',
+      section: 'Market Tools'
+    },
+    {
+      label: 'Strategies',
+      route: '/strategies',
+      icon: 'fas fa-robot',
+      description: 'Automated trading',
+      section: 'Market Tools'
     },
     {
       label: 'Transactions',
@@ -91,20 +98,13 @@ export class SidebarComponent {
       label: 'Transaction History',
       route: '/transaction-history',
       icon: 'fas fa-clock-rotate-left',
-      description: 'Statements & activity',
+      description: 'Statements',
       section: 'Funds'
-    },
-    {
-      label: 'Positions',
-      route: '/positions',
-      icon: 'fas fa-layer-group',
-      description: 'Holdings & statements',
-      section: 'Trading'
     }
   ];
 
-  /** Items grouped for display: Trading first, then Funds (order within a group is preserved) */
-  readonly navSections: NavSection[] = (['Trading', 'Funds'] as const).map((title) => ({
+  /** Items grouped for display: Trading, then Market Tools, then Funds (order within a group is preserved) */
+  readonly navSections: NavSection[] = (['Trading', 'Market Tools', 'Funds'] as const).map((title) => ({
     title,
     items: this.navigationItems.filter((item) => item.section === title),
   }));

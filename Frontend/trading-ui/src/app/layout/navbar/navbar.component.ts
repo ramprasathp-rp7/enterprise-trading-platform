@@ -1,4 +1,4 @@
-import { Component, signal, HostListener, ElementRef, inject } from '@angular/core';
+import { Component, signal, HostListener, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -18,8 +18,7 @@ import { OrderStatusWatcherService } from '../../core/notifications/order-status
  * Top navigation bar containing:
  * - App logo/title
  * - Current date and time (real-time update)
- * - User profile menu
- * - Logout functionality
+ * - User profile (name and account) with a Logout button beside it
  */
 @Component({
   selector: 'app-navbar',
@@ -34,14 +33,12 @@ export class NavbarComponent {
   private readonly orderWatcher = inject(OrderStatusWatcherService);
   accountDisplayId = signal<string | null>(null);
   readonly searchOpen = signal(false);
-  isProfileMenuOpen = false;
   private accountLookupSubscription: Subscription | null = null;
 
   constructor(
     public authService: CoreAuthService,
     private router: Router,
     private signInStore: SignInStore,
-    private elementRef: ElementRef<HTMLElement>,
     private accountsService: AccountsService
   ) {}
 
@@ -55,22 +52,12 @@ export class NavbarComponent {
     this.accountLookupSubscription?.unsubscribe();
   }
 
-  toggleProfileMenu(event?: MouseEvent): void {
-    event?.stopPropagation();
-    this.isProfileMenuOpen = !this.isProfileMenuOpen;
-  }
-
-  closeProfileMenu(): void {
-    this.isProfileMenuOpen = false;
-  }
-
   /** Instrument search leads to the order ticket, a customer-only page */
   canSearch(): boolean {
     return !this.authService.isAdmin();
   }
 
   openSearch(): void {
-    this.closeProfileMenu();
     this.searchOpen.set(true);
   }
 
@@ -100,20 +87,7 @@ export class NavbarComponent {
     }
   }
 
-  @HostListener('document:click', ['$event'])
-  onDocumentClick(event: MouseEvent): void {
-    if (!this.isProfileMenuOpen) {
-      return;
-    }
-
-    const target = event.target as Node | null;
-    if (target && !this.elementRef.nativeElement.contains(target)) {
-      this.closeProfileMenu();
-    }
-  }
-
   logout(): void {
-    this.closeProfileMenu();
     this.orderWatcher.stop();
     this.signInStore.logout();
     this.router.navigateByUrl('/sign-in');
