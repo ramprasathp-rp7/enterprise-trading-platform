@@ -26,8 +26,8 @@ import { CandleService } from './candle.service';
  * Swap `candles()` / `quote()` for API calls when a market-data endpoint exists.
  */
 const CATALOGUE: Instrument[] = [
-  { id: 1, symbol: 'AAPL', name: 'Apple Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true },
-  { id: 2, symbol: 'ACME', name: 'Acme Corporation', assetClass: 'EQUITY', currency: 'USD', tradable: true },
+  { id: 1, symbol: 'ACME', name: 'Acme Corporation', assetClass: 'EQUITY', currency: 'USD', tradable: true },
+  { id: 2, symbol: 'AAPL', name: 'Apple Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true },
   { id: 3, symbol: 'INFY.NS', name: 'Infosys Limited', assetClass: 'EQUITY', currency: 'INR', tradable: true },
   { id: 4, symbol: 'RELIANCE.NS', name: 'Reliance Industries', assetClass: 'EQUITY', currency: 'INR', tradable: true },
   { id: 5, symbol: 'TATASTEEL.BO', name: 'Tata Steel Limited', assetClass: 'EQUITY', currency: 'INR', tradable: false },
