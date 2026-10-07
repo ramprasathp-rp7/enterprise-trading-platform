@@ -1,4 +1,4 @@
-package com.tradingplatform.api.mappers;
+package com.tradingplatform.watchlist.mapper;
 
 import java.util.List;
 
@@ -9,8 +9,8 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
-import com.tradingplatform.domain.model.Watchlist;
-import com.tradingplatform.domain.model.WatchlistItem;
+import com.tradingplatform.watchlist.model.Watchlist;
+import com.tradingplatform.watchlist.model.WatchlistItem;
 
 /**
  * MyBatis mapper for WATCHLISTS and WATCHLIST_ITEMS.

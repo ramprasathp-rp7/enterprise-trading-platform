@@ -1,4 +1,4 @@
-package com.tradingplatform.api.controllers;
+package com.tradingplatform.watchlist.controller;
 
 import java.util.List;
 
@@ -13,11 +13,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.tradingplatform.api.security.AccountAccessAuthorizer;
-import com.tradingplatform.api.services.WatchlistService;
-import com.tradingplatform.domain.dto.AddWatchlistItemRequest;
-import com.tradingplatform.domain.dto.CreateWatchlistRequest;
-import com.tradingplatform.domain.dto.WatchlistItemResponse;
-import com.tradingplatform.domain.dto.WatchlistResponse;
+import com.tradingplatform.watchlist.service.WatchlistService;
+import com.tradingplatform.watchlist.dto.AddWatchlistItemRequest;
+import com.tradingplatform.watchlist.dto.CreateWatchlistRequest;
+import com.tradingplatform.watchlist.dto.WatchlistItemResponse;
+import com.tradingplatform.watchlist.dto.WatchlistResponse;
 
 import jakarta.validation.Valid;
 

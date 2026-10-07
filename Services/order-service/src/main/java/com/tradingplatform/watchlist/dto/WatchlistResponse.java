@@ -1,10 +1,10 @@
-package com.tradingplatform.domain.dto;
+package com.tradingplatform.watchlist.dto;
 
 import java.time.Instant;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-import com.tradingplatform.domain.model.Watchlist;
+import com.tradingplatform.watchlist.model.Watchlist;
 
 /** A watchlist with its items, oldest item first. */
 public record WatchlistResponse(

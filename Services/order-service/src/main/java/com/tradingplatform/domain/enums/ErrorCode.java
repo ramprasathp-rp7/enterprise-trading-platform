@@ -15,6 +15,8 @@ public enum ErrorCode {
     TRANS_400("TRANS-400"),
     WL_404("WL-404"),
     WL_409("WL-409"),
+    ALR_404("ALR-404"),
+    ALR_409("ALR-409"),
     MKT_404("MKT-404");
 
     private final String code;

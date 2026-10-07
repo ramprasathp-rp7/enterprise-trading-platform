@@ -1,4 +1,6 @@
-package com.tradingplatform.domain.exception;
+package com.tradingplatform.watchlist.exception;
+
+import com.tradingplatform.domain.exception.DomainException;
 
 /** WL-404: the watchlist, or the item inside it, does not exist for this account */
 public final class WatchlistNotFoundException extends DomainException {

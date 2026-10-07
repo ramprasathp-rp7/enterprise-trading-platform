@@ -1,9 +1,9 @@
-package com.tradingplatform.domain.dto;
+package com.tradingplatform.watchlist.dto;
 
 import java.time.Instant;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-import com.tradingplatform.domain.model.WatchlistItem;
+import com.tradingplatform.watchlist.model.WatchlistItem;
 
 /** One instrument in a watchlist. Timestamps are ISO-8601 strings, as watchlist-api.yaml declares. */
 public record WatchlistItemResponse(

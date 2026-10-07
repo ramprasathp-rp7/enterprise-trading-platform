@@ -10,6 +10,8 @@ import { InstrumentCatalogService } from '../../../instruments/services/instrume
 import { LiveQuoteEntry, LiveQuoteStore } from '../../../../core/market-data/live-quote.store';
 import { currencySymbol } from '../../../../shared/currency';
 import { WatchlistStore } from '../../watchlist.store';
+import { PriceAlertButtonComponent } from '../../alerts/components/price-alert-button/price-alert-button.component';
+import { PriceAlertsPanelComponent } from '../../alerts/components/price-alerts-panel/price-alerts-panel.component';
 
 /** A watchlist row: the stored item plus catalogue details and its live quote */
 export interface WatchlistRow {
@@ -39,7 +41,7 @@ export interface WatchlistRow {
 @Component({
   selector: 'app-watchlists',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, InstrumentSearchComponent],
+  imports: [CommonModule, FormsModule, RouterModule, InstrumentSearchComponent, PriceAlertButtonComponent, PriceAlertsPanelComponent],
   templateUrl: './watchlists.component.html',
   styleUrls: ['./watchlists.component.css'],
 })
@@ -88,6 +90,9 @@ export class WatchlistsComponent implements OnInit {
       };
     }),
   );
+
+  /** Symbols of the open watchlist, for the price alerts panel */
+  readonly alertSymbols = computed(() => (this.selected()?.items ?? []).map((item) => item.symbol));
 
   constructor() {
     // Live prices for whichever watchlist is open

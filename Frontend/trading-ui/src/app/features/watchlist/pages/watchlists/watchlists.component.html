@@ -150,6 +150,7 @@
                     } @else {
                       <span class="untradable" title="Orders for this instrument are rejected"><i class="fas fa-ban" aria-hidden="true"></i> Not tradable</span>
                     }
+                    <app-price-alert-button [symbol]="row.item.symbol" />
                     <button
                       type="button"
                       class="btn btn-ghost btn-sm remove-btn"
@@ -185,4 +186,8 @@
       }
     </section>
   </div>
+
+  @if (selected()) {
+    <app-price-alerts-panel [symbols]="alertSymbols()" />
+  }
 </div>

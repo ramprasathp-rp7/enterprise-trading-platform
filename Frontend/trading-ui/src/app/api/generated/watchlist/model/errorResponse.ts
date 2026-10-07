@@ -20,6 +20,8 @@ export namespace ErrorResponse {
         Ins404: 'INS-404',
         Wl404: 'WL-404',
         Wl409: 'WL-409',
+        Alr404: 'ALR-404',
+        Alr409: 'ALR-409',
         Val422: 'VAL-422',
     } as const;
     export type ErrorCodeEnum = typeof ErrorCodeEnum[keyof typeof ErrorCodeEnum];

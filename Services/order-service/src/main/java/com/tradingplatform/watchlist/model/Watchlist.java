@@ -1,4 +1,4 @@
-package com.tradingplatform.domain.model;
+package com.tradingplatform.watchlist.model;
 
 import java.time.Instant;
 

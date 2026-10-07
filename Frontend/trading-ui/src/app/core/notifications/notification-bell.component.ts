@@ -11,6 +11,7 @@ const KIND_ICON: Record<NotificationKind, string> = {
   'order-rejected': 'fa-circle-xmark',
   'order-cancelled': 'fa-ban',
   report: 'fa-file-pdf',
+  'price-alert': 'fa-chart-line',
 };
 
 /**
@@ -240,6 +241,7 @@ const KIND_ICON: Record<NotificationKind, string> = {
     [data-kind='order-rejected'] .kind-icon { background: var(--negative-soft); color: var(--negative); }
     [data-kind='order-cancelled'] .kind-icon { background: var(--neutral-soft); color: var(--neutral); }
     [data-kind='report'] .kind-icon { background: var(--violet-soft); color: var(--violet); }
+    [data-kind='price-alert'] .kind-icon { background: var(--info-soft); color: var(--info); }
 
     .text {
       flex: 1;

@@ -3,6 +3,10 @@ package com.tradingplatform.api.exception;
 import com.tradingplatform.domain.dto.ErrorResponse;
 import com.tradingplatform.domain.enums.ErrorCode;
 import com.tradingplatform.domain.exception.*;
+import com.tradingplatform.watchlist.exception.WatchlistConflictException;
+import com.tradingplatform.watchlist.exception.WatchlistNotFoundException;
+import com.tradingplatform.watchlist.alerts.exception.PriceAlertConflictException;
+import com.tradingplatform.watchlist.alerts.exception.PriceAlertNotFoundException;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -272,6 +276,36 @@ public class GlobalExceptionHandler {
         );
     }
 
+    // ALR-404: Price alert not found for this account Maps to HTTP 404 (Not Found)
+
+    @ExceptionHandler(PriceAlertNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handlePriceAlertNotFound(
+            PriceAlertNotFoundException ex,
+            WebRequest request) {
+
+        logger.error("Price alert not found: alertId={}", ex.getAlertId());
+
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.ALR_404, ex.getMessage()),
+            HttpStatus.NOT_FOUND
+        );
+    }
+
+    // ALR-409: Alert cap reached or the same active alert already exists Maps to HTTP 409 (Conflict)
+
+    @ExceptionHandler(PriceAlertConflictException.class)
+    public ResponseEntity<ErrorResponse> handlePriceAlertConflict(
+            PriceAlertConflictException ex,
+            WebRequest request) {
+
+        logger.error("Price alert conflict: {}", ex.getMessage());
+
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.ALR_409, ex.getMessage()),
+            HttpStatus.CONFLICT
+        );
+    }
+
     // VAL-422: Invalid order data (quantity, price, etc.) Maps to HTTP 422 (Unprocessable Entity)
      
     @ExceptionHandler(InvalidOrderException.class)
@@ -393,10 +427,10 @@ public class GlobalExceptionHandler {
     private HttpStatus mapErrorCodeToHttpStatus(ErrorCode code) {
         return switch(code) {
             case AUTH_401 -> HttpStatus.UNAUTHORIZED;
-            case ACC_404, INS_404, TRANS_404, WL_404, MKT_404 -> HttpStatus.NOT_FOUND;
+            case ACC_404, INS_404, TRANS_404, WL_404, ALR_404, MKT_404 -> HttpStatus.NOT_FOUND;
             case ACC_403 -> HttpStatus.FORBIDDEN;
             case ORD_400, TRANS_400 -> HttpStatus.BAD_REQUEST;
-            case ORD_409, WL_409 -> HttpStatus.CONFLICT;
+            case ORD_409, WL_409, ALR_409 -> HttpStatus.CONFLICT;
             case VAL_422, INVALID_PREFERENCE -> HttpStatus.UNPROCESSABLE_ENTITY;
         };
     }

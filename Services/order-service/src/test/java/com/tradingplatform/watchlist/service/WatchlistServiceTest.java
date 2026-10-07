@@ -1,4 +1,4 @@
-package com.tradingplatform.api.services;
+package com.tradingplatform.watchlist.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -14,17 +14,17 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.tradingplatform.api.mappers.InstrumentMapper;
-import com.tradingplatform.api.mappers.WatchlistMapper;
-import com.tradingplatform.domain.dto.WatchlistItemResponse;
-import com.tradingplatform.domain.dto.WatchlistResponse;
+import com.tradingplatform.watchlist.mapper.WatchlistMapper;
+import com.tradingplatform.watchlist.dto.WatchlistItemResponse;
+import com.tradingplatform.watchlist.dto.WatchlistResponse;
 import com.tradingplatform.domain.enums.AssetClass;
 import com.tradingplatform.domain.exception.InstrumentNotFoundException;
 import com.tradingplatform.domain.exception.InvalidOrderException;
-import com.tradingplatform.domain.exception.WatchlistConflictException;
-import com.tradingplatform.domain.exception.WatchlistNotFoundException;
+import com.tradingplatform.watchlist.exception.WatchlistConflictException;
+import com.tradingplatform.watchlist.exception.WatchlistNotFoundException;
 import com.tradingplatform.domain.model.Instrument;
-import com.tradingplatform.domain.model.Watchlist;
-import com.tradingplatform.domain.model.WatchlistItem;
+import com.tradingplatform.watchlist.model.Watchlist;
+import com.tradingplatform.watchlist.model.WatchlistItem;
 
 class WatchlistServiceTest {
 
