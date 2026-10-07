@@ -18,42 +18,50 @@
     </div>
   </header>
 
-  <!-- Portfolio KPIs -->
+  <!-- Portfolio KPIs: one compact strip -->
   <section class="metrics-grid" aria-label="Portfolio overview">
     @for (stat of portfolioStats(); track stat.title) {
-      <a class="metric-card" [routerLink]="stat.link" [attr.aria-label]="stat.title + ': ' + stat.value + '. ' + stat.linkLabel">
-        <div class="metric-top">
+      <a class="metric-card" [routerLink]="stat.link" [attr.aria-label]="stat.title + ': ' + stat.value + '. ' + stat.linkLabel" [title]="stat.linkLabel">
+        <span class="metric-icon"><i [class]="stat.icon"></i></span>
+        <div class="metric-main">
           <span class="metric-label">{{ stat.title }}</span>
-          <span class="metric-icon"><i [class]="stat.icon"></i></span>
+          <span class="metric-value">{{ stat.value }}</span>
         </div>
-        <div class="metric-value">{{ stat.value }}</div>
-        <div class="metric-foot">
-          <span class="metric-caption">{{ stat.caption }}</span>
-          <span class="metric-link">{{ stat.linkLabel }} <i class="fas fa-arrow-right"></i></span>
-        </div>
+        <span class="metric-caption">{{ stat.caption }}</span>
+        <i class="fas fa-arrow-right metric-go" aria-hidden="true"></i>
       </a>
     }
   </section>
 
-  <!-- Holdings + watchlist share one row so the whole dashboard fits on screen -->
-  <div class="dashboard-grid">
-  <section class="panel holdings-panel">
-    <header class="panel-header">
-      <div>
-        <h2 class="panel-title">Portfolio holdings</h2>
-        <p class="panel-subtitle">Allocation across your instruments</p>
-      </div>
-      <a routerLink="/positions" class="panel-link">View all positions <i class="fas fa-arrow-right"></i></a>
-    </header>
-    <div class="panel-body">
-      <app-positions-overview [accountId]="authService.currentUser()?.accountId" (positionsLoaded)="onPositionsLoaded($event)"></app-positions-overview>
-    </div>
+  <!-- Net worth over time; takes the height left between the KPIs and the bottom row -->
+  <section class="panel networth-panel" aria-label="Net worth">
+    <app-net-worth-chart [currentValue]="netWorth()" [currency]="netWorthCurrency()" />
   </section>
 
-  <!-- Watchlist preview; "View all" opens the Watchlists page -->
-  <section class="panel watchlist-panel" aria-label="Watchlist">
-    <app-watchlist-widget />
-  </section>
+  <!-- Holdings + watchlist share the bottom row -->
+  <div class="dashboard-grid">
+    <section class="panel holdings-panel">
+      <header class="panel-header">
+        <div class="holdings-heading">
+          <h2 class="panel-title">Portfolio holdings</h2>
+          @if (holdingsSummary()) {
+            <span class="holdings-summary" data-testid="holdings-summary">{{ holdingsSummary() }}</span>
+          }
+        </div>
+        <a routerLink="/positions" class="panel-link">View all positions <i class="fas fa-arrow-right"></i></a>
+      </header>
+      <div class="panel-body">
+        <app-positions-overview
+          [accountId]="authService.currentUser()?.accountId"
+          (positionsLoaded)="onPositionsLoaded($event)"
+        ></app-positions-overview>
+      </div>
+    </section>
+
+    <!-- Watchlist preview; "View all" opens the Watchlists page -->
+    <section class="panel watchlist-panel" aria-label="Watchlist">
+      <app-watchlist-widget />
+    </section>
   </div>
 
 </div>

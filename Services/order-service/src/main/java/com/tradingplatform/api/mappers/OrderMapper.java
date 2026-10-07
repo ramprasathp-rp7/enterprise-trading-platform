@@ -59,8 +59,20 @@ public interface OrderMapper {
     @Update("UPDATE orders SET status = 'CANCELLED' WHERE id = #{id} AND status = 'NEW'")
     int cancelOrderIfNew(@Param("id") UUID id);
 
-    @Update("UPDATE orders SET status = #{status}, executed_price = #{executedPrice} WHERE id = #{id}")
+    /**
+     * Settles an order: sets its terminal status, executed price and executed_on. Used for FILLED by
+     * OrderSettlementService (SYNC mode). ck_orders_executed_on_iff_terminal requires executed_on on
+     * FILLED and REJECTED rows; a rejection also needs a reason, so rejections use {@link #rejectOrder}.
+     */
+    @Update("UPDATE orders SET status = #{status}, executed_price = #{executedPrice}, executed_on = CURRENT_TIMESTAMP WHERE id = #{id}")
     int updateOrderStatus(@Param("id") UUID id, @Param("status") OrderStatus status, @Param("executedPrice") BigDecimal executedPrice);
+
+    /**
+     * Marks an order REJECTED with a reason, as ck_orders_rejected_reason_iff_rejected and
+     * ck_orders_executed_on_iff_terminal require. Used when SYNC-mode settlement fails.
+     */
+    @Update("UPDATE orders SET status = 'REJECTED', rejected_reason = #{reason}, executed_price = NULL, executed_on = CURRENT_TIMESTAMP WHERE id = #{id}")
+    int rejectOrder(@Param("id") UUID id, @Param("reason") String reason);
 
     /**
      * Update the fee amount on an order.

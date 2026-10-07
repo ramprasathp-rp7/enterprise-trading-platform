@@ -9,6 +9,7 @@ import { BlotterStore } from '../../../blotter/blotter.store';
 import { CoreAuthService } from '../../../../core/auth/core-auth.service';
 import { AccountsService } from '../../../../api/generated/trade';
 import { WatchlistsService } from '../../../../api/generated/watchlist';
+import { PortfolioService, PortfolioSummary } from '../../../../api/generated/porfolio';
 
 describe('DashboardComponent', () => {
   let fixture: ComponentFixture<DashboardComponent>;
@@ -17,6 +18,13 @@ describe('DashboardComponent', () => {
   let blotterStore: { orders: ReturnType<typeof signal<any[]>>; loadOrderHistory: ReturnType<typeof vi.fn> };
   let currentUser: ReturnType<typeof vi.fn>;
   let watchlistsApi: { getWatchlists: ReturnType<typeof vi.fn> };
+  let portfolio: { getPortfolioSummary: ReturnType<typeof vi.fn> };
+
+  const summary: PortfolioSummary = {
+    accountId: 7, baseCurrency: 'USD', cashBalance: 48250.75, marketValue: 1600, costBasis: 1501,
+    unrealisedPnl: 99, unrealisedPnlPercent: 6.6, realisedPnl: 0, totalValue: 49850.75,
+    positionCount: 2, partial: false, asOf: '2026-10-05T08:00:00Z',
+  };
 
   const orders = [
     { orderId: 'o1', symbol: 'AAPL', side: 'BUY', quantity: 100, price: 189.35, status: 'FILLED', createdOn: '2026-10-05T09:30:00Z' },
@@ -35,6 +43,7 @@ describe('DashboardComponent', () => {
         { provide: CoreAuthService, useValue: { currentUser } },
         { provide: AccountsService, useValue: { getPositions: vi.fn(() => of([])) } },
         { provide: WatchlistsService, useValue: watchlistsApi },
+        { provide: PortfolioService, useValue: portfolio },
       ],
     }).compileComponents();
     fixture = TestBed.createComponent(DashboardComponent);
@@ -50,6 +59,7 @@ describe('DashboardComponent', () => {
     blotterStore = { orders: signal<any[]>(orders), loadOrderHistory: vi.fn() };
     currentUser = vi.fn(() => ({ accountId: 7 }));
     watchlistsApi = { getWatchlists: vi.fn(() => of([])) };
+    portfolio = { getPortfolioSummary: vi.fn(() => of({ ...summary, costBasis: 0, positionCount: 0 })) };
   });
 
   it('shows the first watchlist with a link to the full Watchlists page', async () => {
@@ -91,14 +101,14 @@ describe('DashboardComponent', () => {
     expect(fixture.nativeElement.querySelector('.page-title').textContent).toContain('Welcome back, Rahul Kumar');
   });
 
-  it('shows real KPIs: cash balance, holdings at cost and open orders, each linking onward', async () => {
+  it('shows real KPIs: cash balance, portfolio value and open orders, each linking onward', async () => {
     await create();
 
     const stats = component.portfolioStats();
-    expect(stats.map((s) => s.title)).toEqual(['Cash balance', 'Holdings at cost', 'Open orders']);
+    expect(stats.map((s) => s.title)).toEqual(['Cash balance', 'Portfolio value', 'Open orders']);
     expect(stats[0].value).toBe('48,250.75');
-    // the holdings panel (mocked) loaded no positions; one of the mocked orders is NEW
-    expect(stats[1]).toEqual(expect.objectContaining({ value: '0.00', caption: 'No open positions' }));
+    // the portfolio summary (mocked) has no positions; one of the mocked orders is NEW
+    expect(stats[1]).toEqual(expect.objectContaining({ value: '49,850.75', caption: 'Cash only · no open positions' }));
     expect(stats[2]).toEqual(expect.objectContaining({ value: '1', caption: 'Awaiting execution' }));
 
     const cards = fixture.nativeElement.querySelectorAll('a.metric-card');
@@ -106,20 +116,31 @@ describe('DashboardComponent', () => {
     expect(Array.from(cards).map((c: any) => c.getAttribute('href'))).toEqual(['/transactions', '/positions', '/blotter']);
   });
 
-  it('shows "—" for holdings until positions load, then their cost basis', async () => {
+  it('shows the portfolio summary total value (cash plus market value)', async () => {
+    portfolio.getPortfolioSummary.mockReturnValue(of(summary));
     await create();
 
-    (component as any).positionsSignal.set(null);
-    expect(component.portfolioStats()[1]).toEqual(expect.objectContaining({ value: '—', caption: 'Loading holdings…' }));
+    expect(portfolio.getPortfolioSummary).toHaveBeenCalledWith(7);
+    expect(component.portfolioStats()[1]).toEqual(expect.objectContaining({ value: '49,850.75', caption: 'Cash + 2 open positions' }));
 
-    component.onPositionsLoaded([
-      { symbol: 'AAPL', quantity: 10, averageCost: 100 } as any,
-      { symbol: 'MSFT', quantity: 2, averageCost: 250.5 } as any,
-    ]);
-    expect(component.portfolioStats()[1]).toEqual(expect.objectContaining({ value: '1,501.00', caption: '2 open positions' }));
+    (component as any).portfolioSummarySignal.set({ ...summary, positionCount: 1 });
+    expect(component.portfolioStats()[1].caption).toBe('Cash + 1 open position');
+  });
 
-    component.onPositionsLoaded([{ symbol: 'AAPL', quantity: 1, averageCost: 1 } as any]);
-    expect(component.portfolioStats()[1].caption).toBe('1 open position');
+  it('shows "—" for portfolio value until the summary loads', async () => {
+    await create();
+
+    (component as any).portfolioSummarySignal.set(null);
+    expect(component.portfolioStats()[1]).toEqual(expect.objectContaining({ value: '—', caption: 'Loading portfolio…' }));
+  });
+
+  it('marks portfolio value unavailable when the summary fails', async () => {
+    portfolio.getPortfolioSummary.mockReturnValue(throwError(() => new Error('503')));
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    await create();
+
+    expect(component.portfolioStats()[1]).toEqual(expect.objectContaining({ value: '—', caption: 'Portfolio value unavailable' }));
+    consoleError.mockRestore();
   });
 
   it('says nothing is pending when there are no NEW orders', async () => {
@@ -135,6 +156,7 @@ describe('DashboardComponent', () => {
 
     expect(blotterStore.loadOrderHistory).not.toHaveBeenCalled();
     expect(dashboardService.getBalance).not.toHaveBeenCalled();
+    expect(portfolio.getPortfolioSummary).not.toHaveBeenCalled();
     expect(component.portfolioStats()[0].value).toBe('0.00');
     expect(component.accountDisplayName()).toBeNull();
   });
@@ -159,6 +181,7 @@ describe('DashboardComponent', () => {
     component.refreshDashboard();
 
     expect(blotterStore.loadOrderHistory).toHaveBeenCalledTimes(2);
+    expect(portfolio.getPortfolioSummary).toHaveBeenCalledTimes(2);
     expect(component.portfolioStats()[0].value).toBe('100.00');
   });
 
@@ -171,4 +194,20 @@ describe('DashboardComponent', () => {
     expect(blotterStore.loadOrderHistory).toHaveBeenCalledTimes(1);
   });
 
+
+  it('summarises the holdings next to the panel title', async () => {
+    await create();
+    component.onPositionsLoaded([
+      { symbol: 'AAPL', quantity: 300, averageCost: 180 },
+      { symbol: 'MSFT', quantity: 1200, averageCost: 350 },
+      { symbol: 'OLD', quantity: 0, averageCost: 10 },
+    ] as never);
+    fixture.detectChanges();
+
+    expect(component.holdingsSummary()).toBe('2 holdings · 1,500 units');
+    expect(fixture.nativeElement.querySelector('[data-testid="holdings-summary"]').textContent).toContain('2 holdings');
+
+    component.onPositionsLoaded([]);
+    expect(component.holdingsSummary()).toBeNull();
+  });
 });

@@ -111,6 +111,31 @@ describe('TransactionActionsComponent', () => {
     expect(navigate).toHaveBeenCalledWith(['/transaction-confirmation', 'tx-9']);
   });
 
+  it('rounds a typed amount to cents before sending, as the API takes at most two decimals', () => {
+    component.amount.set(10.555);
+
+    component.onSubmit();
+
+    expect(service.deposit).toHaveBeenCalledWith(7, 10.56);
+    expect(component.lastSubmittedAmount()).toBe(10.56);
+  });
+
+  it('rounds half up on the decimal value, not the binary float', () => {
+    component.amount.set(1.005);
+
+    component.onSubmit();
+
+    expect(service.deposit).toHaveBeenCalledWith(7, 1.01);
+  });
+
+  it('does nothing when the amount rounds to zero cents', () => {
+    component.amount.set(0.004);
+
+    component.onSubmit();
+
+    expect(service.deposit).not.toHaveBeenCalled();
+  });
+
   it('withdraws when debit is selected and opens its confirmation', () => {
     component.onTransactionTypeChange('withdraw');
     component.amount.set(40);

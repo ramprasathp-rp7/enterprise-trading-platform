@@ -1,15 +1,18 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
 import { WatchlistsComponent } from './watchlists.component';
 import { WatchlistResponse, WatchlistsService } from '../../../../api/generated/watchlist';
 import { CoreAuthService } from '../../../../core/auth/core-auth.service';
+import { MarketDataService } from '../../../../api/generated/market-data';
 
 describe('WatchlistsComponent', () => {
   let fixture: ComponentFixture<WatchlistsComponent>;
   let component: WatchlistsComponent;
   let api: Record<string, ReturnType<typeof vi.fn>>;
+  let marketData: { getLatestQuote: ReturnType<typeof vi.fn> };
 
   const lists = (): WatchlistResponse[] => [
     {
@@ -36,11 +39,19 @@ describe('WatchlistsComponent', () => {
       ),
       removeWatchlistItem: vi.fn(() => of(null)),
     };
+    marketData = {
+      getLatestQuote: vi.fn((symbol: string) =>
+        symbol === 'AAPL'
+          ? of({ symbol: 'AAPL', price: 190.1, bid: 190, ask: 190.2, currency: 'USD', changePercent: 1.25, stale: false, receivedAt: '2026-10-06T09:05:00Z' })
+          : throwError(() => new HttpErrorResponse({ status: 404, error: { errorCode: 'MKT-404' } })),
+      ),
+    };
     await TestBed.configureTestingModule({
       imports: [WatchlistsComponent],
       providers: [
         provideRouter([]),
         { provide: WatchlistsService, useValue: api },
+        { provide: MarketDataService, useValue: marketData },
         { provide: CoreAuthService, useValue: { currentUser: () => ({ accountId: 7 }) } },
       ],
     }).compileComponents();
@@ -49,12 +60,20 @@ describe('WatchlistsComponent', () => {
     fixture.detectChanges();
   });
 
-  it('lists watchlists and shows the first one’s instruments with sample prices', () => {
+  it('lists watchlists and shows the first one’s instruments with live prices', () => {
     const el: HTMLElement = fixture.nativeElement;
     expect(el.querySelectorAll('.list-entry').length).toBe(2);
     expect(component.selected()?.name).toBe('Tech');
     expect(component.rows().map((r) => r.item.symbol)).toEqual(['AAPL', 'TATASTEEL.BO']);
-    expect(component.rows()[0].price).toBeGreaterThan(0);
+    // live price from the backend quote cache; a symbol the cache lacks shows a dash
+    expect(marketData.getLatestQuote).toHaveBeenCalledWith('AAPL');
+    expect(component.rows()[0].price).toBe(190.1);
+    expect(component.rows()[0].changePercent).toBe(1.25);
+    expect(component.rows()[1].price).toBeNull();
+    expect(component.rows()[1].priceStatus).toBe('missing');
+    fixture.detectChanges();
+    expect(el.querySelector('[data-testid="price-AAPL"]')!.textContent).toContain('190.10');
+    expect(el.querySelector('[data-testid="price-TATASTEEL.BO"]')!.textContent).toContain('—');
     // untradable instruments get no Trade button
     expect(el.querySelector('[data-testid="watch-row-AAPL"] a')!.textContent).toContain('Trade');
     expect(el.querySelector('[data-testid="watch-row-TATASTEEL.BO"]')!.textContent).toContain('Not tradable');

@@ -5,6 +5,7 @@ import { NavbarComponent } from '../navbar/navbar.component';
 import { SidebarComponent } from '../sidebar/sidebar.component';
 import { FooterComponent } from '../footer/footer.component';
 import { OrderStatusWatcherService } from '../../core/notifications/order-status-watcher.service';
+import { PriceAlertWatcherService } from '../../features/watchlist/alerts/price-alert-watcher.service';
 
 /**
  * Shell Component
@@ -24,13 +25,16 @@ import { OrderStatusWatcherService } from '../../core/notifications/order-status
 })
 export class ShellComponent implements OnInit, OnDestroy {
   private readonly orderWatcher = inject(OrderStatusWatcherService);
+  private readonly priceAlertWatcher = inject(PriceAlertWatcherService);
 
-  /** Customer pages: announce order status changes wherever the user is */
+  /** Customer pages: announce order status changes and fired price alerts wherever the user is */
   ngOnInit(): void {
     this.orderWatcher.start();
+    this.priceAlertWatcher.start();
   }
 
   ngOnDestroy(): void {
     this.orderWatcher.stop();
+    this.priceAlertWatcher.stop();
   }
 }

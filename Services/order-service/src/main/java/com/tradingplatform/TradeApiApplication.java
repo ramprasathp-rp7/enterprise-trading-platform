@@ -6,8 +6,12 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
-@MapperScan("com.tradingplatform.api.mappers")
 @EnableScheduling
+@MapperScan({
+    "com.tradingplatform.api.mappers",
+    "com.tradingplatform.watchlist.mapper",
+    "com.tradingplatform.watchlist.alerts.mapper"
+})
 public class TradeApiApplication {
 
     public static void main(String[] args) {

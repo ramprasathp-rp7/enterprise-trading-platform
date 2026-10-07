@@ -81,7 +81,7 @@ The poller batches up to 25 symbols per request, so the request count depends on
 ### POLL_INTERVAL_SECONDS
 - **Description**: Interval (in seconds) at which the poller runs
 - **Type**: Integer
-- **Default**: 60
+- **Default**: 300 (every five minutes; 288 requests/day for up to 25 symbols)
 - **Minimum**: 60 (enforced in code with WARNING log)
 - **Source**: OS environment variable or Spring property
 - **Example**: `export POLL_INTERVAL_SECONDS=120`

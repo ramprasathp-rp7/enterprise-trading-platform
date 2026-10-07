@@ -90,7 +90,9 @@ export class TransactionActionsComponent {
   }
 
   onSubmit() {
-    const amount = this.amount();
+    // The API accepts at most two decimal places (VAL-422 otherwise), so a typed 10.555 is sent as
+    // 10.56, the same rounding the database applied before the API started enforcing it.
+    const amount = roundToCents(this.amount());
     const accountId = this.authService.currentUser()?.accountId;
 
     if (!accountId || !amount || amount <= 0) {
@@ -214,4 +216,12 @@ export class TransactionActionsComponent {
       error: () => this.recentTransactions.set([]),
     });
   }
+}
+
+/** Round half up to two decimal places, using decimal exponents so 1.005 becomes 1.01 rather than 1.00 */
+function roundToCents(value: number | null | undefined): number | null {
+  if (value == null || !Number.isFinite(value)) {
+    return null;
+  }
+  return Number(`${Math.round(Number(`${value}e2`))}e-2`);
 }

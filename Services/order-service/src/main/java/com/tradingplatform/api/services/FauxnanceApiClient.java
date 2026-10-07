@@ -139,6 +139,9 @@ public class FauxnanceApiClient {
      *           "bid": 1020.28,
      *           "ask": 1020.72,
      *           "currency": "INR",
+     *           "change": -4.25,
+     *           "changePercent": -0.41,
+     *           "previousClose": 1024.75,
      *           "asOf": "2026-10-05T09:45:00Z",
      *           "marketState": "unknown"
      *         }
@@ -190,7 +193,13 @@ public class FauxnanceApiClient {
                     String currency = quote.path("currency").asText();
                     Instant quoteAsOf = Instant.parse(quote.path("asOf").asText());
                     
-                    QuoteData data = new QuoteData(symbol, price, bid, ask, currency, quoteAsOf, stale);
+                    // Optional fields: absent or null for some instruments
+                    BigDecimal change = optionalDecimal(quote, "change");
+                    BigDecimal changePercent = optionalDecimal(quote, "changePercent");
+                    BigDecimal previousClose = optionalDecimal(quote, "previousClose");
+                    String marketState = optionalText(quote, "marketState");
+                    QuoteData data = new QuoteData(symbol, price, bid, ask, currency, quoteAsOf, stale,
+                        change, changePercent, previousClose, marketState);
                     result.put(symbol, data);
                     log.debug("Parsed quote: symbol={}, price={}, bid={}, ask={}, stale={}", 
                         symbol, price, bid, ask, stale);
@@ -206,6 +215,29 @@ public class FauxnanceApiClient {
         }
         
         return result;
+    }
+
+    /** Decimal field value, or null when the field is absent, null or not numeric. */
+    private static BigDecimal optionalDecimal(JsonNode node, String field) {
+        JsonNode value = node.get(field);
+        if (value == null || value.isNull()) {
+            return null;
+        }
+        try {
+            return new BigDecimal(value.asText());
+        } catch (NumberFormatException ex) {
+            log.debug("Ignoring non-numeric {} value: {}", field, value);
+            return null;
+        }
+    }
+
+    /** Text field value, or null when the field is absent, null or blank. */
+    private static String optionalText(JsonNode node, String field) {
+        JsonNode value = node.get(field);
+        if (value == null || value.isNull() || value.asText().isBlank()) {
+            return null;
+        }
+        return value.asText();
     }
 
     /**
@@ -308,9 +340,26 @@ public class FauxnanceApiClient {
         private final String currency;
         private final Instant quoteAsOf;
         private final boolean stale;
+        private final BigDecimal change;
+        private final BigDecimal changePercent;
+        private final BigDecimal previousClose;
+        private final String marketState;
 
         public QuoteData(String symbol, BigDecimal price, BigDecimal bid, BigDecimal ask,
                         String currency, Instant quoteAsOf, boolean stale) {
+            this(symbol, price, bid, ask, currency, quoteAsOf, stale, null, null, null, null);
+        }
+
+        /**
+         * @param change Absolute change against previous close (nullable)
+         * @param changePercent Percentage points change (nullable)
+         * @param previousClose Previous closing price (nullable)
+         * @param marketState Market state: open, closed, pre, post, unknown (nullable)
+         */
+        public QuoteData(String symbol, BigDecimal price, BigDecimal bid, BigDecimal ask,
+                        String currency, Instant quoteAsOf, boolean stale,
+                        BigDecimal change, BigDecimal changePercent, BigDecimal previousClose,
+                        String marketState) {
             this.symbol = Objects.requireNonNull(symbol);
             this.price = Objects.requireNonNull(price);
             this.bid = Objects.requireNonNull(bid);
@@ -318,6 +367,10 @@ public class FauxnanceApiClient {
             this.currency = Objects.requireNonNull(currency);
             this.quoteAsOf = Objects.requireNonNull(quoteAsOf);
             this.stale = stale;
+            this.change = change;
+            this.changePercent = changePercent;
+            this.previousClose = previousClose;
+            this.marketState = marketState;
         }
 
         public String getSymbol() {
@@ -346,6 +399,22 @@ public class FauxnanceApiClient {
 
         public boolean isStale() {
             return stale;
+        }
+
+        public BigDecimal getChange() {
+            return change;
+        }
+
+        public BigDecimal getChangePercent() {
+            return changePercent;
+        }
+
+        public BigDecimal getPreviousClose() {
+            return previousClose;
+        }
+
+        public String getMarketState() {
+            return marketState;
         }
 
         @Override

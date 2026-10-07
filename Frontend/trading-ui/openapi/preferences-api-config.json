@@ -1,0 +1,12 @@
+{
+  "inputSpec": "./contracts/preferences-api.yaml",
+  "outputDir": "./src/app/api/generated/preferences",
+  "generatorName": "typescript-angular",
+  "skipValidateSpec": true,
+  "validateSpec": false,
+  "packageName": "api.preferences",
+  "additionalProperties": {
+    "apiModulePrefix": "PreferencesApi",
+    "ngVersion": "21.0.0"
+  }
+}
