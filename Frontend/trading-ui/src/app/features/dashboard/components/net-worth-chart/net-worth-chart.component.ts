@@ -2,8 +2,11 @@ import { Component, DestroyRef, computed, inject, input, signal } from '@angular
 import { BaseChartDirective } from 'ng2-charts';
 import type { ChartConfiguration, ChartData, ScriptableContext } from 'chart.js';
 import { currencySymbol } from '../../../../shared/currency';
+import type { NetWorthPoint } from '../../services/dashboard.service';
 
-export type NetWorthRange = '1W' | '1M' | '3M' | '6M' | '1Y';
+export type { NetWorthPoint };
+
+export type NetWorthRange = '1W' | '1M' | '3M';
 
 interface RangeOption {
   id: NetWorthRange;
@@ -15,57 +18,25 @@ export const NET_WORTH_RANGES: readonly RangeOption[] = [
   { id: '1W', days: 7, label: 'past week' },
   { id: '1M', days: 30, label: 'past month' },
   { id: '3M', days: 90, label: 'past 3 months' },
-  { id: '6M', days: 180, label: 'past 6 months' },
-  { id: '1Y', days: 365, label: 'past year' },
 ];
 
-/** Shown when the real portfolio value has not loaded */
-const SAMPLE_END_VALUE = 125_000;
-const HISTORY_DAYS = 365;
 const DAY_MS = 86_400_000;
 
-export interface NetWorthPoint {
-  date: Date;
-  value: number;
-}
-
 /**
- * Sample net worth history: a seeded random walk with a gentle upward drift, scaled so the last
- * point equals `endValue`. Deterministic, so the chart does not change between visits.
+ * The snapshot history with today's live value as its last point. Snapshots are taken at the end
+ * of each UTC day, so today's is not there yet; if it is (the job already ran), the live value wins.
  */
-export function sampleNetWorthHistory(endValue: number, today: Date, days = HISTORY_DAYS): NetWorthPoint[] {
-  const random = mulberry32(14); // seed chosen for a gently rising history
-  const raw: number[] = [];
-  let value = 100;
-  for (let i = 0; i < days; i++) {
-    const drift = 0.0006;
-    const shock = (random() - 0.5) * 0.022;
-    value = Math.max(1, value * (1 + drift + shock));
-    raw.push(value);
+export function withLiveValue(history: readonly NetWorthPoint[], liveValue: number | null, today: Date): NetWorthPoint[] {
+  if (liveValue === null || !Number.isFinite(liveValue)) {
+    return [...history];
   }
-  const scale = endValue / raw[raw.length - 1];
-  const end = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
-  return raw.map((v, i) => ({
-    date: new Date(end - (days - 1 - i) * DAY_MS),
-    value: Math.round(v * scale * 100) / 100,
-  }));
-}
-
-/** Small seeded PRNG so the sample history is stable */
-function mulberry32(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
+  const day = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+  return [...history.filter((p) => p.date.getTime() < day), { date: new Date(day), value: liveValue }];
 }
 
 /**
- * Dashboard net worth chart. The history is SAMPLE data (net worth is not recorded yet);
- * its last point is the account's real portfolio value once that has loaded.
+ * Dashboard net worth chart: the account's end-of-day net worth snapshots (order-service
+ * account history), ending at today's live portfolio value.
  */
 @Component({
   selector: 'app-net-worth-chart',
@@ -74,19 +45,22 @@ function mulberry32(seed: number): () => number {
   template: `
     <header class="nw-head">
       <div class="nw-heading">
-        <h2 class="nw-title">
-          Net worth
-          <span class="sample-tag" title="Illustrative history: net worth is not recorded yet. Today's value is your portfolio value.">Sample</span>
-        </h2>
-        <div class="nw-figures">
-          <span class="nw-value" data-testid="net-worth-value">{{ formatMoney(latest()) }}</span>
-          <span class="nw-change" [class.up]="change() >= 0" [class.down]="change() < 0" data-testid="net-worth-change">
-            <i class="fas" [class.fa-arrow-trend-up]="change() >= 0" [class.fa-arrow-trend-down]="change() < 0" aria-hidden="true"></i>
-            {{ change() >= 0 ? '+' : '−' }}{{ formatMoney(Math.abs(change())) }}
-            ({{ change() >= 0 ? '+' : '−' }}{{ Math.abs(changePercent()).toFixed(2) }}%)
-          </span>
-          <span class="nw-period">{{ rangeOption().label }}</span>
-        </div>
+        <h2 class="nw-title">Net worth</h2>
+        @if (hasChart()) {
+          <div class="nw-figures">
+            <span class="nw-value" data-testid="net-worth-value">{{ formatMoney(latest() ?? 0) }}</span>
+            <span class="nw-change" [class.up]="change() >= 0" [class.down]="change() < 0" data-testid="net-worth-change">
+              <i class="fas" [class.fa-arrow-trend-up]="change() >= 0" [class.fa-arrow-trend-down]="change() < 0" aria-hidden="true"></i>
+              {{ change() >= 0 ? '+' : '−' }}{{ formatMoney(Math.abs(change())) }}
+              ({{ change() >= 0 ? '+' : '−' }}{{ Math.abs(changePercent()).toFixed(2) }}%)
+            </span>
+            <span class="nw-period">{{ rangeOption().label }}</span>
+          </div>
+        } @else if (latest() !== null) {
+          <div class="nw-figures">
+            <span class="nw-value" data-testid="net-worth-value">{{ formatMoney(latest()!) }}</span>
+          </div>
+        }
       </div>
       <div class="nw-ranges" role="group" aria-label="Chart range">
         @for (option of ranges; track option.id) {
@@ -101,7 +75,21 @@ function mulberry32(seed: number): () => number {
       </div>
     </header>
     <div class="nw-chart">
-      <canvas baseChart type="line" [data]="chartData()" [options]="chartOptions()" aria-label="Net worth over time" role="img"></canvas>
+      @if (hasChart()) {
+        <canvas baseChart type="line" [data]="chartData()" [options]="chartOptions()" aria-label="Net worth over time" role="img"></canvas>
+      } @else {
+        <p class="nw-state" data-testid="net-worth-state">
+          @if (failed()) {
+            <i class="fas fa-triangle-exclamation" aria-hidden="true"></i> Net worth history is unavailable right now.
+          } @else if (history() === null) {
+            Loading net worth history…
+          } @else if (series().length < 2) {
+            Your net worth history builds up from a snapshot taken at the end of each day. Check back tomorrow.
+          } @else {
+            Not enough history for the {{ rangeOption().label }} yet. Try a longer range.
+          }
+        </p>
+      }
     </div>
   `,
   styles: [`
@@ -129,18 +117,6 @@ function mulberry32(seed: number): () => number {
       font-size: 13px;
       font-weight: 600;
       color: var(--ink-500);
-    }
-
-    .sample-tag {
-      padding: 1px 7px;
-      border-radius: var(--r-pill);
-      background: var(--warning-soft);
-      color: var(--warning);
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      cursor: help;
     }
 
     .nw-figures {
@@ -209,6 +185,20 @@ function mulberry32(seed: number): () => number {
       box-shadow: var(--shadow-card);
     }
 
+    .nw-state {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      height: 100%;
+      min-height: 120px;
+      margin: 0;
+      padding: 0 24px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--ink-500);
+    }
+
     .nw-chart {
       position: relative;
       flex: 1;
@@ -218,7 +208,11 @@ function mulberry32(seed: number): () => number {
   `],
 })
 export class NetWorthChartComponent {
-  /** The account's real total value (cash + positions); the sample history ends here */
+  /** End-of-day snapshots, oldest first; null while loading */
+  readonly history = input<readonly NetWorthPoint[] | null>(null);
+  /** True when the history request failed */
+  readonly failed = input(false);
+  /** The account's live total value (cash + positions), shown as today's point */
   readonly currentValue = input<number | null>(null);
   /** ISO 4217 code of the value */
   readonly currency = input<string | null>(null);
@@ -230,16 +224,31 @@ export class NetWorthChartComponent {
   /** Bumped when the theme changes so the chart picks up the new colours */
   private readonly themeVersion = signal(0);
 
-  private readonly history = computed(() =>
-    sampleNetWorthHistory(this.currentValue() ?? SAMPLE_END_VALUE, new Date()),
-  );
+  /** Snapshots plus today's live value */
+  readonly series = computed(() => withLiveValue(this.history() ?? [], this.currentValue(), new Date()));
 
   readonly rangeOption = computed(() => NET_WORTH_RANGES.find((r) => r.id === this.range()) ?? NET_WORTH_RANGES[2]);
 
-  readonly points = computed(() => this.history().slice(-this.rangeOption().days));
+  /** Points on or after the first day of the range; history can have gaps, so filter by date */
+  readonly points = computed(() => {
+    const series = this.series();
+    const now = new Date();
+    const firstDay = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) - (this.rangeOption().days - 1) * DAY_MS;
+    return series.filter((p) => p.date.getTime() >= firstDay);
+  });
 
-  readonly latest = computed(() => this.points()[this.points().length - 1]?.value ?? 0);
-  readonly change = computed(() => this.latest() - (this.points()[0]?.value ?? 0));
+  /** A line needs two points; anything less shows a message instead */
+  readonly hasChart = computed(() => !this.failed() && this.history() !== null && this.points().length >= 2);
+
+  /** Most recent value (today's live value when loaded), null when there is none */
+  readonly latest = computed(() => {
+    const series = this.series();
+    return series.length ? series[series.length - 1].value : null;
+  });
+  readonly change = computed(() => {
+    const points = this.points();
+    return points.length ? points[points.length - 1].value - points[0].value : 0;
+  });
   readonly changePercent = computed(() => {
     const first = this.points()[0]?.value ?? 0;
     return first ? (this.change() / first) * 100 : 0;
@@ -283,7 +292,6 @@ export class NetWorthChartComponent {
     this.themeVersion();
     const colors = themeColors();
     const points = this.points();
-    const long = points.length > 90;
     return {
       responsive: true,
       maintainAspectRatio: false,
@@ -306,16 +314,9 @@ export class NetWorthChartComponent {
             maxRotation: 0,
             autoSkipPadding: 16,
             font: { size: 11 },
-            // Day and month for short ranges, month and year for 6M / 1Y
-            callback: (_value, index) => {
-              const date = points[index]?.date;
-              if (!date) {
-                return '';
-              }
-              return long
-                ? date.toLocaleDateString('en-US', { month: 'short', year: '2-digit', timeZone: 'UTC' }).replace(' ', " '")
-                : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
-            },
+            // Day and month, e.g. "Oct 6"
+            callback: (_value, index) =>
+              points[index]?.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }) ?? '',
           },
         },
         y: {
