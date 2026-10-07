@@ -95,6 +95,15 @@ export const routes: Routes = [
         data: { title: 'Trade Advice' },
       },
       {
+        path: 'strategies',
+        canActivateChild: [canActivateChildGuard],
+        loadComponent: () =>
+          import('./features/strategies/pages/strategies/strategies.component').then(
+            (m) => m.StrategiesComponent
+          ),
+        data: { title: 'Strategies' },
+      },
+      {
         path: 'settings',
         canActivateChild: [canActivateChildGuard],
         loadComponent: () =>

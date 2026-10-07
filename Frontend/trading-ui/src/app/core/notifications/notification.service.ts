@@ -9,7 +9,8 @@ export type NotificationKind =
   | 'order-rejected'
   | 'order-cancelled'
   | 'report'
-  | 'price-alert';
+  | 'price-alert'
+  | 'strategy-created';
 
 export interface NotificationLink {
   path: string;

@@ -8,6 +8,8 @@ import com.tradingplatform.watchlist.exception.WatchlistConflictException;
 import com.tradingplatform.watchlist.exception.WatchlistNotFoundException;
 import com.tradingplatform.watchlist.alerts.exception.PriceAlertConflictException;
 import com.tradingplatform.watchlist.alerts.exception.PriceAlertNotFoundException;
+import com.tradingplatform.strategy.exception.StrategyConflictException;
+import com.tradingplatform.strategy.exception.StrategyNotFoundException;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -319,6 +321,18 @@ public class GlobalExceptionHandler {
 
     // ALR-409: Alert cap reached or the same active alert already exists Maps to HTTP 409 (Conflict)
 
+    @ExceptionHandler(StrategyNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleStrategyNotFound(StrategyNotFoundException ex, WebRequest request) {
+        logger.error("Strategy not found: {}", ex.getMessage());
+        return new ResponseEntity<>(new ErrorResponse(ErrorCode.STR_404, ex.getMessage()), HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(StrategyConflictException.class)
+    public ResponseEntity<ErrorResponse> handleStrategyConflict(StrategyConflictException ex, WebRequest request) {
+        logger.error("Strategy conflict: {}", ex.getMessage());
+        return new ResponseEntity<>(new ErrorResponse(ErrorCode.STR_409, ex.getMessage()), HttpStatus.CONFLICT);
+    }
+
     @ExceptionHandler(PriceAlertConflictException.class)
     public ResponseEntity<ErrorResponse> handlePriceAlertConflict(
             PriceAlertConflictException ex,
@@ -468,10 +482,10 @@ public class GlobalExceptionHandler {
     private HttpStatus mapErrorCodeToHttpStatus(ErrorCode code) {
         return switch(code) {
             case AUTH_401 -> HttpStatus.UNAUTHORIZED;
-            case ACC_404, INS_404, TRANS_404, WL_404, ALR_404, CDL_404, MKT_404 -> HttpStatus.NOT_FOUND;
+            case ACC_404, INS_404, TRANS_404, WL_404, ALR_404, CDL_404, MKT_404, STR_404 -> HttpStatus.NOT_FOUND;
             case ACC_403 -> HttpStatus.FORBIDDEN;
             case ORD_400, TRANS_400 -> HttpStatus.BAD_REQUEST;
-            case ORD_409, WL_409, ALR_409 -> HttpStatus.CONFLICT;
+            case ORD_409, WL_409, ALR_409, STR_409 -> HttpStatus.CONFLICT;
             case VAL_422, INVALID_PREFERENCE -> HttpStatus.UNPROCESSABLE_ENTITY;
         };
     }

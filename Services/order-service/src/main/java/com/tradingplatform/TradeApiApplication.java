@@ -11,7 +11,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
     "com.tradingplatform.api.mappers",
     "com.tradingplatform.watchlist.mapper",
     "com.tradingplatform.watchlist.alerts.mapper",
-    "com.tradingplatform.notifications.mapper"
+    "com.tradingplatform.notifications.mapper",
+    "com.tradingplatform.strategy.mapper"
 })
 public class TradeApiApplication {
 
