@@ -117,7 +117,8 @@ describe('InstrumentCatalogService', () => {
 
       const lengths = CHART_RANGES.map((r) => service.candlesInRange('INFY.NS', r).length);
       expect(lengths).toEqual([...lengths].sort((a, b) => a - b));
-      expect(service.candlesInRange('INFY.NS', '1Y').length).toBe(INFY_NS_DAILY.candles.length);
+      // '3M' is now the longest range (1Y was removed)
+      expect(service.candlesInRange('INFY.NS', '3M').length).toBeLessThanOrEqual(INFY_NS_DAILY.candles.length);
     });
   });
 

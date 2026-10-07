@@ -7,7 +7,6 @@ import java.util.List;
 
 import com.tradingplatform.domain.model.Instrument;
 
-import java.util.List;
 
 public interface InstrumentMapper {
 

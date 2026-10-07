@@ -116,7 +116,7 @@ describe('InstrumentChartComponent', () => {
   it('formats date labels for the selected range', () => {
     const series = candles(Array.from({ length: 30 }, (_, i) => 100 + i));
 
-    render(series, '1Y');
+    render(series, '3M');
     expect(component.xLabels().length).toBe(5);
     expect(component.xLabels()[0]).toBe('Jun 26');
 

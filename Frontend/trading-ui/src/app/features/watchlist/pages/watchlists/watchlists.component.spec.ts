@@ -80,14 +80,14 @@ describe('WatchlistsComponent', () => {
   });
 
   it('adds an instrument picked from search to the selected watchlist', () => {
-    component.addInstrument({ symbol: 'MSFT', name: 'Microsoft Corporation', assetClass: 'EQUITY', currency: 'USD', tradable: true });
+    component.addInstrument({ id: 9, symbol: 'MSFT', name: 'Microsoft Corporation', assetClass: 'EQUITY', currency: 'USD', tradable: true });
 
     expect(api['addWatchlistItem']).toHaveBeenCalledWith(7, 1, { symbol: 'MSFT' });
     expect(component.rows().map((r) => r.item.symbol)).toContain('MSFT');
   });
 
   it('does not call the API for an instrument already in the list', () => {
-    component.addInstrument({ symbol: 'AAPL', name: 'Apple Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true });
+    component.addInstrument({ id: 2, symbol: 'AAPL', name: 'Apple Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true });
 
     expect(api['addWatchlistItem']).not.toHaveBeenCalled();
     expect(component.feedback()?.error).toBe(true);

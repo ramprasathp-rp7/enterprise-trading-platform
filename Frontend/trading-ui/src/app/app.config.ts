@@ -13,6 +13,7 @@ import { provideApi as provideWatchlistApi } from './api/generated/watchlist/pro
 import { provideApi as providePreferencesApi } from './api/generated/preferences/provide-api';
 import { provideApi as provideMarketDataApi } from './api/generated/market-data/provide-api';
 import { provideApi as provideOrderNotificationsApi } from './api/generated/order-notifications/provide-api';
+import { provideApi as provideAdviceApi } from './api/generated/advice/provide-api';
 import { provideApi as providePortfolioApi } from './api/generated/porfolio/provide-api';
 import { environment } from './core/config/environment';
 
@@ -29,6 +30,7 @@ export const appConfig: ApplicationConfig = {
     providePreferencesApi(environment.TRADE_API_URL),
     provideMarketDataApi(environment.TRADE_API_URL),
     provideOrderNotificationsApi(environment.TRADE_API_URL),
+    provideAdviceApi(environment.TRADE_API_URL),
     providePortfolioApi(environment.TRADE_API_URL),
     {
       provide: HTTP_INTERCEPTORS,
