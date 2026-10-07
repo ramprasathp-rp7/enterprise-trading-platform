@@ -25,14 +25,3 @@ VALUES (
     TIMESTAMP '2026-01-01 00:00:00+00'
 )
 ON CONFLICT (username) DO NOTHING;
-
--- Optional: Seed additional demo users for testing
-INSERT INTO auth.users (username, password_hash, account_id, roles)
-VALUES (
-    'demo.customer',
-    -- Argon2id hash of 'Customer@123456'
-    '$argon2id$v=19$m=65540,t=3,p=4$e8LN9WQvz3c8qQvHgLq1rg$XvBzGf6bK5Kq2yZ8vJpS7q5L4mN6rP2X9sQ1wT3uV6W',
-    2,
-    ARRAY['CUSTOMER']
-)
-ON CONFLICT (username) DO NOTHING;
