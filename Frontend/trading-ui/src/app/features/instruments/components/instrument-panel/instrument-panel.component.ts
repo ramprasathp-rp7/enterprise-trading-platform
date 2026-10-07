@@ -7,6 +7,7 @@ import { CHART_RANGES, ChartMode, ChartRange, MarketState, Candle } from '../../
 import { InstrumentCatalogService } from '../../services/instrument-catalog.service';
 import { InstrumentChartComponent } from '../instrument-chart/instrument-chart.component';
 import { AddToWatchlistComponent } from '../../../watchlist/components/add-to-watchlist/add-to-watchlist.component';
+import { formatMoney } from '../../../../shared/currency';
 
 const MARKET_STATE_LABEL: Record<MarketState, string> = {
   open: 'Market open',
@@ -71,7 +72,7 @@ const MARKET_STATE_LABEL: Record<MarketState, string> = {
               @if (q.change !== null) {
                 <span class="change" [class.up]="q.change >= 0" [class.down]="q.change < 0" data-testid="instrument-change">
                   <i class="fas" [class.fa-caret-up]="q.change >= 0" [class.fa-caret-down]="q.change < 0"></i>
-                  {{ q.change >= 0 ? '+' : '' }}{{ format(q.change) }} ({{ q.change >= 0 ? '+' : '' }}{{ q.changePercent | number: '1.2-2' }}%)
+                  {{ money(q.change, true) }} ({{ q.change >= 0 ? '+' : '' }}{{ q.changePercent | number: '1.2-2' }}%)
                 </span>
               }
             </div>
@@ -88,9 +89,9 @@ const MARKET_STATE_LABEL: Record<MarketState, string> = {
           </div>
 
           <div class="book" data-testid="quote-book">
-            <span>Bid <b>{{ format(q.bid) }}</b></span>
-            <span>Ask <b>{{ format(q.ask) }}</b></span>
-            <span>Spread <b>{{ format(q.ask - q.bid) }}</b> <small>({{ spreadPercent() | number: '1.2-2' }}%)</small></span>
+            <span>Bid <b>{{ money(q.bid) }}</b></span>
+            <span>Ask <b>{{ money(q.ask) }}</b></span>
+            <span>Spread <b>{{ money(q.ask - q.bid) }}</b> <small>({{ spreadPercent() | number: '1.2-2' }}%)</small></span>
             <span class="as-of" data-testid="quote-as-of">as of {{ asOfLabel() }}</span>
           </div>
         }
@@ -130,10 +131,10 @@ const MARKET_STATE_LABEL: Record<MarketState, string> = {
 
         @if (stats(); as s) {
           <dl class="stats" data-testid="instrument-stats">
-            <div [title]="sessionTitle()"><dt>Prev close</dt><dd>{{ s.previousClose !== null ? format(s.previousClose) : '—' }}</dd></div>
+            <div [title]="sessionTitle()"><dt>Prev close</dt><dd>{{ s.previousClose !== null ? money(s.previousClose) : '—' }}</dd></div>
             <div [title]="sessionTitle()">
               <dt>Prev day range</dt>
-              <dd>{{ s.previousLow !== null && s.previousHigh !== null ? format(s.previousLow) + ' – ' + format(s.previousHigh) : '—' }}</dd>
+              <dd>{{ s.previousLow !== null && s.previousHigh !== null ? money(s.previousLow) + ' – ' + money(s.previousHigh) : '—' }}</dd>
             </div>
             <div [title]="sessionTitle()"><dt>Prev volume</dt><dd>{{ s.previousVolume !== null ? (s.previousVolume | number) : '—' }}</dd></div>
             <div><dt>Avg vol (30D)</dt><dd>{{ s.averageVolume30d !== null ? (s.averageVolume30d | number) : '—' }}</dd></div>
@@ -143,7 +144,7 @@ const MARKET_STATE_LABEL: Record<MarketState, string> = {
                 <span class="range-bar" [attr.aria-label]="'Current price is at ' + yearPosition() + '% of the 52-week range'">
                   <span class="range-marker" [style.left.%]="yearPosition()" data-testid="year-range-marker"></span>
                 </span>
-                <span class="range-ends"><span>{{ format(s.yearLow) }}</span><span>{{ format(s.yearHigh) }}</span></span>
+                <span class="range-ends"><span>{{ money(s.yearLow) }}</span><span>{{ money(s.yearHigh) }}</span></span>
               </dd>
             </div>
           </dl>
@@ -637,6 +638,11 @@ export class InstrumentPanelComponent {
       default:
         return 'fa-building';
     }
+  }
+
+  /** A price in the instrument's currency at its precision, e.g. ₹1,036.49 */
+  money(value: number, signed = false): string {
+    return formatMoney(value, this.instrument()?.currency, { decimals: this.decimals(), signed });
   }
 
   format(value: number): string {

@@ -22,7 +22,9 @@ import com.tradingplatform.mappers.InstrumentMapper;
 import com.tradingplatform.mappers.OrderMapper;
 import com.tradingplatform.quote.PricingUnavailableException;
 import org.springframework.transaction.annotation.Transactional;
+import com.tradingplatform.quote.FxRateService;
 import com.tradingplatform.quote.QuoteClient;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.tradingplatform.services.OrderSettlementService;
 
 @Service
@@ -36,10 +38,21 @@ public class OrderExecutorService {
     private final OrderMapper orderMapper;
     private final OrderSettlementService settlementService;
     private final com.tradingplatform.publisher.TradeEventPublisher tradeEventPublisher;
+    private final FxRateService fxRateService;
 
     public OrderExecutorService(QuoteClient quoteClient, FillRule fillRule, InstrumentMapper instrumentMapper,
                                 AccountMapper accountMapper, OrderMapper orderMapper,
                                 OrderSettlementService settlementService, com.tradingplatform.publisher.TradeEventPublisher tradeEventPublisher) {
+        this(quoteClient, fillRule, instrumentMapper, accountMapper, orderMapper, settlementService,
+            tradeEventPublisher, new FxRateService(quoteClient));
+    }
+
+    @Autowired
+    public OrderExecutorService(QuoteClient quoteClient, FillRule fillRule, InstrumentMapper instrumentMapper,
+                                AccountMapper accountMapper, OrderMapper orderMapper,
+                                OrderSettlementService settlementService, com.tradingplatform.publisher.TradeEventPublisher tradeEventPublisher,
+                                FxRateService fxRateService) {
+        this.fxRateService = fxRateService;
         this.quoteClient = quoteClient;
         this.fillRule = fillRule;
         this.instrumentMapper = instrumentMapper;
@@ -128,8 +141,15 @@ public class OrderExecutorService {
                     }
                     BigDecimal executed = sidePrice.setScale(order.getPrice().scale(), java.math.RoundingMode.HALF_UP);
 
+                    // The executed price is in the instrument's currency; cash moves in the account's.
+                    // The rate is fetched fresh now: the order may have waited in NEW since placement
+                    // (e.g. while the executor was stopped), and this fill rate is the rate of record.
+                    BigDecimal fillFxRate = fxRateService.rate(instrumentCurrency(instrument, q), account.getCurrency());
+
                     if (order.getSide() == OrderSide.BUY) {
-                        BigDecimal needed = executed.multiply(BigDecimal.valueOf(order.getQuantity()));
+                        // Re-check funds at the fill rate: the reservation was made at the placement rate
+                        BigDecimal needed = executed.multiply(BigDecimal.valueOf(order.getQuantity())).multiply(fillFxRate)
+                            .setScale(2, java.math.RoundingMode.HALF_UP);
                         if (!account.canAfford(needed)) {
                             logger.warn("Rejecting order because account cannot afford fill: orderId={}, accountId={}", orderId, accountId);
                             orderMapper.updateOrderStatus(orderId, OrderStatus.REJECTED, "Insufficient funds", null, null, java.time.Instant.now());
@@ -138,7 +158,7 @@ public class OrderExecutorService {
                     }
 
                     // Settle order - fees are deducted separately (by REST API in SYNC mode, by FeeDeductionService in ASYNC mode)
-                    settlementService.settle(order, executed);
+                    BigDecimal realisedPnl = settlementService.settle(order, executed, fillFxRate);
                     
                     // Fetch the order from database to get the fee (calculated by sprint-07)
                     Order orderFromDb = orderMapper.findOrderById(orderId);
@@ -157,11 +177,28 @@ public class OrderExecutorService {
                         logger.info("Skipping fill update: order not NEW (already processed) orderId={}", orderId);
                         return;
                     }
-                    logger.info("Filled order successfully: orderId={}, accountId={}, price={}, fee={}", orderId, accountId, executed, fee);
-                    // publish trade event for filled order with quoted price and original fee
-                    tradeEventPublisher.publishTradeEvent(orderId, accountId, OrderStatus.FILLED, quotedPrice, executed, originalFee, null, executedOn);
+                    orderMapper.recordFill(orderId, fillFxRate, realisedPnl);
+                    logger.info("Filled order successfully: orderId={}, accountId={}, price={}, fillFxRate={}, fee={}", orderId, accountId, executed, fillFxRate, fee);
+                    // publish trade event for filled order with quoted price, original fee and the fill rate
+                    tradeEventPublisher.publishTradeEvent(orderId, accountId, OrderStatus.FILLED, quotedPrice, executed, originalFee, null, executedOn, fillFxRate);
                 }
             }
         }
+    }
+
+    /**
+     * The instrument's trading currency. Fauxnance is the source of truth: if the quote's currency
+     * disagrees with the instruments table, the quote wins (and the mismatch is logged).
+     */
+    private static String instrumentCurrency(Instrument instrument, com.tradingplatform.quote.model.Quote quote) {
+        String quoted = quote.getCurrency();
+        if (quoted == null || !quoted.trim().matches("[A-Za-z]{3}")) {
+            return instrument.getCurrency();
+        }
+        if (!quoted.trim().equalsIgnoreCase(instrument.getCurrency())) {
+            logger.warn("Quote currency {} differs from instrument currency {} for {}; using the quote's",
+                quoted, instrument.getCurrency(), instrument.getSymbol());
+        }
+        return quoted.trim();
     }
 }

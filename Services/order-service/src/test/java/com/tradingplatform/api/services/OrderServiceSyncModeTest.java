@@ -88,7 +88,7 @@ class OrderServiceSyncModeTest {
 
         OrderResponse response = service.placeOrder(REQUEST);
 
-        verify(settlement).settle(order, new BigDecimal("50.00"));
+        verify(settlement).settle(order, new BigDecimal("50.00"), BigDecimal.ONE);
         verify(orderMapper, never()).rejectOrder(any(), anyString());
         verify(publisher, never()).publishOrderPlaced(any(), any());
         assertEquals(OrderStatus.FILLED, response.status());
@@ -97,7 +97,7 @@ class OrderServiceSyncModeTest {
 
     @Test
     void failedSettlement_marksTheOrderRejectedWithAReason() {
-        doThrow(new IllegalStateException("boom")).when(settlement).settle(any(), any());
+        doThrow(new IllegalStateException("boom")).when(settlement).settle(any(), any(), any());
         Order rejected = new Order(order.getId(), 1L, 2L, OrderSide.BUY, 2, new BigDecimal("50.00"), "idem-sync-0001");
         rejected.markRejected();
         when(orderMapper.findOrderById(order.getId())).thenReturn(rejected);
@@ -112,7 +112,7 @@ class OrderServiceSyncModeTest {
 
     @Test
     void concurrentUpdate_isRecordedAsSuch() {
-        doThrow(new OptimisticLockException("Account", 1L)).when(settlement).settle(any(), any());
+        doThrow(new OptimisticLockException("Account", 1L)).when(settlement).settle(any(), any(), any());
         Order rejected = new Order(order.getId(), 1L, 2L, OrderSide.BUY, 2, new BigDecimal("50.00"), "idem-sync-0001");
         rejected.markRejected();
         when(orderMapper.findOrderById(order.getId())).thenReturn(rejected);
@@ -133,7 +133,7 @@ class OrderServiceSyncModeTest {
         ArgumentCaptor<TransactionDefinition> definition = ArgumentCaptor.forClass(TransactionDefinition.class);
         InOrder inOrder = inOrder(transactionManager, settlement, orderMapper);
         inOrder.verify(transactionManager).getTransaction(definition.capture());
-        inOrder.verify(settlement).settle(any(), any());
+        inOrder.verify(settlement).settle(any(), any(), any());
         inOrder.verify(orderMapper).findOrderById(order.getId());
         inOrder.verify(transactionManager).commit(any());
         verify(transactionManager, never()).rollback(any());
@@ -142,7 +142,7 @@ class OrderServiceSyncModeTest {
 
     @Test
     void failedSettlement_isRolledBackToTheSavepoint_beforeTheOrderIsRejected() {
-        doThrow(new OptimisticLockException("Position", "1:2")).when(settlement).settle(any(), any());
+        doThrow(new OptimisticLockException("Position", "1:2")).when(settlement).settle(any(), any(), any());
         Order rejected = new Order(order.getId(), 1L, 2L, OrderSide.BUY, 2, new BigDecimal("50.00"), "idem-sync-0001");
         rejected.markRejected();
         when(orderMapper.findOrderById(order.getId())).thenReturn(rejected);
@@ -150,7 +150,7 @@ class OrderServiceSyncModeTest {
         service.placeOrder(REQUEST);
 
         InOrder inOrder = inOrder(settlement, transactionManager, orderMapper);
-        inOrder.verify(settlement).settle(any(), any());
+        inOrder.verify(settlement).settle(any(), any(), any());
         inOrder.verify(transactionManager).rollback(any());
         inOrder.verify(orderMapper).rejectOrder(order.getId(), "CONCURRENT_UPDATE");
         verify(transactionManager, never()).commit(any());
@@ -181,7 +181,7 @@ class OrderServiceSyncModeTest {
         ReflectionTestUtils.setField(unwired, "executionMode", ExecutionMode.SYNC);
 
         assertThrows(IllegalStateException.class, () -> unwired.placeOrder(REQUEST));
-        verify(settlement, never()).settle(any(), any());
+        verify(settlement, never()).settle(any(), any(), any());
     }
 
     @Test

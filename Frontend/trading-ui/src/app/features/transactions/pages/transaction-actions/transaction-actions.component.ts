@@ -43,7 +43,8 @@ export class TransactionActionsComponent {
   readonly quickAmounts = QUICK_AMOUNTS;
   /** Current cash balance (null until loaded or if unavailable) */
   readonly balance = signal<number | null>(null);
-  readonly currency = signal('USD');
+  /** The account's currency, from its balance; blank until that has loaded */
+  readonly currency = signal('');
   /** Customer-facing account number, e.g. ACC-000007 */
   readonly accountNumber = signal<string | null>(null);
   readonly recentTransactions = signal<TransactionHistoryEntry[]>([]);

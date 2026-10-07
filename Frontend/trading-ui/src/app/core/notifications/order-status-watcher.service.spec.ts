@@ -53,7 +53,7 @@ describe('OrderStatusWatcherService', () => {
     expect(notifications.notify).toHaveBeenCalledWith(expect.objectContaining({
       kind: 'order-filled',
       title: 'Order completed',
-      message: 'Good news! You bought 10 AAPL at 189.30.',
+      message: 'Good news! You bought 10 AAPL at $189.30.',
       link: { path: '/blotter' },
       dedupeKey: 'order-status:o1:FILLED',
     }));
@@ -71,9 +71,9 @@ describe('OrderStatusWatcherService', () => {
     expect(kinds).toEqual(['order-rejected', 'order-cancelled']);
     expect(notifications.notify.mock.calls[0][0]).toMatchObject({
       title: "Order couldn't be completed",
-      message: 'Your order to buy 10 AAPL at 189.35 was rejected. Open your order blotter for details.',
+      message: 'Your order to buy 10 AAPL at $189.35 was rejected. Open your order blotter for details.',
     });
-    expect(notifications.notify.mock.calls[1][0].message).toBe('Your order to buy 10 AAPL at 189.35 has been cancelled.');
+    expect(notifications.notify.mock.calls[1][0].message).toBe('Your order to buy 10 AAPL at $189.35 has been cancelled.');
   });
 
   it('does not poll when nothing is NEW, but starts when a new order is tracked', () => {

@@ -11,6 +11,7 @@ import { OrderStatus } from '../../../../api/generated/trade';
 import { PortfolioService, PortfolioSummary } from '../../../../api/generated/porfolio';
 import { PositionResponse } from '../../../../api/generated/trade';
 import { computed } from '@angular/core';
+import { formatMoney } from '../../../../shared/currency';
 
 interface StatCard {
   title: string;
@@ -44,6 +45,8 @@ export class DashboardComponent implements OnInit {
 
   // Real-time portfolio data signals
   private cashBalanceSignal = signal<number>(0);
+  /** The account's currency, from the balance endpoint; cash and portfolio value are shown in it */
+  private cashCurrencySignal = signal<string | null>(null);
   private accountSignal = signal<any>(null);
   /** Null until the portfolio summary has loaded */
   private portfolioSummarySignal = signal<PortfolioSummary | null>(null);
@@ -89,7 +92,7 @@ export class DashboardComponent implements OnInit {
     return [
       {
         title: 'Cash balance',
-        value: this.formatAmount(cashBalance || 0),
+        value: formatMoney(cashBalance || 0, this.cashCurrencySignal()),
         caption: 'Available to trade',
         icon: 'fas fa-wallet',
         link: '/transactions',
@@ -97,7 +100,7 @@ export class DashboardComponent implements OnInit {
       },
       {
         title: 'Portfolio value',
-        value: portfolioValue === null ? '—' : this.formatAmount(portfolioValue),
+        value: portfolioValue === null ? '—' : formatMoney(portfolioValue, summary?.baseCurrency),
         caption:
           summary === null
             ? this.portfolioSummaryFailed()
@@ -135,6 +138,7 @@ export class DashboardComponent implements OnInit {
       this.dashboardService.getBalance(currentUser.accountId).subscribe({
         next: (balance) => {
           this.cashBalanceSignal.set(balance.cashBalance);
+          this.cashCurrencySignal.set(balance.currency ?? null);
         },
         error: (err) => {
           console.error('Failed to load balance:', err);
@@ -168,13 +172,6 @@ export class DashboardComponent implements OnInit {
     });
   }
 
-  private formatAmount(value: number): string {
-    return value.toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    });
-  }
-
   refreshDashboard(): void {
     const currentUser = this.authService.currentUser();
     if (currentUser?.accountId) {
@@ -184,6 +181,7 @@ export class DashboardComponent implements OnInit {
       this.dashboardService.getBalance(currentUser.accountId).subscribe({
         next: (balance) => {
           this.cashBalanceSignal.set(balance.cashBalance);
+          this.cashCurrencySignal.set(balance.currency ?? null);
         }
       });
 

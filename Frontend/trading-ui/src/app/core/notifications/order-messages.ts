@@ -1,4 +1,5 @@
 import { NotificationKind } from './notification.service';
+import { formatInstrumentPrice } from '../../features/instruments/services/instrument-catalog.service';
 
 /** The order fields the notification wording needs. */
 export interface OrderLike {
@@ -17,11 +18,12 @@ export interface OrderNotice {
 }
 
 const units = (n: number) => n.toLocaleString('en-US');
-const money = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+/** A price in the instrument's currency, e.g. $189.35 or ₹1,600.00 */
+const money = (n: number, symbol: string) => formatInstrumentPrice(n, symbol);
 const isSell = (o: OrderLike) => o.side?.toUpperCase() === 'SELL';
 
 /** "buy 10 AAPL at 189.35" */
-const describe = (o: OrderLike) => `${isSell(o) ? 'sell' : 'buy'} ${units(o.quantity)} ${o.symbol} at ${money(o.price)}`;
+const describe = (o: OrderLike) => `${isSell(o) ? 'sell' : 'buy'} ${units(o.quantity)} ${o.symbol} at ${money(o.price, o.symbol)}`;
 
 /**
  * Plain-language notice for an order status change, or null for statuses
@@ -33,7 +35,7 @@ export function orderStatusNotice(o: OrderLike): OrderNotice | null {
       return {
         kind: 'order-filled',
         title: 'Order completed',
-        message: `Good news! You ${isSell(o) ? 'sold' : 'bought'} ${units(o.quantity)} ${o.symbol} at ${money(o.executedPrice ?? o.price)}.`,
+        message: `Good news! You ${isSell(o) ? 'sold' : 'bought'} ${units(o.quantity)} ${o.symbol} at ${money(o.executedPrice ?? o.price, o.symbol)}.`,
       };
     case 'REJECTED':
       return {

@@ -37,7 +37,7 @@ describe('AdminFeeManagementComponent', () => {
     const rows = fixture.nativeElement.querySelectorAll('.fee-table tbody tr');
     expect(rows.length).toBe(3);
     expect(rows[0].textContent).toContain('Equity');
-    expect(rows[0].textContent).toContain('4.95');
+    expect(rows[0].textContent).toContain('$4.95');
     expect(rows[0].textContent).toContain('0.10%');
     expect(fixture.nativeElement.querySelector('.count-chip').textContent.trim()).toBe('3');
   });
@@ -64,8 +64,8 @@ describe('AdminFeeManagementComponent', () => {
   it('formats amounts and asset class names', async () => {
     await create();
 
-    expect(component.formatCurrency(4.95)).toBe('4.95');
-    expect(component.formatCurrency(0.000125)).toBe('0.000125');
+    expect(component.formatCurrency(4.95)).toBe('$4.95');
+    expect(component.formatCurrency(0.000125)).toBe('$0.000125');
     expect(component.formatAssetClass('EQUITY')).toBe('Equity');
     expect(component.formatAssetClass('fx')).toBe('Fx');
   });

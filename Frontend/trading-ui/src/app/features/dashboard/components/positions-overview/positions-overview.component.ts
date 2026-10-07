@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal, computed, Input, Output, EventEmitte
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { AccountsService, PositionResponse } from '../../../../api/generated/trade';
+import { formatInstrumentPrice } from '../../../instruments/services/instrument-catalog.service';
 
 interface AllocationSegment {
   symbol: string;
@@ -105,6 +106,11 @@ export class PositionsOverviewComponent implements OnInit {
       .slice(0, 4)
       .map((seg) => ({ ...seg, averageCost: byKey.get(seg.symbol)?.averageCost ?? 0 }));
   });
+
+  /** An average cost in the holding's own (instrument) currency */
+  formatPrice(value: number, symbol: string): string {
+    return formatInstrumentPrice(value, symbol);
+  }
 
   formatAmount(value: number, digits: number = 2): string {
     return new Intl.NumberFormat('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(value);

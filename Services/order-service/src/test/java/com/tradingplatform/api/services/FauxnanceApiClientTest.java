@@ -149,6 +149,46 @@ class FauxnanceApiClientTest {
     }
 
     @Test
+    @DisplayName("Keeps a quote whose currency is null, and skips a per-symbol error, as the Fauxnance contract allows")
+    void testNullCurrencyAndSymbolErrorInBatch() {
+        String mockResponse = """
+                {
+                  "data": {
+                    "quotes": [
+                      {
+                        "symbol": "FX:USDINR",
+                        "stale": false,
+                        "quote": {
+                          "symbol": "FX:USDINR",
+                          "price": 83.47,
+                          "bid": 83.46,
+                          "ask": 83.48,
+                          "currency": null,
+                          "asOf": "2026-10-04T14:05:11Z",
+                          "marketState": "open"
+                        }
+                      },
+                      {
+                        "symbol": "FX:INRUSD",
+                        "error": { "code": "SYMBOL_NOT_FOUND", "message": "Symbol was not recognized.", "details": {} }
+                      }
+                    ]
+                  },
+                  "meta": {}
+                }
+                """;
+        when(restTemplate.exchange(anyString(), eq(org.springframework.http.HttpMethod.GET),
+                any(), eq(String.class)))
+                .thenReturn(new org.springframework.http.ResponseEntity<>(mockResponse, org.springframework.http.HttpStatus.OK));
+
+        Map<String, FauxnanceApiClient.QuoteData> result = client.getBatchedQuotes(List.of("FX:INRUSD", "FX:USDINR"));
+
+        assertEquals(1, result.size());
+        assertNull(result.get("FX:USDINR").getCurrency());  // not the string "null"
+        assertEquals(0, new BigDecimal("83.47").compareTo(result.get("FX:USDINR").getPrice()));
+    }
+
+    @Test
     @DisplayName("Should update quota from response")
     void testQuotaUpdate() {
         // Arrange

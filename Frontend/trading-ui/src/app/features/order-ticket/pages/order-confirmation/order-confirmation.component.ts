@@ -4,6 +4,8 @@ import { ActivatedRoute, RouterModule } from '@angular/router';
 import { AccountsService, OrderStatus } from '../../../../api/generated/trade';
 import { CoreAuthService } from '../../../../core/auth/core-auth.service';
 import { OrderTicketStore } from '../../order-ticket.store';
+import { formatInstrumentPrice, instrumentCurrency } from '../../../instruments/services/instrument-catalog.service';
+import { formatMoney } from '../../../../shared/currency';
 
 /** What the confirmation page shows about one order */
 export interface ConfirmedOrder {
@@ -49,6 +51,16 @@ export class OrderConfirmationComponent implements OnInit {
     const order = this.order();
     return order ? Number(order.quantity) * Number(order.price) : null;
   });
+
+  /** The limit price in the instrument's currency */
+  formatPrice(value: number | string | null | undefined, symbol: string): string {
+    return formatInstrumentPrice(value == null ? null : Number(value), symbol);
+  }
+
+  /** The notional in the instrument's currency (cash moves in the account's, at the rate at fill) */
+  formatAmount(value: number | null, symbol: string): string {
+    return formatMoney(value, instrumentCurrency(symbol));
+  }
 
   readonly title = computed(() => {
     switch (this.status()) {

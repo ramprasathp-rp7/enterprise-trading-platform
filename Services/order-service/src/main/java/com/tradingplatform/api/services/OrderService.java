@@ -94,7 +94,8 @@ public class OrderService {
                 newOrder.getQuantity(),
                 newOrder.getPrice(),
                 OrderStatus.NEW,  // Order starts in NEW status
-                newOrder.getIdempotencyKey()
+                newOrder.getIdempotencyKey(),
+                newOrder.getPlacementFxRate()
             );
         } catch (DuplicateKeyException ex) {
             // Rule 8 violation: idempotency key already used
@@ -121,7 +122,8 @@ public class OrderService {
             // and the outer transaction stays usable even after a database error.
             try {
                 Order settledOrder = settlementSavepoint.execute(status -> {
-                    orderSettlementService.settle(newOrder, newOrder.getPrice());
+                    // The fill happens within the placement request, so the placement rate is the fill rate
+                    orderSettlementService.settle(newOrder, newOrder.getPrice(), newOrder.getPlacementFxRate());
 
                     // ← NEW: Deduct fee (SYNC mode - same transaction as settlement)
                     Account account = accountMapper.findByAccountId(newOrder.getAccountId());

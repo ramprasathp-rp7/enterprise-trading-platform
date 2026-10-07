@@ -49,6 +49,9 @@ class PriceAlertControllerTest {
             @Override public Instrument findBySymbol(String symbol) { return bySymbol.get(symbol); }
             @Override public Instrument findById(Long id) { return null; }
             @Override public List<String> findAllSymbols() { return List.copyOf(bySymbol.keySet()); }
+            @Override public List<Instrument> findTradableInstruments() { return List.copyOf(bySymbol.values()); }
+            @Override public List<Instrument> findAllInstruments() { return List.copyOf(bySymbol.values()); }
+            @Override public List<String> findConversionFxSymbols() { return List.of(); }
         };
         PriceAlertService service = new PriceAlertService(store, store, instruments, new ActiveAlertIndex(), 20, 100);
         controller = new PriceAlertController(service, new AccountAccessAuthorizer());

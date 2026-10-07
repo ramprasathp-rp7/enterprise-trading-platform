@@ -7,6 +7,7 @@ import { vi } from 'vitest';
 import { OrderSide } from '../../../../api/generated/trade';
 import { OrderTicketStore } from '../../order-ticket.store';
 import { OrderTicketComponent } from './order-ticket.component';
+import { LiveQuoteStore } from '../../../../core/market-data/live-quote.store';
 
 describe('OrderTicketComponent', () => {
   let component: OrderTicketComponent;
@@ -21,7 +22,10 @@ describe('OrderTicketComponent', () => {
     clearErrors: ReturnType<typeof vi.fn>;
     clearSubmissionResult: ReturnType<typeof vi.fn>;
     submitOrder: ReturnType<typeof vi.fn>;
+    accountCurrency: ReturnType<typeof signal<string | null>>;
   };
+  /** Live quotes by symbol; FX:USDINR = 80 makes one rupee USD 0.0125 */
+  const fxQuotes: Record<string, { price: number }> = { 'FX:USDINR': { price: 80 } };
 
   beforeEach(async () => {
     store = {
@@ -34,11 +38,16 @@ describe('OrderTicketComponent', () => {
       clearErrors: vi.fn(),
       clearSubmissionResult: vi.fn(),
       submitOrder: vi.fn().mockResolvedValue(true),
+      accountCurrency: signal('USD'),
     };
 
     await TestBed.configureTestingModule({
       imports: [OrderTicketComponent],
-      providers: [provideRouter([]), { provide: OrderTicketStore, useValue: store }],
+      providers: [
+        provideRouter([]),
+        { provide: OrderTicketStore, useValue: store },
+        { provide: LiveQuoteStore, useValue: { quote: (symbol: string) => fxQuotes[symbol] ?? null, track: vi.fn() } },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(OrderTicketComponent);
@@ -115,7 +124,7 @@ describe('OrderTicketComponent', () => {
       expect(notify).toHaveBeenCalledWith({
         kind: 'order-created',
         title: 'Order received',
-        message: "We've received your order to buy 10 AAPL at 245.75. We'll let you know as soon as it's completed.",
+        message: "We've received your order to buy 10 AAPL at $245.75. We'll let you know as soon as it's completed.",
         link: { path: '/order-confirmation/ORD-123' },
         dedupeKey: 'order-created:ORD-123',
       });
@@ -147,6 +156,29 @@ describe('OrderTicketComponent', () => {
       fixture.detectChanges();
 
       expect(fixture.nativeElement.querySelector('[data-testid="order-result-message"]')).toBeNull();
+    });
+  });
+
+  describe('multi-currency estimate', () => {
+    it('shows the notional in the instrument currency with an estimate in the account currency', () => {
+      component.symbol.set('INFY.NS');
+      component.quantity.set('40');
+      component.price.set('1600');
+      fixture.detectChanges();
+
+      const el: HTMLElement = fixture.nativeElement;
+      expect(el.querySelector('[data-testid="summary-notional"]')!.textContent!.trim()).toBe('₹64,000.00');
+      expect(component.estimatedFxRate()).toBeCloseTo(0.0125, 10);
+      expect(el.querySelector('[data-testid="summary-notional-account"]')!.textContent!.trim()).toBe('≈ $800.00');
+    });
+
+    it('shows no estimate when the instrument trades in the account currency', () => {
+      component.symbol.set('AAPL');
+      component.quantity.set('2');
+      component.price.set('100');
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector('[data-testid="summary-notional-account"]')).toBeNull();
     });
   });
 });

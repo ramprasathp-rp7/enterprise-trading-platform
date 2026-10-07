@@ -145,4 +145,51 @@ class OrderSettlementServiceTest {
             () -> service.settle(order(OrderSide.SELL, 1), BigDecimal.TEN));
         verify(accountMapper, never()).updateAccount(any(), anyInt());
     }
+
+    // --- multi-currency: an INR instrument settled into a USD account at the fill rate ---
+
+    @Test
+    void foreignCurrencyBuyDebitsAccountCurrencyAndKeepsBothAverageCosts() {
+        // 10 held at INR 800 (USD 10.00 at the rate of purchase)
+        Position existing = new Position(1L, 100L, 10, new BigDecimal("800.00"), new BigDecimal("10.00"), 2);
+        when(positionMapper.findByAccountAndInstrument(1L, 100L)).thenReturn(existing);
+        when(accountMapper.updateAccount(any(), anyInt())).thenReturn(1);
+        when(positionMapper.updatePosition(any(), anyInt())).thenReturn(1);
+
+        // buy 10 at INR 1000.00, fill rate 0.0125 USD per INR = USD 12.50 each
+        BigDecimal realised = service.settle(order(OrderSide.BUY, 10), new BigDecimal("1000.00"), new BigDecimal("0.0125"));
+
+        assertEquals(null, realised);
+        assertEquals(new BigDecimal("875.00"), account.getCashBalance());
+        assertEquals(new BigDecimal("900.000000"), existing.getAverageCost());
+        assertEquals(new BigDecimal("11.250000"), existing.getAverageCostAccount());
+    }
+
+    @Test
+    void foreignCurrencySellCreditsAccountCurrencyAndBooksRealisedPnlIncludingFx() {
+        // 10 held at INR 800, bought when that was USD 10.00 each
+        Position existing = new Position(1L, 100L, 10, new BigDecimal("800.00"), new BigDecimal("10.00"), 1);
+        when(positionMapper.findByAccountAndInstrument(1L, 100L)).thenReturn(existing);
+        when(accountMapper.updateAccount(any(), anyInt())).thenReturn(1);
+        when(positionMapper.updatePosition(any(), anyInt())).thenReturn(1);
+
+        // sell 4 at the same INR 800, but the rupee has strengthened: 0.0130 USD per INR = USD 10.40
+        BigDecimal realised = service.settle(order(OrderSide.SELL, 4), new BigDecimal("800.00"), new BigDecimal("0.0130"));
+
+        assertEquals(new BigDecimal("1041.60"), account.getCashBalance());
+        assertEquals(new BigDecimal("1.60"), realised); // 4 x (10.40 - 10.00): the gain is all FX
+        assertEquals(6, existing.getQuantity());
+    }
+
+    @Test
+    void sameCurrencySellBooksRealisedPnlAtRateOfOne() {
+        Position existing = new Position(1L, 100L, 10, new BigDecimal("8.00"), 1);
+        when(positionMapper.findByAccountAndInstrument(1L, 100L)).thenReturn(existing);
+        when(accountMapper.updateAccount(any(), anyInt())).thenReturn(1);
+        when(positionMapper.updatePosition(any(), anyInt())).thenReturn(1);
+
+        BigDecimal realised = service.settle(order(OrderSide.SELL, 4), new BigDecimal("12.50"), BigDecimal.ONE);
+
+        assertEquals(new BigDecimal("18.00"), realised);
+    }
 }

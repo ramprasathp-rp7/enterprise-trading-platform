@@ -6,6 +6,7 @@ import { of, throwError } from 'rxjs';
 import { TransactionConfirmationComponent } from './transaction-confirmation.component';
 import { TransactionsStore } from '../../transactions.store';
 import { TransactionService } from '../../services/transaction.service';
+import { AccountsService } from '../../../../api/generated/trade';
 import { CoreAuthService } from '../../../../core/auth/core-auth.service';
 import { TransactionHistoryEntry } from '../../models/transaction.models';
 
@@ -32,6 +33,7 @@ describe('TransactionConfirmationComponent', () => {
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: convertToParamMap(routeId ? { transactionId: routeId } : {}) } } },
         { provide: TransactionsStore, useValue: { transactions } },
         { provide: TransactionService, useValue: service },
+        { provide: AccountsService, useValue: { getBalance: () => of({ accountId: 7, cashBalance: 1, currency: 'USD', asOf: '' }) } },
         { provide: CoreAuthService, useValue: { currentUser } },
       ],
     }).compileComponents();

@@ -17,6 +17,9 @@ import { orderPlacedNotice } from '../../../../core/notifications/order-messages
 import { Instrument } from '../../../instruments/instrument.models';
 import { InstrumentSearchComponent } from '../../../instruments/components/instrument-search/instrument-search.component';
 import { InstrumentPanelComponent } from '../../../instruments/components/instrument-panel/instrument-panel.component';
+import { InstrumentCatalogService } from '../../../instruments/services/instrument-catalog.service';
+import { LiveQuoteStore } from '../../../../core/market-data/live-quote.store';
+import { formatMoney } from '../../../../shared/currency';
 
 @Component({
   selector: 'app-order-ticket',
@@ -32,6 +35,8 @@ export class OrderTicketComponent implements OnInit {
   private destroyRef = inject(DestroyRef);
   private notifications = inject(NotificationService);
   private orderWatcher = inject(OrderStatusWatcherService);
+  private catalog = inject(InstrumentCatalogService);
+  private liveQuotes = inject(LiveQuoteStore);
 
   readonly symbol = signal<string>('');
   readonly side = signal<OrderSide>(OrderSide.Buy);
@@ -130,6 +135,47 @@ export class OrderTicketComponent implements OnInit {
     }
     return quantity * price;
   });
+
+  /** The instrument's currency: the limit price and notional are in it */
+  readonly instrumentCurrency = computed(() => this.catalog.find(this.symbol().trim().toUpperCase())?.currency ?? null);
+  /** The account's currency, when it differs from the instrument's (cash is debited in it) */
+  readonly foreignAccountCurrency = computed(() => {
+    const account = this.store.accountCurrency?.() ?? null;
+    const instrument = this.instrumentCurrency();
+    return account && instrument && account !== instrument ? account : null;
+  });
+  /** FX: pairs that price the instrument's currency in the account's: direct, then inverse */
+  private readonly fxSymbols = computed(() => {
+    const account = this.foreignAccountCurrency();
+    const instrument = this.instrumentCurrency();
+    return account && instrument ? [`FX:${instrument}${account}`, `FX:${account}${instrument}`] : [];
+  });
+  /** Today's instrument-to-account rate from the live quote cache; the order settles at the rate at fill */
+  readonly estimatedFxRate = computed(() => {
+    const [direct, inverse] = this.fxSymbols();
+    if (!direct) {
+      return null;
+    }
+    const directPrice = this.liveQuotes.quote(direct)?.price;
+    if (directPrice) {
+      return directPrice;
+    }
+    const inversePrice = this.liveQuotes.quote(inverse)?.price;
+    return inversePrice ? 1 / inversePrice : null;
+  });
+  /** Estimated cash amount in the account's currency, at today's rate */
+  readonly estimatedNotionalAccount = computed(() => {
+    const notional = this.estimatedNotional();
+    const rate = this.estimatedFxRate();
+    return notional !== null && rate !== null ? notional * rate : null;
+  });
+
+  readonly formatMoney = formatMoney;
+
+  constructor() {
+    // Keep today's FX rate for the selected instrument fresh while the ticket is open
+    this.liveQuotes.track(() => this.fxSymbols());
+  }
 
   readonly canSubmit = computed(() => {
     return (

@@ -9,6 +9,7 @@ import { StatementPdfService, fileDate } from '../../../../shared/statement-pdf.
 import { NotificationService } from '../../../../core/notifications/notification.service';
 import { TransactionsStore } from '../../transactions.store';
 import { TransactionType } from '../../models/transaction.models';
+import { formatMoney } from '../../../../shared/currency';
 
 /**
  * Transactions Component
@@ -39,6 +40,8 @@ export class TransactionsComponent implements OnInit {
   transactionTypes: (TransactionType | 'ALL')[] = ['ALL', 'DEPOSIT', 'WITHDRAW', 'FEE', 'BUY', 'SELL'];
   readonly downloading = signal(false);
   readonly downloadError = signal<string | null>(null);
+  /** The account's currency: every transaction amount is in it */
+  readonly currency = signal<string | null>(null);
 
   ngOnInit() {
     const user = this.authService.currentUser();
@@ -51,6 +54,10 @@ export class TransactionsComponent implements OnInit {
 
     // Load initial transaction history
     this.transactionsStore.loadTransactions(accountId);
+    this.accountsService.getBalance(accountId).subscribe({
+      next: (balance) => this.currency.set(balance.currency ?? null),
+      error: () => this.currency.set(null),
+    });
   }
 
   /**
@@ -150,13 +157,10 @@ export class TransactionsComponent implements OnInit {
   }
 
   /**
-   * Format amount as currency
+   * Format amount in the account's currency, e.g. $1,234.50
    */
   formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
+    return formatMoney(amount, this.currency());
   }
 
   /**

@@ -106,9 +106,9 @@ describe('DashboardComponent', () => {
 
     const stats = component.portfolioStats();
     expect(stats.map((s) => s.title)).toEqual(['Cash balance', 'Portfolio value', 'Open orders']);
-    expect(stats[0].value).toBe('48,250.75');
+    expect(stats[0].value).toBe('$48,250.75');
     // the portfolio summary (mocked) has no positions; one of the mocked orders is NEW
-    expect(stats[1]).toEqual(expect.objectContaining({ value: '49,850.75', caption: 'Cash only · no open positions' }));
+    expect(stats[1]).toEqual(expect.objectContaining({ value: '$49,850.75', caption: 'Cash only · no open positions' }));
     expect(stats[2]).toEqual(expect.objectContaining({ value: '1', caption: 'Awaiting execution' }));
 
     const cards = fixture.nativeElement.querySelectorAll('a.metric-card');
@@ -121,7 +121,7 @@ describe('DashboardComponent', () => {
     await create();
 
     expect(portfolio.getPortfolioSummary).toHaveBeenCalledWith(7);
-    expect(component.portfolioStats()[1]).toEqual(expect.objectContaining({ value: '49,850.75', caption: 'Cash + 2 open positions' }));
+    expect(component.portfolioStats()[1]).toEqual(expect.objectContaining({ value: '$49,850.75', caption: 'Cash + 2 open positions' }));
 
     (component as any).portfolioSummarySignal.set({ ...summary, positionCount: 1 });
     expect(component.portfolioStats()[1].caption).toBe('Cash + 1 open position');
@@ -182,7 +182,7 @@ describe('DashboardComponent', () => {
 
     expect(blotterStore.loadOrderHistory).toHaveBeenCalledTimes(2);
     expect(portfolio.getPortfolioSummary).toHaveBeenCalledTimes(2);
-    expect(component.portfolioStats()[0].value).toBe('100.00');
+    expect(component.portfolioStats()[0].value).toBe('$100.00');
   });
 
   it('refreshDashboard does nothing without an account', async () => {

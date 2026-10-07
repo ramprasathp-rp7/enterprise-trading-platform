@@ -25,11 +25,13 @@ describe('PositionsComponent', () => {
       accountId: 7, symbol: 'AAPL', quantity: 100, averageCost: 182.4, costBasis: 18240,
       lastPrice: 190, marketValue: 19000, unrealisedPnl: 760, unrealisedPnlPercent: 4.17,
       currency: 'USD', priceAsOf: '2026-10-06T09:45:00Z', stale: false,
+      fxRate: 1, averageCostAccount: 182.4, costBasisAccount: 18240, marketValueAccount: 19000, unrealisedPnlAccount: 760,
     },
     {
       accountId: 7, symbol: 'MSFT', quantity: 20, averageCost: 351.1, costBasis: 7022,
       lastPrice: 340, marketValue: 6800, unrealisedPnl: -222, unrealisedPnlPercent: -3.16,
       currency: 'USD', priceAsOf: '2026-10-06T09:40:00Z', stale: false,
+      fxRate: 1, averageCostAccount: 351.1, costBasisAccount: 7022, marketValueAccount: 6800, unrealisedPnlAccount: -222,
     },
   ];
 
@@ -90,8 +92,8 @@ describe('PositionsComponent', () => {
     const text = (id: string) => fixture.nativeElement.querySelector(`[data-testid="${id}"]`).textContent.trim();
     expect(text('summary-total-value')).toBe('30,800.00');
     expect(text('summary-market-value')).toBe('25,800.00');
-    expect(text('summary-unrealised')).toBe('+538.00');
-    expect(text('summary-realised')).toBe('-120.50');
+    expect(text('summary-unrealised')).toBe('+$538.00');
+    expect(text('summary-realised')).toBe('-$120.50');
     expect(text('summary-cash')).toBe('5,000.00');
     expect(fixture.nativeElement.querySelector('[data-testid="summary-unrealised"]').classList).toContain('pnl-up');
     expect(fixture.nativeElement.querySelector('[data-testid="summary-realised"]').classList).toContain('pnl-down');
@@ -104,8 +106,8 @@ describe('PositionsComponent', () => {
     const rows = fixture.nativeElement.querySelectorAll('tbody tr.transaction-row');
     expect(rows[0].textContent).toContain('190.00');
     expect(rows[0].textContent).toContain('19,000.00');
-    expect(rows[0].textContent).toContain('+760.00');
-    expect(rows[1].textContent).toContain('-222.00');
+    expect(rows[0].textContent).toContain('+$760.00');
+    expect(rows[1].textContent).toContain('-$222.00');
     expect(rows[1].textContent).toContain('-3.16%');
   });
 
@@ -126,7 +128,7 @@ describe('PositionsComponent', () => {
     await create();
 
     expect(component.weight(positions[0])).toBeCloseTo((19000 / 25800) * 100);
-    expect(component.weight({ ...positions[0], marketValue: null })).toBeNull();
+    expect(component.weight({ ...positions[0], marketValue: null, marketValueAccount: null })).toBeNull();
     expect(component.money(1006.35, 'INR')).toBe('₹1,006.35');
 
     const rows = fixture.nativeElement.querySelectorAll('tbody tr.transaction-row');
@@ -135,9 +137,9 @@ describe('PositionsComponent', () => {
     expect(rows[0].querySelector('.weight-fill').style.width).toMatch(/^73\.6/);
 
     const totals: HTMLElement = fixture.nativeElement.querySelector('[data-testid="holdings-totals"]');
-    expect(totals.textContent).toContain('25,800.00');
-    expect(totals.textContent).toContain('cost 25,262.00');
-    expect(totals.textContent).toContain('+538.00');
+    expect(totals.textContent).toContain('$25,800.00');
+    expect(totals.textContent).toContain('cost $25,262.00');
+    expect(totals.textContent).toContain('+$538.00');
   });
 
   it('values holdings at the live price from the quote cache and keeps the table and summary in step', async () => {
@@ -167,7 +169,7 @@ describe('PositionsComponent', () => {
     const text = (id: string) => fixture.nativeElement.querySelector(`[data-testid="${id}"]`).textContent.trim();
     expect(text('summary-market-value')).toBe('26,800.00');
     expect(text('summary-total-value')).toBe('31,800.00');
-    expect(text('summary-unrealised')).toBe('+1,538.00');
+    expect(text('summary-unrealised')).toBe('+$1,538.00');
     expect(text('summary-cash')).toBe('5,000.00');
     expect(fixture.nativeElement.querySelector('[data-testid="holdings-totals"]').textContent).toContain('26,800.00');
   });
@@ -248,6 +250,43 @@ describe('PositionsComponent', () => {
     expect(buy[0].getAttribute('aria-label')).toBe('Buy AAPL');
   });
 
+  describe('multi-currency holdings', () => {
+    const infy: PricedPosition = {
+      accountId: 7, symbol: 'INFY.NS', quantity: 40, averageCost: 1500, costBasis: 60000,
+      lastPrice: 1600, marketValue: 64000, unrealisedPnl: 4000, unrealisedPnlPercent: 6.67,
+      currency: 'INR', priceAsOf: '2026-10-06T09:45:00Z', stale: false,
+      fxRate: 0.0125, averageCostAccount: 18, costBasisAccount: 720, marketValueAccount: 800, unrealisedPnlAccount: 80,
+    };
+
+    it('sums the account-currency values, not the native ones', async () => {
+      portfolio.getPricedPositions = vi.fn(() => of([positions[0], infy]));
+      await create();
+
+      // AAPL $19,000 + INFY INR 64,000 at 0.0125 = $800, not 64,000
+      expect(component.totalMarketValue()).toBe(19800);
+      expect(component.totalUnrealised()).toBe(840);
+      expect(component.totalCostBasis()).toBe(18960);
+      expect(component.weight(infy)).toBeCloseTo((800 / 19800) * 100, 6);
+    });
+
+    it('shows the native value with its account-currency equivalent', async () => {
+      portfolio.getPricedPositions = vi.fn(() => of([positions[0], infy]));
+      await create();
+
+      const equivalents = fixture.nativeElement.querySelectorAll('[data-testid="market-value-account"]');
+      expect(equivalents.length).toBe(1); // only the INR row
+      expect(equivalents[0].textContent.trim()).toBe('≈ $800.00');
+      expect(fixture.nativeElement.textContent).toContain('₹64,000.00');
+    });
+
+    it('leaves a holding with no exchange rate out of the totals', async () => {
+      portfolio.getPricedPositions = vi.fn(() => of([positions[0], { ...infy, fxRate: null, marketValueAccount: null, unrealisedPnlAccount: null }]));
+      await create();
+
+      expect(component.totalMarketValue()).toBe(19000);
+    });
+  });
+
   describe('holdings statement download', () => {
     it('downloads a PDF of the current holdings with totals', async () => {
       await create();
@@ -261,10 +300,12 @@ describe('PositionsComponent', () => {
       expect(def.title).toBe('Holdings Statement');
       expect(accounts.getAccount).toHaveBeenCalledWith(7);
       expect(def.details).toEqual([['Account', 'ACC-000007'], ['Prepared for', 'rkumar']]);
-      expect(def.summary).toEqual([['Open positions', '2'], ['Total units', '120'], ['Total cost basis', '25,262.00']]);
-      expect(def.columns.map((c: any) => c.header)).toEqual(['Symbol', 'Quantity', 'Average cost', 'Cost basis']);
-      expect(def.rows[0]).toEqual(['AAPL', '100', '182.40', '18,240.00']);
-      expect(def.footerRow).toEqual(['Total', '120', '', '25,262.00']);
+      expect(def.summary).toEqual([['Open positions', '2'], ['Total units', '120'], ['Total cost basis', '$25,262.00']]);
+      expect(def.columns.map((c: any) => c.header)).toEqual([
+        'Symbol', 'Currency', 'Quantity', 'Average cost', 'Cost basis', 'Cost basis (USD)',
+      ]);
+      expect(def.rows[0]).toEqual(['AAPL', 'USD', '100', '182.40', '18,240.00', '18,240.00']);
+      expect(def.footerRow).toEqual(['Total', '', '120', '', '', '$25,262.00']);
       expect(def.fileName).toMatch(/^holdings-statement-ACC-000007-\d{4}-\d{2}-\d{2}$/);
       expect(notify).toHaveBeenCalledWith({
         kind: 'report',

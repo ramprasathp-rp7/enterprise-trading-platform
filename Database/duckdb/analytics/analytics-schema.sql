@@ -204,6 +204,8 @@ CREATE TABLE fact_trades (
     -- Added here, not in the specification.
     executed_price  DECIMAL(18,2),
     trade_value     DECIMAL(18,2) NOT NULL,
+    fx_rate         DECIMAL(20,10) NOT NULL DEFAULT 1,
+    trade_value_account DECIMAL(18,2) NOT NULL,
     source_order_id VARCHAR(36)   NOT NULL,
     created_at      TIMESTAMP     NOT NULL,
     loaded_at       TIMESTAMP     NOT NULL,
@@ -233,6 +235,14 @@ CREATE TABLE fact_trades (
 --                  in the ETL rather than in every query, because it is the
 --                  measure nearly every question aggregates.
 -- executed_price   NULL for orders that never filled.
+-- fx_rate          Instrument-to-account currency rate of record (multi-currency, migration
+--                  018): the rate fetched at fill for a FILLED order, otherwise the rate captured
+--                  at placement. 1 when the instrument trades in the account's currency.
+-- trade_value_account
+--                  trade_value multiplied by fx_rate, in the account's currency (all accounts are
+--                  USD). trade_value itself stays in the instrument's currency, which is what
+--                  exposure by instrument wants; volume and average trade size across
+--                  instruments must sum this column instead, since rupees and dollars do not add.
 -- created_at       The operational orders.created_on. date_key is derived from
 --                  it. Kept so that intraday analysis is still possible, since
 --                  the date dimension only reaches day grain.
@@ -267,15 +277,15 @@ CREATE TABLE fact_trades (
 -- dimension and no subquery. If one of them is awkward against your model, the
 -- model is wrong, not the question.
 --
---   Trade volume         count and summed trade_value by date_key.
+--   Trade volume         count and summed trade_value_account by date_key.
 --   Most active accounts count by account_key, joined to dim_account where
 --                        is_current is true.
 --   Fill rate            count where status = 'FILLED' divided by total count,
 --                        by date_key. This is why rejected orders are loaded.
 --   Exposure by          summed trade_value by instrument_key and side, joined
 --   instrument           to dim_instrument.
---   Average trade size   average trade_value over a date range. Note that this
---                        averages values, not prices.
+--   Average trade size   average trade_value_account over a date range. Note that
+--                        this averages values, not prices.
 --
 -- Worked example, fill rate by month:
 --

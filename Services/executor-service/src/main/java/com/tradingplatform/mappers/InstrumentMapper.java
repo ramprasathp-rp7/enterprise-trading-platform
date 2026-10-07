@@ -21,4 +21,13 @@ public interface InstrumentMapper {
      */
     @Select("SELECT symbol FROM instruments ORDER BY symbol")
     List<String> findAllSymbols();
+
+    /**
+     * FX pairs needed to convert instrument currencies into account currencies, quoted as
+     * FX:{account}{instrument} (e.g. FX:USDINR). Polled with the instruments so the market-data cache
+     * holds a rate even for currencies that have no tradable FX instrument.
+     */
+    @Select("SELECT DISTINCT 'FX:' || a.currency || i.currency FROM instruments i "
+        + "CROSS JOIN (SELECT DISTINCT currency FROM accounts) a WHERE i.currency <> a.currency")
+    List<String> findConversionFxSymbols();
 }
