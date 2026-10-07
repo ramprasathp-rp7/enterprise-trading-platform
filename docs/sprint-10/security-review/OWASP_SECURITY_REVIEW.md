@@ -11,8 +11,7 @@ been reviewed for it, and is not a finding of none.
 | Field | Value |
 |---|---|
 | Service | Trade REST API, Sprint 10 extension modules |
-| Reviewed by | Ram Prasath P (preferences); other module owners add their names |
-| Date of review | 2026-10-06 (preferences) |
+| Date of review | 2026-10-06 |
 | Commit reviewed | `feature/sprint10`, preferences module change set (on top of `d14289a`) |
 | Version of the OWASP Top Ten used | 2021 |
 
