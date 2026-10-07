@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { Observable } from 'rxjs';
 import {
   Candle,
   CandleSeries,
@@ -10,6 +11,7 @@ import {
   Quote,
 } from '../instrument.models';
 import { INFY_NS_DAILY } from '../data/infy-ns.candles';
+import { CandleService } from './candle.service';
 
 /**
  * Instrument catalogue, search and market data for the front end.
@@ -24,32 +26,31 @@ import { INFY_NS_DAILY } from '../data/infy-ns.candles';
  * Swap `candles()` / `quote()` for API calls when a market-data endpoint exists.
  */
 const CATALOGUE: Instrument[] = [
-  { symbol: 'AAPL', name: 'Apple Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true },
-  { symbol: 'ACME', name: 'Acme Corporation', assetClass: 'EQUITY', currency: 'USD', tradable: true },
-  { symbol: 'INFY.NS', name: 'Infosys Limited', assetClass: 'EQUITY', currency: 'INR', tradable: true },
-  { symbol: 'RELIANCE.NS', name: 'Reliance Industries', assetClass: 'EQUITY', currency: 'INR', tradable: true },
-  { symbol: 'TATASTEEL.BO', name: 'Tata Steel Limited', assetClass: 'EQUITY', currency: 'INR', tradable: false },
-  { symbol: 'FX:EURUSD', name: 'Euro / US Dollar', assetClass: 'FX', currency: 'USD', tradable: true },
-  { symbol: 'X:BTC-USD', name: 'Bitcoin / US Dollar', assetClass: 'CRYPTO', currency: 'USD', tradable: true },
-  // seed 007_additional_instruments.sql: brings the catalogue to Fauxnance's 25-symbol batch limit
-  { symbol: 'MSFT', name: 'Microsoft Corporation', assetClass: 'EQUITY', currency: 'USD', tradable: true },
-  { symbol: 'GOOGL', name: 'Alphabet Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true },
-  { symbol: 'AMZN', name: 'Amazon.com Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true },
-  { symbol: 'NVDA', name: 'NVIDIA Corporation', assetClass: 'EQUITY', currency: 'USD', tradable: true },
-  { symbol: 'TSLA', name: 'Tesla Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true },
-  { symbol: 'META', name: 'Meta Platforms Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true },
-  { symbol: 'JPM', name: 'JPMorgan Chase & Co.', assetClass: 'EQUITY', currency: 'USD', tradable: true },
-  { symbol: 'NFLX', name: 'Netflix Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true },
-  { symbol: 'TCS.NS', name: 'Tata Consultancy Services', assetClass: 'EQUITY', currency: 'INR', tradable: true },
-  { symbol: 'HDFCBANK.NS', name: 'HDFC Bank Limited', assetClass: 'EQUITY', currency: 'INR', tradable: true },
-  { symbol: 'ICICIBANK.NS', name: 'ICICI Bank Limited', assetClass: 'EQUITY', currency: 'INR', tradable: true },
-  { symbol: 'WIPRO.NS', name: 'Wipro Limited', assetClass: 'EQUITY', currency: 'INR', tradable: true },
-  { symbol: 'FX:GBPUSD', name: 'British Pound / US Dollar', assetClass: 'FX', currency: 'USD', tradable: true },
-  { symbol: 'FX:USDJPY', name: 'US Dollar / Japanese Yen', assetClass: 'FX', currency: 'JPY', tradable: true },
-  { symbol: 'FX:USDINR', name: 'US Dollar / Indian Rupee', assetClass: 'FX', currency: 'INR', tradable: true },
-  { symbol: 'X:ETH-USD', name: 'Ethereum / US Dollar', assetClass: 'CRYPTO', currency: 'USD', tradable: true },
-  { symbol: 'X:SOL-USD', name: 'Solana / US Dollar', assetClass: 'CRYPTO', currency: 'USD', tradable: true },
-  { symbol: 'X:XRP-USD', name: 'XRP / US Dollar', assetClass: 'CRYPTO', currency: 'USD', tradable: true },
+  { id: 1, symbol: 'ACME', name: 'Acme Corporation', assetClass: 'EQUITY', currency: 'USD', tradable: true },
+  { id: 2, symbol: 'AAPL', name: 'Apple Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true },
+  { id: 3, symbol: 'INFY.NS', name: 'Infosys Limited', assetClass: 'EQUITY', currency: 'INR', tradable: true },
+  { id: 4, symbol: 'RELIANCE.NS', name: 'Reliance Industries', assetClass: 'EQUITY', currency: 'INR', tradable: true },
+  { id: 5, symbol: 'TATASTEEL.BO', name: 'Tata Steel Limited', assetClass: 'EQUITY', currency: 'INR', tradable: false },
+  { id: 6, symbol: 'FX:EURUSD', name: 'Euro / US Dollar', assetClass: 'FX', currency: 'USD', tradable: true },
+  { id: 7, symbol: 'X:BTC-USD', name: 'Bitcoin / US Dollar', assetClass: 'CRYPTO', currency: 'USD', tradable: true },
+  { id: 8, symbol: 'MSFT', name: 'Microsoft Corporation', assetClass: 'EQUITY', currency: 'USD', tradable: true },
+  { id: 9, symbol: 'GOOGL', name: 'Alphabet Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true },
+  { id: 10, symbol: 'AMZN', name: 'Amazon.com Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true },
+  { id: 11, symbol: 'NVDA', name: 'NVIDIA Corporation', assetClass: 'EQUITY', currency: 'USD', tradable: true },
+  { id: 12, symbol: 'TSLA', name: 'Tesla Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true },
+  { id: 13, symbol: 'META', name: 'Meta Platforms Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true },
+  { id: 14, symbol: 'JPM', name: 'JPMorgan Chase & Co.', assetClass: 'EQUITY', currency: 'USD', tradable: true },
+  { id: 15, symbol: 'NFLX', name: 'Netflix Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true },
+  { id: 16, symbol: 'TCS.NS', name: 'Tata Consultancy Services', assetClass: 'EQUITY', currency: 'INR', tradable: true },
+  { id: 17, symbol: 'HDFCBANK.NS', name: 'HDFC Bank Limited', assetClass: 'EQUITY', currency: 'INR', tradable: true },
+  { id: 18, symbol: 'ICICIBANK.NS', name: 'ICICI Bank Limited', assetClass: 'EQUITY', currency: 'INR', tradable: true },
+  { id: 19, symbol: 'WIPRO.NS', name: 'Wipro Limited', assetClass: 'EQUITY', currency: 'INR', tradable: true },
+  { id: 20, symbol: 'FX:GBPUSD', name: 'British Pound / US Dollar', assetClass: 'FX', currency: 'USD', tradable: true },
+  { id: 21, symbol: 'FX:USDJPY', name: 'US Dollar / Japanese Yen', assetClass: 'FX', currency: 'JPY', tradable: true },
+  { id: 22, symbol: 'FX:USDINR', name: 'US Dollar / Indian Rupee', assetClass: 'FX', currency: 'INR', tradable: true },
+  { id: 23, symbol: 'X:ETH-USD', name: 'Ethereum / US Dollar', assetClass: 'CRYPTO', currency: 'USD', tradable: true },
+  { id: 24, symbol: 'X:SOL-USD', name: 'Solana / US Dollar', assetClass: 'CRYPTO', currency: 'USD', tradable: true },
+  { id: 25, symbol: 'X:XRP-USD', name: 'XRP / US Dollar', assetClass: 'CRYPTO', currency: 'USD', tradable: true },
 ];
 
 /** Real candle snapshots, by symbol */
@@ -125,8 +126,6 @@ const RANGE_START: Record<ChartRange, (end: Date) => Date> = {
   '1W': (end) => addDays(end, -7),
   '1M': (end) => addMonths(end, -1),
   '3M': (end) => addMonths(end, -3),
-  '6M': (end) => addMonths(end, -6),
-  '1Y': (end) => addMonths(end, -12),
 };
 
 @Injectable({ providedIn: 'root' })
@@ -135,6 +134,8 @@ export class InstrumentCatalogService {
   now: () => Date = () => new Date();
 
   private readonly sampleCache = new Map<string, CandleSeries>();
+
+  constructor(private candleService: CandleService) {}
 
   all(): Instrument[] {
     return [...CATALOGUE];
@@ -204,6 +205,22 @@ export class InstrumentCatalogService {
     }
     const from = isoDate(RANGE_START[range](parseDate(candles[candles.length - 1].date)));
     return candles.filter((c) => c.date > from);
+  }
+
+  /**
+   * Fetch real candle data from the backend API for a chart range.
+   * Returns Observable<Candle[]> for async use in components via toSignal().
+   * Used for displaying actual market data instead of sample/dummy data.
+   */
+  candlesInRangeFromApi(symbol: string, range: ChartRange): Observable<Candle[]> {
+    const instrument = this.find(symbol);
+    if (!instrument) {
+      return new Observable((observer) => {
+        observer.next([]);
+        observer.complete();
+      });
+    }
+    return this.candleService.getCandlesForRange(instrument.id, range);
   }
 
   /**

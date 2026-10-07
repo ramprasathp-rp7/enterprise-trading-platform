@@ -1,6 +1,9 @@
 import { Component, Input, computed, inject, signal } from '@angular/core';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
-import { CHART_RANGES, ChartMode, ChartRange, MarketState } from '../../instrument.models';
+import { switchMap } from 'rxjs/operators';
+import { of } from 'rxjs';
+import { CHART_RANGES, ChartMode, ChartRange, MarketState, Candle } from '../../instrument.models';
 import { InstrumentCatalogService } from '../../services/instrument-catalog.service';
 import { InstrumentChartComponent } from '../instrument-chart/instrument-chart.component';
 import { AddToWatchlistComponent } from '../../../watchlist/components/add-to-watchlist/add-to-watchlist.component';
@@ -560,10 +563,23 @@ export class InstrumentPanelComponent {
     const instrument = this.instrument();
     return instrument ? this.catalog.decimals(instrument.symbol) : 2;
   });
-  readonly series = computed(() => {
-    const instrument = this.instrument();
-    return instrument ? this.catalog.candlesInRange(instrument.symbol, this.range()) : [];
-  });
+  // Computed value that combines instrument and range for observable conversion
+  private readonly instrumentAndRange = computed(() => ({
+    instrument: this.instrument(),
+    range: this.range(),
+  }));
+
+  readonly series = toSignal(
+    toObservable(this.instrumentAndRange).pipe(
+      switchMap(({ instrument, range }) => {
+        if (!instrument) {
+          return of([]);
+        }
+        return this.catalog.candlesInRangeFromApi(instrument.symbol, range);
+      })
+    ),
+    { initialValue: [] as Candle[] }
+  );
 
   /** Where the last close sits in the 52-week range, 0–100 */
   readonly yearPosition = computed(() => {

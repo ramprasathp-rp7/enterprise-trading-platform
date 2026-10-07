@@ -10,6 +10,7 @@ export type AssetClass = 'EQUITY' | 'FX' | 'CRYPTO';
 
 /** A tradeable instrument (mirrors the INSTRUMENTS table) */
 export interface Instrument {
+  id: number;
   symbol: string;
   name: string;
   assetClass: AssetClass;
@@ -67,9 +68,9 @@ export interface Quote {
 export type MarketDataSource = 'snapshot' | 'sample';
 
 /** Daily candles only, so ranges start at one week */
-export type ChartRange = '1W' | '1M' | '3M' | '6M' | '1Y';
+export type ChartRange = '1W' | '1M' | '3M';
 
-export const CHART_RANGES: readonly ChartRange[] = ['1W', '1M', '3M', '6M', '1Y'];
+export const CHART_RANGES: readonly ChartRange[] = ['1W', '1M', '3M'];
 
 export type ChartMode = 'candles' | 'line';
 
