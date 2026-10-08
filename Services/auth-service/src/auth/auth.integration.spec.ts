@@ -25,7 +25,7 @@ describe('Auth Service Integration with Trade REST API', () => {
     const timestamp = Date.now();
     testUsername = `test_user_${timestamp}`;
     testPassword = `Test@Pass${timestamp}`;
-    testAccountId = 3; // Internal numeric ID used in JWT and trade API routes
+    testAccountId = 6; // Internal numeric ID used in JWT and trade API routes
     
     try {
       // Register the test user
