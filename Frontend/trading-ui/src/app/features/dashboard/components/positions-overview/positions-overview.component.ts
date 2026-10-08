@@ -129,9 +129,11 @@ export class PositionsOverviewComponent implements OnInit {
     this.error.set(null);
     this.accountsService.getPositions(accountId).subscribe({
       next: (positions) => {
-        this.positions.set(positions ?? []);
+        // A fully sold position stays in the table at quantity 0; it is no longer a holding
+        const open = (positions ?? []).filter((p) => (p.quantity ?? 0) > 0);
+        this.positions.set(open);
         this.loading.set(false);
-        this.positionsLoaded.emit(positions ?? []);
+        this.positionsLoaded.emit(open);
       },
       error: (err) => {
         console.error('Failed to load positions', err);
