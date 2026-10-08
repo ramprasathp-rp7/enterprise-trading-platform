@@ -1,66 +1,89 @@
-# Security review: Sprint 10 extensions (preferences, notifications, watchlists, portfolio)
+# Security review: Trade REST API, Sprint 10 modules
 
-One combined review of the four modules added to the Trade REST API (`Services/order-service`).
-It follows the shape of `TEMPLATE.md` in this folder, extended to the full OWASP Top Ten as the
-Sprint 10 brief requires. Each finding names the module or modules it belongs to. Rows for a module
-are added by its owners as that module is built. A category with no row for a module has not yet
-been reviewed for it, and is not a finding of none.
+One review of every module Sprint 10 added to the Trade REST API (`Services/order-service`) and the Angular UI (`Frontend/trading-ui`). Each category is answered for all modules at once, and a row is split only where a module came out differently. Every finding names its module and the file or route.
 
 ## Header
 
 | Field | Value |
 |---|---|
-| Service | Trade REST API, Sprint 10 extension modules |
-| Date of review | 2026-10-06 |
-| Commit reviewed | `feature/sprint10`, preferences module change set (on top of `d14289a`) |
-| Version of the OWASP Top Ten used | 2021 |
+| Service | Trade REST API and trading UI, Sprint 10 |
+| Reviewed by | Team 1 |
+| Date of review | 2026-10-08 |
+| Commit reviewed | `ec59b01` on `feature/sprint10` |
+| Version of the OWASP Top Ten used | 2021 (all ten categories) |
 
-## Changes the modules make to what the service already did
+### Modules reviewed
 
-| Module | Change to existing behaviour |
-|---|---|
-| Preferences | Removed the old preferences routes (`/api/v1/accounts/{id}/preferences` free-form map, `/api/v1/preferences/defaults`) and their code (decision 0001). Added table `customer_preferences` (migration 014) and dropped the unused `accounts.preferences` column (migration 015). No filter, security configuration or route exemption changed. All new routes sit under the already-verified `/api/v1/**` prefix. Added a module-local `@MapperScan`; the application class was not edited |
+| Short name | Module | Code |
+|---|---|---|
+| **WL** | Watchlists and price alerts | `watchlist/`, `watchlist/alerts/` |
+| **NOT** | Notifications (order outcomes, channel dispatch) | `notifications/` |
+| **PREF** | Customer preferences (alert channels) | `preferences/` |
+| **PNL** | Portfolio, P&L and account history | `api/controllers/PortfolioController`, `AccountController` (history), `PortfolioPnlService` |
+| **ADV** | Trade advisor | `advice/` |
+| **STR** | Strategy executor | `strategy/` |
+| **CHT** | Candle and quote charts | `CandleChartController`, `MarketDataController`, `Candle*Service` |
+
+Paths in this document are under `Services/order-service/src/main/java/com/tradingplatform/` unless stated otherwise.
+
+## The two risks named for this week
+
+| Risk | Where we looked | Result |
+|---|---|---|
+| An internal path that another module calls and that a customer's token can also reach | Every place one module calls another: preference resolution, price-alert evaluation, strategy evaluation and order placement, and the account-history snapshot | **Preference resolution** (decrypted contact details) has no HTTP route. `PreferenceResolver` is in-process only, and `PreferencesModuleBoundaryTest` fails the build if a controller depends on it.<br>**Alert and strategy evaluation** are `@Scheduled` jobs with no route.<br>**The account-history snapshot** is `POST /api/v1/admin/account-history/snapshot`, which needs `ROLE_ADMIN`.<br>**Strategies** reach `POST /api/v1/orders`, a route customers already use, with a token carrying the owner's `accountId`, so a strategy can do no more than its owner could. See A01 |
+| A customer-supplied destination the platform then posts to | Anything a customer stores that the platform later sends to | **Contact details** (PREF) are the only one. The channel set is a closed enum (`EMAIL`, `SMS`, `IN_APP`); there is no URL or webhook channel; and email and E.164 phone formats are validated. The email and SMS senders are stubs that only log. **No outbound HTTP request** uses a customer value. See A10 |
 
 ## Categories
 
 | Category | Module | In scope | Finding | Disposition |
 |---|---|---|---|---|
-| A01 Broken access control | Preferences | Yes | `GET`, `PUT` and `DELETE /api/v1/accounts/{accountId}/preferences` each call `AccountAccessAuthorizer.assertTokenCanAccess(accountId)` before touching data (`preferences/internal/web/PreferencesController.java`). Another account's preferences return 403 `ACC-403`, never an empty or default body | Fixed. Proven by `PreferencesControllerTest.anotherAccountsPreferences_areRefusedNotReturnedEmpty`, which asserts 403 on all three verbs and that the table was never touched, and by a manual curl with a real token against account 3 |
-| A01 Broken access control | Preferences | Yes | Resolution route risk named in the brief: the channel lookup notifications needs returns decrypted contact details. As an HTTP route it would be readable with any customer token | Fixed by design (decision 0003). Resolution is the in-process `PreferenceResolver` interface with no route. `PreferencesModuleBoundaryTest` (ArchUnit) fails the build if any `@RestController` or `@Controller` depends on it, or if anything outside the module imports `preferences.internal..` |
-| A01 Broken access control | Preferences | Yes | Consumer path: the resolver takes an `accountId` with no token, because it is called from a `trade-events` message, not an HTTP request | Accepted by design. The authorisation boundary for the consumer path is the event source. The Javadoc forbids passing a customer-supplied id. Recorded in 0003 |
-| A02 Cryptographic failures | Preferences | Yes | Email addresses and phone numbers are personal data, and no other table on the platform holds them, so this module stores the only copy (decision 0002) | Fixed. AES-256-GCM, random 12-byte IV per write, account id bound as AAD (`ContactDetailCipher`). `ContactDetailCipherTest` covers wrong key, a row moved to another account, and key length. `PreferencesPersistenceRestartTest` asserts the stored bytes don't contain the plaintext. Checked manually in Postgres: 53-byte ciphertext, plaintext not present |
-| A02 Cryptographic failures | Preferences | Yes | When `PREFERENCES_CONTACT_KEY` is unset, a published development key is used (a warning is logged at start-up) | Mitigated for development, outstanding for deployment (see below). The same convention as the accepted JWT dev secret. `.example.env` documents generating a key |
-| A03 Injection | Preferences | Yes | None. Every statement in `PreferencesMapper` binds its values with `#{}`; there is no `${}` and no string concatenation. Inputs are a path `long`, an enum and a length-limited string validated by pattern | No action needed |
-| A04 Insecure design | Preferences | Yes | Availability on the notification path. A failing store must neither silently pick a wrong channel nor stall every send | Fixed by design (decisions 0004, 0005). No preference gives the IN_APP default flagged `PLATFORM_DEFAULT`. On a store failure, the resolver serves the last known answer marked `stale`, or raises so the caller holds the message. Covered by `DefaultPreferenceResolverTest` |
-| A04 Insecure design | Preferences | Yes | None for unbounded growth. `account_id` is the primary key, so each account has at most one row whatever the number of writes | No action needed |
-| A05 Security misconfiguration | Preferences | Yes | None introduced. The security configuration is unchanged and no route was moved out of `/api/v1/**`. A malformed key fails start-up rather than running unencrypted | No action needed |
-| A05 Security misconfiguration | Platform (pre-existing, affects all modules) | Yes | `GlobalExceptionHandler.handleGenericException` returns `"Error: " + ex.getMessage()` in a 500 body, so an unexpected exception's message reaches the client. Preferences exception messages were written to carry no personal data | Outstanding; owner to be agreed (shared file). Preferences side mitigated: crypto and validation messages never contain the value |
-| A05 Security misconfiguration | Platform (pre-existing, affects all modules) | Yes | Request validation (`@Valid`) never runs in the running service. `pom.xml` declares `hibernate-validator` with `<scope>test</scope>`, which overrides the compile-scoped copy `spring-boot-starter-validation` brings, so the runtime classpath has no Bean Validation provider. Constraints on `OrderController`, `TransactionController` and `WatchlistController` bodies are enforced in unit tests and skipped in production. Found during the preferences live check: an empty channel list passed bean validation it should have failed | Fixed: removed the test-scoped `hibernate-validator` declaration, so the starter's compile-scoped copy (same version, 8.0.1.Final) is on the runtime classpath. Before and after, the same 38 requests were run against a freshly migrated scratch database. Every valid request answered identically. Only contract-invalid requests changed: orders with a 3-decimal price or a short idempotency key were accepted and are now 422; requests missing `side`, `idempotencyKey` or `accountId` returned 500 with a Java exception message and are now 422 `VAL-422`; invalid deposit amounts move from 400 `TRANS-400` to 422 `VAL-422`, as the existing unit tests expected. The deposit form now rounds to cents before sending, so a typed 10.555 still deposits 10.56 |
-| A06 Vulnerable and outdated components | Preferences | Yes | Added test-scope dependencies only: `com.h2database:h2` (version managed by Spring Boot 3.4.0) and `com.tngtech.archunit:archunit-junit5:1.3.0`. Neither ships in the runtime classpath. No runtime dependency added | Accepted. A dependency audit of the service tree has not been run (no audit plugin is configured); see outstanding items |
-| A07 Identification and authentication failures | Preferences | Yes | None introduced. The module relies on the existing HS256 verifier for `/api/v1/**`. Checked manually: no token gives 401, a forged signature gives 401, a valid token gives 200 | No action needed. Also repaired `SecurityFilterChainAuthFlowTest`, which was failing before this change because its test context lacked `JwtAuthenticationConverter`, so the verifier is again covered by a green test |
-| A08 Software and data integrity failures | Preferences | Partly | The module consumes no events and deserialises no untrusted objects. The stored ciphertext is integrity-protected by the GCM tag | No action needed. A tampered row fails to decrypt (`DefaultPreferenceResolverTest.undecryptableRow_isTreatedAsUnavailable`) |
-| A09 Security logging and monitoring failures | Preferences | Yes | Contact details must not reach logs. The existing handler already logs ACC-403 with requested and authenticated account ids | Fixed. Every type carrying a contact detail redacts it in `toString()`, validation messages never echo it, and resolver failures log account id and exception type only. Checked: the contact detail appeared 0 times across two service runs' logs after writes, reads and a restart |
-| A10 Server-side request forgery | Preferences | Yes | Risk named in the brief: a customer-settable destination that the platform later posts to. The channel set is a closed enum (`EMAIL`, `SMS`, `IN_APP`), there is no URL or webhook channel, and contact details are pattern-validated. This module makes no outbound requests | Fixed by design. `PreferencesControllerTest.unknownChannel_isVal422` sends `WEBHOOK` with a metadata-service URL and gets 422 |
+| **A01** Broken access control | WL, NOT, PREF, PNL, ADV, STR | Yes | None. Every customer route calls `AccountAccessAuthorizer.assertTokenCanAccess(accountId)` before touching data. Checks against routes per controller: watchlists 6/6, price alerts 7/7, order notifications 1/1, preferences 3/3, portfolio 3/3, account history 2/2, advice 1/1, strategies 6/6. A token for another account gets `403 ACC-403`, never an empty list | No action needed. Covered by `PriceAlertControllerTest.everyRouteIsAuthorised` and `PreferencesControllerTest` (another account's preferences return 403, not an empty body) |
+| A01 | STR | Yes | `StrategyTokenIssuer` mints a JWT with role `STRATEGY` and the owner's `accountId` so that strategies can trade while the owner is logged out. The authorizer checks only `accountId`, so that token would be accepted by every `/api/v1/**` route for that account, not only order placement | Accepted (team decision). The token lives for 60 seconds, is used for one call to `POST /api/v1/orders`, and is never stored or returned to a client. It can do only what the owner's own token can |
+| A01 | CHT | Yes | `/api/v1/market-data/**` and `/api/v1/instruments/{id}/candles` need a valid token but are not scoped to an account | Accepted by design. They return public market data (prices and candles), the same for every customer |
+| **A02** Cryptographic failures | PREF | Yes | Email addresses and phone numbers are personal data, and `customer_preferences` is their only copy | Fixed. AES-256-GCM with a random IV per write and the account id bound as AAD (`preferences/internal/crypto/ContactDetailCipher.java`). `ContactDetailCipherTest` covers a wrong key and a row moved to another account |
+| A02 | PREF | Yes | If `PREFERENCES_CONTACT_KEY` is unset, a published development key is used (a warning is logged at start-up) | Mitigated for local development; outstanding for deployment (see Outstanding items) |
+| A02 | All | Yes | If `JWT_SECRET` is unset, `api/security/ApiSecurityConfiguration.java` falls back to the published value `test-shared-secret-32-bytes-minimum-key`. Anyone who knows it could sign tokens for any account. `StrategyTokenIssuer` signs with the same secret | Mitigated: `.env` sets a real secret locally, and the algorithm is pinned to HS256. Outstanding: fail start-up when the variable is missing |
+| A02 | UI | Yes | The access and refresh tokens are kept in `sessionStorage` (`core/auth/core-auth.service.ts`). localStorage holds only the notification list, the bell cursors and the theme | Accepted. Nothing in localStorage is a credential or contact detail; the notifications hold symbols, prices and order ids |
+| **A03** Injection | All | Yes | None. Every MyBatis mapper in the seven modules binds its values with `#{}`. A search for `${` in mapper code found no matches; dynamic SQL uses `<if>` with bound values only. On the UI, nothing uses `innerHTML` or `bypassSecurityTrust*`, so alert reasons and notification text are rendered with Angular's escaped interpolation | No action needed |
+| **A04** Insecure design | WL, STR, PREF, PNL | Yes | **Caps** stop one account from making the scheduled jobs do unbounded work:<br>- price alerts: 20 active and 100 in total per account (`ALR-409`);<br>- strategies: 10 active per account, one rule of each type per symbol;<br>- preferences: at most 3 channels;<br>- account history: at most 365 rows per request | No action needed |
+| A04 | WL, ADV | Yes | **Watchlists have no cap**: `watchlist/service/WatchlistService.java` limits the name length but not the number of lists or items per account. The advisor (`GET /advice`) reads 120 candles for every watched and held symbol on each request, so a very large watchlist multiplies that work | Outstanding (see Outstanding items) |
+| A04 | NOT, WL, STR | Yes | **Replays.** A redelivered Kafka message or a retried evaluation must not notify or trade twice | Fixed by design. Notifications are stored once (`order_notifications.event_id` is unique), and email and SMS go out only on the first store. Alert triggers are unique per (alert, quote). Strategy orders carry the idempotency key `STRAT-{id}-{quoteTime}`. Strategies also check `maxPosition`, `maxDailyNotional` and the shares held, and turn themselves off after repeated failures |
+| A04 | WL, STR, PNL, CHT | Yes | **Availability.** The `RestTemplate` used for Fauxnance and candle sync (`config/JacksonConfig.java`) has no connect or read timeout. Spring's default scheduler has one thread, so one hung Fauxnance call would also stall price-alert evaluation, strategy evaluation and the history snapshot. The strategy order client does set a 5-second timeout | Outstanding (see Outstanding items) |
+| **A05** Security misconfiguration | All | Yes | `api/exception/GlobalExceptionHandler.java` (`handleGenericException`) returns `"Error: " + ex.getMessage()` in the 500 body, so an unexpected exception's message reaches the client | Outstanding (shared file; see Outstanding items) |
+| A05 | All | Yes | None for the rest. The security configuration was not loosened: every new route sits under the verified `/api/v1/**` prefix, `/api/v1/admin/**` still needs `ROLE_ADMIN`, CORS allows only `http://localhost:4200`, and Spring Actuator is not on the classpath | No action needed. The default-secret fallbacks are covered under A02 |
+| **A06** Vulnerable and outdated components | UI | Yes | `npm audit --omit=dev`: 0 vulnerabilities in what ships to the browser. The full tree: 5 (2 high, 3 critical), all in development tooling (`@modelcontextprotocol/sdk`, `shell-quote` via `concurrently`, and the `@openapitools/openapi-generator-cli` chain) | Accepted for this sprint: none of these is in the built bundle. Outstanding: upgrade the tooling |
+| A06 | Backend | Yes | Versions come from the Spring Boot 3.4.0 BOM. No dependency-audit plugin is configured, so the Java dependency tree has not been scanned | Outstanding: run OWASP dependency-check and record the result |
+| **A07** Identification and authentication failures | All | Yes | None introduced. No module adds a login or token route. All of them rely on the existing HS256 verifier for `/api/v1/**`, which rejects a missing, forged or expired token with `401 AUTH-401`. Strategy tokens expire after 60 seconds | No action needed |
+| **A08** Software and data integrity failures | NOT, CHT | Yes | The Kafka consumers (`trade-events` into notifications, `market-data` into the quote cache) deserialise JSON into fixed record types; polymorphic typing is not enabled anywhere. However, the broker has no authentication, so anything on the broker network could publish a forged `trade-events` message and create a false "order filled" notification | Accepted for local Docker (the broker is not exposed). Outstanding before cloud deployment: broker authentication |
+| A08 | All | Yes | None for the build. `package-lock.json` is committed, the Angular clients are generated from committed contracts, and preference ciphertext is integrity-protected by its GCM tag (a tampered row fails to decrypt) | No action needed |
+| **A09** Security logging and monitoring failures | All | Yes | None. Each module records what an incident review would need, without credentials or contact details:<br>- `ACC-403` logs the requested and the token's account;<br>- every fired alert is stored with its reason and delivery status;<br>- every strategy trigger is stored with its indicators, outcome and error;<br>- every order notification logs its channels.<br>The email and SMS stubs mask the address and number (`notifications/channel/*SenderStub.java`), and preference types redact contact details in `toString()` | No action needed |
+| **A10** Server-side request forgery | All | Yes | None. The service makes three kinds of outbound request, and none takes a customer value in its URL:<br>- Fauxnance quotes: configured URL, symbols from the `instruments` table;<br>- candle sync: scheduled, with the same source of symbols;<br>- strategy orders: `trading.strategy.trade-api-url`, from configuration.<br>The only customer-supplied destination is a contact detail (see the named risks), and there is no URL or webhook channel | No action needed now. Review again when real email and SMS providers replace the stubs |
 
 ## Evidence
 
 | Check | How it was performed | Result |
 |---|---|---|
-| Backend tests | `mvn test` in `Services/order-service` | 311 tests, 0 failures |
-| Frontend tests | `npm run test:coverage` in `Frontend/trading-ui` | 575 tests passed; statements 90.7%, branches 87.2% |
-| Route authorisation, live | Service on :8081 against local Postgres; HS256 token minted with the dev `JWT_SECRET` for account 2 | No token or forged token gives 401 `AUTH-401`. Account 2 gives 200. Account 3 gives 403 `ACC-403`. `WEBHOOK` gives 422 `VAL-422`. SMS with an email gives 422 `PREF-422`. The Sprint 6 `/accounts/2/balance` still gives 200 |
-| Encryption at rest | `psql`: hex of `contact_detail_enc` searched for the plaintext | Not present; 53 bytes stored |
-| Survives restart | Service stopped and restarted; GET repeated | Same preference returned. Also automated in `PreferencesPersistenceRestartTest` (file-based H2, real migration 014) |
-| Request validation, before and after enabling the provider | Same 38 requests against a scratch database built by `apply.sh` (ASYNC mode, account 2), responses normalised and diffed | 20 valid requests identical. 18 differences, all contract-invalid inputs (see the A05 row) or their downstream balance and list effects |
-| No PII in logs | `grep` for the test address across both service logs | 0 matches |
-| Boundary | `PreferencesModuleBoundaryTest` (ArchUnit) | 3 rules pass |
+| Backend tests | `mvn test` in `Services/order-service` | 521 tests, 0 failures, 0 errors |
+| Frontend tests | `ng test --watch=false` in `Frontend/trading-ui` | 76 files, 686 tests passed |
+| Account check on every route | Counted `@*Mapping` against `assertTokenCanAccess` calls in each controller | All customer routes checked (counts in A01). Cancelling an order checks ownership inside `OrderService.cancelOrderById` |
+| Live route checks (alerts, 2026-10-06) | Service against a scratch database, with HS256 tokens minted for two accounts | Create 201; duplicate rule 409 `ALR-409`; unknown symbol 404 `INS-404`; bad input 422 `VAL-422`; other account 403 `ACC-403` |
+| SQL injection | Searched all mapper code for `${` | No matches |
+| UI injection | Searched `Frontend/trading-ui/src/app` for `innerHTML` and `bypassSecurityTrust` | No matches |
+| Dependencies | `npm audit --omit=dev`, then `npm audit` | 0 vulnerabilities shipped; 5 in development tooling |
+| Outbound requests | Searched for `RestTemplate` and `RestClient` and traced each URL to its source | Configuration and the `instruments` table only |
+| Encryption at rest (PREF, preferences owner, 2026-10-06) | `psql`: searched the hex of `contact_detail_enc` for the plaintext | Not present |
+| No contact details in logs (PREF) | Read `AlertTarget` and `AlertChannelEntry` `toString()`, and the masking in both sender stubs | Destinations print as `<redacted>` or masked |
+| Secrets defaults | Read `ApiSecurityConfiguration`, `ContactDetailCipher` and `application.properties` | Fallback defaults for `JWT_SECRET` and `PREFERENCES_CONTACT_KEY` (A02) |
 
 ## Outstanding items
 
 | Item | Owner | Target date |
 |---|---|---|
-| Set a real `PREFERENCES_CONTACT_KEY` in every non-local environment (cloud week) | Preferences owner | Before the cloud-week deployment |
-| Generic 500 handler echoes exception messages to clients (`GlobalExceptionHandler.handleGenericException`) | Team, to agree (shared file) | End of Sprint 10 |
-| Run a dependency audit (for example, OWASP dependency-check) over the service and record the result | Team, to agree | End of Sprint 10 |
-| Confirm decisions 0004 (default), 0005 (caller holds on raise) and 0007 (several channels, de-duplicate per eventId and channel) with the notifications pair | Preferences owner and notifications pair | 2026-10-06 |
-| Confirm the default-account scope change (decision 0006) with the instructor | Preferences owner | 2026-10-06 |
+| Remove the `JWT_SECRET` fallback, so start-up fails when it is unset (A02) | Team (shared security config) | End of Sprint 10 |
+| Set a real `PREFERENCES_CONTACT_KEY` in every non-local environment (A02) | Preferences owner | Before cloud deployment |
+| Cap watchlists and items per account, as price alerts are capped (A04) | Watchlist owner | End of Sprint 10 |
+| Add connect and read timeouts to the shared `RestTemplate`, and a scheduler pool larger than one thread (A04) | Market data / candles owner | End of Sprint 10 |
+| Stop the generic 500 handler echoing exception messages to clients (A05) | Team (shared file) | End of Sprint 10 |
+| Upgrade the development tooling flagged by `npm audit` (A06) | Frontend owner | End of Sprint 10 |
+| Run OWASP dependency-check on the backend and record the result (A06) | Team | End of Sprint 10 |
+| Turn on Kafka broker authentication (A08) | Team | Before cloud deployment |

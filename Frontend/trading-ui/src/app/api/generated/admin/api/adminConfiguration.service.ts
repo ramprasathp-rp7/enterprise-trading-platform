@@ -20,6 +20,8 @@ import { OpenApiHttpParams, QueryParamStyle } from '../query.params';
 import { ErrorResponse } from '../model/errorResponse';
 // @ts-ignore
 import { FeeStructureResponse } from '../model/feeStructureResponse';
+// @ts-ignore
+import { FeeUpdateRequest } from '../model/feeUpdateRequest';
 
 // @ts-ignore
 import { BASE_PATH, COLLECTION_FORMATS }                     from '../variables';
@@ -143,6 +145,80 @@ export class AdminConfigurationService extends BaseService {
         return this.httpClient.request<FeeStructureResponse>('get', `${basePath}${localVarPath}`,
             {
                 context: localVarHttpContext,
+                responseType: <any>responseType_,
+                ...(withCredentials ? { withCredentials } : {}),
+                headers: localVarHeaders,
+                observe: observe,
+                ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+                reportProgress: reportProgress
+            }
+        );
+    }
+
+    /**
+     * Update the fee structure for an asset type
+     * Replaces the flat and percentage fee for one asset class. Takes effect for every order placed after the update; orders already placed keep the fee they were quoted.  At least one of flatFee or percentageFee must be greater than zero, neither may be negative, and percentageFee may not exceed 1 (100%). 
+     * @endpoint put /api/v1/admin/fees/{assetType}
+     * @param assetType The asset type (e.g., EQUITY, FX, CRYPTO)
+     * @param feeUpdateRequest 
+     * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+     * @param reportProgress flag to report request and response progress.
+     * @param options additional options
+     */
+    public updateFee(assetType: string, feeUpdateRequest: FeeUpdateRequest, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<FeeStructureResponse>;
+    public updateFee(assetType: string, feeUpdateRequest: FeeUpdateRequest, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<FeeStructureResponse>>;
+    public updateFee(assetType: string, feeUpdateRequest: FeeUpdateRequest, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<FeeStructureResponse>>;
+    public updateFee(assetType: string, feeUpdateRequest: FeeUpdateRequest, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+        if (assetType === null || assetType === undefined) {
+            throw new Error('Required parameter assetType was null or undefined when calling updateFee.');
+        }
+        if (feeUpdateRequest === null || feeUpdateRequest === undefined) {
+            throw new Error('Required parameter feeUpdateRequest was null or undefined when calling updateFee.');
+        }
+
+        let localVarHeaders = this.defaultHeaders;
+
+        // authentication (bearerAuth) required
+        localVarHeaders = this.configuration.addCredentialToHeaders('bearerAuth', 'Authorization', localVarHeaders, 'Bearer ');
+
+        const localVarHttpHeaderAcceptSelected: string | undefined = options?.httpHeaderAccept ?? this.configuration.selectHeaderAccept([
+            'application/json'
+        ]);
+        if (localVarHttpHeaderAcceptSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+        }
+
+        const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+        const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+
+        // to determine the Content-Type header
+        const consumes: string[] = [
+            'application/json'
+        ];
+        const httpContentTypeSelected: string | undefined = this.configuration.selectHeaderContentType(consumes);
+        if (httpContentTypeSelected !== undefined) {
+            localVarHeaders = localVarHeaders.set('Content-Type', httpContentTypeSelected);
+        }
+
+        let responseType_: 'text' | 'json' | 'blob' = 'json';
+        if (localVarHttpHeaderAcceptSelected) {
+            if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+                responseType_ = 'text';
+            } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+                responseType_ = 'json';
+            } else {
+                responseType_ = 'blob';
+            }
+        }
+
+        let localVarPath = `/api/v1/admin/fees/${this.configuration.encodeParam({name: "assetType", value: assetType, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: undefined})}`;
+        const { basePath, withCredentials } = this.configuration;
+        return this.httpClient.request<FeeStructureResponse>('put', `${basePath}${localVarPath}`,
+            {
+                context: localVarHttpContext,
+                body: feeUpdateRequest,
                 responseType: <any>responseType_,
                 ...(withCredentials ? { withCredentials } : {}),
                 headers: localVarHeaders,

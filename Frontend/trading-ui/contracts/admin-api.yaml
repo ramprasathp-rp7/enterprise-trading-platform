@@ -234,6 +234,62 @@ paths:
                   value:
                     errorCode: ASS-404
                     message: Asset type not found
+    put:
+      tags: [Admin - Configuration]
+      operationId: updateFee
+      summary: Update the fee structure for an asset type
+      description: |
+        Replaces the flat and percentage fee for one asset class. Takes effect for every order
+        placed after the update; orders already placed keep the fee they were quoted.
+
+        At least one of flatFee or percentageFee must be greater than zero, neither may be
+        negative, and percentageFee may not exceed 1 (100%).
+      parameters:
+        - name: assetType
+          in: path
+          description: The asset type (e.g., EQUITY, FX, CRYPTO)
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeeUpdateRequest'
+            examples:
+              equity:
+                value:
+                  flatFee: 7.50
+                  percentageFee: 0.0003
+      responses:
+        '200':
+          description: Fee structure updated; returns the stored values.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeeStructureResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '403':
+          $ref: '#/components/responses/AdminAccessDenied'
+        '404':
+          description: Asset type not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Fees are negative, both zero, or exceed the allowed precision or range.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid:
+                  value:
+                    errorCode: VAL-422
+                    message: Invalid input
 
 components:
   securitySchemes:
@@ -319,6 +375,25 @@ components:
           type: number
           format: decimal
           description: Percentage fee as a decimal (e.g., 0.001 = 0.1%, already in percentage form, no division by 100 needed)
+
+    FeeUpdateRequest:
+      type: object
+      description: New fee configuration for an asset class.
+      required:
+        - flatFee
+        - percentageFee
+      properties:
+        flatFee:
+          type: number
+          format: decimal
+          minimum: 0
+          description: Flat fee per transaction in account currency (at most two decimal places)
+        percentageFee:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 1
+          description: Percentage fee as a decimal (e.g., 0.001 = 0.1%), at most six decimal places
 
     ErrorResponse:
       type: object
