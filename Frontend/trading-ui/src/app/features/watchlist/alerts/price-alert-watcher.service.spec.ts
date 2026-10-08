@@ -38,7 +38,7 @@ describe('PriceAlertWatcherService', () => {
         { provide: PriceAlertsService, useValue: api },
         { provide: NotificationService, useValue: notifications },
         { provide: PriceAlertsStore, useValue: alertsStore },
-        { provide: CoreAuthService, useValue: { currentUser: () => ({ accountId: 7 }) } },
+        { provide: CoreAuthService, useValue: { currentUser: () => ({ id: 'u-1', accountId: 7 }) } },
       ],
     });
     watcher = TestBed.inject(PriceAlertWatcherService);
@@ -54,7 +54,7 @@ describe('PriceAlertWatcherService', () => {
 
     expect(api.getRecentPriceAlertTriggers).toHaveBeenCalledWith(7, undefined);
     expect(notifications.notify).not.toHaveBeenCalled();
-    expect(localStorage.getItem('etp-price-alert-cursor:7')).toBe('2026-10-06T10:00:01Z');
+    expect(localStorage.getItem('etp-price-alert-cursor:u-1:7')).toBe('2026-10-06T10:00:01Z');
   });
 
   it('puts each newly delivered trigger into the bell as a price-alert, then asks for newer ones only', () => {
@@ -104,6 +104,6 @@ describe('PriceAlertWatcherService', () => {
     watcher.poll();
 
     expect(notifications.notify).not.toHaveBeenCalled();
-    expect(localStorage.getItem('etp-price-alert-cursor:7')).toBe('2026-10-06T10:07:00Z');
+    expect(localStorage.getItem('etp-price-alert-cursor:u-1:7')).toBe('2026-10-06T10:07:00Z');
   });
 });

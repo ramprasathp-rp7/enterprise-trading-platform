@@ -43,15 +43,24 @@ const STORAGE_PREFIX = 'etp-notifications:';
 const WELCOMED_PREFIX = 'etp-welcomed:';
 
 /**
+ * Whose browser-stored state this is: the user id (the token's subject), which is unique per user.
+ * Username alone is not: a user re-created after a database reset, or another person signing in
+ * with a reused username, would inherit the old bell. Falls back to username if the id is missing.
+ */
+export function storageOwner(user: { id?: string | null; username?: string | null } | null | undefined): string | null {
+  return user?.id || user?.username || null;
+}
+
+/**
  * In-app notification centre (navbar bell).
- * Notifications are kept per user in localStorage, newest first, capped at 50.
+ * Notifications are kept per user (by user id) in localStorage, newest first, capped at 50.
  */
 @Injectable({ providedIn: 'root' })
 export class NotificationService {
   private readonly authService = inject(CoreAuthService);
 
   private readonly items = signal<AppNotification[]>([]);
-  private readonly owner = computed(() => this.authService.currentUser()?.username ?? null);
+  private readonly owner = computed(() => storageOwner(this.authService.currentUser()));
 
   readonly notifications = computed(() => this.items());
   readonly unreadCount = computed(() => this.items().filter((n) => !n.read).length);
@@ -96,10 +105,11 @@ export class NotificationService {
    */
   welcomeIfFirstVisit(): void {
     const user = this.authService.currentUser();
-    if (!user?.username) {
+    const owner = storageOwner(user);
+    if (!user?.username || !owner) {
       return;
     }
-    const key = WELCOMED_PREFIX + user.username;
+    const key = WELCOMED_PREFIX + owner;
     if (this.read(key)) {
       return;
     }

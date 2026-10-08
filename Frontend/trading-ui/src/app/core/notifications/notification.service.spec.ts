@@ -20,7 +20,7 @@ describe('NotificationService', () => {
 
   beforeEach(() => {
     localStorage.clear();
-    user = signal<any>({ username: 'rkumar', accountId: 7 });
+    user = signal<any>({ id: 'u-rkumar', username: 'rkumar', accountId: 7 });
     admin = false;
     create();
   });
@@ -67,16 +67,37 @@ describe('NotificationService', () => {
   it('persists per user and reloads when the user changes', () => {
     service.notify({ kind: 'report', title: 'Mine', message: '' });
 
-    user.set({ username: 'someone-else', accountId: 8 });
+    user.set({ id: 'u-other', username: 'someone-else', accountId: 8 });
     TestBed.tick();
     expect(service.notifications()).toEqual([]);
 
-    user.set({ username: 'rkumar', accountId: 7 });
+    user.set({ id: 'u-rkumar', username: 'rkumar', accountId: 7 });
     TestBed.tick();
     expect(service.notifications().map((n) => n.title)).toEqual(['Mine']);
 
     create();
     expect(service.notifications().map((n) => n.title)).toEqual(['Mine']);
+  });
+
+  it('starts a new user with an empty bell even if the username was used before on this browser', () => {
+    service.notify({ kind: 'order-created', title: 'Old order', message: '' });
+    service.welcomeIfFirstVisit();
+
+    // Same username, different user (e.g. re-created after a database reset)
+    user.set({ id: 'u-rkumar-2', username: 'rkumar', accountId: 7 });
+    TestBed.tick();
+    expect(service.notifications()).toEqual([]);
+
+    service.welcomeIfFirstVisit();
+    expect(service.notifications().map((n) => n.kind)).toEqual(['welcome']);
+  });
+
+  it('falls back to the username when the user has no id', () => {
+    user.set({ username: 'rkumar', accountId: 7 });
+    TestBed.tick();
+    service.notify({ kind: 'report', title: 'x', message: '' });
+
+    expect(localStorage.getItem('etp-notifications:rkumar')).toContain('"title":"x"');
   });
 
   it('does nothing without a signed-in user', () => {
@@ -89,7 +110,7 @@ describe('NotificationService', () => {
   });
 
   it('ignores corrupt stored data', () => {
-    localStorage.setItem('etp-notifications:rkumar', '{not json');
+    localStorage.setItem('etp-notifications:u-rkumar', '{not json');
     create();
 
     expect(service.notifications()).toEqual([]);
@@ -111,7 +132,7 @@ describe('NotificationService', () => {
 
     it('says hello separately to each user on the browser', () => {
       service.welcomeIfFirstVisit();
-      user.set({ username: 'ops', accountId: 1 });
+      user.set({ id: 'u-ops', username: 'ops', accountId: 1 });
       TestBed.tick();
 
       service.welcomeIfFirstVisit();

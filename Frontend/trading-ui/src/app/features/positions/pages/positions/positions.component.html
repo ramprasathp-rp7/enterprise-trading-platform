@@ -56,18 +56,12 @@
     </div>
   }
 
-  @if (summary()?.partial || stalePositionCount() > 0) {
+  @if (summary()?.partial) {
     <div class="alert alert-warning" role="status" data-testid="pricing-warning">
       <i class="fas fa-triangle-exclamation"></i>
       <div>
         <strong>Some prices are not current</strong>
-        <p>
-          @if (summary()?.partial) {
-            At least one holding could not be priced, so market value and unrealised P&amp;L exclude it.
-          } @else {
-            {{ stalePositionCount() }} holding{{ stalePositionCount() === 1 ? ' is' : 's are' }} valued from a delayed quote.
-          }
-        </p>
+        <p>At least one holding could not be priced, so market value and unrealised P&amp;L exclude it.</p>
       </div>
     </div>
   }
@@ -175,9 +169,6 @@
                       [attr.title]="(position.live ? 'Live price' : 'Price from the portfolio service') + (position.priceAsOf ? ', updated ' + (position.priceAsOf | date: 'MMM d, h:mm a') : '')"
                       data-testid="live-price"
                     >{{ price(position.lastPrice, position) }}</span>
-                    @if (position.stale) {
-                      <span class="pill pill-warning no-dot price-flag" data-testid="stale-badge">Stale</span>
-                    }
                   } @else {
                     <span class="pill pill-warning no-dot price-flag" data-testid="unpriced-badge" title="No quote available right now">No price</span>
                   }
