@@ -14,7 +14,9 @@ All of them run inside the Trade REST API (`Services/order-service`, port 8080) 
 
 Related documents in this folder:
 
-- [`decision-log/`](decision-log/): the design decisions behind preferences and notifications.
+- [`decision-log/`](decision-log/): the design decisions behind preferences and notifications
+  (0001–0007), multi-currency (0008), watchlists and price alerts (0009–0012), candle data (0013),
+  admin fee editing (0014), dashboard holdings (0015) and migration numbering (0016).
 - [`security-review/`](security-review/): the combined OWASP review of these modules.
 
 ## Conventions every feature follows
