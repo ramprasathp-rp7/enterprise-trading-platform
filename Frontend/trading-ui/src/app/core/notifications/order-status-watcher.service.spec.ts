@@ -12,7 +12,7 @@ describe('OrderStatusWatcherService (trade-events feed)', () => {
   let notifications: { notify: ReturnType<typeof vi.fn> };
   let currentUser: ReturnType<typeof vi.fn>;
 
-  const CURSOR_KEY = 'etp-order-notification-cursor:7';
+  const CURSOR_KEY = 'etp-order-notification-cursor:u-1:7';
 
   const item = (id: number, status: 'FILLED' | 'REJECTED' | 'CANCELLED', extra: Partial<OrderNotificationResponse> = {}): OrderNotificationResponse => ({
     id,
@@ -34,7 +34,7 @@ describe('OrderStatusWatcherService (trade-events feed)', () => {
     localStorage.removeItem(CURSOR_KEY);
     api = { getOrderNotifications: vi.fn(() => of([])) };
     notifications = { notify: vi.fn() };
-    currentUser = vi.fn(() => ({ accountId: 7 }));
+    currentUser = vi.fn(() => ({ id: 'u-1', accountId: 7 }));
     TestBed.configureTestingModule({
       providers: [
         { provide: OrderNotificationsService, useValue: api },
@@ -175,9 +175,24 @@ describe('OrderStatusWatcherService (trade-events feed)', () => {
     expect(watcher.isPolling).toBe(false);
     expect(api.getOrderNotifications).not.toHaveBeenCalled();
 
-    currentUser.mockReturnValue({ accountId: 7 });
+    currentUser.mockReturnValue({ id: 'u-1', accountId: 7 });
     watcher.start();
     watcher.stop();
     expect(watcher.isPolling).toBe(false);
+  });
+
+  it("does not use another user's cursor for the same account", () => {
+    localStorage.setItem('etp-order-notification-cursor:u-previous:7', '10');
+    api.getOrderNotifications.mockReturnValue(of([item(12, 'FILLED')]));
+
+    watcher.start();
+    vi.advanceTimersByTime(0);
+
+    // No cursor for this user yet: it only learns where the feed is and announces nothing.
+    expect(api.getOrderNotifications).toHaveBeenCalledTimes(1);
+    expect(api.getOrderNotifications).toHaveBeenCalledWith(7, undefined, 1);
+    expect(notifications.notify).not.toHaveBeenCalled();
+    expect(localStorage.getItem(CURSOR_KEY)).toBe('12');
+    localStorage.removeItem('etp-order-notification-cursor:u-previous:7');
   });
 });

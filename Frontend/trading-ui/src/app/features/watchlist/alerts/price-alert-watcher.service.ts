@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { Subscription, timer } from 'rxjs';
 import { AlertDirection, AlertMode, PriceAlertTriggerResponse, PriceAlertsService } from '../../../api/generated/watchlist';
 import { CoreAuthService } from '../../../core/auth/core-auth.service';
-import { NotificationService } from '../../../core/notifications/notification.service';
+import { NotificationService, storageOwner } from '../../../core/notifications/notification.service';
 import { PriceAlertsStore } from './price-alerts.store';
 import { formatInstrumentPrice } from '../../instruments/services/instrument-catalog.service';
 
@@ -19,7 +19,7 @@ const { Delivered, Pending } = PriceAlertTriggerResponse.DeliveryStatusEnum;
  * GET /price-alerts/triggers?since=… and turns each new delivered trigger into a
  * 'price-alert' notification (deduplicated by trigger id).
  *
- * The cursor (newest trigger time already handled) is kept per account in localStorage.
+ * The cursor (newest trigger time already handled) is kept per user and account in localStorage.
  * On the very first start there is no cursor: existing triggers only set it, so an account's
  * history is not replayed into the bell.
  */
@@ -32,14 +32,17 @@ export class PriceAlertWatcherService {
 
   private polling: Subscription | null = null;
   private accountId: number | null = null;
+  private owner: string | null = null;
   private inFlight = false;
 
   start(): void {
-    const accountId = this.authService.currentUser()?.accountId ?? null;
+    const user = this.authService.currentUser();
+    const accountId = user?.accountId ?? null;
     if (this.polling || !accountId) {
       return;
     }
     this.accountId = accountId;
+    this.owner = storageOwner(user);
     this.polling = timer(0, PRICE_ALERT_POLL_MS).subscribe(() => this.poll());
   }
 
@@ -47,6 +50,7 @@ export class PriceAlertWatcherService {
     this.polling?.unsubscribe();
     this.polling = null;
     this.accountId = null;
+    this.owner = null;
     this.inFlight = false;
   }
 
@@ -104,7 +108,7 @@ export class PriceAlertWatcherService {
 
   private readCursor(accountId: number): { baselined: boolean; since: string | null } {
     try {
-      const raw = localStorage.getItem(CURSOR_PREFIX + accountId);
+      const raw = localStorage.getItem(this.cursorKey(accountId));
       if (raw === null) {
         return { baselined: false, since: null };
       }
@@ -116,10 +120,14 @@ export class PriceAlertWatcherService {
 
   private writeCursor(accountId: number, since: string | null): void {
     try {
-      localStorage.setItem(CURSOR_PREFIX + accountId, since ?? '');
+      localStorage.setItem(this.cursorKey(accountId), since ?? '');
     } catch {
       // Storage unavailable: dedupe keys still stop repeats within this session.
     }
+  }
+
+  private cursorKey(accountId: number): string {
+    return `${CURSOR_PREFIX}${this.owner}:${accountId}`;
   }
 }
 
