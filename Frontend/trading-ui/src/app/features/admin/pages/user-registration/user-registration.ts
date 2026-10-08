@@ -5,6 +5,7 @@ import { RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../../core/config/environment';
 import { NotificationService } from '../../../../core/notifications/notification.service';
+import { AdminNotificationsService, AlertChannel } from '../../../../api/generated/preferences';
 
 /** Admins may only create customer users from this page; the role is not user-selectable. */
 export const REGISTERED_USER_ROLES: readonly string[] = ['CUSTOMER'];
@@ -27,6 +28,7 @@ export class AdminUserRegistrationComponent implements OnInit, OnDestroy {
   private fb = inject(FormBuilder);
   private http = inject(HttpClient);
   private notifications = inject(NotificationService);
+  private adminNotifications = inject(AdminNotificationsService);
   private messageTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
   form!: FormGroup;
@@ -75,12 +77,7 @@ export class AdminUserRegistrationComponent implements OnInit, OnDestroy {
     this.http.post(`${environment.AUTH_SERVICE_URL}/auth/register`, dto).subscribe({
       next: () => {
         this.showSuccessMessage(`User '${dto.username}' registered successfully!`);
-        this.notifications.notify({
-          kind: 'user-registered',
-          title: 'Registration successful',
-          message: `Customer '${dto.username}' was registered for account ${dto.accountId}.`,
-          link: { path: '/admin/register' },
-        });
+        this.announceRegistration(dto.username, Number(dto.accountId));
         this.form.reset();
         this.loading.set(false);
       },
@@ -88,6 +85,28 @@ export class AdminUserRegistrationComponent implements OnInit, OnDestroy {
         this.showErrorMessage(err.error?.message || 'Registration failed');
         this.loading.set(false);
       },
+    });
+  }
+
+  /**
+   * Tell the admin on the channels they chose in their preferences: the server sends any email or
+   * SMS and says whether in-app was chosen. If it can't be reached, the bell still gets the notice.
+   */
+  private announceRegistration(username: string, accountId: number): void {
+    const addToBell = () =>
+      this.notifications.notify({
+        kind: 'user-registered',
+        title: 'Registration successful',
+        message: `Customer '${username}' was registered for account ${accountId}.`,
+        link: { path: '/admin/register' },
+      });
+    this.adminNotifications.notifyCustomerRegistered({ username, accountId }).subscribe({
+      next: (sent) => {
+        if (sent.channels.includes(AlertChannel.InApp)) {
+          addToBell();
+        }
+      },
+      error: () => addToBell(),
     });
   }
 

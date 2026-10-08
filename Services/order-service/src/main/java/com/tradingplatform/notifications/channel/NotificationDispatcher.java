@@ -80,7 +80,16 @@ public class NotificationDispatcher {
      * the others.
      */
     public void send(NotificationMessage message, ResolvedAlertChannels channels) {
-        for (AlertTarget target : channels.targets()) {
+        sendTo(message, channels.targets());
+    }
+
+    /**
+     * Sends a message to each external target (EMAIL, SMS); IN_APP targets are skipped. Used for
+     * admin notifications, whose targets come from the AdminPreferenceResolver. A failing channel
+     * is logged and does not stop the others.
+     */
+    public void sendTo(NotificationMessage message, List<AlertTarget> targets) {
+        for (AlertTarget target : targets) {
             if (target.channel() == AlertChannel.IN_APP) {
                 continue;
             }

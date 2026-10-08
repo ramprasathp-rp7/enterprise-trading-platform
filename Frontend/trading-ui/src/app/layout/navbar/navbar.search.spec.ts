@@ -50,11 +50,12 @@ describe('NavbarComponent – instrument search', () => {
     expect(link.getAttribute('aria-label')).toBe('Preferences');
   });
 
-  it('has no Preferences shortcut for admins', async () => {
+  it('points the Preferences shortcut at the admin page for admins', async () => {
     isAdmin.mockReturnValue(true);
     await create();
 
-    expect(fixture.nativeElement.querySelector('[data-testid="nav-preferences-icon"]')).toBeNull();
+    const link: HTMLAnchorElement = fixture.nativeElement.querySelector('[data-testid="nav-preferences-icon"]');
+    expect(link.getAttribute('href')).toBe('/admin/preferences');
   });
 
   it('opens the search dialog from the search icon', async () => {

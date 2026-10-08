@@ -45,12 +45,23 @@ info:
     this contract and has no HTTP route: a resolution route reachable with a customer token would
     let any customer read another customer's contact details.
 
+    ## Admins
+
+    Admins have no trading account of their own, so their preferences are keyed by the admin's user
+    id (the JWT `sub` claim) and served under `/api/v1/admin/preferences`, with no id in the path:
+    an admin only ever reads and changes their own. The channel rules, validation and encryption are
+    the same as for customers. Admins are notified on their chosen channels through
+    `POST /api/v1/admin/notifications/customer-registered`, which the admin UI calls after a
+    customer has been registered; `EMAIL` and `SMS` go through the same sender stubs as customer
+    notifications, and the answer says whether `IN_APP` (the UI bell) was chosen.
+
     ## Authentication
 
     Every `/api/v1/**` route requires a valid signed JWT in the `Authorization` header. A missing,
     malformed, expired or wrongly signed token is `AUTH-401`, 401. A valid token whose `accountId`
     claim does not match the account being addressed is `ACC-403`, 403. Another account's
-    preferences are refused, never returned empty.
+    preferences are refused, never returned empty. `/api/v1/admin/**` routes also need the `ADMIN`
+    role; without it they answer `AUTH-403`, 403.
 
   contact:
     name: Enterprise Trading Platform, programme materials
@@ -64,6 +75,10 @@ servers:
 tags:
   - name: Preferences
     description: Read, replace and reset the signed-in customer's preferences.
+  - name: Admin Preferences
+    description: Read, replace and reset the signed-in admin's own preferences.
+  - name: Admin Notifications
+    description: Notify the signed-in admin on the channels they chose.
 
 security:
   - bearerAuth: []
@@ -137,6 +152,96 @@ paths:
         '404':
           $ref: '#/components/responses/AccountNotFound'
 
+  /api/v1/admin/preferences:
+    get:
+      tags: [Admin Preferences]
+      operationId: getAdminPreferences
+      summary: Read the signed-in admin's preferences
+      description: |
+        The stored preferences, or the platform default (`IN_APP`, `configured: false`) when the
+        admin has not chosen yet.
+      responses:
+        '200':
+          description: The admin's preferences.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminPreferencesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '403':
+          $ref: '#/components/responses/AdminForbidden'
+    put:
+      tags: [Admin Preferences]
+      operationId: updateAdminPreferences
+      summary: Replace the signed-in admin's preferences
+      description: Full replacement, with the same rules as the customer route.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreferencesRequest'
+      responses:
+        '200':
+          description: The preferences as now stored.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminPreferencesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '403':
+          $ref: '#/components/responses/AdminForbidden'
+        '422':
+          $ref: '#/components/responses/Invalid'
+    delete:
+      tags: [Admin Preferences]
+      operationId: resetAdminPreferences
+      summary: Reset the signed-in admin to the platform default
+      description: Removes the stored preferences, including the contact details. Idempotent.
+      responses:
+        '204':
+          description: Preferences removed; the admin now resolves to the platform default.
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '403':
+          $ref: '#/components/responses/AdminForbidden'
+
+  /api/v1/admin/notifications/customer-registered:
+    post:
+      tags: [Admin Notifications]
+      operationId: notifyCustomerRegistered
+      summary: Tell the signed-in admin that a customer was registered
+      description: |
+        Called by the admin UI after the auth service has registered a customer. Sends the notice
+        on each of the signed-in admin's `EMAIL` and `SMS` channels (stubs today: logged, not
+        delivered) and answers with every channel chosen. When `IN_APP` is among them the UI adds the
+        notice to the admin's bell. The notice only ever goes to the calling admin.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerRegisteredRequest'
+      responses:
+        '200':
+          description: The channels the notice went to.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminNotificationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '403':
+          $ref: '#/components/responses/AdminForbidden'
+        '422':
+          description: The username or account id is not valid (`VAL-422`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -163,6 +268,12 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
     Forbidden:
       description: Token does not reach this account (`ACC-403`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    AdminForbidden:
+      description: The token does not carry the `ADMIN` role (`AUTH-403`).
       content:
         application/json:
           schema:
@@ -241,12 +352,55 @@ components:
           format: date-time
           description: When the stored preference last changed. Null when not configured.
 
+    AdminPreferencesResponse:
+      type: object
+      required: [alertChannels, configured]
+      properties:
+        alertChannels:
+          type: array
+          minItems: 1
+          description: The chosen channels, or the single IN_APP default, in EMAIL, SMS, IN_APP order.
+          items:
+            $ref: '#/components/schemas/AlertChannelEntry'
+        configured:
+          type: boolean
+          description: False when nothing is stored and the platform default is being shown.
+        updatedAt:
+          type: [string, 'null']
+          format: date-time
+          description: When the stored preference last changed. Null when not configured.
+
+    CustomerRegisteredRequest:
+      type: object
+      required: [username, accountId]
+      properties:
+        username:
+          type: string
+          pattern: '^[a-zA-Z0-9._-]{3,64}$'
+          description: The new customer's username (the auth service's registration rules).
+        accountId:
+          type: integer
+          format: int64
+          minimum: 1
+          description: The account the customer was registered for.
+
+    AdminNotificationResponse:
+      type: object
+      required: [channels]
+      properties:
+        channels:
+          type: array
+          minItems: 1
+          description: Every channel the admin chose, in EMAIL, SMS, IN_APP order.
+          items:
+            $ref: '#/components/schemas/AlertChannel'
+
     ErrorResponse:
       type: object
       required: [errorCode, message]
       properties:
         errorCode:
           type: string
-          enum: [AUTH-401, ACC-403, ACC-404, VAL-422, PREF-422]
+          enum: [AUTH-401, AUTH-403, ACC-403, ACC-404, VAL-422, PREF-422]
         message:
           type: string
