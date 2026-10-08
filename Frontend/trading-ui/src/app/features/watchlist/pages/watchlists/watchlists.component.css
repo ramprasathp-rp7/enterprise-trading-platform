@@ -1,0 +1,285 @@
+/* Watchlists page — layout comes from the global .page / .panel / .data-table system */
+
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.create-form {
+  display: flex;
+  gap: 10px;
+  width: min(440px, 100%);
+}
+
+.create-form .btn {
+  flex-shrink: 0;
+}
+
+.alert p {
+  flex: 1;
+}
+
+.watchlists-grid {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: var(--stack-gap);
+  align-items: start;
+}
+
+/* Until there are instruments to list, both panels share one height and their empty
+   states sit centred in it; once a watchlist has rows, each panel hugs its content */
+.watchlists-grid.equal-height {
+  align-items: stretch;
+}
+
+.watchlists-grid.equal-height > .panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.watchlists-grid.equal-height .list-nav,
+.watchlists-grid.equal-height .detail-panel > .empty-state,
+.watchlists-grid.equal-height .detail-panel > .table-wrapper {
+  flex: 1;
+}
+
+.watchlists-grid.equal-height .list-nav {
+  display: flex;
+  flex-direction: column;
+}
+
+.watchlists-grid.equal-height .list-nav > .empty-state {
+  flex: 1;
+}
+
+/* ===== LIST OF WATCHLISTS ===== */
+.list-nav {
+  list-style: none;
+  margin: 0;
+  padding: 8px;
+}
+
+.list-entry {
+  display: flex;
+  align-items: center;
+  border-radius: var(--r-md);
+  transition: background var(--t-fast);
+}
+
+.list-entry:hover {
+  background: var(--surface-sunken);
+}
+
+.list-entry.active {
+  background: var(--brand-soft);
+}
+
+.list-select {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-700);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.list-entry.active .list-select {
+  color: var(--brand-strong);
+}
+
+.list-select i {
+  font-size: 12px;
+  color: var(--ink-400);
+}
+
+.list-entry.active .list-select i {
+  color: var(--brand);
+}
+
+.list-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.list-count {
+  font-size: 12px;
+  color: var(--ink-500);
+  font-variant-numeric: tabular-nums;
+}
+
+.list-delete {
+  flex-shrink: 0;
+  height: 30px;
+  min-width: 30px;
+  margin-right: 6px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-400);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.list-delete:hover {
+  color: var(--negative);
+  background: var(--negative-soft);
+}
+
+.list-delete.confirm {
+  color: #fff;
+  background: var(--negative);
+}
+
+.empty-state.small {
+  padding: 32px 16px;
+}
+
+/* ===== SELECTED WATCHLIST ===== */
+/* The instrument search results drop down below the header; do not clip them */
+.detail-panel {
+  overflow: visible;
+}
+
+.add-search {
+  width: min(340px, 100%);
+}
+
+.watch-table .row-name {
+  display: block;
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--ink-500);
+}
+
+.live-tag {
+  margin-left: 4px;
+  padding: 1px 6px;
+  border-radius: var(--r-pill);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.live-tag {
+  background: var(--positive-soft);
+  color: var(--positive);
+}
+
+/* Currency and delayed marker under the price, like the name under the symbol */
+.watch-table .price-meta {
+  display: block;
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: var(--ink-500);
+}
+
+/* Delayed quote marker; the cell's title says when the price was received */
+.stale-icon {
+  margin-left: 4px;
+  color: var(--warning);
+  font-size: 11px;
+}
+
+.up {
+  color: var(--positive);
+  font-weight: 600;
+}
+
+.down {
+  color: var(--negative);
+  font-weight: 600;
+}
+
+/* Columns size to their content (the global tables use equal fixed widths), so the
+   class pill, price and the Trade / Not tradable actions are never clipped; the
+   wrapper scrolls sideways if the panel is narrower than the table */
+.watch-table {
+  table-layout: auto;
+}
+
+.watch-table th,
+.watch-table td {
+  padding-left: 14px;
+  padding-right: 14px;
+}
+
+.watch-table th:first-child,
+.watch-table td:first-child {
+  padding-left: 24px;
+}
+
+.watch-table th:last-child,
+.watch-table td:last-child {
+  padding-right: 24px;
+}
+
+/* Long instrument names stop at a sensible width instead of widening the column */
+.watch-table .col-instrument {
+  width: 100%;
+}
+
+.watch-table .row-name,
+.watch-table td:first-child .cell-strong {
+  display: block;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Same footprint as the Trade button it replaces, sentence case like the rest of the row */
+.untradable {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px dashed var(--warning-line, var(--warning));
+  border-radius: var(--r-sm, 8px);
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.untradable i {
+  font-size: 11px;
+}
+
+.watch-table .actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.remove-btn:hover:not(:disabled) {
+  color: var(--negative);
+}
+
+@media (max-width: 960px) {
+  .watchlists-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .create-form {
+    flex-direction: column;
+  }
+}

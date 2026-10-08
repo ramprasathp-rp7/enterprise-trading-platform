@@ -41,7 +41,6 @@ Thumbs.db
 
 # Node.js & npm (sprint-09-trading-ui and others)
 node_modules/
-package-lock.json
 npm-debug.log
 .npmrc
 
@@ -51,3 +50,5 @@ sprint-04-analytics-etl/.cache/
 *.duckdb
 
 context/
+# order-service market data cache snapshot (MARKET_DATA_CACHE_FILE)
+Services/order-service/data/

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { JsonLogger } from '../common/logging/json.logger';
+import { loadPlatformConfig, toOrigin } from './platform-config';
 
 @Injectable()
 export class ConfigurationService {
@@ -25,12 +26,15 @@ export class ConfigurationService {
       throw new Error('JWT_SECRET must be at least 32 bytes');
     }
 
+    // Ports and database come from Config/application.yaml; env vars still override them
+    const platform = loadPlatformConfig();
+
     // Database configuration
-    const pgHost = process.env.PGHOST || 'localhost';
-    const pgPort = parseInt(process.env.PGPORT || '5432', 10);
-    const pgUser = process.env.PGUSER || 'postgres';
+    const pgHost = process.env.PGHOST || platform.database?.host || 'localhost';
+    const pgPort = parseInt(process.env.PGPORT || String(platform.database?.port ?? 5432), 10);
+    const pgUser = process.env.PGUSER || platform.database?.user || 'postgres';
     const pgPassword = process.env.PGPASSWORD;
-    const pgDatabase = process.env.AUTH_POSTGRES_DB || 'enterprise_trading_platform';
+    const pgDatabase = process.env.AUTH_POSTGRES_DB || platform.database?.name || 'trading_system_db';
 
     if (!pgPassword) {
       logger.error('PGPASSWORD is not set');
@@ -41,7 +45,11 @@ export class ConfigurationService {
     const jwtIssuer = process.env.JWT_ISSUER || 'auth-service';
     const accessTokenLifetime = parseInt(process.env.ACCESS_TOKEN_LIFETIME || '900', 10);
     const refreshTokenLifetime = parseInt(process.env.REFRESH_TOKEN_LIFETIME || '604800', 10);
-    const port = parseInt(process.env.PORT || '3000', 10);
+    const port = parseInt(process.env.PORT || String(platform.services?.auth?.port ?? 3000), 10);
+    const corsOrigins = [
+      toOrigin(platform.frontend) ?? 'http://localhost:4200',
+      toOrigin(platform.services?.auth) ?? `http://localhost:${port}`,
+    ];
     const pgPoolMax = parseInt(process.env.PGPOOL_MAX || '10', 10);
 
     const config = {
@@ -60,6 +68,7 @@ export class ConfigurationService {
         poolMax: pgPoolMax,
       },
       port,
+      corsOrigins,
     };
 
     logger.log(`Configuration loaded and validated | port=${port} jwtIssuer=${jwtIssuer} pgHost=${pgHost} pgDatabase=${pgDatabase}`);
@@ -92,6 +101,10 @@ export class ConfigurationService {
 
   getPort(): number {
     return this.config.port;
+  }
+
+  getCorsOrigins(): string[] {
+    return this.config.corsOrigins;
   }
 
 }

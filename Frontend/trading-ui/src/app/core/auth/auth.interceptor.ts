@@ -7,15 +7,17 @@ import {
   HttpErrorResponse,
 } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { catchError, switchMap } from 'rxjs/operators';
 import { CoreAuthService } from './core-auth.service';
+import { TokenRefreshService } from './token-refresh.service';
 import { ApiOriginsConfig } from '../config/api-origins';
 import { Router } from '@angular/router';
 
 /**
  * Authentication Interceptor
  * 
- * Attaches JWT bearer token to requests destined for platform APIs only.
+ * Attaches JWT bearer token to requests destined for platform APIs only, and
+ * keeps the session alive by refreshing the JWT through POST /auth/refresh.
  * Uses an allow-list of origins to prevent accidentally sending tokens to third-party services.
  * 
  * Token Attachment Decision Tree:
@@ -25,6 +27,10 @@ import { Router } from '@angular/router';
  * 2. Is this an unauthenticated auth endpoint (login, register, refresh)?
  *    - Yes: Skip token attachment
  *    - No: Attach token
+ * 3. Has the access token expired (or is about to)?
+ *    - Yes, and a refresh token is stored: refresh first, then send with the new token
+ * 4. Did the API still answer 401?
+ *    - Refresh once and retry; if the refresh fails, sign the user out
  * 
  * Never logs tokens or credentials.
  */
@@ -33,7 +39,8 @@ export class AuthInterceptor implements HttpInterceptor {
   constructor(
     private authService: CoreAuthService,
     private apiOriginsConfig: ApiOriginsConfig,
-    private router: Router
+    private router: Router,
+    private tokenRefresh: TokenRefreshService
   ) {}
 
   intercept(
@@ -52,34 +59,75 @@ export class AuthInterceptor implements HttpInterceptor {
       return next.handle(req);
     }
 
-    // Step 3: Attach token to this platform API request
     const token = this.authService.accessToken();
+
+    // Step 3: Expired (or nearly expired) access token - refresh before sending
+    if (token && this.tokenRefresh.needsRefresh(token) && this.tokenRefresh.canRefresh()) {
+      return this.tokenRefresh.refresh().pipe(
+        catchError((error) => this.endSession(error)),
+        switchMap((freshToken) => this.send(req, next, freshToken))
+      );
+    }
+
     if (!token) {
       // No token available: proceed without header
       return next.handle(req);
     }
 
-    // Clone request and add Authorization header
-    const authenticatedRequest = req.clone({
+    return this.send(req, next, token);
+  }
+
+  /** Send with the bearer token; on 401, refresh once and retry. */
+  private send(req: HttpRequest<any>, next: HttpHandler, token: string): Observable<HttpEvent<any>> {
+    return next.handle(this.withToken(req, token)).pipe(
+      catchError((error: HttpErrorResponse) => {
+        if (error.status !== 401) {
+          return throwError(() => error);
+        }
+
+        // Another request already rotated the token while this one was in flight
+        const current = this.authService.accessToken();
+        if (current && current !== token && !this.tokenRefresh.needsRefresh(current)) {
+          return next.handle(this.withToken(req, current)).pipe(catchError((retryError) => this.handleRetryError(retryError)));
+        }
+
+        if (!this.tokenRefresh.canRefresh()) {
+          return this.endSession(error);
+        }
+
+        return this.tokenRefresh.refresh().pipe(
+          catchError(() => this.endSession(error)),
+          switchMap((freshToken) =>
+            next.handle(this.withToken(req, freshToken)).pipe(catchError((retryError) => this.handleRetryError(retryError)))
+          )
+        );
+      })
+    );
+  }
+
+  /** A retried request that is still unauthorised means the session is gone. */
+  private handleRetryError(error: HttpErrorResponse): Observable<never> {
+    return error.status === 401 ? this.endSession(error) : throwError(() => error);
+  }
+
+  private withToken(req: HttpRequest<any>, token: string): HttpRequest<any> {
+    return req.clone({
       setHeaders: {
         Authorization: `Bearer ${token}`,
       },
     });
+  }
 
-    return next.handle(authenticatedRequest).pipe(
-      catchError((error: HttpErrorResponse) => {
-        // Handle 401 Unauthorized - clear tokens and redirect to login
-        if (error.status === 401) {
-          console.warn('Received 401 Unauthorized response - logging out user');
-          this.authService.clearTokens();
-          this.router.navigate(['/sign-in'], { replaceUrl: true }).catch((navError) => {
-            console.error('Failed to navigate to sign-in:', navError);
-          });
-        }
-
-        return throwError(() => error);
-      })
-    );
+  /** Clear tokens and send the user to sign-in, coming back here afterwards. */
+  private endSession(error: unknown): Observable<never> {
+    console.warn('Session expired - signing out');
+    this.authService.clearTokens();
+    const returnUrl = this.router.url;
+    const extras = returnUrl && !returnUrl.startsWith('/sign-in') ? { queryParams: { returnUrl } } : {};
+    this.router.navigate(['/sign-in'], { replaceUrl: true, ...extras }).catch((navError) => {
+      console.error('Failed to navigate to sign-in:', navError);
+    });
+    return throwError(() => error);
   }
 
   /**

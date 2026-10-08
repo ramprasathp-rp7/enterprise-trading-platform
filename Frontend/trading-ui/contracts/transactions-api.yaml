@@ -41,9 +41,9 @@ info:
     name: Instructional use only
 
 servers:
-  - url: http://localhost:8080
+  - url: http://localhost:8081
     description: Local development, run from Docker Compose
-  - url: http://event-backbone:8080
+  - url: http://event-backbone:8081
     description: Service name inside the Docker Compose network
 
 tags:
@@ -91,17 +91,8 @@ paths:
                     actionType: CREDIT
                     amount: 1000.00
                     createdOn: '2026-10-02T14:30:00Z'
-        '400':
-          description: Invalid request. Amount must be positive.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              examples:
-                invalidAmount:
-                  value:
-                    errorCode: VAL-422
-                    message: Amount must be greater than zero
+        '422':
+          $ref: '#/components/responses/InvalidAmount'
         '401':
           $ref: '#/components/responses/Unauthorised'
         '403':
@@ -157,20 +148,18 @@ paths:
                     amount: 500.00
                     createdOn: '2026-10-02T14:35:00Z'
         '400':
-          description: Invalid request. Amount must be positive and available funds insufficient.
+          description: Available funds are insufficient for the withdrawal (`TRANS-400`).
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
               examples:
-                invalidAmount:
-                  value:
-                    errorCode: VAL-422
-                    message: Amount must be greater than zero
                 insufficientFunds:
                   value:
-                    errorCode: ACC-400
+                    errorCode: TRANS-400
                     message: Insufficient funds for withdrawal
+        '422':
+          $ref: '#/components/responses/InvalidAmount'
         '401':
           $ref: '#/components/responses/Unauthorised'
         '403':
@@ -210,11 +199,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TransactionHistoryEntry'
+                $ref: '#/components/schemas/TransactionResponse'
               examples:
                 success:
                   value:
                     transactionId: txn-550e8400-e29b-41d4-a716-446655440000
+                    accountId: 1
                     transactionType: DEPOSIT
                     actionType: CREDIT
                     amount: 1000.00
@@ -335,7 +325,8 @@ components:
           type: number
           format: double
           minimum: 0.01
-          description: Amount in USD. Must be greater than zero.
+          multipleOf: 0.01
+          description: Amount in the account's currency. Must be greater than zero, with at most two decimal places.
           example: 1000.00
 
     TransactionResponse:
@@ -371,7 +362,7 @@ components:
         amount:
           type: number
           format: double
-          description: Amount in USD
+          description: Amount in the account's currency
           example: 1000.00
         createdOn:
           type: string
@@ -401,7 +392,7 @@ components:
         amount:
           type: number
           format: double
-          description: Amount in USD
+          description: Amount in the account's currency
           example: 1000.00
         createdOn:
           type: string
@@ -423,6 +414,20 @@ components:
           example: Account not found
 
   responses:
+    InvalidAmount:
+      description: |
+        The amount is missing, not greater than zero, or has more than two decimal places
+        (`VAL-422`). Enforced by request validation before the account is read.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            invalidAmount:
+              value:
+                errorCode: VAL-422
+                message: Invalid input
+
     Unauthorised:
       description: Missing, malformed, expired or incorrectly signed JWT token.
       content:

@@ -1,0 +1,311 @@
+openapi: 3.1.0
+
+info:
+  title: Strategy REST API
+  version: 1.0.0
+  summary: Automated strategy execution for the Enterprise Trading Platform.
+  description: |
+    Rules a customer configures once and the platform trades without confirmation. Active strategies
+    are evaluated against the market-data quote cache; a trigger places an order through
+    POST /api/v1/orders. Every route is scoped to the token's account (ACC-403 otherwise).
+
+servers:
+  - url: http://localhost:8081
+
+tags:
+  - name: Strategies
+
+security:
+  - bearerAuth: []
+
+paths:
+  /api/v1/accounts/{accountId}/strategies:
+    parameters:
+      - $ref: '#/components/parameters/AccountId'
+    get:
+      tags: [Strategies]
+      operationId: getStrategies
+      summary: The account's strategies, newest first
+      responses:
+        '200':
+          description: Strategies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StrategyResponse'
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [Strategies]
+      operationId: createStrategy
+      summary: Create a strategy (active immediately)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateStrategyRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StrategyResponse'
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+
+  /api/v1/accounts/{accountId}/strategies/{strategyId}:
+    parameters:
+      - $ref: '#/components/parameters/AccountId'
+      - $ref: '#/components/parameters/StrategyId'
+    get:
+      tags: [Strategies]
+      operationId: getStrategy
+      summary: One strategy
+      responses:
+        '200':
+          description: Strategy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StrategyResponse'
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+    patch:
+      tags: [Strategies]
+      operationId: updateStrategy
+      summary: Turn a strategy off (immediately) or back on
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateStrategyRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StrategyResponse'
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [Strategies]
+      operationId: deleteStrategy
+      summary: Delete a strategy and its execution history
+      responses:
+        '204':
+          description: Deleted
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+
+  /api/v1/accounts/{accountId}/strategies/{strategyId}/executions:
+    parameters:
+      - $ref: '#/components/parameters/AccountId'
+      - $ref: '#/components/parameters/StrategyId'
+    get:
+      tags: [Strategies]
+      operationId: getStrategyExecutions
+      summary: The strategy's triggers and their outcomes, newest first
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        '200':
+          description: Executions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StrategyExecutionResponse'
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    AccountId:
+      name: accountId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    StrategyId:
+      name: strategyId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+
+  responses:
+    Error:
+      description: Error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    StrategyType:
+      type: string
+      enum: [MA_CROSSOVER, BOLLINGER]
+    TradeSide:
+      type: string
+      enum: [BUY_ONLY, SELL_ONLY, BOTH]
+    IndicatorState:
+      type: string
+      enum: [ABOVE, BELOW, INSIDE, ABOVE_UPPER, BELOW_LOWER]
+    StrategySignal:
+      type: string
+      enum: [BUY, SELL]
+    ExecutionOutcome:
+      type: string
+      enum: [PLACED, FAILED, SKIPPED_DISABLED, SKIPPED_LIMIT, SKIPPED_NO_POSITION]
+
+    CreateStrategyRequest:
+      type: object
+      required: [symbol, strategyType, tradeSide, quantity, maxPosition, maxDailyNotional]
+      properties:
+        symbol:
+          type: string
+          maxLength: 20
+        strategyType:
+          $ref: '#/components/schemas/StrategyType'
+        shortWindow:
+          type: integer
+          minimum: 2
+          maximum: 99
+          description: MA_CROSSOVER only; default 5
+        longWindow:
+          type: integer
+          minimum: 3
+          maximum: 100
+          description: MA_CROSSOVER only; default 20, must exceed shortWindow
+        bandWindow:
+          type: integer
+          minimum: 5
+          maximum: 100
+          description: BOLLINGER only; default 20
+        bandK:
+          type: number
+          minimum: 0.5
+          maximum: 5
+          description: BOLLINGER only; standard deviations, default 2
+        tradeSide:
+          $ref: '#/components/schemas/TradeSide'
+        quantity:
+          type: integer
+          minimum: 1
+          maximum: 1000000
+        maxPosition:
+          type: integer
+          minimum: 0
+          description: A BUY never takes the holding past this
+        maxDailyNotional:
+          type: number
+          exclusiveMinimum: 0
+          description: Placed order value per UTC day, in the instrument's currency
+        maxConsecutiveFailures:
+          type: integer
+          minimum: 1
+          maximum: 20
+          description: The strategy turns itself off after this many failed orders in a row; default 3
+
+    UpdateStrategyRequest:
+      type: object
+      required: [active]
+      properties:
+        active:
+          type: boolean
+
+    StrategyResponse:
+      type: object
+      required: [strategyId, symbol, strategyType, tradeSide, quantity, maxPosition, maxDailyNotional,
+                 maxConsecutiveFailures, active, consecutiveFailures, description, createdAt, updatedAt]
+      properties:
+        strategyId: { type: integer, format: int64 }
+        symbol: { type: string }
+        strategyType: { $ref: '#/components/schemas/StrategyType' }
+        shortWindow: { type: [integer, 'null'] }
+        longWindow: { type: [integer, 'null'] }
+        bandWindow: { type: [integer, 'null'] }
+        bandK: { type: [number, 'null'] }
+        tradeSide: { $ref: '#/components/schemas/TradeSide' }
+        quantity: { type: integer }
+        maxPosition: { type: integer }
+        maxDailyNotional: { type: number }
+        maxConsecutiveFailures: { type: integer }
+        active: { type: boolean }
+        disabledReason:
+          type: [string, 'null']
+          enum: [USER, FAILURES, null]
+        lastState:
+          oneOf:
+            - $ref: '#/components/schemas/IndicatorState'
+            - type: 'null'
+        lastEvaluatedQuoteAt: { type: [string, 'null'], format: date-time }
+        consecutiveFailures: { type: integer }
+        description:
+          type: string
+          description: The rule in words
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    StrategyExecutionResponse:
+      type: object
+      required: [executionId, strategyId, symbol, quoteAt, signal, price, quantity, notional, indicators,
+                 reason, outcome, createdAt]
+      properties:
+        executionId: { type: integer, format: int64 }
+        strategyId: { type: integer, format: int64 }
+        symbol: { type: string }
+        quoteAt:
+          type: string
+          format: date-time
+          description: Observation time of the quote that triggered it
+        signal: { $ref: '#/components/schemas/StrategySignal' }
+        price: { type: number }
+        quantity: { type: integer }
+        notional: { type: number }
+        indicators:
+          type: object
+          additionalProperties:
+            type: number
+        reason: { type: string }
+        outcome: { $ref: '#/components/schemas/ExecutionOutcome' }
+        orderId: { type: [string, 'null'] }
+        errorCode: { type: [string, 'null'] }
+        errorMessage: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }
+
+    ErrorResponse:
+      type: object
+      required: [errorCode, message]
+      properties:
+        errorCode:
+          type: string
+          enum: [AUTH-401, ACC-403, INS-404, STR-404, STR-409, VAL-422]
+        message:
+          type: string

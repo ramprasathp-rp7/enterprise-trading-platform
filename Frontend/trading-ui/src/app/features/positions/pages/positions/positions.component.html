@@ -2,9 +2,19 @@
   <header class="page-header">
     <div class="page-heading">
       <h1 class="page-title">Positions</h1>
-      <p class="page-subtitle">Current holdings by instrument</p>
+      <p class="page-subtitle">What you hold, what it is worth now, and how it has done</p>
     </div>
     <div class="page-actions">
+      <button
+        type="button"
+        class="btn btn-secondary"
+        (click)="refresh()"
+        [disabled]="loading() || summaryLoading()"
+        data-testid="refresh-portfolio-btn"
+      >
+        <i class="fas fa-rotate-right" [class.fa-spin]="loading() || summaryLoading()"></i>
+        Refresh
+      </button>
       <button
         type="button"
         class="btn btn-secondary"
@@ -36,48 +46,98 @@
     </div>
   }
 
-  <section class="stat-strip" aria-label="Positions summary">
-    <div class="stat-tile">
-      <span class="stat-label">Open positions</span>
-      <span class="stat-value">{{ positions().length }}</span>
+  @if (summaryError()) {
+    <div class="alert alert-error" role="alert" data-testid="summary-error">
+      <i class="fas fa-exclamation-circle"></i>
+      <div>
+        <strong>Unable to load portfolio summary</strong>
+        <p>{{ summaryError() }}</p>
+      </div>
     </div>
-    <div class="stat-tile">
-      <span class="stat-label">Total units</span>
-      <span class="stat-value">{{ formatNumber(totalUnits(), 0) }}</span>
+  }
+
+  @if (summary()?.partial) {
+    <div class="alert alert-warning" role="status" data-testid="pricing-warning">
+      <i class="fas fa-triangle-exclamation"></i>
+      <div>
+        <strong>Some prices are not current</strong>
+        <p>At least one holding could not be priced, so market value and unrealised P&amp;L exclude it.</p>
+      </div>
     </div>
-    <div class="stat-tile">
-      <span class="stat-label">Total cost basis</span>
-      <span class="stat-value">{{ formatNumber(totalCostBasis(), 2) }}</span>
+  }
+
+  <!-- Summary as one bar that reads as an equation: Total = Cash + Holdings, then P&L -->
+  <section class="summary-bar" aria-label="Portfolio summary">
+    <div class="sum-item sum-total">
+      <span class="sum-label">Total value</span>
+      <span class="sum-value"><span class="cur">{{ baseSymbol() }}</span><span data-testid="summary-total-value">{{ liveSummary() ? formatNumber(liveSummary()!.total, 2) : '—' }}</span></span>
+      <span class="sum-caption">{{ summary()?.baseCurrency ?? '' }}{{ summary() ? ' · cash plus holdings' : '' }}</span>
+    </div>
+
+    <span class="sum-op" aria-hidden="true">=</span>
+
+    <div class="sum-item">
+      <span class="sum-label">Cash</span>
+      <span class="sum-value"><span class="cur">{{ baseSymbol() }}</span><span data-testid="summary-cash">{{ summary() ? formatNumber(summary()!.cashBalance, 2) : '—' }}</span></span>
+      <span class="sum-caption">Available to trade</span>
+    </div>
+
+    <span class="sum-op" aria-hidden="true">+</span>
+
+    <div class="sum-item">
+      <span class="sum-label">Holdings</span>
+      <span class="sum-value"><span class="cur">{{ baseSymbol() }}</span><span data-testid="summary-market-value">{{ liveSummary() ? formatNumber(liveSummary()!.holdings, 2) : '—' }}</span></span>
+      <span class="sum-caption">{{ summary() ? summary()!.positionCount + ' open position' + (summary()!.positionCount === 1 ? '' : 's') : '' }}</span>
+    </div>
+
+    <!-- P&L on the right edge of the bar -->
+    <div class="sum-pnl">
+      <div class="sum-item">
+        <span class="sum-label">Unrealised P&amp;L</span>
+        <span class="sum-value" [class]="'sum-value ' + pnlTone(liveSummary()?.unrealised)"><span data-testid="summary-unrealised" [class]="pnlTone(liveSummary()?.unrealised)">{{ baseMoney(liveSummary()?.unrealised, true) }}</span></span>
+        <span class="sum-caption">
+          @if (liveSummary()?.unrealisedPercent != null) {
+            <span [class]="pnlTone(liveSummary()?.unrealisedPercent)">{{ formatSigned(liveSummary()!.unrealisedPercent) }}%</span> on cost {{ formatNumber(liveSummary()!.cost, 2) }}
+          } @else if (summary()) {
+            On cost {{ baseMoney(summary()!.costBasis) }}
+          }
+        </span>
+      </div>
+
+      <div class="sum-item">
+        <span class="sum-label">Realised P&amp;L</span>
+        <span class="sum-value" [class]="'sum-value ' + pnlTone(summary()?.realisedPnl)"><span data-testid="summary-realised" [class]="pnlTone(summary()?.realisedPnl)">{{ baseMoney(summary()?.realisedPnl, true) }}</span></span>
+        <span class="sum-caption">From closed trades</span>
+      </div>
     </div>
   </section>
 
-  <section class="panel">
+  <section class="panel holdings-panel">
     <header class="panel-header">
       <h2 class="panel-title">Holdings <span class="count-chip">{{ positions().length }}</span></h2>
+      @if (summary(); as s) {
+        <span class="as-of" data-testid="portfolio-as-of"><span class="live-dot" aria-hidden="true"></span> Live prices{{ pricesAsOf() ? ' · as of ' + (pricesAsOf() | date: 'h:mm:ss a') : '' }}</span>
+      }
     </header>
 
     <div class="table-wrapper">
-      <table class="data-table transactions-table">
-        <colgroup>
-          <col class="col-symbol" />
-          <col class="col-quantity" />
-          <col class="col-cost" />
-          <col class="col-basis" />
-          <col class="col-actions" />
-        </colgroup>
+      <table class="data-table holdings-table transactions-table">
         <thead>
           <tr>
-            <th>Symbol</th>
+            <th>Instrument</th>
             <th class="num">Quantity</th>
-            <th class="num">Average cost</th>
-            <th class="num">Cost basis</th>
-            <th class="col-actions-head">Trade</th>
+            <th class="num">Avg cost</th>
+            <th class="num">Live price</th>
+            <th class="num">Market value</th>
+            <th class="num">Unrealised P&amp;L</th>
+            <th class="weight-head">Weight</th>
+            <th class="col-actions-head"><span class="sr-only">Trade</span></th>
           </tr>
         </thead>
         <tbody>
           @if (loading()) {
             <tr>
-              <td colspan="5">
+              <td colspan="8">
                 <div class="loading-state">
                   <div class="spinner"></div>
                   <p>Loading positions...</p>
@@ -86,7 +146,7 @@
             </tr>
           } @else if (positions().length === 0) {
             <tr>
-              <td colspan="5">
+              <td colspan="8">
                 <div class="empty-state">
                   <i class="fas fa-inbox"></i>
                   <p>No active positions</p>
@@ -95,12 +155,52 @@
               </td>
             </tr>
           } @else {
-            @for (position of positions(); track position.symbol) {
+            @for (position of livePositions(); track position.symbol) {
               <tr class="transaction-row">
-                <td class="cell-strong">{{ position.symbol }}</td>
+                <td>
+                  <span class="cell-strong instrument">{{ position.symbol }}</span>
+                  <span class="sub">{{ position.currency }}</span>
+                </td>
                 <td class="num">{{ formatNumber(position.quantity, 0) }}</td>
-                <td class="num">{{ formatNumber(position.averageCost, 2) }}</td>
-                <td class="num">{{ formatNumber(position.quantity * position.averageCost, 2) }}</td>
+                <td class="num">{{ price(position.averageCost, position) }}</td>
+                <td class="num">
+                  @if (position.lastPrice != null) {
+                    <span
+                      [attr.title]="(position.live ? 'Live price' : 'Price from the portfolio service') + (position.priceAsOf ? ', updated ' + (position.priceAsOf | date: 'MMM d, h:mm a') : '')"
+                      data-testid="live-price"
+                    >{{ price(position.lastPrice, position) }}</span>
+                  } @else {
+                    <span class="pill pill-warning no-dot price-flag" data-testid="unpriced-badge" title="No quote available right now">No price</span>
+                  }
+                </td>
+                <td class="num">
+                  <span class="cell-strong">{{ position.marketValue != null ? money(position.marketValue, position.currency) : '—' }}</span>
+                  @if (isForeign(position)) {
+                    <span class="sub" data-testid="market-value-account"
+                      [attr.title]="position.fxRate != null ? 'At ' + position.fxRate + ' ' + baseCurrency() + ' per ' + position.currency : 'No exchange rate available'"
+                    >≈ {{ baseMoney(position.marketValueAccount) }}</span>
+                  }
+                  <span class="sub">cost {{ money(position.costBasis, position.currency) }}</span>
+                </td>
+                <td class="num">
+                  <span class="cell-strong" [class]="'cell-strong ' + pnlTone(position.unrealisedPnl)">{{ signedMoney(position.unrealisedPnl, position.currency) }}</span>
+                  @if (isForeign(position) && position.unrealisedPnlAccount != null) {
+                    <span class="sub" [class]="'sub ' + pnlTone(position.unrealisedPnlAccount)" title="In your account's currency, including exchange-rate moves since purchase">≈ {{ baseMoney(position.unrealisedPnlAccount, true) }}</span>
+                  }
+                  @if (position.unrealisedPnlPercent != null) {
+                    <span class="sub pnl-percent" [class]="'sub pnl-percent ' + pnlTone(position.unrealisedPnlPercent)">{{ formatSigned(position.unrealisedPnlPercent) }}%</span>
+                  }
+                </td>
+                <td class="weight">
+                  @if (weight(position) !== null) {
+                    <span class="weight-track" [title]="position.symbol + ' is ' + (weight(position)! | number: '1.1-1') + '% of your holdings by market value'">
+                      <span class="weight-fill" [style.width.%]="weight(position)"></span>
+                    </span>
+                    <span class="weight-pct">{{ weight(position)! | number: '1.1-1' }}%</span>
+                  } @else {
+                    <span class="sub">—</span>
+                  }
+                </td>
                 <td class="cell-actions">
                   <div class="trade-actions">
                     <a
@@ -109,20 +209,37 @@
                       [queryParams]="{ symbol: position.symbol, side: 'BUY', from: 'holding' }"
                       [attr.aria-label]="'Buy ' + position.symbol"
                       data-testid="holding-buy-btn"
-                    ><i class="fas fa-arrow-up"></i> Buy</a>
+                    >Buy</a>
                     <a
                       class="btn btn-sm trade-btn sell"
                       routerLink="/order-ticket"
                       [queryParams]="{ symbol: position.symbol, side: 'SELL', from: 'holding' }"
                       [attr.aria-label]="'Sell ' + position.symbol"
                       data-testid="holding-sell-btn"
-                    ><i class="fas fa-arrow-down"></i> Sell</a>
+                    >Sell</a>
                   </div>
                 </td>
               </tr>
             }
           }
         </tbody>
+        @if (!loading() && positions().length > 0) {
+          <tfoot>
+            <tr class="totals-row" data-testid="holdings-totals">
+              <td>Total</td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td class="num">
+                <span class="cell-strong">{{ baseMoney(totalMarketValue()) }}</span>
+                <span class="sub">cost {{ baseMoney(totalCostBasis()) }}</span>
+              </td>
+              <td class="num"><span class="cell-strong" [class]="'cell-strong ' + pnlTone(totalUnrealised())">{{ baseMoney(totalUnrealised(), true) }}</span></td>
+              <td></td>
+              <td></td>
+            </tr>
+          </tfoot>
+        }
       </table>
     </div>
   </section>

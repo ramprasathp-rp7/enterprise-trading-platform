@@ -77,6 +77,42 @@ export const routes: Routes = [
         data: { title: 'Positions' },
       },
       {
+        path: 'watchlists',
+        canActivateChild: [canActivateChildGuard],
+        loadComponent: () =>
+          import('./features/watchlist/pages/watchlists/watchlists.component').then(
+            (m) => m.WatchlistsComponent
+          ),
+        data: { title: 'Watchlists' },
+      },
+      {
+        path: 'advice',
+        canActivateChild: [canActivateChildGuard],
+        loadComponent: () =>
+          import('./features/advice/pages/trade-advice/trade-advice.component').then(
+            (m) => m.TradeAdviceComponent
+          ),
+        data: { title: 'Trade Advice' },
+      },
+      {
+        path: 'strategies',
+        canActivateChild: [canActivateChildGuard],
+        loadComponent: () =>
+          import('./features/strategies/pages/strategies/strategies.component').then(
+            (m) => m.StrategiesComponent
+          ),
+        data: { title: 'Strategies' },
+      },
+      {
+        path: 'settings',
+        canActivateChild: [canActivateChildGuard],
+        loadComponent: () =>
+          import('./features/settings/pages/settings/settings.component').then(
+            (m) => m.SettingsComponent
+          ),
+        data: { title: 'Preferences' },
+      },
+      {
         path: 'account',
         canActivateChild: [canActivateChildGuard],
         loadComponent: () =>
@@ -135,6 +171,14 @@ export const routes: Routes = [
         path: 'fees',
         component: AdminFeeManagementComponent,
         data: { title: 'Fee Management' },
+      },
+      {
+        path: 'preferences',
+        loadComponent: () =>
+          import('./features/settings/pages/settings/settings.component').then(
+            (m) => m.SettingsComponent
+          ),
+        data: { title: 'Preferences' },
       },
       {
         path: '',

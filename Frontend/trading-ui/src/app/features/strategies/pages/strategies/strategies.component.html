@@ -1,0 +1,248 @@
+<div class="page strategies-page">
+  <header class="page-header">
+    <div class="page-heading">
+      <p class="page-eyebrow">Trading</p>
+      <h1 class="page-title">Strategies</h1>
+      <p class="page-subtitle">Rules that place orders for you when the price meets them, even while you are signed out.</p>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-secondary" (click)="store.load()" [disabled]="store.isLoading()" data-testid="refresh-strategies">
+        <i class="fas fa-rotate-right" [class.fa-spin]="store.isLoading()"></i> Refresh
+      </button>
+      @if (!formOpen()) {
+        <button type="button" class="btn btn-primary" (click)="openForm()" [disabled]="store.atCap()" data-testid="new-strategy"
+          [title]="store.atCap() ? 'At most ' + maxActive + ' strategies can be on at once' : ''">
+          <i class="fas fa-plus"></i> New strategy
+        </button>
+      }
+    </div>
+  </header>
+
+  <div class="alert alert-warning disclaimer" role="note">
+    <i class="fas fa-triangle-exclamation"></i>
+    <p>Strategies place real orders on your account without asking first. They are rules, not advice, and
+      in production would sit behind suitability and risk checks. Turning one off stops it immediately.</p>
+  </div>
+
+  @if (notice(); as n) {
+    <div class="alert alert-success" role="status" data-testid="strategy-notice">
+      <i class="fas fa-circle-check"></i><p>{{ n }}</p>
+    </div>
+  }
+
+  @if (store.error(); as message) {
+    <div class="alert alert-error" role="alert" data-testid="strategies-error">
+      <i class="fas fa-circle-exclamation"></i>
+      <p>{{ message }}</p>
+      <button type="button" class="btn btn-outline btn-sm" (click)="store.load()">Retry</button>
+    </div>
+  }
+
+  @if (formOpen()) {
+    <section class="panel form-panel" data-testid="strategy-form" aria-label="New strategy">
+      <header class="form-head">
+        <h2>New strategy</h2>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="closeForm()" aria-label="Cancel">Cancel</button>
+      </header>
+
+      <div class="form-grid">
+        <div class="form-group span-2">
+          <label>Instrument</label>
+          @if (instrument(); as inst) {
+            <div class="picked" data-testid="picked-instrument">
+              <strong>{{ inst.symbol }}</strong> <span>{{ inst.name }}</span>
+              <button type="button" class="btn btn-ghost btn-sm" (click)="instrument.set(null)">Change</button>
+            </div>
+          } @else {
+            <app-instrument-search (selected)="pick($event)" [clearOnSelect]="true" placeholder="Search by symbol or name" />
+          }
+          @if (showError('instrument'); as e) { <span class="field-error">{{ e }}</span> }
+        </div>
+
+        <div class="form-group span-2">
+          <label>Trigger</label>
+          <div class="choice" role="radiogroup" aria-label="Trigger">
+            <button type="button" role="radio" class="choice-btn" [class.active]="strategyType() === types.MaCrossover"
+              [attr.aria-checked]="strategyType() === types.MaCrossover" (click)="strategyType.set(types.MaCrossover)" data-testid="type-ma">
+              <strong>Moving-average crossover</strong>
+              <small>Trades when a short average of recent prices crosses a longer one: crossing above suggests prices are turning up.</small>
+            </button>
+            <button type="button" role="radio" class="choice-btn" [class.active]="strategyType() === types.Bollinger"
+              [attr.aria-checked]="strategyType() === types.Bollinger" (click)="strategyType.set(types.Bollinger)" data-testid="type-bollinger">
+              <strong>Bollinger bands</strong>
+              <small>Trades when the price leaves a band around its average: below it is unusually low, above it unusually high.</small>
+            </button>
+          </div>
+        </div>
+
+        @if (strategyType() === types.MaCrossover) {
+          <div class="form-group">
+            <label for="short-window">Short average (prices)</label>
+            <input id="short-window" type="number" class="form-control" min="2" max="99" [value]="shortWindow()"
+              (input)="shortWindow.set(num($event))" [class.is-invalid]="showError('shortWindow')" />
+            @if (showError('shortWindow'); as e) { <span class="field-error">{{ e }}</span> }
+          </div>
+          <div class="form-group">
+            <label for="long-window">Long average (prices)</label>
+            <input id="long-window" type="number" class="form-control" min="3" max="100" [value]="longWindow()"
+              (input)="longWindow.set(num($event))" [class.is-invalid]="showError('longWindow')" />
+            @if (showError('longWindow'); as e) { <span class="field-error">{{ e }}</span> }
+          </div>
+        } @else {
+          <div class="form-group">
+            <label for="band-window">Average over (prices)</label>
+            <input id="band-window" type="number" class="form-control" min="5" max="100" [value]="bandWindow()"
+              (input)="bandWindow.set(num($event))" [class.is-invalid]="showError('bandWindow')" />
+            @if (showError('bandWindow'); as e) { <span class="field-error">{{ e }}</span> }
+          </div>
+          <div class="form-group">
+            <label for="band-k">Band width (std dev)</label>
+            <input id="band-k" type="number" class="form-control" min="0.5" max="5" step="0.5" [value]="bandK()"
+              (input)="bandK.set(num($event))" [class.is-invalid]="showError('bandK')" />
+            @if (showError('bandK'); as e) { <span class="field-error">{{ e }}</span> }
+          </div>
+        }
+
+        <div class="form-group">
+          <label for="trade-side">Acts on</label>
+          <select id="trade-side" class="form-control" [value]="tradeSide()" (change)="tradeSide.set($any($event.target).value)">
+            @for (s of sides; track s.value) {
+              <option [value]="s.value" [selected]="s.value === tradeSide()">{{ s.label }}</option>
+            }
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="quantity">Quantity per order</label>
+          <input id="quantity" type="number" class="form-control" min="1" [value]="quantity()"
+            (input)="quantity.set(num($event))" [class.is-invalid]="showError('quantity')" data-testid="quantity" />
+          @if (showError('quantity'); as e) { <span class="field-error">{{ e }}</span> }
+        </div>
+
+        <div class="form-group">
+          <label for="max-position">Max holding</label>
+          <input id="max-position" type="number" class="form-control" min="0" [value]="maxPosition()"
+            (input)="maxPosition.set(num($event))" [class.is-invalid]="showError('maxPosition')" />
+          <span class="field-hint">A buy never takes the holding past this.</span>
+          @if (showError('maxPosition'); as e) { <span class="field-error">{{ e }}</span> }
+        </div>
+        <div class="form-group">
+          <label for="max-daily">Max spend per day ({{ instrument()?.currency ?? 'instrument currency' }})</label>
+          <input id="max-daily" type="number" class="form-control" min="1" [value]="maxDailyNotional()"
+            (input)="maxDailyNotional.set(num($event))" [class.is-invalid]="showError('maxDailyNotional')" />
+          @if (showError('maxDailyNotional'); as e) { <span class="field-error">{{ e }}</span> }
+        </div>
+        <div class="form-group">
+          <label for="max-failures">Stop after failed orders in a row</label>
+          <input id="max-failures" type="number" class="form-control" min="1" max="20" [value]="maxFailures()"
+            (input)="maxFailures.set(num($event))" [class.is-invalid]="showError('maxFailures')" />
+          @if (showError('maxFailures'); as e) { <span class="field-error">{{ e }}</span> }
+        </div>
+      </div>
+
+      <p class="preview" data-testid="strategy-preview"><i class="fas fa-robot"></i> {{ preview() }}</p>
+
+      <label class="consent">
+        <input type="checkbox" [checked]="consent()" (change)="consent.set($any($event.target).checked)" data-testid="consent" />
+        I authorise this strategy to place these orders on my account without asking me first.
+      </label>
+      @if (showError('consent'); as e) { <span class="field-error">{{ e }}</span> }
+
+      @if (formError(); as e) {
+        <div class="alert alert-error" role="alert" data-testid="form-error"><i class="fas fa-circle-exclamation"></i><p>{{ e }}</p></div>
+      }
+
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeForm()">Cancel</button>
+        <button type="button" class="btn btn-primary" (click)="submit()" [disabled]="submitting()" data-testid="create-strategy">
+          @if (submitting()) { <i class="fas fa-spinner fa-spin"></i> } Turn on strategy
+        </button>
+      </div>
+    </section>
+  }
+
+  @if (store.isLoaded() && store.strategies().length === 0 && !formOpen()) {
+    <section class="panel empty-panel" data-testid="strategies-empty">
+      <div class="empty-state">
+        <i class="fas fa-robot"></i>
+        <p>No strategies yet</p>
+        <small>Create one to have the platform trade a rule for you. Orders it places appear on the
+          <a routerLink="/blotter">blotter</a>.</small>
+      </div>
+    </section>
+  }
+
+  <div class="strategy-list">
+    @for (s of store.strategies(); track s.strategyId) {
+      <article class="panel strategy-card" [attr.data-tone]="status(s).tone" [attr.data-testid]="'strategy-' + s.strategyId">
+        <header class="card-head">
+          <div class="who">
+            <h2 class="symbol">{{ s.symbol }}</h2>
+            <span class="type">{{ s.strategyType === types.MaCrossover ? 'MA crossover' : 'Bollinger bands' }}</span>
+            <span class="status" [attr.data-tone]="status(s).tone" data-testid="strategy-status">{{ status(s).label }}</span>
+          </div>
+          <div class="actions">
+            <button type="button" class="btn btn-sm" [class.btn-outline]="s.active" [class.btn-primary]="!s.active"
+              (click)="toggle(s)" [disabled]="isBusy(s.strategyId)" data-testid="toggle-strategy">
+              {{ s.active ? 'Turn off' : 'Turn on' }}
+            </button>
+            @if (confirmDelete() === s.strategyId) {
+              <button type="button" class="btn btn-danger btn-sm" (click)="remove(s.strategyId)" data-testid="confirm-delete">Delete</button>
+              <button type="button" class="btn btn-ghost btn-sm" (click)="confirmDelete.set(null)">Keep</button>
+            } @else {
+              <button type="button" class="btn btn-ghost btn-sm" (click)="askDelete(s.strategyId)" [disabled]="isBusy(s.strategyId)"
+                aria-label="Delete strategy" data-testid="delete-strategy"><i class="fas fa-trash"></i></button>
+            }
+          </div>
+        </header>
+
+        <p class="rule" data-testid="strategy-rule">{{ s.description }}</p>
+
+        <dl class="facts">
+          <div><dt>Now</dt><dd>{{ stateLabel(s.lastState) }}</dd></div>
+          <div><dt>Last price checked</dt><dd>{{ s.lastEvaluatedQuoteAt ? (s.lastEvaluatedQuoteAt | date: 'MMM d, h:mm a') : '—' }}</dd></div>
+          <div><dt>Max holding</dt><dd>{{ s.maxPosition | number }}</dd></div>
+          <div><dt>Max per day</dt><dd>{{ s.maxDailyNotional | number: '1.0-2' }}</dd></div>
+          <div><dt>Failures</dt><dd>{{ s.consecutiveFailures }} / {{ s.maxConsecutiveFailures }}</dd></div>
+        </dl>
+
+        @if (rowError()?.id === s.strategyId) {
+          <p class="field-error" role="alert">{{ rowError()!.message }}</p>
+        }
+
+        <button type="button" class="link-btn" (click)="toggleExecutions(s.strategyId)" [attr.aria-expanded]="!!executionsOf(s.strategyId)"
+          data-testid="toggle-executions">
+          <i class="fas" [class.fa-chevron-down]="!executionsOf(s.strategyId)" [class.fa-chevron-up]="!!executionsOf(s.strategyId)"></i>
+          Activity
+        </button>
+
+        @if (executionsOf(s.strategyId); as view) {
+          <div class="executions" data-testid="executions">
+            @if (view.loading) {
+              <p class="muted">Loading activity…</p>
+            } @else if (view.error) {
+              <p class="field-error">{{ view.error }}</p>
+            } @else if (view.rows.length === 0) {
+              <p class="muted" data-testid="executions-empty">No triggers yet. The strategy acts when the price meets its rule.</p>
+            } @else {
+              <ul class="execution-list">
+                @for (e of view.rows; track e.executionId) {
+                  <li class="execution" [attr.data-outcome]="e.outcome" [attr.data-testid]="'execution-' + e.executionId">
+                    <div class="exec-head">
+                      <span class="signal" [attr.data-signal]="e.signal">{{ e.signal }}</span>
+                      <span>{{ e.quantity }} &#64; {{ e.price | number: '1.2-4' }}</span>
+                      <span class="outcome" [attr.data-outcome]="e.outcome">{{ outcomeLabel(e.outcome) }}</span>
+                      <time>{{ e.quoteAt | date: 'MMM d, h:mm a' }}</time>
+                    </div>
+                    <p class="reason">{{ e.reason }}</p>
+                    @if (e.errorMessage) { <p class="field-error">{{ e.errorCode }}: {{ e.errorMessage }}</p> }
+                    @if (e.orderId) { <a class="order-link" routerLink="/blotter">{{ e.orderId }}</a> }
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+        }
+      </article>
+    }
+  </div>
+</div>

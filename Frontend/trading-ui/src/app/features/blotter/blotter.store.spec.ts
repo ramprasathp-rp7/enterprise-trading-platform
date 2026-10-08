@@ -272,6 +272,17 @@ describe('BlotterStore', () => {
       (store as any).currentAccountId = 123;
     });
 
+    it('asks the trade-events watcher to check the feed soon after a successful cancel', () => {
+      const track = vi.fn();
+      (store as any).orderWatcher = { track };
+      mockOrderCancelService.cancelOrder.mockReturnValue(of({ orderId: 'ord-001', status: 'CANCELLED', message: 'Order cancelled' }));
+      mockOrderHistoryService.getOrderHistory.mockReturnValue(of(mockOrders));
+
+      store.cancelOrder('ord-001');
+
+      expect(track).toHaveBeenCalledWith('ord-001');
+    });
+
     it('marks the order CANCELLED, reports success and re-syncs history', () => {
       const cancelled = [{ ...mockOrders[0], status: OrderStatus.Cancelled }, mockOrders[1]];
       mockOrderCancelService.cancelOrder.mockReturnValue(of({ orderId: 'ord-001', status: 'CANCELLED', message: 'Order cancelled' }));

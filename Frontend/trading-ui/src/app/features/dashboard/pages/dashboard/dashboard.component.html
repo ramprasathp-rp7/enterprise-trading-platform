@@ -18,98 +18,55 @@
     </div>
   </header>
 
-  <!-- Portfolio KPIs -->
+  <!-- Portfolio KPIs: one compact strip -->
   <section class="metrics-grid" aria-label="Portfolio overview">
     @for (stat of portfolioStats(); track stat.title) {
-      <a class="metric-card" [routerLink]="stat.link" [attr.aria-label]="stat.title + ': ' + stat.value + '. ' + stat.linkLabel">
-        <div class="metric-top">
+      <a class="metric-card" [routerLink]="stat.link" [attr.aria-label]="stat.title + ': ' + stat.value + '. ' + stat.linkLabel" [title]="stat.linkLabel">
+        <span class="metric-icon"><i [class]="stat.icon"></i></span>
+        <div class="metric-main">
           <span class="metric-label">{{ stat.title }}</span>
-          <span class="metric-icon"><i [class]="stat.icon"></i></span>
+          <span class="metric-value">{{ stat.value }}</span>
         </div>
-        <div class="metric-value">{{ stat.value }}</div>
-        <div class="metric-foot">
-          <span class="metric-caption">{{ stat.caption }}</span>
-          <span class="metric-link">{{ stat.linkLabel }} <i class="fas fa-arrow-right"></i></span>
-        </div>
+        <span class="metric-caption">{{ stat.caption }}</span>
+        <i class="fas fa-arrow-right metric-go" aria-hidden="true"></i>
       </a>
     }
   </section>
 
-  <!-- Holdings -->
-  <section class="panel">
-    <header class="panel-header">
-      <div>
-        <h2 class="panel-title">Portfolio holdings</h2>
-        <p class="panel-subtitle">Allocation across your instruments</p>
-      </div>
-      <a routerLink="/positions" class="panel-link">View all positions <i class="fas fa-arrow-right"></i></a>
-    </header>
-    <div class="panel-body">
-      <app-positions-overview [accountId]="authService.currentUser()?.accountId" (positionsLoaded)="onPositionsLoaded($event)"></app-positions-overview>
-    </div>
+  <!-- Net worth over time; takes the height left between the KPIs and the bottom row -->
+  <section class="panel networth-panel" aria-label="Net worth">
+    <app-net-worth-chart
+      [history]="netWorthHistory()"
+      [failed]="netWorthHistoryFailed()"
+      [currentValue]="netWorth()"
+      [currency]="netWorthCurrency()"
+    />
   </section>
 
-  <!-- Recent trades -->
-  <section class="panel">
-    <header class="panel-header">
-      <div>
-        <h2 class="panel-title">Recent trades</h2>
-        <p class="panel-subtitle">Your latest order activity</p>
-      </div>
-      <a routerLink="/blotter" class="panel-link">Open order blotter <i class="fas fa-arrow-right"></i></a>
-    </header>
-
-    <div class="table-wrapper">
-      <table class="data-table activity-table">
-        <colgroup>
-          <col class="col-symbol" />
-          <col class="col-type" />
-          <col class="col-quantity" />
-          <col class="col-price" />
-          <col class="col-time" />
-          <col class="col-status" />
-        </colgroup>
-        <thead>
-          <tr>
-            <th>Symbol</th>
-            <th>Side</th>
-            <th class="num">Quantity</th>
-            <th class="num">Price</th>
-            <th class="col-time-head">Time</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (trade of recentTrades(); track trade.id) {
-            <tr class="trade-row">
-              <td class="cell-strong">{{ trade.symbol }}</td>
-              <td>
-                <span class="side-text" [class]="trade.type.toLowerCase()">
-                  <i class="fas" [class]="trade.type === 'BUY' ? 'fa-arrow-up' : 'fa-arrow-down'"></i>
-                  {{ trade.type }}
-                </span>
-              </td>
-              <td class="num">{{ trade.quantity | number }}</td>
-              <td class="num">{{ trade.price | number:'1.2-2' }}</td>
-              <td class="cell-muted cell-time">{{ trade.time }}</td>
-              <td>
-                <span class="pill" [class]="'status-' + trade.status.toLowerCase()">{{ trade.status }}</span>
-              </td>
-            </tr>
-          } @empty {
-            <tr>
-              <td colspan="6">
-                <div class="empty-state">
-                  <i class="fas fa-chart-line"></i>
-                  <p>No trades yet</p>
-                  <small>Orders you place will appear here.</small>
-                </div>
-              </td>
-            </tr>
+  <!-- Holdings + watchlist share the bottom row -->
+  <div class="dashboard-grid">
+    <section class="panel holdings-panel">
+      <header class="panel-header">
+        <div class="holdings-heading">
+          <h2 class="panel-title">Portfolio holdings</h2>
+          @if (holdingsSummary()) {
+            <span class="holdings-summary" data-testid="holdings-summary">{{ holdingsSummary() }}</span>
           }
-        </tbody>
-      </table>
-    </div>
-  </section>
+        </div>
+        <a routerLink="/positions" class="panel-link">View all positions <i class="fas fa-arrow-right"></i></a>
+      </header>
+      <div class="panel-body">
+        <app-positions-overview
+          [accountId]="authService.currentUser()?.accountId"
+          (positionsLoaded)="onPositionsLoaded($event)"
+        ></app-positions-overview>
+      </div>
+    </section>
+
+    <!-- Watchlist preview; "View all" opens the Watchlists page -->
+    <section class="panel watchlist-panel" aria-label="Watchlist">
+      <app-watchlist-widget />
+    </section>
+  </div>
 
 </div>

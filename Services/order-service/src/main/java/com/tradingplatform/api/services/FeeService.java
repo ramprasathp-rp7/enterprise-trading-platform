@@ -2,8 +2,11 @@ package com.tradingplatform.api.services;
 
 import com.tradingplatform.api.mappers.AssetFeeMapper;
 import com.tradingplatform.domain.dto.FeeStructureResponse;
+import com.tradingplatform.domain.dto.FeeUpdateRequest;
+import com.tradingplatform.domain.exception.AssetTypeNotFoundException;
 import com.tradingplatform.domain.model.AssetFeeStructure;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -40,9 +43,26 @@ public class FeeService {
     public FeeStructureResponse getFeeByAssetType(String assetType) {
         AssetFeeStructure structure = assetFeeMapper.findByAssetType(assetType);
         if (structure == null) {
-            throw new IllegalArgumentException("Asset type not found: " + assetType);
+            throw new AssetTypeNotFoundException(assetType);
         }
         return toResponse(structure);
+    }
+
+    /**
+     * Update the fee structure for an asset type (admin only).
+     * Orders placed after this call are charged the new fees.
+     *
+     * @param assetType The asset type (EQUITY, FX, CRYPTO)
+     * @param request   The new flat and percentage fees
+     * @return The updated fee structure, as now stored
+     */
+    @Transactional
+    public FeeStructureResponse updateFee(String assetType, FeeUpdateRequest request) {
+        int updated = assetFeeMapper.updateFees(assetType, request.flatFee(), request.percentageFee());
+        if (updated == 0) {
+            throw new AssetTypeNotFoundException(assetType);
+        }
+        return getFeeByAssetType(assetType);
     }
 
     /**

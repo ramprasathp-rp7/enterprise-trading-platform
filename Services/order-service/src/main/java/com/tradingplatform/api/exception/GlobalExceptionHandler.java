@@ -1,8 +1,15 @@
 package com.tradingplatform.api.exception;
 
+import com.tradingplatform.api.services.PortfolioPnlService;
 import com.tradingplatform.domain.dto.ErrorResponse;
 import com.tradingplatform.domain.enums.ErrorCode;
 import com.tradingplatform.domain.exception.*;
+import com.tradingplatform.watchlist.exception.WatchlistConflictException;
+import com.tradingplatform.watchlist.exception.WatchlistNotFoundException;
+import com.tradingplatform.watchlist.alerts.exception.PriceAlertConflictException;
+import com.tradingplatform.watchlist.alerts.exception.PriceAlertNotFoundException;
+import com.tradingplatform.strategy.exception.StrategyConflictException;
+import com.tradingplatform.strategy.exception.StrategyNotFoundException;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -98,6 +105,21 @@ public class GlobalExceptionHandler {
         
         return new ResponseEntity<>(
             new ErrorResponse(ErrorCode.INS_404, "The specified instrument is not available for trading."),
+            HttpStatus.NOT_FOUND
+        );
+    }
+    
+    // MKT-404: No cached quote for the symbol Maps to HTTP 404 (Not Found)
+    
+    @ExceptionHandler(QuoteNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleQuoteNotFound(
+            QuoteNotFoundException ex,
+            WebRequest request) {
+        
+        logger.warn("No cached quote: symbol={}", ex.getSymbol());
+        
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.MKT_404, "No price is available for this symbol yet."),
             HttpStatus.NOT_FOUND
         );
     }
@@ -227,6 +249,103 @@ public class GlobalExceptionHandler {
         );
     }
     
+    // WL-404: Watchlist or watchlist item not found for this account Maps to HTTP 404 (Not Found)
+
+    @ExceptionHandler(WatchlistNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleWatchlistNotFound(
+            WatchlistNotFoundException ex,
+            WebRequest request) {
+
+        logger.error("Watchlist not found: watchlistId={}", ex.getWatchlistId());
+
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.WL_404, ex.getMessage()),
+            HttpStatus.NOT_FOUND
+        );
+    }
+
+    // WL-409: Duplicate watchlist name or symbol already in the watchlist Maps to HTTP 409 (Conflict)
+
+    @ExceptionHandler(WatchlistConflictException.class)
+    public ResponseEntity<ErrorResponse> handleWatchlistConflict(
+            WatchlistConflictException ex,
+            WebRequest request) {
+
+        logger.error("Watchlist conflict: {}", ex.getMessage());
+
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.WL_409, ex.getMessage()),
+            HttpStatus.CONFLICT
+        );
+    }
+
+    @ExceptionHandler(CandleDataNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleCandleDataNotFound(
+            CandleDataNotFoundException ex,
+            WebRequest request) {
+
+        logger.error("Candle data not found: instrumentId={}, date={}", ex.getInstrumentId(), ex.getDate());
+
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.CDL_404, "Candle data not found for requested date."),
+            HttpStatus.NOT_FOUND
+        );
+    }
+    // ALR-404: Price alert not found for this account Maps to HTTP 404 (Not Found)
+
+    @ExceptionHandler(PriceAlertNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handlePriceAlertNotFound(
+            PriceAlertNotFoundException ex,
+            WebRequest request) {
+
+        logger.error("Price alert not found: alertId={}", ex.getAlertId());
+
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.ALR_404, ex.getMessage()),
+            HttpStatus.NOT_FOUND
+        );
+    }
+
+    @ExceptionHandler(CandleDataException.class)
+    public ResponseEntity<ErrorResponse> handleCandleDataException(
+            CandleDataException ex,
+            WebRequest request) {
+
+        logger.error("Candle data error: {}", ex.getMessage());
+
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.VAL_422, ex.getMessage()),
+            HttpStatus.UNPROCESSABLE_ENTITY
+        );
+    }
+
+    // ALR-409: Alert cap reached or the same active alert already exists Maps to HTTP 409 (Conflict)
+
+    @ExceptionHandler(StrategyNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleStrategyNotFound(StrategyNotFoundException ex, WebRequest request) {
+        logger.error("Strategy not found: {}", ex.getMessage());
+        return new ResponseEntity<>(new ErrorResponse(ErrorCode.STR_404, ex.getMessage()), HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(StrategyConflictException.class)
+    public ResponseEntity<ErrorResponse> handleStrategyConflict(StrategyConflictException ex, WebRequest request) {
+        logger.error("Strategy conflict: {}", ex.getMessage());
+        return new ResponseEntity<>(new ErrorResponse(ErrorCode.STR_409, ex.getMessage()), HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(PriceAlertConflictException.class)
+    public ResponseEntity<ErrorResponse> handlePriceAlertConflict(
+            PriceAlertConflictException ex,
+            WebRequest request) {
+
+        logger.error("Price alert conflict: {}", ex.getMessage());
+
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.ALR_409, ex.getMessage()),
+            HttpStatus.CONFLICT
+        );
+    }
+
     // VAL-422: Invalid order data (quantity, price, etc.) Maps to HTTP 422 (Unprocessable Entity)
      
     @ExceptionHandler(InvalidOrderException.class)
@@ -253,6 +372,21 @@ public class GlobalExceptionHandler {
 
         return new ResponseEntity<>(
             new ErrorResponse(ErrorCode.INVALID_PREFERENCE, ex.getMessage()),
+            HttpStatus.UNPROCESSABLE_ENTITY
+        );
+    }
+
+    // VAL-422: Invalid portfolio P&L request (e.g. from after to) Maps to HTTP 422 (Unprocessable Entity)
+
+    @ExceptionHandler(PortfolioPnlService.PortfolioPnlException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidPnlRequest(
+            PortfolioPnlService.PortfolioPnlException ex,
+            WebRequest request) {
+
+        logger.error("Invalid P&L request: {}", ex.getMessage());
+
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.VAL_422, ex.getMessage()),
             HttpStatus.UNPROCESSABLE_ENTITY
         );
     }
@@ -348,10 +482,10 @@ public class GlobalExceptionHandler {
     private HttpStatus mapErrorCodeToHttpStatus(ErrorCode code) {
         return switch(code) {
             case AUTH_401 -> HttpStatus.UNAUTHORIZED;
-            case ACC_404, INS_404, TRANS_404 -> HttpStatus.NOT_FOUND;
+            case ACC_404, INS_404, TRANS_404, WL_404, ALR_404, CDL_404, MKT_404, STR_404, ASS_404 -> HttpStatus.NOT_FOUND;
             case ACC_403 -> HttpStatus.FORBIDDEN;
             case ORD_400, TRANS_400 -> HttpStatus.BAD_REQUEST;
-            case ORD_409 -> HttpStatus.CONFLICT;
+            case ORD_409, WL_409, ALR_409, STR_409 -> HttpStatus.CONFLICT;
             case VAL_422, INVALID_PREFERENCE -> HttpStatus.UNPROCESSABLE_ENTITY;
         };
     }

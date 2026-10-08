@@ -5,6 +5,7 @@ import org.apache.ibatis.annotations.Arg;
 import org.apache.ibatis.annotations.ConstructorArgs;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -48,4 +49,16 @@ public interface AssetFeeMapper {
     })
     @Select("SELECT asset_type, flat_fee, percentage_fee FROM assets ORDER BY asset_type ASC")
     List<AssetFeeStructure> findAll();
+
+    /**
+     * Updates the fee structure for an asset type and stamps updated_on.
+     * New orders pick the new fees up immediately, since fees are read per order.
+     *
+     * @return number of rows updated (0 when the asset type does not exist)
+     */
+    @Update("UPDATE assets SET flat_fee = #{flatFee}, percentage_fee = #{percentageFee}, updated_on = now() "
+          + "WHERE asset_type = #{assetType}")
+    int updateFees(@Param("assetType") String assetType,
+                   @Param("flatFee") BigDecimal flatFee,
+                   @Param("percentageFee") BigDecimal percentageFee);
 }

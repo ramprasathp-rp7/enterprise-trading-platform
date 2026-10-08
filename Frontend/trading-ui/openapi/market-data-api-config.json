@@ -1,0 +1,12 @@
+{
+  "inputSpec": "./contracts/market-data-api.yaml",
+  "outputDir": "./src/app/api/generated/market-data",
+  "generatorName": "typescript-angular",
+  "skipValidateSpec": true,
+  "validateSpec": false,
+  "packageName": "api.marketdata",
+  "additionalProperties": {
+    "apiModulePrefix": "MarketDataApi",
+    "ngVersion": "21.0.0"
+  }
+}

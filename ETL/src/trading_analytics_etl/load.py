@@ -41,6 +41,10 @@ def ensure_schema(con, schema_sql_path: str) -> None:
     if not exists:
         sql_text = Path(schema_sql_path).read_text()
         con.execute(sql_text)
+    # Multi-currency columns (migration 022), for stores created before the schema had them
+    con.execute("ALTER TABLE fact_trades ADD COLUMN IF NOT EXISTS fx_rate DECIMAL(20,10) DEFAULT 1")
+    con.execute("ALTER TABLE fact_trades ADD COLUMN IF NOT EXISTS trade_value_account DECIMAL(18,2)")
+    con.execute("UPDATE fact_trades SET trade_value_account = trade_value WHERE trade_value_account IS NULL")
     con.execute(DEAD_LETTER_DDL)
 
 
@@ -209,19 +213,23 @@ def load_fact_trades(con, rows: list[dict]) -> int:
         """
         INSERT INTO fact_trades
             (trade_key, account_key, instrument_key, date_key, side, quantity, price, status,
-             executed_price, trade_value, source_order_id, created_at, loaded_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             executed_price, trade_value, fx_rate, trade_value_account, source_order_id, created_at, loaded_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT (source_order_id) DO UPDATE SET
             status = EXCLUDED.status,
             executed_price = EXCLUDED.executed_price,
             trade_value = EXCLUDED.trade_value,
+            fx_rate = EXCLUDED.fx_rate,
+            trade_value_account = EXCLUDED.trade_value_account,
             loaded_at = EXCLUDED.loaded_at
         """,
         [
             (
                 r["trade_key"], r["account_key"], r["instrument_key"], r["date_key"],
                 r["side"], r["quantity"], r["price"], r["status"], r["executed_price"],
-                r["trade_value"], r["source_order_id"], r["created_at"], r["loaded_at"],
+                r["trade_value"], r.get("fx_rate", Decimal("1")),
+                r.get("trade_value_account", r["trade_value"]),
+                r["source_order_id"], r["created_at"], r["loaded_at"],
             )
             for r in rows
         ],

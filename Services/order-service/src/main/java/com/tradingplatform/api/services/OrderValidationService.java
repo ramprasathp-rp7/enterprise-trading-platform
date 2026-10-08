@@ -19,9 +19,11 @@ import com.tradingplatform.domain.model.Instrument;
 import com.tradingplatform.domain.model.Order;
 import com.tradingplatform.domain.model.Position;
 import com.tradingplatform.services.AvailableBalanceService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Objects;
 
 /*
@@ -44,12 +46,26 @@ public class OrderValidationService {
     private final PositionMapper positionMapper;
     private final AssetFeeMapper assetFeeMapper;
     private final AvailableBalanceService availableBalanceService;
+    private final FxRateService fxRateService;
 
+    /** For callers that only place orders in the account's own currency. */
     public OrderValidationService(AccountMapper accountMapper,
                                  InstrumentMapper instrumentMapper,
                                  PositionMapper positionMapper,
                                  AssetFeeMapper assetFeeMapper,
                                  AvailableBalanceService availableBalanceService) {
+        this(accountMapper, instrumentMapper, positionMapper, assetFeeMapper, availableBalanceService,
+            FxRateService.sameCurrencyOnly());
+    }
+
+    @Autowired
+    public OrderValidationService(AccountMapper accountMapper,
+                                 InstrumentMapper instrumentMapper,
+                                 PositionMapper positionMapper,
+                                 AssetFeeMapper assetFeeMapper,
+                                 AvailableBalanceService availableBalanceService,
+                                 FxRateService fxRateService) {
+        this.fxRateService = fxRateService;
         this.accountMapper = accountMapper;
         this.instrumentMapper = instrumentMapper;
         this.positionMapper = positionMapper;
@@ -95,13 +111,22 @@ public class OrderValidationService {
             position = Position.empty(account.getId(), instrument.getId());
         }
 
-        BigDecimal notional = price.multiply(BigDecimal.valueOf(quantity));
         OrderSide side = request.side();
         Order order = new Order(account.getId(), instrument.getId(), side, quantity, price,
             request.idempotencyKey());
 
+        // The order is placed in the instrument's currency; the funds check and the reservation are in
+        // the account's, at the placement rate. The executor settles at a fresh rate fetched at fill.
+        BigDecimal placementFxRate = fxRateService.rate(instrument.getCurrency(), account.getCurrency())
+            .map(FxRateService.FxRate::rate)
+            .orElseThrow(() -> new InvalidOrderException(
+                "FX rate unavailable for " + instrument.getCurrency() + "->" + account.getCurrency()));
+        order.setPlacementFxRate(placementFxRate);
+        BigDecimal notional = price.multiply(BigDecimal.valueOf(quantity)).multiply(placementFxRate)
+            .setScale(2, RoundingMode.HALF_UP);
+
         if (side == OrderSide.BUY) {
-            // Calculate fee based on instrument's asset class
+            // Calculate fee based on instrument's asset class, on the account-currency notional
             String assetType = instrument.getAssetClass().name();
             AssetFeeStructure feeStructure = assetFeeMapper.findByAssetType(assetType);
             BigDecimal fee = feeStructure != null ? feeStructure.calculateFee(notional) : BigDecimal.ZERO;

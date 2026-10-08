@@ -1,0 +1,215 @@
+openapi: 3.1.0
+info:
+  title: Candle Data API
+  description: Fetch daily candlestick OHLCV data for instruments
+  version: 1.0.0
+servers:
+  - url: 'http://localhost:8081'
+    description: Local development server
+
+paths:
+  /api/v1/instruments/{instrumentId}/candles:
+    get:
+      summary: Get candle history for an instrument
+      operationId: getCandlesByInstrument
+      tags:
+        - Candles
+      parameters:
+        - name: instrumentId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: Instrument ID
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Start date (YYYY-MM-DD)
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: End date (YYYY-MM-DD)
+        - name: interval
+          in: query
+          required: false
+          schema:
+            type: string
+            description: 'Interval (e.g., 1d, 1w, 1m); defaults to daily'
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 500
+          description: Maximum number of candles to return (max 500)
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+          description: Number of candles to skip for pagination
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandleHistoryResponse'
+        '404':
+          description: Instrument not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/instruments/{instrumentId}/candles/latest:
+    get:
+      summary: Get latest N candles for an instrument
+      operationId: getLatestCandles
+      tags:
+        - Candles
+      parameters:
+        - name: instrumentId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: Instrument ID
+        - name: count
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+            maximum: 500
+          description: Number of latest candles (max 500)
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CandleResponse'
+        '404':
+          description: Instrument not found
+
+  /api/v1/instruments/{instrumentId}/candles/{date}:
+    get:
+      summary: Get candle for a specific date
+      operationId: getCandleByDate
+      tags:
+        - Candles
+      parameters:
+        - name: instrumentId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: Instrument ID
+        - name: date
+          in: path
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Trading date (YYYY-MM-DD)
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandleResponse'
+        '404':
+          description: Candle not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    CandleResponse:
+      type: object
+      required:
+        - date
+        - open
+        - high
+        - low
+        - close
+      properties:
+        date:
+          type: string
+          format: date
+          description: Trading day (YYYY-MM-DD)
+        open:
+          type: number
+          format: decimal
+        high:
+          type: number
+          format: decimal
+        low:
+          type: number
+          format: decimal
+        close:
+          type: number
+          format: decimal
+        adjclose:
+          type: number
+          format: decimal
+        volume:
+          type: integer
+          nullable: true
+        synthetic:
+          type: boolean
+          description: True if this bar is a provider gap-fill
+
+    CandleHistoryResponse:
+      type: object
+      required:
+        - symbol
+        - name
+        - assetClass
+        - candles
+      properties:
+        symbol:
+          type: string
+        name:
+          type: string
+        assetClass:
+          type: string
+        candles:
+          type: array
+          items:
+            $ref: '#/components/schemas/CandleResponse'
+        totalCount:
+          type: integer
+        hasMore:
+          type: boolean
+          description: True if more candles exist beyond the limit
+
+    ErrorResponse:
+      type: object
+      properties:
+        errorCode:
+          type: string
+        message:
+          type: string

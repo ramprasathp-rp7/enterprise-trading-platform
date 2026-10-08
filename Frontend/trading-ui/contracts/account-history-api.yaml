@@ -1,0 +1,285 @@
+openapi: 3.1.0
+
+info:
+  title: Account History REST API
+  version: 1.0.0
+  summary: Daily end-of-day account snapshots (cash and net worth) for the Enterprise Trading Platform.
+  description: |
+    Binding contract for the account history endpoints of the order service. The Angular UI generates
+    its typed client from this file, so a field renamed here is a compile error there.
+
+    ## What a snapshot is
+
+    Once a day, at 23:59 UTC, the order service records one snapshot per `ACTIVE` account:
+
+    - `cashBalance` is the account's cash at that moment.
+    - `networth` is `cashBalance + sum(quantity × price)` over the account's open positions. Prices
+      come from the market-data cache, then the Fauxnance quotes API, then the position's average
+      cost if neither has a price.
+
+    Every snapshot for a day is stamped `YYYY-MM-DDT23:59:59Z`, whenever it was actually taken. There
+    is at most one snapshot per account per day: running the capture again on the same day overwrites
+    that day's snapshot. Suspended and closed accounts keep their old snapshots but get no new ones.
+
+    Amounts are in the account's currency and are not converted between currencies.
+
+    ## Identifiers
+
+    `accountId` means the numeric surrogate key `ACCOUNTS.id` everywhere in this contract: in the
+    path parameter, in the response body and in the JWT `accountId` claim.
+
+    ## Authentication
+
+    Every `/api/v1/**` route requires a valid signed JWT in the `Authorization` header. A missing,
+    malformed, expired or wrongly signed token is `AUTH-401`, 401. A valid token whose `accountId`
+    claim does not match the account being addressed is `ACC-403`, 403.
+
+    `/api/v1/admin/**` routes also require the `ADMIN` role; without it the response is 403.
+
+  contact:
+    name: Enterprise Trading Platform, programme materials
+  license:
+    name: Instructional use only
+
+servers:
+  - url: http://localhost:8081
+    description: Local development, run from Docker Compose
+
+tags:
+  - name: Account History
+    description: Read an account's daily snapshots, for net-worth charts and history tables.
+  - name: Admin - Account History
+    description: Trigger a snapshot of every active account on demand (admin only).
+
+security:
+  - bearerAuth: []
+
+paths:
+  /api/v1/accounts/{accountId}/history:
+    get:
+      tags: [Account History]
+      operationId: getAccountHistory
+      summary: Get the most recent snapshots for an account
+      description: The latest `limit` snapshots, newest first.
+      parameters:
+        - $ref: '#/components/parameters/AccountIdPath'
+        - name: limit
+          in: query
+          required: false
+          description: How many snapshots to return (one per day).
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 365
+            default: 30
+      responses:
+        '200':
+          description: Snapshots, newest first (empty array when the account has none yet).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AccountHistoryResponse'
+              examples:
+                example:
+                  value:
+                    - accountId: 1
+                      snapshotDate: '2026-10-05T23:59:59Z'
+                      cashBalance: 24500.75
+                      networth: 91444.43
+                    - accountId: 1
+                      snapshotDate: '2026-10-04T23:59:59Z'
+                      cashBalance: 24500.75
+                      networth: 91247.15
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/AccountNotFound'
+        '422':
+          $ref: '#/components/responses/Invalid'
+
+  /api/v1/accounts/{accountId}/history/range:
+    get:
+      tags: [Account History]
+      operationId: getAccountHistoryRange
+      summary: Get an account's snapshots between two dates
+      description: |
+        Snapshots whose date falls between `from` and `to`, both days included (UTC), newest first.
+        `from` must be on or before `to`.
+      parameters:
+        - $ref: '#/components/parameters/AccountIdPath'
+        - name: from
+          in: query
+          required: true
+          description: First day to include (UTC), ISO 8601 date.
+          schema:
+            type: string
+            format: date
+          example: '2026-09-28'
+        - name: to
+          in: query
+          required: true
+          description: Last day to include (UTC), ISO 8601 date.
+          schema:
+            type: string
+            format: date
+          example: '2026-10-05'
+      responses:
+        '200':
+          description: Snapshots in the range, newest first (empty array when there are none).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AccountHistoryResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/AccountNotFound'
+        '422':
+          $ref: '#/components/responses/Invalid'
+
+  /api/v1/admin/account-history/snapshot:
+    post:
+      tags: [Admin - Account History]
+      operationId: captureAccountHistorySnapshot
+      summary: Capture today's snapshot for every active account now
+      description: |
+        Runs the same capture as the nightly 23:59 UTC job, straight away. Snapshots are stamped with
+        today's `23:59:59Z`, so calling this again, or the nightly job running later, overwrites them.
+        One account failing does not stop the others; it is counted in `failed`.
+      responses:
+        '200':
+          description: Capture finished.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountHistorySnapshotResponse'
+              examples:
+                example:
+                  value:
+                    snapshotDate: '2026-10-06T23:59:59Z'
+                    totalAccounts: 4
+                    succeeded: 4
+                    failed: 0
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '403':
+          $ref: '#/components/responses/AdminAccessDenied'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    AccountIdPath:
+      name: accountId
+      in: path
+      required: true
+      description: '`ACCOUNTS.id`; must match the JWT `accountId` claim.'
+      schema:
+        type: integer
+        format: int64
+
+  responses:
+    Unauthorised:
+      description: Missing or invalid token (`AUTH-401`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Token does not reach this account (`ACC-403`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    AdminAccessDenied:
+      description: Valid token but lacking the `ADMIN` role.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    AccountNotFound:
+      description: No account with this id (`ACC-404`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Invalid:
+      description: |
+        Query parameters out of bounds (`VAL-422`): `limit` outside 1-365, or `from` after `to`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            badLimit:
+              value:
+                errorCode: VAL-422
+                message: limit must be between 1 and 365
+            badRange:
+              value:
+                errorCode: VAL-422
+                message: from must be on or before to
+
+  schemas:
+    AccountHistoryResponse:
+      type: object
+      required: [accountId, snapshotDate, cashBalance, networth]
+      properties:
+        accountId:
+          type: integer
+          format: int64
+        snapshotDate:
+          type: string
+          format: date-time
+          description: End of the snapshot's day, always `T23:59:59Z`. Use the date part as the day.
+        cashBalance:
+          type: number
+          format: double
+          description: Cash at snapshot time, 2 decimal places.
+        networth:
+          type: number
+          format: double
+          description: Cash plus market value of open positions at snapshot time, 2 decimal places.
+
+    AccountHistorySnapshotResponse:
+      type: object
+      required: [snapshotDate, totalAccounts, succeeded, failed]
+      properties:
+        snapshotDate:
+          type: string
+          format: date-time
+          description: The day the snapshots were stamped with (`T23:59:59Z`).
+        totalAccounts:
+          type: integer
+          format: int32
+          description: Active accounts found.
+        succeeded:
+          type: integer
+          format: int32
+        failed:
+          type: integer
+          format: int32
+          description: Accounts that could not be snapshotted; details are in the order-service log.
+
+    ErrorResponse:
+      type: object
+      required: [errorCode, message]
+      properties:
+        errorCode:
+          type: string
+          enum: [AUTH-401, AUTH-403, ACC-403, ACC-404, VAL-422]
+        message:
+          type: string

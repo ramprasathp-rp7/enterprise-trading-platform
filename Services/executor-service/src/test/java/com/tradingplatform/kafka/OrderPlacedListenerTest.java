@@ -46,7 +46,10 @@ class OrderPlacedListenerTest {
     private OrderMapper orderMapper;
 
     private final java.util.List<ProducerRecord<String, String>> capturedDeadLetters = new java.util.ArrayList<>();
-    private final java.util.function.Consumer<ProducerRecord<String, String>> deadLetterKafkaTemplate = capturedDeadLetters::add;
+    private final java.util.function.Function<ProducerRecord<String, String>, java.util.concurrent.CompletableFuture<?>> deadLetterKafkaTemplate = record -> {
+        capturedDeadLetters.add(record);
+        return java.util.concurrent.CompletableFuture.completedFuture(null);
+    };
 
     private ObjectMapper objectMapper;
     private OrderPlacedListener listener;
@@ -60,10 +63,14 @@ class OrderPlacedListenerTest {
 
         // create a lightweight stub of OrderExecutorService to avoid inline-mock issues on newer JVMs
         // provide a no-op TradeEventPublisher to satisfy the constructor
-        com.tradingplatform.publisher.TradeEventPublisher noopPublisher = new com.tradingplatform.publisher.TradeEventPublisher(null, objectMapper) {
+        com.tradingplatform.publisher.TradeEventPublisher noopPublisher = new com.tradingplatform.publisher.TradeEventPublisher(null, objectMapper, null) {
             @Override
-            public void publishTradeEvent(java.util.UUID orderId, long accountId, com.tradingplatform.enums.OrderStatus status, java.math.BigDecimal quotedPrice, java.math.BigDecimal executedPrice, java.math.BigDecimal originalFee, String rejectReason, java.time.Instant executedOn) {
-                // no-op
+            public java.util.concurrent.CompletableFuture<Boolean> publishTradeEvent(java.util.UUID orderId, long accountId, com.tradingplatform.enums.OrderStatus status, java.math.BigDecimal quotedPrice, java.math.BigDecimal executedPrice, java.math.BigDecimal originalFee, String rejectReason, java.time.Instant executedOn) {
+                return java.util.concurrent.CompletableFuture.completedFuture(true);  // no-op
+            }
+            @Override
+            public java.util.concurrent.CompletableFuture<Boolean> publishTradeEvent(java.util.UUID orderId, long accountId, com.tradingplatform.enums.OrderStatus status, java.math.BigDecimal quotedPrice, java.math.BigDecimal executedPrice, java.math.BigDecimal originalFee, String rejectReason, java.time.Instant executedOn, java.math.BigDecimal fillFxRate) {
+                return java.util.concurrent.CompletableFuture.completedFuture(true);  // no-op
             }
         };
 

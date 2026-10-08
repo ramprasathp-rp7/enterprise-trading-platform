@@ -1,0 +1,327 @@
+/* Preferences page — one centred column; panel and form styles come from the global design system */
+
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Centred horizontally, and vertically when the window has room */
+.settings-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 720px;
+  margin: auto;
+}
+
+/* ===== HEADING ===== */
+.settings-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.heading-icon {
+  width: 48px;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+  border-radius: 14px;
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-size: 19px;
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--brand-soft) 50%, transparent);
+}
+
+.settings-heading .page-eyebrow {
+  margin-bottom: 4px;
+}
+
+.settings-heading .page-subtitle {
+  max-width: 520px;
+}
+
+.alert p {
+  flex: 1;
+  margin: 0;
+}
+
+/* ===== CARD ===== */
+.settings-card {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Thin accent line, as on the other summary cards */
+.settings-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: var(--accent-gradient);
+  opacity: 0.7;
+}
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-section {
+  margin: 0;
+  padding: 22px 26px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  min-width: 0;
+}
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.section-title {
+  float: none;
+  margin: 0;
+  padding: 0;
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--ink-900);
+}
+
+.section-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--ink-500);
+}
+
+.section-meta i {
+  font-size: 11px;
+}
+
+.field-help {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--ink-500);
+}
+
+/* ===== CHANNEL TILES ===== */
+.channel-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.channel-option {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 16px 16px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  cursor: pointer;
+  transition: background-color var(--t-fast), border-color var(--t-fast), box-shadow var(--t-fast);
+}
+
+.channel-option:hover {
+  border-color: var(--line-strong);
+  background: var(--surface-sunken);
+}
+
+.channel-option.selected {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-soft) 70%, transparent);
+}
+
+/* The real checkbox stays focusable but hidden; the tile is the control */
+.channel-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.channel-option:focus-within {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.channel-icon {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 6px;
+  border-radius: 10px;
+  background: var(--surface-sunken);
+  color: var(--ink-700, var(--ink-500));
+  font-size: 15px;
+  transition: background-color var(--t-fast), color var(--t-fast);
+}
+
+.channel-option.selected .channel-icon {
+  background: var(--brand);
+  color: #ffffff;
+}
+
+/* Check mark in the corner of a selected tile */
+.channel-check {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--surface);
+  color: transparent;
+  font-size: 10px;
+  transition: background-color var(--t-fast), border-color var(--t-fast), color var(--t-fast);
+}
+
+.channel-option.selected .channel-check {
+  border-color: var(--brand);
+  background: var(--brand);
+  color: #ffffff;
+}
+
+.channel-label {
+  font-weight: 650;
+  color: var(--ink-900);
+}
+
+.channel-hint {
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--ink-500);
+}
+
+/* ===== CONTACT FIELDS ===== */
+.contact-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-700, var(--ink-900));
+}
+
+.input-with-icon {
+  position: relative;
+}
+
+.input-with-icon > i {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  transform: translateY(-50%);
+  color: var(--ink-500);
+  font-size: 13px;
+  pointer-events: none;
+}
+
+.input-with-icon .form-input {
+  width: 100%;
+  padding-left: 38px;
+}
+
+.input-with-icon.invalid .form-input {
+  border-color: var(--negative);
+}
+
+.field-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0 0;
+  color: var(--negative);
+  font-size: 12.5px;
+}
+
+/* ===== FOOTER: status + actions ===== */
+.form-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 16px 26px;
+  background: var(--surface-sunken);
+}
+
+.save-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: auto;
+  font-size: 12.5px;
+  color: var(--ink-500);
+}
+
+.save-status .fa-circle-check {
+  color: var(--positive);
+}
+
+/* ===== RESPONSIVE ===== */
+/* Short windows: drop the heading icon and tighten spacing so the card fits without scrolling */
+@media (max-height: 820px) {
+  .heading-icon {
+    display: none;
+  }
+
+  .settings-column {
+    gap: 12px;
+  }
+
+  .settings-section {
+    padding-top: 16px;
+    padding-bottom: 16px;
+  }
+
+  .channel-options {
+    margin-top: 12px;
+  }
+
+  .form-actions {
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+}
+
+@media (max-width: 720px) {
+  .channel-options {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-section,
+  .form-actions {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .save-status {
+    flex-basis: 100%;
+  }
+}

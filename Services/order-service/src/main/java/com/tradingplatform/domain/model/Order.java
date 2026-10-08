@@ -25,6 +25,14 @@ public final class Order {
     private OrderStatus status;
     private BigDecimal executedPrice;
     private BigDecimal fee;
+    /** Instrument-to-account FX rate at placement; prices the funds check and the reservation. */
+    private BigDecimal placementFxRate = BigDecimal.ONE;
+    /** Instrument-to-account FX rate fetched at fill; the rate of record for settlement. */
+    private BigDecimal fillFxRate;
+    /** Realised P&L in account currency, booked when a SELL fills. */
+    private BigDecimal realisedPnl;
+    /** When the customer cancelled the order; carried by ORDER_CANCELLED. */
+    private Instant cancelledOn;
 
     public Order(Long accountId, Long instrumentId, OrderSide side,
                  int quantity, BigDecimal price, String idempotencyKey) {
@@ -111,6 +119,52 @@ public final class Order {
 
     public BigDecimal getFee() {
         return fee;
+    }
+
+    public BigDecimal getPlacementFxRate() {
+        return placementFxRate;
+    }
+
+    public void setPlacementFxRate(BigDecimal placementFxRate) {
+        if (placementFxRate != null && placementFxRate.signum() <= 0) {
+            throw new IllegalArgumentException("placementFxRate must be greater than zero: " + placementFxRate);
+        }
+        this.placementFxRate = placementFxRate != null ? placementFxRate : BigDecimal.ONE;
+    }
+
+    public BigDecimal getFillFxRate() {
+        return fillFxRate;
+    }
+
+    public void setFillFxRate(BigDecimal fillFxRate) {
+        this.fillFxRate = fillFxRate;
+    }
+
+    public BigDecimal getRealisedPnl() {
+        return realisedPnl;
+    }
+
+    public void setRealisedPnl(BigDecimal realisedPnl) {
+        this.realisedPnl = realisedPnl;
+    }
+
+    public Instant getCancelledOn() {
+        return cancelledOn;
+    }
+
+    public void setCancelledOn(Instant cancelledOn) {
+        this.cancelledOn = cancelledOn;
+    }
+
+    /**
+     * Cash a NEW order holds back, in account currency: limit price times quantity at the placement
+     * rate, plus the fee. A BUY fills at or below its limit, so the fill can only differ from this by
+     * the FX move between placement and fill.
+     */
+    public BigDecimal reservedAmount() {
+        BigDecimal notional = price.multiply(BigDecimal.valueOf(quantity)).multiply(placementFxRate)
+            .setScale(2, java.math.RoundingMode.HALF_UP);
+        return notional.add(fee != null ? fee : BigDecimal.ZERO);
     }
 
     /**

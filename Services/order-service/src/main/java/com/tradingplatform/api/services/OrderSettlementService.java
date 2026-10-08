@@ -16,6 +16,7 @@ import com.tradingplatform.domain.model.Transaction;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
@@ -38,9 +39,19 @@ public class OrderSettlementService {
         this.transactionMapper = transactionMapper;
     }
 
+    /** Settles an order whose instrument is in the account's currency (fill rate of 1). */
     public void settle(Order order, BigDecimal executedPrice) {
+        settle(order, executedPrice, BigDecimal.ONE);
+    }
+
+    /**
+     * Settles an order in account currency. The executed price is in the instrument's currency; cash,
+     * the BUY/SELL transaction and realised P&L are in the account's, at {@code fillFxRate}.
+     */
+    public void settle(Order order, BigDecimal executedPrice, BigDecimal fillFxRate) {
         Objects.requireNonNull(order, "order");
         Objects.requireNonNull(executedPrice, "executedPrice");
+        Objects.requireNonNull(fillFxRate, "fillFxRate");
 
         // Fetch the Account from the database
         Account acc = accountMapper.findByAccountId(order.getAccountId());
@@ -55,15 +66,22 @@ public class OrderSettlementService {
             position = Position.empty(order.getAccountId(), order.getInstrumentId());
         }
 
-        // Calculate notional value of the order (price * quantity)
-        BigDecimal notional = executedPrice.multiply(BigDecimal.valueOf(order.getQuantity()));
+        // Notional in account currency: executed price (instrument currency) converted at the fill rate
+        BigDecimal executedPriceAccount = executedPrice.multiply(fillFxRate);
+        BigDecimal notional = executedPriceAccount.multiply(BigDecimal.valueOf(order.getQuantity()))
+            .setScale(2, RoundingMode.HALF_UP);
 
         // Apply settlement based on order side (notional only - fees are deducted separately)
+        BigDecimal realisedPnl = null;
         if (order.getSide() == OrderSide.BUY) {
             // For BUY: debit cash (notional only) from account, add holdings to position
             acc.debit(notional);
-            position.applyBuy(order.getQuantity(), executedPrice);
+            position.applyBuy(order.getQuantity(), executedPrice, executedPriceAccount);
         } else {
+            // For SELL: book realised P&L in account currency before the holding is reduced
+            realisedPnl = executedPriceAccount.subtract(position.getAverageCostAccount())
+                .multiply(BigDecimal.valueOf(order.getQuantity()))
+                .setScale(2, RoundingMode.HALF_UP);
             // For SELL: credit cash (notional only) to account, remove holdings from position
             acc.credit(notional);
             position.applySell(order.getQuantity());
@@ -120,6 +138,9 @@ public class OrderSettlementService {
         transactionMapper.insertTransaction(settlementTransaction);
 
         orderMapper.updateOrderStatus(order.getId(), OrderStatus.FILLED, executedPrice);
+        orderMapper.recordFill(order.getId(), fillFxRate, realisedPnl);
+        order.setFillFxRate(fillFxRate);
+        order.setRealisedPnl(realisedPnl);
     }
 }
 

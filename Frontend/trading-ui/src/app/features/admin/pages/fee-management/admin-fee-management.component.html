@@ -4,7 +4,7 @@
     <div class="page-heading">
       <p class="page-eyebrow">Administration</p>
       <h1 class="page-title">Fee Management</h1>
-      <p class="page-subtitle">View asset class trading fees</p>
+      <p class="page-subtitle">View and edit asset class trading fees</p>
     </div>
   </header>
 
@@ -14,11 +14,17 @@
     <span>{{ errorMessage() }}</span>
   </div>
 
+  <!-- Success Message -->
+  <div *ngIf="successMessage()" class="alert alert-success" role="status">
+    <i class="fas fa-check-circle"></i>
+    <span>{{ successMessage() }}</span>
+  </div>
+
   <section class="panel">
     <header class="panel-header">
       <div>
         <h2 class="panel-title">Fee schedule <span class="count-chip">{{ assetFees().length }}</span></h2>
-        <p class="panel-subtitle">Flat and percentage fees applied per asset class</p>
+        <p class="panel-subtitle">Flat and percentage fees applied per asset class. Changes apply to new orders.</p>
       </div>
     </header>
 
@@ -35,24 +41,89 @@
           <col class="col-asset" />
           <col class="col-flat-fee" />
           <col class="col-percentage-fee" />
+          <col class="col-actions" />
         </colgroup>
         <thead>
           <tr>
             <th>Asset class</th>
             <th class="num">Flat fee</th>
             <th class="num">Percentage fee</th>
+            <th class="actions">Actions</th>
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let fee of assetFees()">
+          <tr *ngFor="let fee of assetFees()" [class.editing]="isEditing(fee)">
             <td>
               <span class="asset-type">
                 <span class="asset-icon"><i [class]="getAssetIcon(fee.assetType)"></i></span>
                 <span>{{ formatAssetClass(fee.assetType) }}</span>
               </span>
             </td>
-            <td class="num">{{ formatCurrency(fee.flatFee) }}</td>
-            <td class="num">{{ (fee.percentageFee * 100).toFixed(2) }}%</td>
+            <ng-container *ngIf="!isEditing(fee); else editCells">
+              <td class="num">{{ formatCurrency(fee.flatFee) }}</td>
+              <td class="num">{{ formatPercentage(fee.percentageFee) }}</td>
+              <td class="actions">
+                <button
+                  type="button"
+                  class="btn btn-outline btn-sm edit-btn"
+                  [disabled]="editingAssetType() !== null"
+                  (click)="startEdit(fee)"
+                  [attr.aria-label]="'Edit ' + formatAssetClass(fee.assetType) + ' fees'"
+                >
+                  <i class="fas fa-pen"></i> Edit
+                </button>
+              </td>
+            </ng-container>
+
+            <ng-template #editCells>
+              <td class="num">
+                <div class="fee-input">
+                  <span class="fee-input-affix">$</span>
+                  <input
+                    type="number"
+                    class="form-input"
+                    name="flatFee"
+                    min="0"
+                    step="0.01"
+                    [(ngModel)]="draft.flatFee"
+                    [disabled]="isSaving()"
+                    (keydown.enter)="saveEdit()"
+                    (keydown.escape)="cancelEdit()"
+                    aria-label="Flat fee"
+                  />
+                </div>
+              </td>
+              <td class="num">
+                <div class="fee-input">
+                  <input
+                    type="number"
+                    class="form-input"
+                    name="percentFee"
+                    min="0"
+                    max="100"
+                    step="0.0001"
+                    [(ngModel)]="draft.percentFee"
+                    [disabled]="isSaving()"
+                    (keydown.enter)="saveEdit()"
+                    (keydown.escape)="cancelEdit()"
+                    aria-label="Percentage fee"
+                  />
+                  <span class="fee-input-affix">%</span>
+                </div>
+                <div *ngIf="editError()" class="field-error" role="alert">{{ editError() }}</div>
+              </td>
+              <td class="actions">
+                <div class="row-actions">
+                  <button type="button" class="btn btn-primary btn-sm save-btn" [disabled]="isSaving()" (click)="saveEdit()">
+                    <i class="fas" [class.fa-check]="!isSaving()" [class.fa-spinner]="isSaving()" [class.fa-spin]="isSaving()"></i>
+                    {{ isSaving() ? 'Saving' : 'Save' }}
+                  </button>
+                  <button type="button" class="btn btn-ghost btn-sm cancel-btn" [disabled]="isSaving()" (click)="cancelEdit()">
+                    Cancel
+                  </button>
+                </div>
+              </td>
+            </ng-template>
           </tr>
         </tbody>
       </table>

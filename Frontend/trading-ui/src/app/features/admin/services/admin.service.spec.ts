@@ -7,7 +7,11 @@ import { AdminAuditComplianceService, AdminConfigurationService } from '../../..
 describe('AdminService', () => {
   let service: AdminService;
   let audit: { getCompleteOrderHistory: ReturnType<typeof vi.fn>; getCompleteTransactionHistory: ReturnType<typeof vi.fn> };
-  let config: { getAllFees: ReturnType<typeof vi.fn>; getFeeByAssetType: ReturnType<typeof vi.fn> };
+  let config: {
+    getAllFees: ReturnType<typeof vi.fn>;
+    getFeeByAssetType: ReturnType<typeof vi.fn>;
+    updateFee: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
     audit = {
@@ -17,6 +21,7 @@ describe('AdminService', () => {
     config = {
       getAllFees: vi.fn(() => of([])),
       getFeeByAssetType: vi.fn(() => of({ assetType: 'EQUITY', flatFee: 1, percentageFee: 0.001 })),
+      updateFee: vi.fn(() => of({ assetType: 'EQUITY', flatFee: 7.5, percentageFee: 0.0003 })),
     };
     TestBed.configureTestingModule({
       providers: [
@@ -47,5 +52,12 @@ describe('AdminService', () => {
     service.getAssetFee('EQUITY').subscribe((f) => (fee = f));
     expect(config.getFeeByAssetType).toHaveBeenCalledWith('EQUITY');
     expect(fee).toEqual({ assetType: 'EQUITY', flatFee: 1, percentageFee: 0.001 });
+  });
+
+  it('updates the fee structure for one asset type', () => {
+    let fee: unknown;
+    service.updateAssetFee('EQUITY', { flatFee: 7.5, percentageFee: 0.0003 }).subscribe((f) => (fee = f));
+    expect(config.updateFee).toHaveBeenCalledWith('EQUITY', { flatFee: 7.5, percentageFee: 0.0003 });
+    expect(fee).toEqual({ assetType: 'EQUITY', flatFee: 7.5, percentageFee: 0.0003 });
   });
 });

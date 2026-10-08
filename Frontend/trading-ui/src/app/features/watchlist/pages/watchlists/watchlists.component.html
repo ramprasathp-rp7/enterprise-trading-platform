@@ -1,0 +1,193 @@
+<div class="page page-wide watchlists-page">
+  <header class="page-header">
+    <div class="page-heading">
+      <p class="page-eyebrow">Markets</p>
+      <h1 class="page-title">Watchlists</h1>
+      <p class="page-subtitle">Group the instruments you follow and jump straight to a trade.</p>
+    </div>
+    <form class="create-form" (ngSubmit)="createWatchlist()" data-testid="create-watchlist-form">
+      <input
+        class="form-input"
+        name="newName"
+        [(ngModel)]="newName"
+        placeholder="New watchlist name"
+        maxlength="60"
+        aria-label="New watchlist name"
+        data-testid="create-watchlist-input"
+      />
+      <button type="submit" class="btn btn-primary" [disabled]="!newName.trim() || creating()">
+        <i class="fas fa-plus"></i> Create watchlist
+      </button>
+    </form>
+  </header>
+
+  @if (feedback(); as f) {
+    <div class="alert" [class.alert-success]="!f.error" [class.alert-danger]="f.error" role="status" data-testid="watchlist-feedback">
+      <i class="fas" [class.fa-check-circle]="!f.error" [class.fa-circle-exclamation]="f.error"></i>
+      <p>{{ f.text }}</p>
+      <button type="button" class="alert-close" (click)="feedback.set(null)" aria-label="Dismiss"><i class="fas fa-xmark"></i></button>
+    </div>
+  }
+
+  @if (store.error(); as error) {
+    <div class="alert alert-danger" role="alert">
+      <i class="fas fa-circle-exclamation"></i>
+      <p>{{ error }}</p>
+      <button type="button" class="btn btn-outline btn-sm" (click)="store.load()">Retry</button>
+    </div>
+  }
+
+  <div class="watchlists-grid" [class.equal-height]="nothingListed()" data-testid="watchlists-grid">
+    <!-- All watchlists -->
+    <section class="panel lists-panel" aria-label="Your watchlists">
+      <header class="panel-header">
+        <h2 class="panel-title">Your lists <span class="count-chip">{{ store.watchlists().length }}</span></h2>
+      </header>
+
+      @if (store.isLoading() && !store.isLoaded()) {
+        <div class="loading-state"><i class="fas fa-spinner fa-spin"></i><p>Loading watchlists…</p></div>
+      } @else {
+        <ul class="list-nav">
+          @for (list of store.watchlists(); track list.watchlistId) {
+            <li>
+              <div class="list-entry" [class.active]="selected()?.watchlistId === list.watchlistId">
+                <button type="button" class="list-select" (click)="select(list.watchlistId)" [attr.data-testid]="'watchlist-' + list.watchlistId">
+                  <i class="fas fa-bookmark"></i>
+                  <span class="list-name">{{ list.name }}</span>
+                  <span class="list-count">{{ list.items.length }}</span>
+                </button>
+                <button
+                  type="button"
+                  class="list-delete"
+                  [class.confirm]="confirmDeleteId() === list.watchlistId"
+                  (click)="deleteWatchlist(list.watchlistId)"
+                  [attr.aria-label]="confirmDeleteId() === list.watchlistId ? 'Confirm delete ' + list.name : 'Delete ' + list.name"
+                  [title]="confirmDeleteId() === list.watchlistId ? 'Click again to delete' : 'Delete watchlist'"
+                  [attr.data-testid]="'delete-watchlist-' + list.watchlistId"
+                >
+                  @if (confirmDeleteId() === list.watchlistId) {
+                    Delete?
+                  } @else {
+                    <i class="fas fa-trash-can"></i>
+                  }
+                </button>
+              </div>
+            </li>
+          } @empty {
+            <li class="empty-state small">
+              <i class="fas fa-bookmark"></i>
+              <p>No watchlists yet</p>
+              <small>Create one above, or use “Watchlist” on any instrument.</small>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+
+    <!-- Selected watchlist -->
+    <section class="panel detail-panel">
+      @if (selected(); as list) {
+        <header class="panel-header">
+          <div>
+            <h2 class="panel-title">{{ list.name }}</h2>
+            <p class="panel-subtitle">
+              {{ list.items.length }} instrument{{ list.items.length === 1 ? '' : 's' }} · updated {{ list.updatedAt | date: 'MMM d, h:mm a' }}
+            </p>
+          </div>
+          <div class="add-search">
+            <app-instrument-search placeholder="Add an instrument…" (selected)="addInstrument($event)" />
+          </div>
+        </header>
+
+        <div class="table-wrapper">
+          <table class="data-table watch-table">
+            <thead>
+              <tr>
+                <th class="col-instrument">Instrument</th>
+                <th>Class</th>
+                <th class="num">Price <span class="live-tag" title="Latest prices from the trading service, refreshed every 5 minutes">live</span></th>
+                <th class="num">Change</th>
+                <th>Added</th>
+                <th class="actions-head"><span class="sr-only">Actions</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of rows(); track row.item.watchlistItemId) {
+                <tr [attr.data-testid]="'watch-row-' + row.item.symbol">
+                  <td>
+                    <span class="cell-strong">{{ row.item.symbol }}</span>
+                    <span class="row-name">{{ row.name }}</span>
+                  </td>
+                  <td><span class="pill no-dot">{{ row.assetClass }}</span></td>
+                  <td class="num" [title]="priceTitle(row)" [attr.data-testid]="'price-' + row.item.symbol">
+                    @if (row.price !== null) {
+                      <span class="cell-strong">{{ formatPrice(row) }}</span>
+                      <span class="price-meta">
+                        {{ row.currency }}
+                        @if (row.stale) {
+                          <i class="fas fa-clock stale-icon" aria-label="Delayed quote"></i>
+                        }
+                      </span>
+                    } @else if (row.priceStatus === 'loading') {
+                      <span class="cell-muted"><i class="fas fa-spinner fa-spin" aria-label="Loading price"></i></span>
+                    } @else {
+                      <span class="cell-muted">—</span>
+                    }
+                  </td>
+                  <td class="num">
+                    @if (row.changePercent !== null) {
+                      <span [class.up]="row.changePercent >= 0" [class.down]="row.changePercent < 0">
+                        {{ row.changePercent >= 0 ? '+' : '' }}{{ row.changePercent | number: '1.2-2' }}%
+                      </span>
+                    } @else {
+                      —
+                    }
+                  </td>
+                  <td class="cell-muted">{{ row.item.createdAt | date: 'MMM d, y' }}</td>
+                  <td class="actions">
+                    @if (row.tradable) {
+                      <a class="btn btn-outline btn-sm" routerLink="/order-ticket" [queryParams]="{ symbol: row.item.symbol }">Trade</a>
+                    } @else {
+                      <span class="untradable" title="Orders for this instrument are rejected"><i class="fas fa-ban" aria-hidden="true"></i> Not tradable</span>
+                    }
+                    <app-price-alert-button [symbol]="row.item.symbol" />
+                    <button
+                      type="button"
+                      class="btn btn-ghost btn-sm remove-btn"
+                      (click)="removeItem(row)"
+                      [disabled]="removingIds().has(row.item.watchlistItemId)"
+                      [attr.aria-label]="'Remove ' + row.item.symbol"
+                      [attr.data-testid]="'remove-' + row.item.symbol"
+                    >
+                      <i class="fas fa-xmark"></i>
+                    </button>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="6">
+                    <div class="empty-state">
+                      <i class="fas fa-magnifying-glass-chart"></i>
+                      <p>This watchlist is empty</p>
+                      <small>Search above to add instruments.</small>
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else {
+        <div class="empty-state">
+          <i class="fas fa-list-check"></i>
+          <p>Pick or create a watchlist</p>
+          <small>Its instruments will be listed here.</small>
+        </div>
+      }
+    </section>
+  </div>
+
+  @if (selected()) {
+    <app-price-alerts-panel [symbols]="alertSymbols()" />
+  }
+</div>

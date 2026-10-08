@@ -160,7 +160,9 @@ class OrderPlacementCharacterisationTest {
                 eq(2),
                 eq(new BigDecimal("50.00")),
                 eq(OrderStatus.NEW),
-                eq("idem-12345")
+                eq("idem-12345"),
+                eq(BigDecimal.ONE),
+                eq(true)  // ASYNC: ORDER_PLACED pending
         )).thenReturn(1);
 
         TransactionSynchronizationManager.initSynchronization();
@@ -185,7 +187,9 @@ class OrderPlacementCharacterisationTest {
                 eq(2),
                 eq(new BigDecimal("50.00")),
                 eq(OrderStatus.NEW),
-                eq("idem-12345")
+                eq("idem-12345"),
+                eq(BigDecimal.ONE),
+                eq(true)  // ASYNC: ORDER_PLACED pending
         );
 
         /*
@@ -254,7 +258,9 @@ class OrderPlacementCharacterisationTest {
                         eq(2),
                         eq(new BigDecimal("50.00")),
                         eq(OrderStatus.NEW),
-                        eq("idem-12345")
+                        eq("idem-12345"),
+                        eq(BigDecimal.ONE),
+                        eq(true)  // ASYNC: ORDER_PLACED pending
                 );
 
         DuplicateOrderException exception =

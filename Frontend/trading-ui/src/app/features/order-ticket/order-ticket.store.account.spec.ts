@@ -12,7 +12,7 @@ import { OrderTicketService } from './services/order-ticket.service';
  */
 describe('OrderTicketStore – account resolution', () => {
   let orderTicketService: { placeOrder: ReturnType<typeof vi.fn> };
-  let accountsService: { getAccount: ReturnType<typeof vi.fn> };
+  let accountsService: { getAccount: ReturnType<typeof vi.fn>; getBalance: ReturnType<typeof vi.fn> };
   let authService: {
     currentUser: ReturnType<typeof vi.fn>;
     accessToken: ReturnType<typeof vi.fn>;
@@ -38,7 +38,10 @@ describe('OrderTicketStore – account resolution', () => {
 
   beforeEach(() => {
     orderTicketService = { placeOrder: vi.fn() };
-    accountsService = { getAccount: vi.fn(() => of(account)) };
+    accountsService = {
+      getBalance: vi.fn(() => of({ accountId: 101, cashBalance: 1000, currency: 'USD', asOf: '' })),
+      getAccount: vi.fn(() => of(account)),
+    };
     authService = {
       currentUser: vi.fn(() => null),
       accessToken: vi.fn(() => null),
@@ -54,6 +57,15 @@ describe('OrderTicketStore – account resolution', () => {
     expect(store.accountId()).toBe(101);
     expect(accountsService.getAccount).toHaveBeenCalledWith(101);
     expect(store.accountDisplayId()).toBe('CUST-000101');
+  });
+
+  it("takes the account's currency from its balance", () => {
+    authService.currentUser.mockReturnValue({ accountId: 101 });
+
+    const store = create();
+
+    expect(accountsService.getBalance).toHaveBeenCalledWith(101);
+    expect(store.accountCurrency()).toBe('USD');
   });
 
   it('falls back to the account id inside the access token', () => {

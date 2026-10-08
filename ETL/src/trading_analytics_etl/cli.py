@@ -95,8 +95,10 @@ def reconcile_main() -> None:
         result = reconcile_day(pg_conn, duck_con, trade_date)
 
     print(f"reconciliation for {trade_date}:")
-    print(f"  postgres: count={result.postgres_count} total={result.postgres_total}")
-    print(f"  duckdb:   count={result.duckdb_count} total={result.duckdb_total}")
+    print(f"  postgres: count={result.postgres_count} total={result.postgres_total}"
+          f" total_account={result.postgres_total_account}")
+    print(f"  duckdb:   count={result.duckdb_count} total={result.duckdb_total}"
+          f" total_account={result.duckdb_total_account}")
     print(f"  dead-lettered that day: {result.dead_lettered_count}")
     print(f"  OK: {result.ok}")
     if not result.ok:

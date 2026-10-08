@@ -78,10 +78,12 @@ let nextId = 0;
                 <span class="result-symbol">{{ instrument.symbol }}</span>
                 <span class="result-name">{{ instrument.name }}</span>
               </span>
-              @if (!instrument.tradable) {
-                <span class="tag tag-warn">Not tradable</span>
-              }
-              <span class="tag">{{ instrument.assetClass }} · {{ instrument.currency }}</span>
+              <span class="result-tags">
+                <span class="tag">{{ instrument.assetClass }} · {{ instrument.currency }}</span>
+                @if (!instrument.tradable) {
+                  <span class="tag tag-warn"><i class="fas fa-ban" aria-hidden="true"></i> Not tradable</span>
+                }
+              </span>
             </li>
           } @empty {
             <li class="no-results" role="presentation">No instruments match “{{ query() }}”</li>
@@ -242,8 +244,18 @@ let nextId = 0;
       white-space: nowrap;
     }
 
+    /* Asset tag with the Not tradable tag under it, so neither covers the symbol */
+    .result-tags {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+    }
+
     .tag {
       flex-shrink: 0;
+      white-space: nowrap;
       padding: 3px 8px;
       border-radius: var(--r-pill);
       background: var(--surface-sunken);
@@ -256,6 +268,10 @@ let nextId = 0;
     .tag-warn {
       background: var(--warning-soft);
       color: var(--warning);
+    }
+
+    .tag-warn i {
+      font-size: 9.5px;
     }
 
     .no-results {

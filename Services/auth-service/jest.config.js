@@ -7,6 +7,7 @@ module.exports = {
   },
   collectCoverageFrom: [
     '**/*.(t|j)s',
+    '!**/*.spec.ts',
   ],
   coverageDirectory: '../coverage',
   testEnvironment: 'node',

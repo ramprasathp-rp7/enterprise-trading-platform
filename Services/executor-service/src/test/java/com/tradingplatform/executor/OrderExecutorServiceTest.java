@@ -55,10 +55,14 @@ public class OrderExecutorServiceTest {
         // create a lightweight stub of OrderSettlementService to avoid inline-mock issues
         settlementService = mock(OrderSettlementService.class);
         // create a no-op TradeEventPublisher stub to avoid Kafka dependencies in tests
-        com.tradingplatform.publisher.TradeEventPublisher tradeEventPublisher = new com.tradingplatform.publisher.TradeEventPublisher(null, new com.fasterxml.jackson.databind.ObjectMapper()) {
+        com.tradingplatform.publisher.TradeEventPublisher tradeEventPublisher = new com.tradingplatform.publisher.TradeEventPublisher(null, new com.fasterxml.jackson.databind.ObjectMapper(), null) {
             @Override
-            public void publishTradeEvent(java.util.UUID orderId, long accountId, com.tradingplatform.enums.OrderStatus status, java.math.BigDecimal quotedPrice, java.math.BigDecimal executedPrice, java.math.BigDecimal originalFee, String rejectReason, java.time.Instant executedOn) {
-                // no-op
+            public java.util.concurrent.CompletableFuture<Boolean> publishTradeEvent(java.util.UUID orderId, long accountId, com.tradingplatform.enums.OrderStatus status, java.math.BigDecimal quotedPrice, java.math.BigDecimal executedPrice, java.math.BigDecimal originalFee, String rejectReason, java.time.Instant executedOn) {
+                return java.util.concurrent.CompletableFuture.completedFuture(true);  // no-op
+            }
+            @Override
+            public java.util.concurrent.CompletableFuture<Boolean> publishTradeEvent(java.util.UUID orderId, long accountId, com.tradingplatform.enums.OrderStatus status, java.math.BigDecimal quotedPrice, java.math.BigDecimal executedPrice, java.math.BigDecimal originalFee, String rejectReason, java.time.Instant executedOn, java.math.BigDecimal fillFxRate) {
+                return java.util.concurrent.CompletableFuture.completedFuture(true);  // no-op
             }
         };
 

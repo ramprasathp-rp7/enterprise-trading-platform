@@ -17,12 +17,13 @@ public interface PositionMapper {
         @Arg(column = "instrument_id", javaType = Long.class),
         @Arg(column = "quantity", javaType = int.class),
         @Arg(column = "average_cost", javaType = java.math.BigDecimal.class),
+        @Arg(column = "average_cost_account", javaType = java.math.BigDecimal.class),
         @Arg(column = "version", javaType = int.class)
     })
-    @Select("SELECT account_id, instrument_id, quantity, average_cost, version FROM positions WHERE account_id = #{accountId} AND instrument_id = #{instrumentId}")
+    @Select("SELECT account_id, instrument_id, quantity, average_cost, average_cost_account, version FROM positions WHERE account_id = #{accountId} AND instrument_id = #{instrumentId}")
     Position findByAccountAndInstrument(@Param("accountId") Long accountId, @Param("instrumentId") Long instrumentId);
 
-    @Update("UPDATE positions SET quantity = #{position.quantity}, average_cost = #{position.averageCost}, version = #{newVersion} WHERE account_id = #{position.accountId} AND instrument_id = #{position.instrumentId} AND version = #{position.version}")
+    @Update("UPDATE positions SET quantity = #{position.quantity}, average_cost = #{position.averageCost}, average_cost_account = #{position.averageCostAccount}, version = #{newVersion} WHERE account_id = #{position.accountId} AND instrument_id = #{position.instrumentId} AND version = #{position.version}")
     int updatePosition(@Param("position") Position position, @Param("newVersion") int newVersion);
 
     /**
@@ -33,7 +34,7 @@ public interface PositionMapper {
      * @param position Position object with quantity and average_cost already calculated
      * @return Number of rows inserted (1 on success)
      */
-    @Insert("INSERT INTO positions (account_id, instrument_id, quantity, average_cost, version) VALUES (#{position.accountId}, #{position.instrumentId}, #{position.quantity}, #{position.averageCost}, 1)")
+    @Insert("INSERT INTO positions (account_id, instrument_id, quantity, average_cost, average_cost_account, version) VALUES (#{position.accountId}, #{position.instrumentId}, #{position.quantity}, #{position.averageCost}, #{position.averageCostAccount}, 1)")
     int insertPosition(@Param("position") Position position);
 
     /**

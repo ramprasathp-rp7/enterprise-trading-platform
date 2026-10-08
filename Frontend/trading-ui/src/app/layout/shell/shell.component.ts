@@ -1,9 +1,11 @@
-import { Component } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SidebarComponent } from '../sidebar/sidebar.component';
 import { FooterComponent } from '../footer/footer.component';
+import { OrderStatusWatcherService } from '../../core/notifications/order-status-watcher.service';
+import { PriceAlertWatcherService } from '../../features/watchlist/alerts/price-alert-watcher.service';
 
 /**
  * Shell Component
@@ -21,4 +23,18 @@ import { FooterComponent } from '../footer/footer.component';
   templateUrl: './shell.component.html',
   styleUrls: ['./shell.component.css']
 })
-export class ShellComponent {}
+export class ShellComponent implements OnInit, OnDestroy {
+  private readonly orderWatcher = inject(OrderStatusWatcherService);
+  private readonly priceAlertWatcher = inject(PriceAlertWatcherService);
+
+  /** Customer pages: announce order status changes and fired price alerts wherever the user is */
+  ngOnInit(): void {
+    this.orderWatcher.start();
+    this.priceAlertWatcher.start();
+  }
+
+  ngOnDestroy(): void {
+    this.orderWatcher.stop();
+    this.priceAlertWatcher.stop();
+  }
+}

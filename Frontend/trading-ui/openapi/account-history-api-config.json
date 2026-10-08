@@ -1,0 +1,12 @@
+{
+  "inputSpec": "./contracts/account-history-api.yaml",
+  "outputDir": "./src/app/api/generated/account-history",
+  "generatorName": "typescript-angular",
+  "skipValidateSpec": true,
+  "validateSpec": false,
+  "packageName": "api.account-history",
+  "additionalProperties": {
+    "apiModulePrefix": "AccountHistoryApi",
+    "ngVersion": "21.0.0"
+  }
+}

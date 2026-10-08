@@ -1,0 +1,188 @@
+openapi: 3.1.0
+
+info:
+  title: Trade Advice REST API
+  version: 1.0.0
+  summary: Research-driven BUY / SELL / HOLD signals with the reasoning behind each.
+  description: |
+    Binding contract for the trade advice endpoint of the order service. The Angular UI generates its
+    typed client from this file, so a field renamed here is a compile error there.
+
+    ## What is advised on
+
+    Every instrument the account holds (Portfolio) or has on a watchlist. Signals use daily candles
+    (market and price data, S4) and the latest cached quote, plus the position's average cost for held
+    instruments.
+
+    ## Rules
+
+    Each factor adds to a score and to the list of reasons: trend (20- vs 50-day average), price vs its
+    20-day average, RSI(14) oversold / overbought, 20-day momentum, and for holdings take-profit and
+    cut-loss rules. Score >= 1.5 is BUY, <= -1.5 is SELL, otherwise HOLD. With fewer than 50 days of
+    history (or no price) there is no signal; `signal` is null and `summary` says why.
+
+    Educational signals, not investment advice.
+
+    ## Authentication
+
+    Every `/api/v1/**` route requires a valid signed JWT. A token whose `accountId` claim does not match
+    the account in the path is `ACC-403`, 403.
+
+  contact:
+    name: Enterprise Trading Platform, programme materials
+  license:
+    name: Instructional use only
+
+servers:
+  - url: http://localhost:8081
+    description: Local development, run from Docker Compose
+
+tags:
+  - name: TradeAdvice
+    description: BUY / SELL / HOLD signals for held and watched instruments.
+
+security:
+  - bearerAuth: []
+
+paths:
+  /api/v1/accounts/{accountId}/advice:
+    get:
+      tags: [TradeAdvice]
+      operationId: getTradeAdvice
+      summary: Signals for the account's held and watched instruments
+      description: One entry per instrument; SELL first, then BUY, HOLD, and instruments without enough data.
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          description: Numeric account key (ACCOUNTS.id); must match the token's accountId claim.
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: The advice.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TradeAdviceResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    Unauthorised:
+      description: Missing or invalid token (`AUTH-401`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Token does not reach this account (`ACC-403`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    TradeAdviceResponse:
+      type: object
+      required: [accountId, generatedAt, disclaimer, signals]
+      properties:
+        accountId:
+          type: integer
+          format: int64
+        generatedAt:
+          type: string
+          format: date-time
+        disclaimer:
+          type: string
+        signals:
+          type: array
+          items:
+            $ref: '#/components/schemas/SignalResponse'
+
+    SignalResponse:
+      type: object
+      required: [symbol, held, watched, summary, reasons, indicators]
+      properties:
+        symbol:
+          type: string
+        name:
+          type: [string, 'null']
+        currency:
+          type: [string, 'null']
+        held:
+          type: boolean
+          description: The account holds this instrument.
+        watched:
+          type: boolean
+          description: The instrument is on one of the account's watchlists.
+        signal:
+          type: [string, 'null']
+          enum: [BUY, SELL, HOLD, null]
+          description: Null when there was not enough data.
+        confidence:
+          type: [integer, 'null']
+          description: 0-100; null without a signal.
+        summary:
+          type: string
+          description: One-sentence explanation, or why there is no signal.
+        reasons:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReasonResponse'
+        indicators:
+          $ref: '#/components/schemas/Indicators'
+
+    ReasonResponse:
+      type: object
+      required: [factor, impact, detail]
+      properties:
+        factor:
+          type: string
+          examples: ['Trend']
+        impact:
+          type: string
+          enum: [POSITIVE, NEGATIVE, NEUTRAL]
+          description: POSITIVE points towards buying, NEGATIVE towards selling.
+        detail:
+          type: string
+
+    Indicators:
+      type: object
+      required: [daysOfHistory]
+      properties:
+        price:
+          type: [number, 'null']
+        sma20:
+          type: [number, 'null']
+        sma50:
+          type: [number, 'null']
+        rsi14:
+          type: [number, 'null']
+        momentum20Percent:
+          type: [number, 'null']
+        unrealisedPercent:
+          type: [number, 'null']
+          description: Gain or loss on the average cost, for held instruments.
+        daysOfHistory:
+          type: integer
+
+    ErrorResponse:
+      type: object
+      required: [errorCode, message]
+      properties:
+        errorCode:
+          type: string
+          enum: [AUTH-401, ACC-403, VAL-422]
+        message:
+          type: string

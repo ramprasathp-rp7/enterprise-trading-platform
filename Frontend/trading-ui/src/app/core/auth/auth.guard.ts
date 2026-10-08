@@ -1,6 +1,44 @@
 import { inject } from '@angular/core';
-import { CanActivateFn, CanActivateChildFn, Router, ActivatedRouteSnapshot, RouterStateSnapshot } from '@angular/router';
+import { CanActivateFn, CanActivateChildFn, Router, ActivatedRouteSnapshot, RouterStateSnapshot, UrlTree } from '@angular/router';
+import { Observable, of } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
 import { CoreAuthService } from './core-auth.service';
+import { TokenRefreshService } from './token-refresh.service';
+
+/**
+ * Shared check for both guards: allow when the JWT is valid; when it has expired
+ * but a refresh token is stored, get a new JWT first; otherwise go to sign-in.
+ */
+function requireSession(url: string, label: string): boolean | UrlTree | Observable<boolean | UrlTree> {
+  const authService = inject(CoreAuthService);
+  const tokenRefresh = inject(TokenRefreshService);
+  const router = inject(Router);
+
+  // Allow sign-in page to be accessed without authentication
+  if (url === '/sign-in') {
+    return true;
+  }
+
+  if (authService.isAuthenticated()) {
+    return true;
+  }
+
+  const toSignIn = () => {
+    console.warn(`${label} denied to ${url} - user not authenticated`);
+    return router.createUrlTree(['/sign-in'], {
+      queryParams: { returnUrl: url },
+    });
+  };
+
+  if (tokenRefresh.canRefresh()) {
+    return tokenRefresh.refresh().pipe(
+      map((): boolean | UrlTree => true),
+      catchError(() => of(toSignIn()))
+    );
+  }
+
+  return toSignIn();
+}
 
 /**
  * Authentication Guard
@@ -14,28 +52,7 @@ import { CoreAuthService } from './core-auth.service';
 export const authGuard: CanActivateFn = (
   route: ActivatedRouteSnapshot,
   state: RouterStateSnapshot
-) => {
-  const authService = inject(CoreAuthService);
-  const router = inject(Router);
-
-  // Allow sign-in page to be accessed without authentication
-  if (state.url === '/sign-in') {
-    return true;
-  }
-
-  // Check if user is authenticated
-  const isAuth = authService.isAuthenticated();
-  
-  if (!isAuth) {
-    // Redirect to login with return URL
-    console.warn(`Access denied to ${state.url} - user not authenticated`);
-    return router.createUrlTree(['/sign-in'], {
-      queryParams: { returnUrl: state.url },
-    });
-  }
-
-  return true;
-};
+) => requireSession(state.url, 'Access');
 
 /**
  * Child Route Authentication Guard
@@ -47,25 +64,4 @@ export const authGuard: CanActivateFn = (
 export const canActivateChildGuard: CanActivateChildFn = (
   route: ActivatedRouteSnapshot,
   state: RouterStateSnapshot
-) => {
-  const authService = inject(CoreAuthService);
-  const router = inject(Router);
-
-  // Allow sign-in page to be accessed without authentication
-  if (state.url === '/sign-in') {
-    return true;
-  }
-
-  // Check if user is authenticated
-  const isAuth = authService.isAuthenticated();
-  
-  if (!isAuth) {
-    // Redirect to login with return URL
-    console.warn(`Child route access denied to ${state.url} - user not authenticated`);
-    return router.createUrlTree(['/sign-in'], {
-      queryParams: { returnUrl: state.url },
-    });
-  }
-
-  return true;
-};
+) => requireSession(state.url, 'Child route access');

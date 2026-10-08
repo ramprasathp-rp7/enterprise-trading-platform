@@ -2,11 +2,14 @@ package com.tradingplatform.api.controllers;
 
 import com.tradingplatform.api.security.AccountAccessAuthorizer;
 import com.tradingplatform.api.services.AccountService;
+import com.tradingplatform.api.services.AccountHistoryService;
 import com.tradingplatform.domain.dto.*;
 import com.tradingplatform.domain.enums.OrderStatus;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 
@@ -24,10 +27,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class AccountController {
     private final AccountAccessAuthorizer accountAccessAuthorizer;
     private final AccountService accountService;
+    private final AccountHistoryService accountHistoryService;
 
-    public AccountController(AccountAccessAuthorizer accountAccessAuthorizer, AccountService accountService) {
+    public AccountController(AccountAccessAuthorizer accountAccessAuthorizer, AccountService accountService, AccountHistoryService accountHistoryService) {
         this.accountAccessAuthorizer = accountAccessAuthorizer;
         this.accountService = accountService;
+        this.accountHistoryService = accountHistoryService;
     }
 
     @GetMapping("/{id}")
@@ -62,6 +67,29 @@ public class AccountController {
         Optional<Instant> fromInstant = from.map(OffsetDateTime::toInstant);
         Optional<Instant> toInstant = to.map(OffsetDateTime::toInstant);
         List<OrderHistoryEntry> response = accountService.getOrders(id, status, fromInstant, toInstant);
+        return ResponseEntity.ok(response);
+    }
+
+    // Get account history snapshots (most recent first, 30 by default, max 365).
+    @GetMapping("/{id}/history")
+    public ResponseEntity<List<AccountHistoryResponse>> getAccountHistory(
+            @PathVariable long id,
+            @RequestParam(defaultValue = "30") int limit) {
+        accountAccessAuthorizer.assertTokenCanAccess(id);
+        List<AccountHistoryResponse> response = accountHistoryService.getAccountHistory(id, limit);
+        return ResponseEntity.ok(response);
+    }
+
+    // Get account history snapshots within a date range (both dates inclusive, UTC).
+    @GetMapping("/{id}/history/range")
+    public ResponseEntity<List<AccountHistoryResponse>> getAccountHistoryRange(
+            @PathVariable long id,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        accountAccessAuthorizer.assertTokenCanAccess(id);
+        Instant fromInstant = from.atStartOfDay(ZoneOffset.UTC).toInstant();
+        Instant toInstant = to.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+        List<AccountHistoryResponse> response = accountHistoryService.getAccountHistoryRange(id, fromInstant, toInstant);
         return ResponseEntity.ok(response);
     }
 }

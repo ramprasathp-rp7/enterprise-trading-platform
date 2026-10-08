@@ -11,9 +11,15 @@ import {
   isValidWholeQuantity,
 } from '../../order-ticket.models';
 import { ProcessedError } from '../../../../core/errors/error-response-handler';
+import { NotificationService } from '../../../../core/notifications/notification.service';
+import { OrderStatusWatcherService } from '../../../../core/notifications/order-status-watcher.service';
+import { orderPlacedNotice } from '../../../../core/notifications/order-messages';
 import { Instrument } from '../../../instruments/instrument.models';
 import { InstrumentSearchComponent } from '../../../instruments/components/instrument-search/instrument-search.component';
 import { InstrumentPanelComponent } from '../../../instruments/components/instrument-panel/instrument-panel.component';
+import { InstrumentCatalogService } from '../../../instruments/services/instrument-catalog.service';
+import { LiveQuoteStore } from '../../../../core/market-data/live-quote.store';
+import { formatMoney } from '../../../../shared/currency';
 
 @Component({
   selector: 'app-order-ticket',
@@ -27,6 +33,10 @@ export class OrderTicketComponent implements OnInit {
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   private destroyRef = inject(DestroyRef);
+  private notifications = inject(NotificationService);
+  private orderWatcher = inject(OrderStatusWatcherService);
+  private catalog = inject(InstrumentCatalogService);
+  private liveQuotes = inject(LiveQuoteStore);
 
   readonly symbol = signal<string>('');
   readonly side = signal<OrderSide>(OrderSide.Buy);
@@ -61,7 +71,7 @@ export class OrderTicketComponent implements OnInit {
     }
 
     if (!isValidTradeableSymbol(value)) {
-      return ['Use a tradeable symbol shape such as AAPL, INFY.NS, FX:USD/EUR or X:BTC-USD.'];
+      return ['Try a symbol like AAPL.'];
     }
 
     return [];
@@ -78,7 +88,7 @@ export class OrderTicketComponent implements OnInit {
     }
 
     if (!isValidWholeQuantity(value)) {
-      return ['Quantity must be a whole number greater than zero.'];
+      return ['Whole number above 0.'];
     }
 
     return [];
@@ -95,7 +105,7 @@ export class OrderTicketComponent implements OnInit {
     }
 
     if (!isValidLimitPrice(value)) {
-      return ['Price must be greater than zero with at most two decimal places.'];
+      return ['Above 0, max 2 decimals.'];
     }
 
     return [];
@@ -125,6 +135,47 @@ export class OrderTicketComponent implements OnInit {
     }
     return quantity * price;
   });
+
+  /** The instrument's currency: the limit price and notional are in it */
+  readonly instrumentCurrency = computed(() => this.catalog.find(this.symbol().trim().toUpperCase())?.currency ?? null);
+  /** The account's currency, when it differs from the instrument's (cash is debited in it) */
+  readonly foreignAccountCurrency = computed(() => {
+    const account = this.store.accountCurrency?.() ?? null;
+    const instrument = this.instrumentCurrency();
+    return account && instrument && account !== instrument ? account : null;
+  });
+  /** FX: pairs that price the instrument's currency in the account's: direct, then inverse */
+  private readonly fxSymbols = computed(() => {
+    const account = this.foreignAccountCurrency();
+    const instrument = this.instrumentCurrency();
+    return account && instrument ? [`FX:${instrument}${account}`, `FX:${account}${instrument}`] : [];
+  });
+  /** Today's instrument-to-account rate from the live quote cache; the order settles at the rate at fill */
+  readonly estimatedFxRate = computed(() => {
+    const [direct, inverse] = this.fxSymbols();
+    if (!direct) {
+      return null;
+    }
+    const directPrice = this.liveQuotes.quote(direct)?.price;
+    if (directPrice) {
+      return directPrice;
+    }
+    const inversePrice = this.liveQuotes.quote(inverse)?.price;
+    return inversePrice ? 1 / inversePrice : null;
+  });
+  /** Estimated cash amount in the account's currency, at today's rate */
+  readonly estimatedNotionalAccount = computed(() => {
+    const notional = this.estimatedNotional();
+    const rate = this.estimatedFxRate();
+    return notional !== null && rate !== null ? notional * rate : null;
+  });
+
+  readonly formatMoney = formatMoney;
+
+  constructor() {
+    // Keep today's FX rate for the selected instrument fresh while the ticket is open
+    this.liveQuotes.track(() => this.fxSymbols());
+  }
 
   readonly canSubmit = computed(() => {
     return (
@@ -214,6 +265,12 @@ export class OrderTicketComponent implements OnInit {
     // which routes on to the Order Blotter for live status.
     const result = this.store.submissionResult();
     if (placed && result?.orderId) {
+      this.notifications.notify({
+        ...orderPlacedNotice(result),
+        link: { path: `/order-confirmation/${result.orderId}` },
+        dedupeKey: `order-created:${result.orderId}`,
+      });
+      this.orderWatcher.track(result.orderId, result.status);
       await this.router.navigate(['/order-confirmation', result.orderId]);
     }
   }

@@ -100,9 +100,10 @@ public interface AccountMapper {
         @Arg(column = "instrument_id", javaType = Long.class),
         @Arg(column = "quantity", javaType = int.class),
         @Arg(column = "average_cost", javaType = java.math.BigDecimal.class),
+        @Arg(column = "average_cost_account", javaType = java.math.BigDecimal.class),
         @Arg(column = "version", javaType = int.class)
     })
-    @Select("SELECT account_id, instrument_id, quantity, average_cost, version FROM positions WHERE account_id=#{id}")
+    @Select("SELECT account_id, instrument_id, quantity, average_cost, average_cost_account, version FROM positions WHERE account_id=#{id}")
     List<Position> findPositionByAccountId(@Param("id") Long id);
 
     @Update("UPDATE accounts SET cash_balance = #{account.cashBalance}, version = #{newVersion}, last_updated = CURRENT_TIMESTAMP WHERE id = #{account.id} AND version = #{account.version}")

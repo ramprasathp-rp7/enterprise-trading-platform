@@ -1,0 +1,201 @@
+openapi: 3.1.0
+
+info:
+  title: Market Data REST API
+  version: 1.0.0
+  summary: Cached quotes for the Enterprise Trading Platform.
+  description: |
+    Binding contract for the market data endpoints of the order service. The Angular UI generates its
+    typed client from this file, so a field renamed here is a compile error there.
+
+    ## Source of the data
+
+    Every response is read from the order service's in-memory quote cache; these endpoints never call
+    Fauxnance and cost no quota. The cache is filled by one writer, chosen by `MARKET_DATA_QUOTE_SOURCE`:
+
+    - `FAUXNANCE` (default): the order service polls the Fauxnance quotes API every five minutes.
+    - `KAFKA`: the order service consumes QUOTE events from the `market-data` topic.
+
+    Either way only symbols with an open position (tradable, quantity > 0) are quoted. Each quote is
+    appended to a per-symbol history kept for `MARKET_DATA_CACHE_HISTORY_WINDOW` (default 24 hours);
+    the newest quote of a symbol is always kept.
+
+    ## Symbols
+
+    Symbols are matched ignoring case and surrounding spaces (`infy.ns` finds `INFY.NS`).
+
+    ## Authentication
+
+    Every `/api/v1/**` route requires a valid signed JWT in the `Authorization` header. A missing,
+    malformed, expired or wrongly signed token is `AUTH-401`, 401. These routes are not scoped to an
+    account.
+
+  contact:
+    name: Enterprise Trading Platform, programme materials
+  license:
+    name: Instructional use only
+
+servers:
+  - url: http://localhost:8081
+    description: Local development, run from Docker Compose
+
+tags:
+  - name: MarketData
+    description: Latest cached quote per symbol and the cached quote rows of a day.
+
+security:
+  - bearerAuth: []
+
+paths:
+  /api/v1/market-data/quotes/{symbol}/latest:
+    get:
+      tags: [MarketData]
+      operationId: getLatestQuote
+      summary: Latest cached quote for a symbol
+      description: The newest quote the cache holds for the symbol.
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          description: Instrument symbol, e.g. `INFY.NS`, `AAPL`, `FX:EURUSD`.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The newest cached quote.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CachedQuoteResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '404':
+          description: The cache has no quote for this symbol yet (`MKT-404`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/market-data/quotes:
+    get:
+      tags: [MarketData]
+      operationId: getQuotesForDay
+      summary: Cached quote rows of one UTC day
+      description: |
+        Every cached quote received on the day (00:00 to 24:00 UTC), oldest first, ordered by
+        reception time then symbol. Only rows still held by the cache are returned, so days older
+        than the history window come back empty. The same two fields may also be sent as a JSON
+        body; query parameters win.
+      parameters:
+        - name: date
+          in: query
+          required: false
+          description: The UTC day (default today).
+          schema:
+            type: string
+            format: date
+        - name: symbol
+          in: query
+          required: false
+          description: Restrict to one instrument (default all symbols).
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The day's rows (`count` 0 and an empty `quotes` array when there are none).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CachedQuotesDayResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    Unauthorised:
+      description: Missing or invalid token (`AUTH-401`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    CachedQuoteResponse:
+      type: object
+      required: [symbol, price, bid, ask, currency, receivedAt]
+      properties:
+        symbol:
+          type: string
+          examples: [INFY.NS]
+        price:
+          type: number
+          description: Last observed price (midpoint).
+          examples: [1006.35]
+        bid:
+          type: number
+          description: Sell side of the quote.
+        ask:
+          type: number
+          description: Buy side of the quote.
+        currency:
+          type: string
+          description: ISO 4217 currency code.
+          examples: [INR]
+        change:
+          type: [number, 'null']
+          description: Absolute change against the previous close.
+        changePercent:
+          type: [number, 'null']
+          description: Change against the previous close, in percentage points.
+        previousClose:
+          type: [number, 'null']
+          description: Previous closing price.
+        marketState:
+          type: [string, 'null']
+          description: Market state from Fauxnance, e.g. open, closed, pre, post, unknown.
+        stale:
+          type: [boolean, 'null']
+          description: True if the quote was past its freshness window when received.
+        quoteAsOf:
+          type: [string, 'null']
+          format: date-time
+          description: Observation time from Fauxnance.
+        receivedAt:
+          type: string
+          format: date-time
+          description: When the cache received the quote.
+
+    CachedQuotesDayResponse:
+      type: object
+      required: [date, count, quotes]
+      properties:
+        date:
+          type: string
+          format: date
+          description: The UTC day the rows were received on.
+        symbol:
+          type: [string, 'null']
+          description: The symbol filter, or null for all symbols.
+        count:
+          type: integer
+          description: Number of rows.
+        quotes:
+          type: array
+          items:
+            $ref: '#/components/schemas/CachedQuoteResponse'
+
+    ErrorResponse:
+      type: object
+      required: [errorCode, message]
+      properties:
+        errorCode:
+          type: string
+          enum: [AUTH-401, MKT-404, VAL-422]
+        message:
+          type: string

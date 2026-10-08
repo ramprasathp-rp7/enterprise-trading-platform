@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { OrderStatusBadgeComponent } from '../order-status-badge/order-status-badge.component';
 import { BlotterOrder } from '../../blotter.models';
 import { OrderStatus } from '../../../../api/generated/trade';
+import { formatInstrumentPrice } from '../../../instruments/services/instrument-catalog.service';
 
 /**
  * Order list row component
@@ -107,7 +108,7 @@ export class OrderListRowComponent {
 
   get price(): string {
     if (!this.order) return '';
-    return this.formatCurrency(this.order.price);
+    return formatInstrumentPrice(this.order.price, this.order.symbol);
   }
 
   get executedPrice(): string {
@@ -115,7 +116,7 @@ export class OrderListRowComponent {
     if (this.order.executedPrice === null || this.order.executedPrice === undefined) {
       return '—';
     }
-    return this.formatCurrency(this.order.executedPrice);
+    return formatInstrumentPrice(this.order.executedPrice, this.order.symbol);
   }
 
   get createdOn(): string {
@@ -167,10 +168,4 @@ export class OrderListRowComponent {
     return raw;
   }
 
-  private formatCurrency(value: number): string {
-    return value.toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-  }
 }

@@ -1,0 +1,12 @@
+{
+  "inputSpec": "./contracts/watchlist-api.yaml",
+  "outputDir": "./src/app/api/generated/watchlist",
+  "generatorName": "typescript-angular",
+  "skipValidateSpec": true,
+  "validateSpec": false,
+  "packageName": "api.watchlist",
+  "additionalProperties": {
+    "apiModulePrefix": "WatchlistApi",
+    "ngVersion": "21.0.0"
+  }
+}

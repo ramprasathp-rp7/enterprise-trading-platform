@@ -84,11 +84,34 @@ public interface AccountMapper {
         @Arg(column = "instrument_id", javaType = Long.class),
         @Arg(column = "quantity", javaType = int.class),
         @Arg(column = "average_cost", javaType = java.math.BigDecimal.class),
+        @Arg(column = "average_cost_account", javaType = java.math.BigDecimal.class),
         @Arg(column = "version", javaType = int.class)
     })
-    @Select("SELECT account_id, instrument_id, quantity, average_cost, version FROM positions WHERE account_id=#{id}")
+    @Select("SELECT account_id, instrument_id, quantity, average_cost, average_cost_account, version FROM positions WHERE account_id=#{id}")
     List<Position> findPositionByAccountId(@Param("id") Long id);
 
     @Update("UPDATE accounts SET cash_balance = #{account.cashBalance}, version = #{newVersion}, last_updated = CURRENT_TIMESTAMP WHERE id = #{account.id} AND version = #{account.version}")
     int updateAccount(@Param("account") Account account, @Param("newVersion") int newVersion);
+
+    
+    /**
+     * Find all active accounts for end-of-day account history snapshot.
+     * Used by AccountHistoryScheduler to capture daily account state.
+     * 
+     * @return List of all active accounts
+     */
+    @ConstructorArgs({
+        @Arg(column = "id", javaType = Long.class),
+        @Arg(column = "account_id", javaType = String.class),
+        @Arg(column = "holder_name", javaType = String.class),
+        @Arg(column = "cash_balance", javaType = java.math.BigDecimal.class),
+        @Arg(column = "currency", javaType = String.class),
+        @Arg(column = "status", javaType = AccountStatus.class),
+        @Arg(column = "version", javaType = int.class),
+        @Arg(column = "created_on", javaType = java.time.Instant.class),
+        @Arg(column = "last_updated", javaType = java.time.Instant.class)
+    })
+    @Select("SELECT id, account_id, holder_name, cash_balance, currency, status, version, created_on, last_updated FROM accounts WHERE status = 'ACTIVE' ORDER BY id")
+    List<Account> findAllActiveAccounts();
+
 }

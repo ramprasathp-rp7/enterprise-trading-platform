@@ -1,5 +1,5 @@
 INSERT INTO instruments (symbol, name, asset_class, currency, tradable, created_on) VALUES
-    ('ACME',        'Acme Corporation',       'EQUITY', 'USD', TRUE,  TIMESTAMP '2026-01-01 00:00:00+00'),
+    ('PFE',         'Pfizer Inc.',            'EQUITY', 'USD', TRUE,  TIMESTAMP '2026-01-01 00:00:00+00'),
     ('AAPL',        'Apple Inc.',             'EQUITY', 'USD', TRUE,  TIMESTAMP '2026-01-01 00:00:00+00'),
     ('INFY.NS',     'Infosys Limited',        'EQUITY', 'INR', TRUE,  TIMESTAMP '2026-01-01 00:00:00+00'),
     ('RELIANCE.NS', 'Reliance Industries',    'EQUITY', 'INR', TRUE,  TIMESTAMP '2026-01-01 00:00:00+00'),

@@ -1,0 +1,12 @@
+{
+  "inputSpec": "./contracts/portfolio-api.yaml",
+  "outputDir": "./src/app/api/generated/portfolio",
+  "generatorName": "typescript-angular",
+  "skipValidateSpec": true,
+  "validateSpec": false,
+  "packageName": "api.trade",
+  "additionalProperties": {
+    "apiModulePrefix": "TradeApi",
+    "ngVersion": "21.0.0"
+  }
+}

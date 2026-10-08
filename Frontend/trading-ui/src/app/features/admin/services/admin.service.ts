@@ -6,6 +6,7 @@ import {
   OrderStatusChange,
   TransactionHistoryEntry,
   FeeStructureResponse,
+  FeeUpdateRequest,
 } from '../../../api/generated/admin';
 
 /**
@@ -79,5 +80,17 @@ export class AdminService {
    */
   getAssetFee(assetType: string): Observable<FeeStructureResponse> {
     return this.configurationService.getFeeByAssetType(assetType);
+  }
+
+  /**
+   * Update the fee structure for an asset type
+   * Takes effect for orders placed after the update.
+   *
+   * @param assetType the asset type (e.g., EQUITY, FX)
+   * @param fees the new flat fee and percentage fee (decimal form, 0.001 = 0.1%)
+   * @returns the fee structure as now stored
+   */
+  updateAssetFee(assetType: string, fees: FeeUpdateRequest): Observable<FeeStructureResponse> {
+    return this.configurationService.updateFee(assetType, fees);
   }
 }

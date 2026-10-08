@@ -1,21 +1,34 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { InstrumentChartComponent } from './instrument-chart.component';
-import { ChartRange, PricePoint } from '../../instrument.models';
+import { Candle, ChartMode, ChartRange } from '../../instrument.models';
 
 describe('InstrumentChartComponent', () => {
   let fixture: ComponentFixture<InstrumentChartComponent>;
   let component: InstrumentChartComponent;
 
-  const series = (prices: number[], stepMs = 3_600_000): PricePoint[] =>
-    prices.map((price, i) => ({ time: new Date(Date.UTC(2026, 9, 5, 9) + i * stepMs), price }));
+  /** Candles closing at the given prices, one per weekday-ish date */
+  const candles = (closes: number[], extra: Partial<Candle>[] = []): Candle[] =>
+    closes.map((close, i) => ({
+      date: new Date(Date.UTC(2026, 5, 1 + i)).toISOString().slice(0, 10),
+      open: i === 0 ? close : closes[i - 1],
+      high: Math.max(close, i === 0 ? close : closes[i - 1]) + 1,
+      low: Math.min(close, i === 0 ? close : closes[i - 1]) - 1,
+      close,
+      adjclose: close,
+      volume: 1000 * (i + 1),
+      synthetic: false,
+      ...(extra[i] ?? {}),
+    }));
 
-  const render = (points: PricePoint[], range: ChartRange = '1D', decimals = 2) => {
-    fixture.componentRef.setInput('series', points);
+  const render = (series: Candle[], range: ChartRange = '3M', decimals = 2, mode: ChartMode = 'candles') => {
+    fixture.componentRef.setInput('series', series);
     fixture.componentRef.setInput('range', range);
     fixture.componentRef.setInput('decimals', decimals);
+    fixture.componentRef.setInput('mode', mode);
     fixture.detectChanges();
   };
+  const all = (sel: string): HTMLElement[] => Array.from(fixture.nativeElement.querySelectorAll(sel));
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({ imports: [InstrumentChartComponent] }).compileComponents();
@@ -27,63 +40,102 @@ describe('InstrumentChartComponent', () => {
     render([]);
     expect(fixture.nativeElement.textContent).toContain('No price history to display');
 
-    render(series([10]));
+    render(candles([10]));
     expect(fixture.nativeElement.querySelector('[data-testid="instrument-chart"]')).toBeNull();
   });
 
-  it('draws a line through every point and a closed area beneath it', () => {
-    render(series([10, 12, 11, 13]));
+  it('draws one candle per bar, coloured by direction, with a volume bar each', () => {
+    render(candles([10, 12, 11, 13]));
+
+    const drawn = all('[data-testid="chart-candles"] .candle');
+    expect(drawn.length).toBe(4);
+    expect(drawn.map((g) => g.classList.contains('up'))).toEqual([true, true, false, true]);
+    expect(all('rect.vol').length).toBe(4);
+    expect(component.hasVolume()).toBe(true);
+  });
+
+  it('keeps wicks spanning high to low and bodies spanning open to close', () => {
+    render(candles([10, 14]));
+    const [, second] = component.shapes();
+
+    expect(second.wickTop).toBeLessThan(second.bodyY);
+    expect(second.wickBottom).toBeGreaterThan(second.bodyY + second.bodyHeight);
+    expect(second.bodyHeight).toBeGreaterThan(1);
+  });
+
+  it('draws synthetic bars hollow, without volume, and flags them in the tooltip', () => {
+    render(candles([10, 11, 12], [{}, { synthetic: true, volume: null }]));
+
+    expect(all('.candle.synthetic').length).toBe(1);
+    expect(all('rect.vol').length).toBe(2);
+
+    component.hoverIndex.set(1);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-testid="tooltip-synthetic"]')).not.toBeNull();
+    expect(component.hover()?.volume).toBe('—');
+  });
+
+  it('switches to a close-price line with an area, marking synthetic closes', () => {
+    render(candles([10, 12, 11, 13], [{}, { synthetic: true, volume: null }]), '3M', 2, 'line');
 
     const d = fixture.nativeElement.querySelector('[data-testid="chart-line"]').getAttribute('d');
     expect(d.match(/[ML]/g).length).toBe(4);
-    expect(d.startsWith('M0.00,')).toBe(true);
     expect(component.areaPath().endsWith('Z')).toBe(true);
+    expect(fixture.nativeElement.querySelector('[data-testid="chart-candles"]')).toBeNull();
+    expect(all('.gap-dot').length).toBe(1);
+  });
+
+  it('drops the volume pane when the series has no volume (FX)', () => {
+    render(candles([1.08, 1.09, 1.085]).map((c) => ({ ...c, volume: null })), '1M', 4);
+
+    expect(component.hasVolume()).toBe(false);
+    expect(all('rect.vol').length).toBe(0);
+    expect(fixture.nativeElement.querySelector('.vol-label')).toBeNull();
   });
 
   it('is green when the period is up and red when it is down', () => {
-    render(series([10, 11, 12]));
+    render(candles([10, 11, 12]));
     expect(component.isUp()).toBe(true);
     expect(fixture.nativeElement.querySelector('.chart').classList).not.toContain('down');
 
-    render(series([12, 11, 10]));
+    render(candles([12, 11, 10]));
     expect(component.isUp()).toBe(false);
     expect(fixture.nativeElement.querySelector('.chart').classList).toContain('down');
   });
 
-  it('labels four price gridlines within the data range, using the decimals given', () => {
-    render(series([1.0812, 1.0855, 1.0842]), '1D', 4);
+  it('tags the last close on the price axis and hides axis labels it would cover', () => {
+    render(candles([1.0812, 1.0855, 1.0842]), '1M', 4);
 
-    const labels: string[] = Array.from(fixture.nativeElement.querySelectorAll('.y-label')).map((e: any) => e.textContent.trim());
-    expect(labels.length).toBe(4);
-    expect(labels.every((l) => /^1\.\d{4}$/.test(l))).toBe(true);
+    expect(fixture.nativeElement.querySelector('[data-testid="chart-last-tag"]').textContent.trim()).toBe('1.0842');
+    const labels = all('.y-label:not(.vol-label)').map((e) => e.textContent!.trim());
+    expect(labels.length).toBe(component.axisLabels().length);
+    expect(labels.length).toBeLessThanOrEqual(4);
+    expect(labels.every((l) => /^\d\.\d{4}$/.test(l))).toBe(true);
   });
 
-  it('formats time labels for the selected range', () => {
-    const points = series([1, 2, 3, 4, 5, 6, 7], 30 * 86_400_000);
+  it('labels five evenly spaced days, month and day, whatever the range', () => {
+    const series = candles(Array.from({ length: 30 }, (_, i) => 100 + i));
 
-    render(points, '1Y');
-    expect(component.xLabels().length).toBe(4);
-    expect(component.xLabels()[0]).toMatch(/[A-Z][a-z]{2} \d{2}/);
+    render(series, '3M');
+    expect(component.xLabels()).toEqual(['Jun 1', 'Jun 8', 'Jun 16', 'Jun 23', 'Jun 30']);
 
-    render(points, '1W');
-    expect(component.xLabels()[0]).toMatch(/[A-Z][a-z]{2}/);
-
-    render(points, '1M');
-    expect(component.xLabels()[0]).toMatch(/[A-Z][a-z]{2} \d+/);
-
-    render(series([1, 2, 3]), '1D');
-    expect(component.xLabels()[0]).toMatch(/\d{2}:\d{2}/);
+    render(series, '1M');
+    expect(component.xLabels()[0]).toBe('Jun 1');
   });
 
-  it('shows a crosshair tooltip for the point under the mouse and hides it on leave', () => {
-    render(series([10, 20, 30, 40, 50]));
+  it('shows the OHLCV bar under the mouse and hides it on leave', () => {
+    render(candles([10, 20, 30, 40, 50]));
     const canvas: HTMLElement = fixture.nativeElement.querySelector('.canvas');
-    canvas.getBoundingClientRect = () => ({ left: 100, width: 400, top: 0, height: 300, right: 500, bottom: 300, x: 100, y: 0, toJSON: () => ({}) });
+    canvas.getBoundingClientRect = () => ({ left: 100, width: 500, top: 0, height: 300, right: 600, bottom: 300, x: 100, y: 0, toJSON: () => ({}) });
 
-    canvas.dispatchEvent(new MouseEvent('mousemove', { clientX: 300 }));
+    canvas.dispatchEvent(new MouseEvent('mousemove', { clientX: 350 }));
     fixture.detectChanges();
     expect(component.hoverIndex()).toBe(2);
-    expect(fixture.nativeElement.querySelector('[data-testid="chart-tooltip"]').textContent).toContain('30.00');
+    const tooltip = fixture.nativeElement.querySelector('[data-testid="chart-tooltip"]').textContent;
+    expect(tooltip).toContain('Wed, Jun 3, 2026');
+    expect(tooltip).toContain('30.00');
+    expect(tooltip).toContain('+50.00%');
+    expect(tooltip).toContain('3,000');
 
     canvas.dispatchEvent(new MouseEvent('mousemove', { clientX: 9999 }));
     expect(component.hoverIndex()).toBe(4);
@@ -96,7 +148,7 @@ describe('InstrumentChartComponent', () => {
   });
 
   it('ignores mouse movement before layout (zero width)', () => {
-    render(series([1, 2]));
+    render(candles([1, 2]));
     const canvas: HTMLElement = fixture.nativeElement.querySelector('.canvas');
     canvas.getBoundingClientRect = () => ({ left: 0, width: 0 } as DOMRect);
 
@@ -105,10 +157,11 @@ describe('InstrumentChartComponent', () => {
     expect(component.hoverIndex()).toBeNull();
   });
 
-  it('uses date-only tooltips for long ranges', () => {
-    render(series([1, 2, 3], 86_400_000), '3M');
-    component.hoverIndex.set(1);
+  it('labels the tallest volume compactly', () => {
+    render(candles([1, 2]).map((c, i) => ({ ...c, volume: i ? 4_630_590 : 812_000 })));
+    expect(component.maxVolumeLabel()).toBe('4.6M');
 
-    expect(component.hover()?.time).toMatch(/\d{4}/);
+    render(candles([1, 2]).map((c, i) => ({ ...c, volume: i ? 812_000 : 10 })));
+    expect(component.maxVolumeLabel()).toBe('812K');
   });
 });

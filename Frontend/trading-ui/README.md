@@ -33,7 +33,7 @@ This project adheres to 10 fixed requirements:
 - **npm** 10+
 - Backend services running:
   - Auth Service: `http://localhost:3000`
-  - Trade API: `http://localhost:8080`
+  - Trade API: `http://localhost:8081`
 
 ### Installation & Build
 

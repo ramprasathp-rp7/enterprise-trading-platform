@@ -1,4 +1,4 @@
-import { Component, signal, HostListener, ElementRef, inject } from '@angular/core';
+import { Component, signal, HostListener, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -8,6 +8,9 @@ import { AccountsService } from '../../api/generated/trade';
 import { ThemeService } from '../../core/services/theme.service';
 import { InstrumentSearchDialogComponent } from '../../features/instruments/components/instrument-search-dialog/instrument-search-dialog.component';
 import { Instrument } from '../../features/instruments/instrument.models';
+import { NotificationBellComponent } from '../../core/notifications/notification-bell.component';
+import { NotificationService } from '../../core/notifications/notification.service';
+import { OrderStatusWatcherService } from '../../core/notifications/order-status-watcher.service';
 
 /**
  * Navigation Bar Component
@@ -15,55 +18,51 @@ import { Instrument } from '../../features/instruments/instrument.models';
  * Top navigation bar containing:
  * - App logo/title
  * - Current date and time (real-time update)
- * - User profile menu
- * - Logout functionality
+ * - User profile (name and account) with a Logout button beside it
  */
 @Component({
   selector: 'app-navbar',
   standalone: true,
-  imports: [CommonModule, RouterModule, InstrumentSearchDialogComponent],
+  imports: [CommonModule, RouterModule, InstrumentSearchDialogComponent, NotificationBellComponent],
   templateUrl: './navbar.component.html',
   styleUrls: ['./navbar.component.css'],
 })
 export class NavbarComponent {
   readonly themeService = inject(ThemeService);
+  private readonly notifications = inject(NotificationService);
+  private readonly orderWatcher = inject(OrderStatusWatcherService);
   accountDisplayId = signal<string | null>(null);
   readonly searchOpen = signal(false);
-  isProfileMenuOpen = false;
   private accountLookupSubscription: Subscription | null = null;
 
   constructor(
     public authService: CoreAuthService,
     private router: Router,
     private signInStore: SignInStore,
-    private elementRef: ElementRef<HTMLElement>,
     private accountsService: AccountsService
   ) {}
 
   ngOnInit(): void {
     this.updateAccountDisplayId();
+    // First sign-in on this browser: a one-time hello
+    this.notifications.welcomeIfFirstVisit();
   }
 
   ngOnDestroy(): void {
     this.accountLookupSubscription?.unsubscribe();
   }
 
-  toggleProfileMenu(event?: MouseEvent): void {
-    event?.stopPropagation();
-    this.isProfileMenuOpen = !this.isProfileMenuOpen;
-  }
-
-  closeProfileMenu(): void {
-    this.isProfileMenuOpen = false;
-  }
-
   /** Instrument search leads to the order ticket, a customer-only page */
+  /** Customers and admins each have their own Preferences page */
+  preferencesLink(): string {
+    return this.authService.isAdmin() ? '/admin/preferences' : '/settings';
+  }
+
   canSearch(): boolean {
     return !this.authService.isAdmin();
   }
 
   openSearch(): void {
-    this.closeProfileMenu();
     this.searchOpen.set(true);
   }
 
@@ -93,20 +92,8 @@ export class NavbarComponent {
     }
   }
 
-  @HostListener('document:click', ['$event'])
-  onDocumentClick(event: MouseEvent): void {
-    if (!this.isProfileMenuOpen) {
-      return;
-    }
-
-    const target = event.target as Node | null;
-    if (target && !this.elementRef.nativeElement.contains(target)) {
-      this.closeProfileMenu();
-    }
-  }
-
   logout(): void {
-    this.closeProfileMenu();
+    this.orderWatcher.stop();
     this.signInStore.logout();
     this.router.navigateByUrl('/sign-in');
   }

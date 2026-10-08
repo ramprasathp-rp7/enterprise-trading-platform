@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal, computed, Input, Output, EventEmitte
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { AccountsService, PositionResponse } from '../../../../api/generated/trade';
+import { formatInstrumentPrice } from '../../../instruments/services/instrument-catalog.service';
 
 interface AllocationSegment {
   symbol: string;
@@ -98,6 +99,19 @@ export class PositionsOverviewComponent implements OnInit {
   // Convenience: tableRows limited to 4 for compact display
   readonly tableRows = computed(() => this.tableHoldings().slice(0,4));
 
+  /** Dashboard rows: the four largest holdings with their share of units and colour */
+  readonly rows = computed(() => {
+    const byKey = new Map(this.positions().map((p) => [p.symbol, p]));
+    return this.allocation()
+      .slice(0, 4)
+      .map((seg) => ({ ...seg, averageCost: byKey.get(seg.symbol)?.averageCost ?? 0 }));
+  });
+
+  /** An average cost in the holding's own (instrument) currency */
+  formatPrice(value: number, symbol: string): string {
+    return formatInstrumentPrice(value, symbol);
+  }
+
   formatAmount(value: number, digits: number = 2): string {
     return new Intl.NumberFormat('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(value);
   }
@@ -115,9 +129,11 @@ export class PositionsOverviewComponent implements OnInit {
     this.error.set(null);
     this.accountsService.getPositions(accountId).subscribe({
       next: (positions) => {
-        this.positions.set(positions ?? []);
+        // A fully sold position stays in the table at quantity 0; it is no longer a holding
+        const open = (positions ?? []).filter((p) => (p.quantity ?? 0) > 0);
+        this.positions.set(open);
         this.loading.set(false);
-        this.positionsLoaded.emit(positions ?? []);
+        this.positionsLoaded.emit(open);
       },
       error: (err) => {
         console.error('Failed to load positions', err);

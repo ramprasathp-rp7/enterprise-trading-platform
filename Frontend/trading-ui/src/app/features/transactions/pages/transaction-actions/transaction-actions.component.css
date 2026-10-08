@@ -7,13 +7,147 @@
   overflow: hidden;
 }
 
+/* Form on the left, balance + recent activity on the right */
+.funds-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: var(--stack-gap);
+  align-items: start;
+}
+
 .form-stack {
   display: flex;
   flex-direction: column;
   gap: 22px;
 }
 
-/* Amount input with currency prefix */
+/* Accent line that follows the chosen direction */
+.action-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.action-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--positive);
+  opacity: 0.8;
+  transition: background-color var(--t-base);
+}
+
+.action-card.is-withdraw::before {
+  background: var(--negative);
+}
+
+/* Soft glow in the corner that follows the direction */
+.action-card::after {
+  content: '';
+  position: absolute;
+  top: -90px;
+  right: -90px;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--positive-soft) 0%, transparent 70%);
+  pointer-events: none;
+  transition: background var(--t-base);
+}
+
+.action-card.is-withdraw::after {
+  background: radial-gradient(circle, var(--negative-soft) 0%, transparent 70%);
+}
+
+.action-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ===== Direction choice cards ===== */
+.type-choice {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.segment.choice {
+  height: auto;
+  justify-content: flex-start;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  text-align: left;
+  color: var(--ink-700);
+  box-shadow: none;
+}
+
+.segment.choice:hover:not(:disabled):not(.active) {
+  border-color: var(--line-strong);
+  background: var(--surface-sunken);
+}
+
+.choice-icon {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: var(--surface-sunken);
+  color: var(--ink-500);
+  transition: background-color var(--t-fast), color var(--t-fast);
+}
+
+.segment.choice .choice-icon i {
+  font-size: 15px;
+}
+
+.choice-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.choice-title {
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--ink-900);
+}
+
+.choice-sub {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink-500);
+}
+
+.segment.choice.credit.active {
+  border-color: var(--positive);
+  background: var(--positive-soft);
+  box-shadow: 0 0 0 3px var(--positive-soft), 0 8px 22px -10px var(--positive);
+}
+
+.segment.choice.credit.active .choice-icon {
+  background: var(--positive);
+  color: #ffffff;
+}
+
+.segment.choice.debit.active {
+  border-color: var(--negative);
+  background: var(--negative-soft);
+  box-shadow: 0 0 0 3px var(--negative-soft), 0 8px 22px -10px var(--negative);
+}
+
+.segment.choice.debit.active .choice-icon {
+  background: var(--negative);
+  color: #ffffff;
+}
+
+/* ===== Amount ===== */
 .amount-field {
   position: relative;
   display: flex;
@@ -22,33 +156,320 @@
 
 .amount-prefix {
   position: absolute;
-  left: 14px;
-  font-size: 12px;
-  font-weight: 600;
+  left: 18px;
+  font-size: 13px;
+  font-weight: 700;
   letter-spacing: 0.04em;
   color: var(--ink-500);
   pointer-events: none;
 }
 
 .amount-input {
-  height: 52px;
-  padding-left: 58px;
-  font-size: 18px;
-  font-weight: 600;
+  height: 64px;
+  padding-left: 68px;
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
 }
 
-.form-actions {
+/* Hide the number spinners: quick amounts replace them */
+.amount-input::-webkit-outer-spin-button,
+.amount-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.amount-input {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.amount-field.is-invalid .amount-input {
+  border-color: var(--negative);
+}
+
+.quick-amounts {
   display: flex;
-  padding-top: 4px;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
 }
 
-.form-actions .btn {
-  min-width: 200px;
+.chip {
+  height: 32px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--ink-700);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background-color var(--t-fast), border-color var(--t-fast), color var(--t-fast);
 }
 
-@media (max-width: 768px) {
-  .form-actions .btn {
-    width: 100%;
+.chip:hover:not(:disabled) {
+  border-color: var(--brand);
+  color: var(--brand-strong);
+  background: var(--brand-soft);
+}
+
+.chip:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.chip-max {
+  margin-left: auto;
+}
+
+.field-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--negative);
+}
+
+.form-group .field-hint {
+  margin-top: 10px;
+}
+
+/* ===== Live summary ===== */
+.funds-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface-sunken);
+}
+
+/* Summary picks up a hint of the direction colour */
+.action-card .funds-summary {
+  border-color: color-mix(in srgb, var(--positive) 35%, var(--line));
+  background: linear-gradient(180deg, var(--positive-soft), var(--surface-sunken));
+}
+
+.action-card.is-withdraw .funds-summary {
+  border-color: color-mix(in srgb, var(--negative) 35%, var(--line));
+  background: linear-gradient(180deg, var(--negative-soft), var(--surface-sunken));
+}
+
+.summary-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.summary-label {
+  font-size: 13.5px;
+  color: var(--ink-500);
+}
+
+.summary-value {
+  font-weight: 650;
+  color: var(--ink-900);
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-value small {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-500);
+}
+
+.summary-after {
+  padding-top: 10px;
+  border-top: 1px dashed var(--line-strong, var(--line));
+}
+
+.summary-after .summary-value {
+  font-family: var(--font-display);
+  font-size: 19px;
+}
+
+.summary-value.negative {
+  color: var(--negative);
+}
+
+.submit-button {
+  width: 100%;
+}
+
+/* ===== Side rail ===== */
+.funds-rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--stack-gap);
+}
+
+.balance-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 22px 24px;
+  border-radius: var(--r-lg);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(59, 130, 246, 0.38), transparent 55%),
+    linear-gradient(145deg, #0f1d3d 0%, #13295c 100%);
+  color: #ffffff;
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-raised);
+}
+
+.balance-eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.balance-value {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+
+.balance-ccy {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.balance-missing {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.balance-account {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.recent-card .panel-header {
+  align-items: center;
+}
+
+.recent-list {
+  margin: 0;
+  padding: 6px 12px 12px;
+  list-style: none;
+}
+
+.recent-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+}
+
+.recent-item + .recent-item {
+  border-top: 1px solid var(--line);
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.recent-icon {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: var(--surface-sunken);
+  color: var(--ink-500);
+  font-size: 13px;
+}
+
+.recent-icon.credit {
+  background: var(--positive-soft);
+  color: var(--positive);
+}
+
+.recent-icon.debit {
+  background: var(--negative-soft);
+  color: var(--negative);
+}
+
+.recent-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.recent-type {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-900);
+}
+
+.recent-date {
+  font-size: 12px;
+  color: var(--ink-500);
+}
+
+.recent-amount {
+  font-weight: 650;
+  color: var(--ink-900);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.recent-amount.credit {
+  color: var(--positive);
+}
+
+.recent-empty {
+  padding: 18px 12px;
+  font-size: 13px;
+  color: var(--ink-500);
+  text-align: center;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 1100px) {
+  .funds-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .funds-rail {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+}
+
+@media (max-width: 720px) {
+  .funds-rail {
+    grid-template-columns: 1fr;
+  }
+
+  .type-choice {
+    grid-template-columns: 1fr;
+  }
+
+  .chip-max {
+    margin-left: 0;
   }
 }

@@ -48,51 +48,44 @@
           </button>
         }
 
+        <!-- Preferences: customers at /settings, admins at /admin/preferences -->
+        <a
+          class="action-icon prefs-link"
+          [routerLink]="preferencesLink()"
+          routerLinkActive="active"
+          title="Preferences"
+          aria-label="Preferences"
+          data-testid="nav-preferences-icon"
+        >
+          <i class="fas fa-sliders"></i>
+        </a>
+
+        <!-- In-app notifications -->
+        <app-notification-bell />
       </div>
 
       <!-- Divider -->
       <div class="navbar-divider"></div>
 
-      <!-- User Profile -->
-      <div class="user-profile-container">
-        <button 
-          class="user-profile-button"
-          [class.open]="isProfileMenuOpen"
-          (click)="toggleProfileMenu($event)"
-          aria-haspopup="menu"
-          [attr.aria-expanded]="isProfileMenuOpen"
-        >
-          <div class="user-avatar">{{ (authService.currentUser()?.username || 'U')?.charAt(0)?.toUpperCase() || 'U' }}</div>
-          <div class="user-info">
-            <div class="user-name">{{ authService.currentUser()?.username || 'User' }}</div>
-            <div class="user-role">Acct {{ accountDisplayId() || 'N/A' }}</div>
-          </div>
-          <i class="fas fa-chevron-down chevron"></i>
-        </button>
+      <!-- Logout: compact icon button, before the profile -->
+      <button
+        type="button"
+        class="logout-button"
+        (click)="logout()"
+        title="Log out"
+        aria-label="Log out"
+        data-testid="logout-btn"
+      >
+        <i class="fas fa-right-from-bracket"></i>
+        <span class="sr-only">Logout</span>
+      </button>
 
-        <!-- Profile Dropdown Menu -->
-        <div class="profile-menu" role="menu" *ngIf="isProfileMenuOpen">
-          <div class="profile-menu-header">
-            <div class="profile-menu-avatar">{{ (authService.currentUser()?.username || 'U')?.charAt(0)?.toUpperCase() || 'U' }}</div>
-            <div class="profile-menu-details">
-              <div class="profile-menu-name">{{ authService.currentUser()?.username || 'User' }}</div>
-              <div class="profile-menu-email">Account ID: {{ accountDisplayId() || 'N/A' }}</div>
-            </div>
-          </div>
-          <div class="profile-menu-divider"></div>
-          <button class="profile-menu-item">
-            <i class="fas fa-user-circle"></i>
-            Profile Settings
-          </button>
-          <button class="profile-menu-item">
-            <i class="fas fa-sliders-h"></i>
-            Preferences
-          </button>
-          <div class="profile-menu-divider"></div>
-          <button class="profile-menu-item logout" (click)="logout()">
-            <i class="fas fa-sign-out-alt"></i>
-            Logout
-          </button>
+      <!-- User Profile -->
+      <div class="user-profile" data-testid="user-profile">
+        <div class="user-avatar">{{ (authService.currentUser()?.username || 'U')?.charAt(0)?.toUpperCase() || 'U' }}</div>
+        <div class="user-info">
+          <div class="user-name">{{ authService.currentUser()?.username || 'User' }}</div>
+          <div class="user-role">Acct {{ accountDisplayId() || 'N/A' }}</div>
         </div>
       </div>
     </div>

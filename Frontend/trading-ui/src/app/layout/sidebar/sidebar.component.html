@@ -1,25 +1,9 @@
 <!-- Professional Sidebar Component -->
 <aside class="sidebar" [class.collapsed]="isCollapsed">
-  <!-- Sidebar Header -->
-  <div class="sidebar-header">
-    <h3 class="sidebar-title">{{ navSections[0].title }}</h3>
-    <button 
-      class="toggle-button" 
-      (click)="toggleSidebar()"
-      [attr.aria-label]="isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
-      [attr.aria-expanded]="!isCollapsed"
-      [title]="isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
-    >
-      <i class="fas" [class.fa-angles-left]="!isCollapsed" [class.fa-angles-right]="isCollapsed"></i>
-    </button>
-  </div>
-
-  <!-- Navigation Menu -->
+  <!-- Navigation Menu: every group, the first included, gets the same label so spacing matches -->
   <nav class="sidebar-nav">
-    <ng-container *ngFor="let section of navSections; let first = first">
-    @if (!first) {
-      <p class="nav-section" [attr.aria-hidden]="isCollapsed">{{ section.title }}</p>
-    }
+    <ng-container *ngFor="let section of navSections">
+    <p class="nav-section" [attr.aria-hidden]="isCollapsed">{{ section.title }}</p>
     <ul class="nav-menu" [attr.aria-label]="section.title">
       <li *ngFor="let item of section.items" class="nav-item">
         <a 
@@ -48,11 +32,19 @@
     </ng-container>
   </nav>
 
-  <!-- Sidebar Footer -->
+  <!-- Sidebar Footer: version and the collapse toggle -->
   <div class="sidebar-footer">
-    <div class="footer-content">
+    <div class="footer-content footer-with-toggle">
       <span class="footer-text" *ngIf="!isCollapsed">v1.0</span>
-      <i class="fas fa-gear footer-icon" *ngIf="isCollapsed"></i>
+      <button
+        class="toggle-button"
+        (click)="toggleSidebar()"
+        [attr.aria-label]="isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+        [attr.aria-expanded]="!isCollapsed"
+        [title]="isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+      >
+        <i class="fas" [class.fa-angles-left]="!isCollapsed" [class.fa-angles-right]="isCollapsed"></i>
+      </button>
     </div>
   </div>
 </aside>

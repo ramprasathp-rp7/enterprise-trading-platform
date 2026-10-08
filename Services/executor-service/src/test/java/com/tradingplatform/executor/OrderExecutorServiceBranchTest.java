@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -155,6 +156,52 @@ class OrderExecutorServiceBranchTest {
     }
 
     @Test
+    void noPriceRejectionIsPublished() throws Exception {
+        when(fillRule.decide(eq(order), any())).thenReturn(Decision.NO_PRICE);
+
+        executor.process(order, QUOTED, ORIGINAL_FEE);
+
+        verifyRejected("No price available");
+        verify(publisher).publishTradeEvent(eq(order.getId()), eq(1L), eq(OrderStatus.REJECTED), eq(QUOTED),
+            isNull(), eq(ORIGINAL_FEE), eq("No price available"), any(Instant.class));
+    }
+
+    @Test
+    void untradableInstrumentRejectionIsPublished() throws Exception {
+        when(instrumentMapper.findById(100L)).thenReturn(
+            Instrument.delisted(100L, "AAPL", "Apple", AssetClass.EQUITY, "USD"));
+
+        executor.process(order, QUOTED, ORIGINAL_FEE);
+
+        verify(publisher).publishTradeEvent(eq(order.getId()), eq(1L), eq(OrderStatus.REJECTED), eq(QUOTED),
+            isNull(), eq(ORIGINAL_FEE), eq("Instrument is not tradable"), any(Instant.class));
+    }
+
+    @Test
+    void suspendedAccountRejectionIsPublished() throws Exception {
+        when(fillRule.decide(eq(order), any())).thenReturn(Decision.FILL);
+        when(accountMapper.findByAccountId(1L)).thenReturn(null);
+
+        executor.process(order, QUOTED, ORIGINAL_FEE);
+
+        verify(publisher).publishTradeEvent(eq(order.getId()), eq(1L), eq(OrderStatus.REJECTED), eq(QUOTED),
+            isNull(), eq(ORIGINAL_FEE), eq("Suspended Account"), any(Instant.class));
+    }
+
+    @Test
+    void rejectNewPublishesOnlyWhenTheOrderWasStillNew() {
+        executor.rejectNew(order.getId(), 1L, "Pricing service unavailable: down", QUOTED, ORIGINAL_FEE);
+        verify(publisher).publishTradeEvent(eq(order.getId()), eq(1L), eq(OrderStatus.REJECTED), eq(QUOTED),
+            isNull(), eq(ORIGINAL_FEE), eq("Pricing service unavailable: down"), any(Instant.class));
+
+        // e.g. the customer cancelled it meanwhile: nothing is updated, nothing is published
+        clearInvocations(publisher);
+        when(orderMapper.updateOrderStatus(any(), any(), any(), any(), any(), any())).thenReturn(0);
+        executor.rejectNew(order.getId(), 1L, "Pricing service unavailable: down", QUOTED, ORIGINAL_FEE);
+        verifyNoInteractions(publisher);
+    }
+
+    @Test
     void fillRuleRejectionIsPublished() throws Exception {
         when(fillRule.decide(eq(order), any())).thenReturn(Decision.REJECT);
 
@@ -229,7 +276,10 @@ class OrderExecutorServiceBranchTest {
         executor.process(order, QUOTED, ORIGINAL_FEE);
 
         verifyRejected("Insufficient funds");
-        verifyNoInteractions(settlementService, publisher);
+        verifyNoInteractions(settlementService);
+        // The rejection reaches trade-events, so the customer is notified
+        verify(publisher).publishTradeEvent(eq(order.getId()), eq(1L), eq(OrderStatus.REJECTED), eq(QUOTED),
+            isNull(), eq(ORIGINAL_FEE), eq("Insufficient funds"), any(Instant.class));
     }
 
     @Test
@@ -242,11 +292,12 @@ class OrderExecutorServiceBranchTest {
         executor.process(order, QUOTED, ORIGINAL_FEE);
 
         BigDecimal executed = new BigDecimal("99.50");
-        verify(settlementService).settle(order, executed);
+        verify(settlementService).settle(order, executed, BigDecimal.ONE);
         verify(orderMapper).updateOrderStatus(eq(order.getId()), eq(OrderStatus.FILLED), isNull(),
             eq(executed), eq(new BigDecimal("2.25")), any(Instant.class));
+        verify(orderMapper).recordFill(order.getId(), BigDecimal.ONE, null);
         verify(publisher).publishTradeEvent(eq(order.getId()), eq(1L), eq(OrderStatus.FILLED), eq(QUOTED),
-            eq(executed), eq(ORIGINAL_FEE), isNull(), any(Instant.class));
+            eq(executed), eq(ORIGINAL_FEE), isNull(), any(Instant.class), eq(BigDecimal.ONE));
     }
 
     @Test
@@ -260,7 +311,7 @@ class OrderExecutorServiceBranchTest {
 
         executor.process(sell, QUOTED, ORIGINAL_FEE);
 
-        verify(settlementService).settle(sell, new BigDecimal("99.40"));
+        verify(settlementService).settle(sell, new BigDecimal("99.40"), BigDecimal.ONE);
         verify(orderMapper).updateOrderStatus(eq(sell.getId()), eq(OrderStatus.FILLED), isNull(),
             eq(new BigDecimal("99.40")), eq(ORIGINAL_FEE), any(Instant.class));
     }
@@ -272,7 +323,63 @@ class OrderExecutorServiceBranchTest {
 
         executor.process(order, QUOTED, ORIGINAL_FEE);
 
-        verify(settlementService).settle(eq(order), any());
+        verify(settlementService).settle(eq(order), any(), any());
         verify(publisher, never()).publishTradeEvent(any(), anyLong(), any(), any(), any(), any(), any(), any());
+        verify(publisher, never()).publishTradeEvent(any(), anyLong(), any(), any(), any(), any(), any(), any(), any());
+    }
+
+    // --- multi-currency: INR instrument, USD account ---
+
+    private void inrInstrumentWithUsdInrQuote(String usdInr) throws Exception {
+        when(instrumentMapper.findById(100L)).thenReturn(
+            Instrument.tradable(100L, "INFY.NS", "Infosys", AssetClass.EQUITY, "INR"));
+        quote.setCurrency("INR");
+        when(quoteClient.getLatestPrice("INFY.NS")).thenReturn(Optional.of(quote));
+        Quote fx = new Quote();
+        fx.setSymbol("FX:USDINR");
+        fx.setPrice(new BigDecimal(usdInr));
+        when(quoteClient.getLatestPrices(java.util.List.of("FX:INRUSD", "FX:USDINR"))).thenReturn(java.util.List.of(fx));
+    }
+
+    @Test
+    void foreignCurrencyFillSettlesAtFreshFillRateAndRecordsIt() throws Exception {
+        inrInstrumentWithUsdInrQuote("80");
+        when(fillRule.decide(eq(order), any())).thenReturn(Decision.FILL);
+        BigDecimal fillRate = new BigDecimal("0.0125000000"); // 1 / 80
+        when(settlementService.settle(eq(order), any(), eq(fillRate))).thenReturn(null);
+
+        executor.process(order, QUOTED, ORIGINAL_FEE);
+
+        verify(settlementService).settle(order, new BigDecimal("99.50"), fillRate);
+        verify(orderMapper).recordFill(order.getId(), fillRate, null);
+        verify(publisher).publishTradeEvent(eq(order.getId()), eq(1L), eq(OrderStatus.FILLED), eq(QUOTED),
+            eq(new BigDecimal("99.50")), eq(ORIGINAL_FEE), isNull(), any(Instant.class), eq(fillRate));
+    }
+
+    @Test
+    void adverseFxMoveSinceReservationRejectsForInsufficientFunds() throws Exception {
+        // 10 x INR 99.50 at USDINR 0.5 is $1990.00; the account holds $1989.99
+        inrInstrumentWithUsdInrQuote("0.5");
+        when(fillRule.decide(eq(order), any())).thenReturn(Decision.FILL);
+        when(accountMapper.findByAccountId(1L)).thenReturn(account("1989.99", AccountStatus.ACTIVE));
+
+        executor.process(order, QUOTED, ORIGINAL_FEE);
+
+        verifyRejected("Insufficient funds");
+        verifyNoInteractions(settlementService);
+        // Like every rejection, it is published to trade-events so the customer is notified
+        verify(publisher).publishTradeEvent(eq(order.getId()), eq(1L), eq(OrderStatus.REJECTED), eq(QUOTED),
+            isNull(), eq(ORIGINAL_FEE), eq("Insufficient funds"), any(Instant.class));
+    }
+
+    @Test
+    void missingFxRateAtFillIsAPricingOutage() throws Exception {
+        inrInstrumentWithUsdInrQuote("80");
+        when(quoteClient.getLatestPrices(java.util.List.of("FX:INRUSD", "FX:USDINR"))).thenReturn(java.util.List.of());
+        when(fillRule.decide(eq(order), any())).thenReturn(Decision.FILL);
+
+        org.junit.jupiter.api.Assertions.assertThrows(com.tradingplatform.quote.PricingUnavailableException.class,
+            () -> executor.process(order, QUOTED, ORIGINAL_FEE));
+        verifyNoInteractions(settlementService, publisher);
     }
 }

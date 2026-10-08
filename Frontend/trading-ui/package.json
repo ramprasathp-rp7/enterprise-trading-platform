@@ -3,10 +3,15 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
+    "sync-config": "node scripts/sync-platform-config.mjs",
+    "start": "node scripts/sync-platform-config.mjs --serve",
+    "prebuild": "npm run sync-config",
     "build": "ng build",
+    "prewatch": "npm run sync-config",
     "watch": "ng build --watch --configuration development",
+    "pretest": "npm run sync-config",
     "test": "ng test",
+    "pretest:coverage": "npm run sync-config",
     "test:coverage": "ng test --watch=false --coverage",
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
@@ -14,7 +19,16 @@
     "generate:auth": "openapi-generator-cli generate -c openapi/auth-api-config.json",
     "generate:transactions": "openapi-generator-cli generate -c openapi/transactions-api-config.json",
     "generate:admin": "openapi-generator-cli generate -c openapi/admin-api-config.json",
-    "generate": "npm run generate:auth && npm run generate:trade && npm run generate:transactions && npm run generate:admin"
+    "generate:watchlist": "openapi-generator-cli generate -c openapi/watchlist-api-config.json",
+    "generate:candle": "openapi-generator-cli generate -c openapi/candle-api-config.json",
+    "generate:portfolio": "openapi-generator-cli generate -c openapi/portfolio-api-config.json",
+    "generate:preferences": "openapi-generator-cli generate -c openapi/preferences-api-config.json",
+    "generate:market-data": "openapi-generator-cli generate -c openapi/market-data-api-config.json",
+    "generate:order-notifications": "openapi-generator-cli generate -c openapi/order-notifications-api-config.json",
+    "generate:advice": "openapi-generator-cli generate -c openapi/advice-api-config.json",
+    "generate:account-history": "openapi-generator-cli generate -c openapi/account-history-api-config.json",
+    "generate:strategy": "openapi-generator-cli generate -c openapi/strategy-api-config.json",
+    "generate": "npm run generate:auth && npm run generate:trade && npm run generate:transactions && npm run generate:admin && npm run generate:watchlist && npm run generate:portfolio && npm run generate:preferences && npm run generate:market-data && npm run generate:account-history && npm run generate:order-notifications && npm run generate:candle && npm run generate:advice && npm run generate:strategy"
   },
   "private": true,
   "packageManager": "npm@11.16.0",
@@ -47,7 +61,8 @@
     "jsdom": "^28.0.0",
     "prettier": "^3.8.1",
     "typescript": "~5.9.2",
-    "vitest": "^4.0.8"
+    "vitest": "^4.0.8",
+    "yaml": "^2.9.1"
   },
   "overrides": {
     "piscina": "^5.3.2",

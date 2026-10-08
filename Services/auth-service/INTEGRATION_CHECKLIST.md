@@ -4,7 +4,7 @@ This checklist provides step-by-step manual verification that the real Auth Serv
 
 **Prerequisite**: Both services must be running
 - Auth Service: `npm start` (port 3000)
-- Trade API: `mvn spring-boot:run` (port 8080)
+- Trade API: `mvn spring-boot:run` (port 8081)
 
 ---
 
@@ -101,7 +101,7 @@ Copy-paste this command to call a protected Trade API route with the valid token
 ```bash
 export TOKEN="<paste-access_token-from-1.2>"
 
-curl -X GET http://localhost:8080/api/v1/orders \
+curl -X GET http://localhost:8081/api/v1/orders \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json"
 ```
@@ -127,7 +127,7 @@ curl -X GET http://localhost:8080/api/v1/orders \
 Copy-paste this command to call Trade API WITHOUT a token:
 
 ```bash
-curl -X GET http://localhost:8080/api/v1/orders
+curl -X GET http://localhost:8081/api/v1/orders
 ```
 
 **Expected Response** (HTTP 401):
@@ -147,7 +147,7 @@ curl -X GET http://localhost:8080/api/v1/orders
 Copy-paste this command with an invalid token:
 
 ```bash
-curl -X GET http://localhost:8080/api/v1/orders \
+curl -X GET http://localhost:8081/api/v1/orders \
   -H "Authorization: Bearer not.a.valid.jwt"
 ```
 
@@ -193,7 +193,7 @@ Copy the output token and use it:
 ```bash
 export WRONG_TOKEN="<paste-generated-token>"
 
-curl -X GET http://localhost:8080/api/v1/orders \
+curl -X GET http://localhost:8081/api/v1/orders \
   -H "Authorization: Bearer $WRONG_TOKEN"
 ```
 
@@ -243,7 +243,7 @@ Copy the output token and use it:
 ```bash
 export EXPIRED_TOKEN="<paste-generated-token>"
 
-curl -X GET http://localhost:8080/api/v1/orders \
+curl -X GET http://localhost:8081/api/v1/orders \
   -H "Authorization: Bearer $EXPIRED_TOKEN"
 ```
 

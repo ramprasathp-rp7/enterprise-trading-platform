@@ -117,3 +117,39 @@ def test_diff_accounts_skips_unchanged_versions_new_and_inserts_first_time():
     assert result.to_close == ["ACC-2"]
     inserted_ids = {r["account_id"] for r in result.to_insert}
     assert inserted_ids == {"ACC-2", "ACC-3"}  # ACC-1 unchanged -> no write at all
+
+
+# --- multi-currency: trade_value stays in the instrument's currency, trade_value_account is USD ---
+
+def _build(order):
+    maps = _maps()
+    return transform.validate_and_build_fact_row(
+        order, maps["instrument_key_map"], maps["account_key_map"],
+        maps["known_date_keys"], trade_key=1, loaded_at=datetime.now(timezone.utc),
+    )
+
+
+def test_filled_order_converts_at_the_fill_rate():
+    # INR 18,055.00 placed at 0.0125 USD per INR, filled when the rate was 0.0128
+    row = _build(_good_order(placement_fx_rate="0.0125", fill_fx_rate="0.0128"))
+    assert row["trade_value"] == Decimal("18055.00")
+    assert row["fx_rate"] == Decimal("0.0128")
+    assert row["trade_value_account"] == Decimal("231.10")
+
+
+def test_unfilled_order_converts_at_the_placement_rate():
+    row = _build(_good_order(status="CANCELLED", executed_price=None, placement_fx_rate="0.0125", fill_fx_rate=None))
+    assert row["fx_rate"] == Decimal("0.0125")
+    assert row["trade_value_account"] == Decimal("225.00")
+
+
+def test_orders_without_rates_convert_at_one():
+    row = _build(_good_order())
+    assert row["fx_rate"] == Decimal("1")
+    assert row["trade_value_account"] == row["trade_value"]
+
+
+def test_non_positive_fx_rate_is_dead_lettered():
+    with pytest.raises(transform.QualityError) as err:
+        _build(_good_order(fill_fx_rate="0"))
+    assert err.value.reason_code == "FX_RATE_NOT_POSITIVE"

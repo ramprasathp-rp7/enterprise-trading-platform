@@ -10,7 +10,7 @@ import { OrderTicketService } from './services/order-ticket.service';
 describe('OrderTicketStore', () => {
   let store: OrderTicketStore;
   let orderTicketService: { placeOrder: ReturnType<typeof vi.fn> };
-  let accountsService: { getAccount: ReturnType<typeof vi.fn> };
+  let accountsService: { getAccount: ReturnType<typeof vi.fn>; getBalance: ReturnType<typeof vi.fn> };
   let authService: {
     currentUser: ReturnType<typeof vi.fn>;
     accessToken: ReturnType<typeof vi.fn>;
@@ -23,6 +23,7 @@ describe('OrderTicketStore', () => {
     };
 
     accountsService = {
+      getBalance: vi.fn(() => of({ accountId: 101, cashBalance: 1000, currency: 'USD', asOf: '' })),
       getAccount: vi.fn(() =>
         of({
           id: 101,

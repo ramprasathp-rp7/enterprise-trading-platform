@@ -1,0 +1,12 @@
+{
+  "inputSpec": "./contracts/advice-api.yaml",
+  "outputDir": "./src/app/api/generated/advice",
+  "generatorName": "typescript-angular",
+  "skipValidateSpec": true,
+  "validateSpec": false,
+  "packageName": "api.advice",
+  "additionalProperties": {
+    "apiModulePrefix": "AdviceApi",
+    "ngVersion": "21.0.0"
+  }
+}

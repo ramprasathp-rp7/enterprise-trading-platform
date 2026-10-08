@@ -44,11 +44,17 @@ This document records the design decisions for the three Kafka topics required b
 | **Replication Factor** | 1 | Local development. Production would be 3. |
 | **Retention** | 30 days (2,592,000,000 ms) | Events are the audit trail. Much longer retention than orders. 30 days allows week-long outages to be recovered by replay without losing history. |
 | **Key** | `accountId` (string) | Same rationale as `orders`: per-account ordering. A consumer tracking portfolio state per account needs to see events in the order they occurred for each account. |
-| **Event Types** | `ORDER_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED` | Three terminal states. An order transitions to one of these and never changes. |
+| **Event Types** | `ORDER_FILLED`, `ORDER_REJECTED`, `ORDER_CANCELLED` | Three terminal states. An order transitions to one of these and never changes. The Trade Executor publishes `ORDER_FILLED` and `ORDER_REJECTED` (every rejection path); the Trade REST API publishes `ORDER_CANCELLED` when a customer cancels a NEW order, since cancellation happens there. |
+
+**Cancelled orders and the executor:** the executor does not consume `trade-events`. When an `ORDER_PLACED` arrives for an order that is already `CANCELLED`, the order listener drops it before it reaches the executor: no quote, no fill or rejection, no event.
 
 **Payload includes position state:**
 - `cashDelta`, `positionQuantityAfter`, `averageCostAfter` are included so consumers can maintain their own portfolio projection without querying the trade database.
 - This enables the Portfolio and P&L extension to operate without a read dependency on Postgres.
+
+**Other payload fields:**
+- `fillFxRate` (multi-currency, decision 0008): the instrument-to-account rate the executor fetched at fill, on `ORDER_FILLED`. Optional; absent or null means 1 (same currency), so events from before the change still settle correctly.
+- `reason` on `ORDER_CANCELLED` is the code `CANCELLED_BY_CUSTOMER`, one of the reason codes listed in migration 007.
 
 **Consumer Groups:**
 - `trade-executor`: None (no read)
@@ -192,12 +198,12 @@ This document records the design decisions for the three Kafka topics required b
 
 | Service | `orders` | `trade-events` | `market-data` |
 |---------|----------|-----------------|---------------|
-| Trade REST API | **produce** | consume (optional, to update read models) | not used |
+| Trade REST API | **produce** | **produce** (`ORDER_CANCELLED` only); consume (group `order-notifications`) | consume (quote cache, `KAFKA` mode) |
 | Trade Executor | **consume** | **produce** | produce (market poller) |
 | Python ETL | not used | consume (optional, group `analytics-loader`) | not used |
 | Portfolio Service (Trade REST API) | not used | consume | consume |
 | Watchlist Service (Trade REST API) | not used | not used | consume |
-| Notification Service (Trade REST API) | not used | consume | not used |
+| Notification Service (Trade REST API) | not used | consume (group `order-notifications`: stores order outcomes for the UI bell) | not used |
 | Strategy Service (Trade REST API) | not used | consume | consume |
 | Advice Service (Trade REST API) | not used | consume | consume |
 | Angular UI | ❌ never | ❌ never | ❌ never |
@@ -303,7 +309,7 @@ Kafka transactions can give exactly-once between topics. This platform does not 
 - **ACLs:** Per-topic access control.
   - Only Trade REST API can write to `orders`
   - Only Trade Executor can read `orders`
-  - Only Trade Executor can write `trade-events` and `market-data`
+  - Only Trade Executor can write `market-data`; Trade Executor (fills, rejections) and Trade REST API (cancellations) can write `trade-events`
   - Portfolio Service reads `trade-events` and `market-data`
   - Etc.
 
