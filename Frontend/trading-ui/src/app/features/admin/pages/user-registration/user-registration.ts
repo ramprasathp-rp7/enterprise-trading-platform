@@ -2,20 +2,12 @@ import { Component, OnDestroy, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterModule } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../../core/config/environment';
 import { NotificationService } from '../../../../core/notifications/notification.service';
+import { AuthService, RegisterRequest, Role } from '../../../../api/generated/auth';
 import { AdminNotificationsService, AlertChannel } from '../../../../api/generated/preferences';
 
 /** Admins may only create customer users from this page; the role is not user-selectable. */
-export const REGISTERED_USER_ROLES: readonly string[] = ['CUSTOMER'];
-
-interface RegisterDto {
-  username: string;
-  password: string;
-  accountId: number;
-  roles: string[];
-}
+export const REGISTERED_USER_ROLES: readonly Role[] = [Role.Customer];
 
 @Component({
   selector: 'app-admin-user-registration',
@@ -26,7 +18,7 @@ interface RegisterDto {
 })
 export class AdminUserRegistrationComponent implements OnInit, OnDestroy {
   private fb = inject(FormBuilder);
-  private http = inject(HttpClient);
+  private authApi = inject(AuthService);
   private notifications = inject(NotificationService);
   private adminNotifications = inject(AdminNotificationsService);
   private messageTimeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -72,9 +64,9 @@ export class AdminUserRegistrationComponent implements OnInit, OnDestroy {
     this.loading.set(true);
     this.clearMessages();
 
-    const dto: RegisterDto = { ...this.form.value, roles: [...REGISTERED_USER_ROLES] };
+    const dto: RegisterRequest = { ...this.form.value, roles: [...REGISTERED_USER_ROLES] };
 
-    this.http.post(`${environment.AUTH_SERVICE_URL}/auth/register`, dto).subscribe({
+    this.authApi.register(dto).subscribe({
       next: () => {
         this.showSuccessMessage(`User '${dto.username}' registered successfully!`);
         this.announceRegistration(dto.username, Number(dto.accountId));

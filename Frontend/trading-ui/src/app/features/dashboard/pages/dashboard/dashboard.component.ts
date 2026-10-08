@@ -8,7 +8,7 @@ import { CoreAuthService } from '../../../../core/auth/core-auth.service';
 import { BlotterStore } from '../../../blotter/blotter.store';
 import { DashboardService, NetWorthPoint } from '../../services/dashboard.service';
 import { OrderStatus } from '../../../../api/generated/trade';
-import { PortfolioService, PortfolioSummary } from '../../../../api/generated/porfolio';
+import { PortfolioService, PortfolioSummary } from '../../../../api/generated/portfolio';
 import { PositionResponse } from '../../../../api/generated/trade';
 import { computed } from '@angular/core';
 import { formatMoney } from '../../../../shared/currency';

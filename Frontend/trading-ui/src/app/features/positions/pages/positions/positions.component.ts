@@ -8,7 +8,7 @@ import {
   PortfolioService,
   PortfolioSummary,
   PricedPosition,
-} from '../../../../api/generated/porfolio';
+} from '../../../../api/generated/portfolio';
 import { CoreAuthService } from '../../../../core/auth/core-auth.service';
 import { StatementPdfService, fileDate } from '../../../../shared/statement-pdf.service';
 import { NotificationService } from '../../../../core/notifications/notification.service';

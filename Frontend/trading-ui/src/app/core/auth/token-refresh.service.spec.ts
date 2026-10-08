@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { TestBed } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { HttpInterceptorFn, provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TokenRefreshService } from './token-refresh.service';
 import { CoreAuthService } from './core-auth.service';
@@ -17,10 +17,18 @@ describe('TokenRefreshService', () => {
   let service: TokenRefreshService;
   let auth: CoreAuthService;
   let http: HttpTestingController;
+  let interceptedUrls: string[];
 
   beforeEach(() => {
     sessionStorage.clear();
-    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
+    interceptedUrls = [];
+    const spy: HttpInterceptorFn = (req, next) => {
+      interceptedUrls.push(req.url);
+      return next(req);
+    };
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(withInterceptors([spy])), provideHttpClientTesting()],
+    });
     service = TestBed.inject(TokenRefreshService);
     auth = TestBed.inject(CoreAuthService);
     http = TestBed.inject(HttpTestingController);
@@ -58,6 +66,13 @@ describe('TokenRefreshService', () => {
     expect(sessionStorage.getItem('refresh_token')).toBe('refresh-2');
     expect(auth.isAuthenticated()).toBe(true);
     expect(auth.currentUser()?.username).toBe('rkumar');
+  });
+
+  it('sends the refresh call straight to the backend, around the interceptors', () => {
+    service.refresh().subscribe();
+    http.expectOne(refreshUrl).flush({ accessToken: 'A', refreshToken: 'refresh-2', tokenType: 'Bearer', expiresIn: 900 });
+
+    expect(interceptedUrls).toEqual([]);
   });
 
   it('shares one request between concurrent callers, so the rotated token is never replayed', () => {

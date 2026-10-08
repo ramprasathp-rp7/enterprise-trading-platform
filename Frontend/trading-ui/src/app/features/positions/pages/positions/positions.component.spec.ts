@@ -7,7 +7,7 @@ import { NotificationService } from '../../../../core/notifications/notification
 import { of, throwError } from 'rxjs';
 import { PositionsComponent } from './positions.component';
 import { AccountsService } from '../../../../api/generated/trade';
-import { PortfolioService, PortfolioSummary, PricedPosition } from '../../../../api/generated/porfolio';
+import { PortfolioService, PortfolioSummary, PricedPosition } from '../../../../api/generated/portfolio';
 import { CoreAuthService } from '../../../../core/auth/core-auth.service';
 import { StatementPdfService } from '../../../../shared/statement-pdf.service';
 import { MarketDataService } from '../../../../api/generated/market-data';

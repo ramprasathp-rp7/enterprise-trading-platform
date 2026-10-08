@@ -1,6 +1,6 @@
 {
   "inputSpec": "./contracts/portfolio-api.yaml",
-  "outputDir": "./src/app/api/generated/porfolio",
+  "outputDir": "./src/app/api/generated/portfolio",
   "generatorName": "typescript-angular",
   "skipValidateSpec": true,
   "validateSpec": false,

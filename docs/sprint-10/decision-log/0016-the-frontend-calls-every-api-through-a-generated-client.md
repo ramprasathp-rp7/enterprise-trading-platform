@@ -44,7 +44,8 @@ client were deleted. The market-data contract is the one the UI uses for quotes.
 - Changing a contract means running the matching `npm run generate:<name>` and committing the regenerated
   client, so API changes produce large diffs under `src/app/api/generated/`.
 - Regenerating needs `@openapitools/openapi-generator-cli`, which runs the generator JAR and so needs Java.
-- Two places still call `HttpClient` directly: `token-refresh.service.ts` (`/auth/refresh`) and the admin
-  registration page (`/auth/register`). Moving them is follow-up work.
-- The portfolio client's output folder is spelled `porfolio` (`openapi/portfolio-api-config.json`). Renaming it
-  means touching every import, so it has been left alone.
+- No feature code calls `HttpClient` for a contract endpoint any more. The admin registration page uses the
+  generated `AuthService.register`. `TokenRefreshService` uses `AuthService.refresh`, but builds the client on
+  `HttpBackend` instead of injecting it, so `/auth/refresh` still skips the interceptors. An injected client
+  would send the refresh back through `AuthInterceptor`, which depends on `TokenRefreshService`. A test checks
+  that no interceptor sees the refresh call.

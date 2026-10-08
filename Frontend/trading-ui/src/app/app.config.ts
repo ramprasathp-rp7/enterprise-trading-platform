@@ -14,7 +14,7 @@ import { provideApi as providePreferencesApi } from './api/generated/preferences
 import { provideApi as provideMarketDataApi } from './api/generated/market-data/provide-api';
 import { provideApi as provideOrderNotificationsApi } from './api/generated/order-notifications/provide-api';
 import { provideApi as provideAdviceApi } from './api/generated/advice/provide-api';
-import { provideApi as providePortfolioApi } from './api/generated/porfolio/provide-api';
+import { provideApi as providePortfolioApi } from './api/generated/portfolio/provide-api';
 import { provideApi as provideAccountHistoryApi } from './api/generated/account-history/provide-api';
 import { provideApi as provideCandleApi } from './api/generated/candle/provide-api';
 import { provideApi as provideStrategyApi } from './api/generated/strategy/provide-api';

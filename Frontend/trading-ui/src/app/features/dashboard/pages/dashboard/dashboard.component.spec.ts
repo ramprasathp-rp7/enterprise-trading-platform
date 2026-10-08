@@ -9,7 +9,7 @@ import { BlotterStore } from '../../../blotter/blotter.store';
 import { CoreAuthService } from '../../../../core/auth/core-auth.service';
 import { AccountsService } from '../../../../api/generated/trade';
 import { WatchlistsService } from '../../../../api/generated/watchlist';
-import { PortfolioService, PortfolioSummary } from '../../../../api/generated/porfolio';
+import { PortfolioService, PortfolioSummary } from '../../../../api/generated/portfolio';
 
 describe('DashboardComponent', () => {
   let fixture: ComponentFixture<DashboardComponent>;

@@ -4,17 +4,18 @@ import { Observable, throwError } from 'rxjs';
 import { finalize, map, shareReplay, tap } from 'rxjs/operators';
 import { CoreAuthService } from './core-auth.service';
 import { environment } from '../config/environment';
-import { RefreshRequest, TokenResponse } from '../../api/generated/auth';
+import { AuthService, BASE_PATH, Configuration } from '../../api/generated/auth';
 
 /** Refresh this many seconds before the access token actually expires. */
 const EXPIRY_LEEWAY_SECONDS = 30;
 
 /**
  * Exchanges the stored refresh token for a new access/refresh token pair
- * via POST /auth/refresh.
+ * via POST /auth/refresh, through the generated Auth API client
+ * (contracts/auth-api.yaml).
  *
- * - Uses HttpBackend, so the call bypasses the interceptors (no recursion,
- *   no circular DI with AuthInterceptor).
+ * - The client is built on HttpBackend, so the call bypasses the interceptors
+ *   (no recursion, no circular DI with AuthInterceptor).
  * - Single flight: concurrent callers share one request. The auth service
  *   rotates refresh tokens and revokes the whole session if a used token is
  *   replayed, so two parallel refreshes would sign the user out.
@@ -22,7 +23,16 @@ const EXPIRY_LEEWAY_SECONDS = 30;
 @Injectable({ providedIn: 'root' })
 export class TokenRefreshService {
   private readonly authService = inject(CoreAuthService);
-  private readonly http = new HttpClient(inject(HttpBackend));
+  /**
+   * The generated Auth client on a backend-only HttpClient. It is constructed here, not injected,
+   * because an injected one would send /auth/refresh back through AuthInterceptor, which itself
+   * depends on this service.
+   */
+  private readonly authApi = new AuthService(
+    new HttpClient(inject(HttpBackend)),
+    inject(BASE_PATH, { optional: true }) ?? environment.AUTH_SERVICE_URL,
+    inject(Configuration, { optional: true }) ?? undefined,
+  );
 
   private inFlight: Observable<string> | null = null;
 
@@ -54,8 +64,7 @@ export class TokenRefreshService {
       return throwError(() => new Error('No refresh token available'));
     }
 
-    const body: RefreshRequest = { refreshToken };
-    this.inFlight = this.http.post<TokenResponse>(`${environment.AUTH_SERVICE_URL}/auth/refresh`, body).pipe(
+    this.inFlight = this.authApi.refresh({ refreshToken }).pipe(
       tap({
         next: (tokens) =>
           this.authService.setTokens(tokens.accessToken, tokens.refreshToken, this.authService.currentUser(), tokens.expiresIn),
