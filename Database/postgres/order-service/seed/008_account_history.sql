@@ -53,7 +53,7 @@ CROSS JOIN (VALUES
 ) AS v(snapshot_date, cash_balance, networth)
 WHERE a.account_id = 'ACC-000005';
 
--- ACC-000006 (Arjun Rao) - ACTIVE - cash 8000.00; 1000 FX:EURUSD (cost 925.00)
+-- ACC-000006 (Arjun Rao) - ACTIVE - cash 8000.00; 1000 FX:EURUSD (cost 930.00)
 INSERT INTO account_history (account_id, snapshot_date, cash_balance, networth, created_on)
 SELECT a.id, v.snapshot_date::timestamptz, v.cash_balance, v.networth, now()
 FROM accounts a

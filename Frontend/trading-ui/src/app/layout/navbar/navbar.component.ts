@@ -53,6 +53,11 @@ export class NavbarComponent {
   }
 
   /** Instrument search leads to the order ticket, a customer-only page */
+  /** Customers and admins each have their own Preferences page */
+  preferencesLink(): string {
+    return this.authService.isAdmin() ? '/admin/preferences' : '/settings';
+  }
+
   canSearch(): boolean {
     return !this.authService.isAdmin();
   }

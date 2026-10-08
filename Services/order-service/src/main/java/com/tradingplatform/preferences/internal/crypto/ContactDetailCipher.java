@@ -17,9 +17,10 @@ import java.util.Base64;
 /**
  * Encrypts contact details at rest with AES-256-GCM.
  *
- * Each value gets a fresh 12-byte IV, stored in front of the ciphertext. The account id is bound
- * as additional authenticated data, so a ciphertext copied onto another account's row fails to
- * decrypt rather than leaking one customer's address to another's notifications.
+ * Each value gets a fresh 12-byte IV, stored in front of the ciphertext. The account id (or, for an
+ * admin, the admin's user id) is bound as additional authenticated data, so a ciphertext copied
+ * onto another row fails to decrypt rather than leaking one person's address to another's
+ * notifications.
  *
  * The key is PREFERENCES_CONTACT_KEY (base64 of 32 bytes). When it is unset a published dev key is
  * used and a warning is logged at start-up, the same convention as the JWT dev secret.
@@ -60,6 +61,25 @@ public class ContactDetailCipher {
 
     /** Returns iv || ciphertext+tag, or null for a null value. */
     public byte[] encrypt(long accountId, String plaintext) {
+        return encrypt(aad(accountId), plaintext);
+    }
+
+    /** Reverses {@link #encrypt(long, String)}; null in, null out. */
+    public String decrypt(long accountId, byte[] blob) {
+        return decrypt(aad(accountId), blob);
+    }
+
+    /** As {@link #encrypt(long, String)}, for an admin's row in admin_preferences. */
+    public byte[] encryptForAdmin(String adminUserId, String plaintext) {
+        return encrypt(adminAad(adminUserId), plaintext);
+    }
+
+    /** Reverses {@link #encryptForAdmin}; null in, null out. */
+    public String decryptForAdmin(String adminUserId, byte[] blob) {
+        return decrypt(adminAad(adminUserId), blob);
+    }
+
+    private byte[] encrypt(byte[] aad, String plaintext) {
         if (plaintext == null) {
             return null;
         }
@@ -68,7 +88,7 @@ public class ContactDetailCipher {
             random.nextBytes(iv);
             Cipher cipher = Cipher.getInstance(TRANSFORMATION);
             cipher.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(TAG_BITS, iv));
-            cipher.updateAAD(aad(accountId));
+            cipher.updateAAD(aad);
             byte[] ciphertext = cipher.doFinal(plaintext.getBytes(StandardCharsets.UTF_8));
             return ByteBuffer.allocate(IV_BYTES + ciphertext.length).put(iv).put(ciphertext).array();
         } catch (GeneralSecurityException e) {
@@ -76,8 +96,7 @@ public class ContactDetailCipher {
         }
     }
 
-    /** Reverses {@link #encrypt}; null in, null out. */
-    public String decrypt(long accountId, byte[] blob) {
+    private String decrypt(byte[] aad, byte[] blob) {
         if (blob == null) {
             return null;
         }
@@ -87,7 +106,7 @@ public class ContactDetailCipher {
         try {
             Cipher cipher = Cipher.getInstance(TRANSFORMATION);
             cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(TAG_BITS, blob, 0, IV_BYTES));
-            cipher.updateAAD(aad(accountId));
+            cipher.updateAAD(aad);
             byte[] plaintext = cipher.doFinal(blob, IV_BYTES, blob.length - IV_BYTES);
             return new String(plaintext, StandardCharsets.UTF_8);
         } catch (GeneralSecurityException e) {
@@ -97,6 +116,10 @@ public class ContactDetailCipher {
 
     private static byte[] aad(long accountId) {
         return ("customer_preferences:" + accountId).getBytes(StandardCharsets.UTF_8);
+    }
+
+    private static byte[] adminAad(String adminUserId) {
+        return ("admin_preferences:" + adminUserId).getBytes(StandardCharsets.UTF_8);
     }
 
     /** Wrong key, tampered row, or a row moved between accounts. Never carries the value. */

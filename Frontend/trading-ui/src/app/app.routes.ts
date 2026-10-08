@@ -173,6 +173,14 @@ export const routes: Routes = [
         data: { title: 'Fee Management' },
       },
       {
+        path: 'preferences',
+        loadComponent: () =>
+          import('./features/settings/pages/settings/settings.component').then(
+            (m) => m.SettingsComponent
+          ),
+        data: { title: 'Preferences' },
+      },
+      {
         path: '',
         redirectTo: 'analytics',
         pathMatch: 'full',

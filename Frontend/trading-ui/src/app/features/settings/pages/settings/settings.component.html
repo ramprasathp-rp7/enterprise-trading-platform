@@ -3,9 +3,9 @@
   <div class="settings-column">
     <header class="settings-heading">
       <span class="heading-icon" aria-hidden="true"><i class="fas fa-sliders"></i></span>
-      <p class="page-eyebrow">Account</p>
+      <p class="page-eyebrow">{{ isAdmin ? 'Admin' : 'Account' }}</p>
       <h1 class="page-title">Preferences</h1>
-      <p class="page-subtitle">Choose how we tell you about filled, rejected and cancelled orders and your price alerts.</p>
+      <p class="page-subtitle" data-testid="preferences-subtitle">{{ subtitle }}</p>
     </header>
 
     @if (feedback(); as f) {

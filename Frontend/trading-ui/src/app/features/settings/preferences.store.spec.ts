@@ -4,7 +4,12 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { signal } from '@angular/core';
 import { firstValueFrom, of, throwError } from 'rxjs';
 import { PreferencesStore } from './preferences.store';
-import { PreferencesRequest, PreferencesResponse, PreferencesService } from '../../api/generated/preferences';
+import {
+  AdminPreferencesService,
+  PreferencesRequest,
+  PreferencesResponse,
+  PreferencesService,
+} from '../../api/generated/preferences';
 import { CoreAuthService } from '../../core/auth/core-auth.service';
 
 const defaults = (): PreferencesResponse => ({
@@ -16,7 +21,9 @@ const defaults = (): PreferencesResponse => ({
 
 describe('PreferencesStore', () => {
   let api: Record<string, ReturnType<typeof vi.fn>>;
-  let user: ReturnType<typeof signal<{ accountId: number } | null>>;
+  let adminApi: Record<string, ReturnType<typeof vi.fn>>;
+  let user: ReturnType<typeof signal<{ id: string; accountId: number } | null>>;
+  let admin: boolean;
   let store: PreferencesStore;
 
   beforeEach(() => {
@@ -27,11 +34,22 @@ describe('PreferencesStore', () => {
       ),
       resetPreferences: vi.fn(() => of(null)),
     };
-    user = signal<{ accountId: number } | null>({ accountId: 7 });
+    adminApi = {
+      getAdminPreferences: vi.fn(() =>
+        of({ alertChannels: [{ channel: 'IN_APP', contactDetail: null }], configured: false, updatedAt: null }),
+      ),
+      updateAdminPreferences: vi.fn((body: PreferencesRequest) =>
+        of({ alertChannels: body.alertChannels, configured: true, updatedAt: '2026-10-06T09:00:00Z' }),
+      ),
+      resetAdminPreferences: vi.fn(() => of(null)),
+    };
+    user = signal<{ id: string; accountId: number } | null>({ id: 'u-7', accountId: 7 });
+    admin = false;
     TestBed.configureTestingModule({
       providers: [
         { provide: PreferencesService, useValue: api },
-        { provide: CoreAuthService, useValue: { currentUser: user } },
+        { provide: AdminPreferencesService, useValue: adminApi },
+        { provide: CoreAuthService, useValue: { currentUser: user, isAdmin: () => admin } },
       ],
     });
     store = TestBed.inject(PreferencesStore);
@@ -121,9 +139,58 @@ describe('PreferencesStore', () => {
     TestBed.tick();
     expect(store.preferences()).not.toBeNull();
 
-    user.set({ accountId: 8 });
+    user.set({ id: 'u-8', accountId: 8 });
     TestBed.tick();
 
     expect(store.preferences()).toBeNull();
+  });
+
+  describe('for an admin', () => {
+    beforeEach(() => {
+      admin = true;
+      user.set({ id: 'admin-1', accountId: 0 });
+    });
+
+    it('loads, saves and resets on the admin routes, never the account routes', async () => {
+      store.load();
+      expect(adminApi['getAdminPreferences']).toHaveBeenCalled();
+      expect(store.preferences()?.configured).toBe(false);
+
+      const saved = await firstValueFrom(
+        store.save([
+          { channel: 'EMAIL', contactDetail: ' ops@example.com ' },
+          { channel: 'IN_APP', contactDetail: 'ignored' },
+        ]),
+      );
+      expect(adminApi['updateAdminPreferences']).toHaveBeenCalledWith({
+        alertChannels: [
+          { channel: 'EMAIL', contactDetail: 'ops@example.com' },
+          { channel: 'IN_APP', contactDetail: null },
+        ],
+      });
+      expect(saved.configured).toBe(true);
+
+      await firstValueFrom(store.resetToDefault());
+      expect(adminApi['resetAdminPreferences']).toHaveBeenCalled();
+
+      expect(api['getPreferences']).not.toHaveBeenCalled();
+      expect(api['updatePreferences']).not.toHaveBeenCalled();
+      expect(api['resetPreferences']).not.toHaveBeenCalled();
+    });
+
+    it('works even though the admin holds account 0', () => {
+      store.load();
+      expect(adminApi['getAdminPreferences']).toHaveBeenCalledTimes(1);
+    });
+
+    it('surfaces the server message on failure', async () => {
+      adminApi['updateAdminPreferences'].mockReturnValueOnce(
+        throwError(() => new HttpErrorResponse({ status: 422, error: { message: 'SMS requires a telephone number' } })),
+      );
+
+      await expect(firstValueFrom(store.save([{ channel: 'SMS', contactDetail: '' }]))).rejects.toThrow(
+        'SMS requires a telephone number',
+      );
+    });
   });
 });
