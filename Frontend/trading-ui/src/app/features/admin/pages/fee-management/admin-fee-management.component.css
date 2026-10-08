@@ -29,11 +29,14 @@
 
 .fee-table tr.editing td {
   background: var(--brand-soft);
-  vertical-align: top;
+  /* Keep the asset name, inputs and buttons on one line; don't clip the input focus ring */
+  vertical-align: middle;
+  overflow: visible;
 }
 
 .row-actions {
   display: inline-flex;
+  align-items: center;
   gap: 8px;
 }
 
@@ -45,6 +48,8 @@
 }
 
 .fee-input .form-input {
+  /* Same height as the Save / Cancel buttons so the row lines up */
+  height: var(--control-h-sm);
   width: 120px;
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -57,6 +62,8 @@
 
 .fee-table .field-error {
   text-align: center;
+  margin-top: 4px;
+  white-space: normal;
 }
 
 /* Centre the fee columns so the three columns read as evenly spaced
