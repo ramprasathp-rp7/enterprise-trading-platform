@@ -95,7 +95,8 @@ public class OrderService {
                 newOrder.getPrice(),
                 OrderStatus.NEW,  // Order starts in NEW status
                 newOrder.getIdempotencyKey(),
-                newOrder.getPlacementFxRate()
+                newOrder.getPlacementFxRate(),
+                executionMode != ExecutionMode.SYNC  // ASYNC: ORDER_PLACED pending until Kafka acknowledges it
             );
         } catch (DuplicateKeyException ex) {
             // Rule 8 violation: idempotency key already used
@@ -155,7 +156,8 @@ public class OrderService {
             // Sprint 7: ASYNC execution mode (default) - publish to Kafka for async settlement
             // Register post-commit callback to publish ORDER_PLACED event to Kafka.
             // Publishing after commit ensures the order is persisted before notifying the executor.
-            // If Kafka publish fails, the order remains in the database and can be replayed.
+            // If Kafka publish fails, the order remains NEW with event_pending set and
+            // OrderReplayScheduler republishes it once the broker is back.
             TransactionSynchronizationManager.registerSynchronization(
                 new TransactionSynchronization() {
                     @Override
@@ -222,8 +224,9 @@ public class OrderService {
             throw new IllegalStateException("Instrument not found for order: " + cancelledOrder.getInstrumentId());
         }
 
-        // Record the outcome on trade-events (ORDER_CANCELLED); the executor will skip this order
-        orderPublisher.publishOrderCancelled(id, cancelledOrder, instrument);
+        // Record the outcome on trade-events (ORDER_CANCELLED), stamped with the stored cancel time; the
+        // executor will skip this order. If Kafka is down, OrderReplayScheduler republishes it later.
+        orderPublisher.publishOrderCancelled(id, cancelledOrder, instrument, cancelledOrder.getCancelledOn());
 
         // Build and return OrderResponse from entities
         return buildOrderResponse(cancelledOrder, instrument);

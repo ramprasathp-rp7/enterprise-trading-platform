@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
@@ -91,6 +92,8 @@ class OrderServiceSyncModeTest {
         verify(settlement).settle(order, new BigDecimal("50.00"), BigDecimal.ONE);
         verify(orderMapper, never()).rejectOrder(any(), anyString());
         verify(publisher, never()).publishOrderPlaced(any(), any());
+        // SYNC orders publish nothing, so no event is left pending for the replay jobs
+        verify(orderMapper).insertOrder(any(), anyLong(), anyLong(), any(), anyInt(), any(), any(), any(), any(), eq(false));
         assertEquals(OrderStatus.FILLED, response.status());
         assertEquals("Order executed", response.message());
     }

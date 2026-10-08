@@ -19,8 +19,10 @@ import static org.mockito.Mockito.when;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.UUID;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -74,7 +76,10 @@ class OrderPlacedListenerBranchTest {
         ack = mock(Acknowledgment.class);
         objectMapper = new ObjectMapper().registerModule(new JavaTimeModule())
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-        listener = new OrderPlacedListener(executorService, instrumentMapper, orderMapper, deadLetters::add, objectMapper);
+        listener = new OrderPlacedListener(executorService, instrumentMapper, orderMapper, record -> {
+            deadLetters.add(record);
+            return CompletableFuture.completedFuture(null);
+        }, objectMapper);
 
         when(orderMapper.findOrderById(orderUuid)).thenReturn(
             new Order(orderUuid, 42L, 100L, OrderSide.BUY, 10, new BigDecimal("100.00"), "key-1"));
@@ -265,7 +270,7 @@ class OrderPlacedListenerBranchTest {
         @SuppressWarnings("unchecked")
         KafkaTemplate<String, String> template = mock(KafkaTemplate.class);
         OrderPlacedListener springListener = new OrderPlacedListener(
-            executorService, instrumentMapper, orderMapper, template, objectMapper);
+            executorService, instrumentMapper, orderMapper, template, objectMapper, 1000L, 1000L);
 
         springListener.onOrderPlaced(new ConsumerRecord<>("orders", 0, 5L, null, "not json"), null);
 
@@ -275,5 +280,35 @@ class OrderPlacedListenerBranchTest {
         assertEquals("orders.DLT", captor.getValue().topic());
         assertNull(captor.getValue().key());
         assertNotNull(captor.getValue().headers().lastHeader("failure-reason"));
+    }
+
+    @Test
+    void deadLetterIsAcknowledgedOnlyOnceKafkaHasIt() throws Exception {
+        listener.onOrderPlaced(new ConsumerRecord<>("orders", 0, 1L, "k", "{oops"), ack);
+
+        verify(ack).acknowledge();
+        verify(ack, never()).nack(any(Duration.class));
+    }
+
+    @Test
+    void failedDeadLetterSendIsNackedForRedeliveryNotAcknowledged() throws Exception {
+        OrderPlacedListener failing = new OrderPlacedListener(executorService, instrumentMapper, orderMapper,
+            record -> CompletableFuture.failedFuture(new RuntimeException("broker down")), objectMapper, 1000L, 2500L);
+
+        failing.onOrderPlaced(new ConsumerRecord<>("orders", 0, 1L, "k", "{oops"), ack);
+
+        verify(ack, never()).acknowledge();
+        verify(ack).nack(Duration.ofMillis(2500L));
+    }
+
+    @Test
+    void deadLetterSendThatTimesOutIsNacked() throws Exception {
+        OrderPlacedListener slow = new OrderPlacedListener(executorService, instrumentMapper, orderMapper,
+            record -> new CompletableFuture<>(), objectMapper, 10L, 2500L);
+
+        slow.onOrderPlaced(record(payload(orderId, "AAPL", "BUY", null)), ack);
+
+        verify(ack, never()).acknowledge();
+        verify(ack).nack(Duration.ofMillis(2500L));
     }
 }
