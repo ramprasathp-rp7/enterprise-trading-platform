@@ -12,6 +12,7 @@ import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
 import com.tradingplatform.domain.Order;
+import com.tradingplatform.domain.PendingOutcome;
 import com.tradingplatform.enums.OrderSide;
 import com.tradingplatform.enums.OrderStatus;
 
@@ -74,7 +75,8 @@ public interface OrderMapper {
     @Select("SELECT status FROM orders WHERE id = #{id} FOR UPDATE")
     com.tradingplatform.enums.OrderStatus findOrderStatusForUpdate(@Param("id") UUID id);
 
-    @Update("UPDATE orders SET status = 'CANCELLED' WHERE id = #{id} AND status = 'NEW'")
+    @Update("UPDATE orders SET status = 'CANCELLED', cancelled_on = CURRENT_TIMESTAMP, event_pending = true " +
+            "WHERE id = #{id} AND status = 'NEW'")
     int cancelOrderIfNew(@Param("id") UUID id);
 
     /**
@@ -84,6 +86,37 @@ public interface OrderMapper {
     @Update("UPDATE orders SET fill_fx_rate = #{fillFxRate}, realised_pnl = #{realisedPnl} WHERE id = #{id}")
     int recordFill(@Param("id") UUID id, @Param("fillFxRate") BigDecimal fillFxRate, @Param("realisedPnl") BigDecimal realisedPnl);
 
-    @Update("UPDATE orders SET status = #{status}, rejected_reason = #{rejectedReason}, executed_price = #{executedPrice}, fee = COALESCE(#{fee}, 0), executed_on = #{executedOn} WHERE id = #{id} AND status = 'NEW'")
+    /**
+     * Settles a NEW order as FILLED or REJECTED and leaves its trade event pending (event_pending)
+     * until Kafka acknowledges it; see {@link #markEventPublished}.
+     */
+    @Update("UPDATE orders SET status = #{status}, rejected_reason = #{rejectedReason}, executed_price = #{executedPrice}, fee = COALESCE(#{fee}, 0), executed_on = #{executedOn}, event_pending = true WHERE id = #{id} AND status = 'NEW'")
     int updateOrderStatus(@Param("id") UUID id, @Param("status") com.tradingplatform.enums.OrderStatus status, @Param("rejectedReason") String rejectedReason, @Param("executedPrice") BigDecimal executedPrice, @Param("fee") BigDecimal fee, @Param("executedOn") java.time.Instant executedOn);
+
+    /**
+     * Records that Kafka acknowledged the event for the given status. Conditional on the status, so a
+     * late acknowledgement of an older event never clears a newer one.
+     */
+    @Update("UPDATE orders SET event_pending = false WHERE id = #{id} AND status = #{status} AND event_pending")
+    int markEventPublished(@Param("id") UUID id, @Param("status") OrderStatus status);
+
+    /**
+     * FILLED / REJECTED orders whose trade event Kafka has not acknowledged, last updated before
+     * olderThan, oldest first. Used by OutcomeReplayScheduler.
+     */
+    @ConstructorArgs({
+        @Arg(column = "id", javaType = java.util.UUID.class, id = true),
+        @Arg(column = "account_id", javaType = long.class),
+        @Arg(column = "status", javaType = OrderStatus.class),
+        @Arg(column = "price", javaType = BigDecimal.class),
+        @Arg(column = "executed_price", javaType = BigDecimal.class),
+        @Arg(column = "fee", javaType = BigDecimal.class),
+        @Arg(column = "rejected_reason", javaType = String.class),
+        @Arg(column = "executed_on", javaType = java.time.Instant.class),
+        @Arg(column = "fill_fx_rate", javaType = BigDecimal.class)
+    })
+    @Select("SELECT id, account_id, status, price, executed_price, fee, rejected_reason, executed_on, fill_fx_rate " +
+            "FROM orders WHERE status IN ('FILLED', 'REJECTED') AND event_pending AND updated_on < #{olderThan} " +
+            "ORDER BY updated_on LIMIT #{limit}")
+    List<PendingOutcome> findPendingOutcomes(@Param("olderThan") java.time.Instant olderThan, @Param("limit") int limit);
 }

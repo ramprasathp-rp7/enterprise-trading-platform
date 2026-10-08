@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.util.Map;
+import java.util.List;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -59,5 +60,15 @@ class KafkaListenerConfigTest {
         assertNotNull(config.tradeEventsKafkaTemplate().getProducerFactory());
         assertNotNull(config.deadLetterKafkaTemplate().getProducerFactory());
         assertNotNull(config.kafkaTemplate().getProducerFactory());
+    }
+
+    @Test
+    void producersFailFastWhenTheBrokerIsDown() {
+        for (Map<String, Object> props : List.of(config.tradeEventsProducerFactory().getConfigurationProperties(),
+                                                 config.deadLetterProducerFactory().getConfigurationProperties())) {
+            assertEquals(3000L, props.get(ProducerConfig.MAX_BLOCK_MS_CONFIG));
+            assertEquals(10000, props.get(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG));
+            assertEquals(30000, props.get(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG));
+        }
     }
 }

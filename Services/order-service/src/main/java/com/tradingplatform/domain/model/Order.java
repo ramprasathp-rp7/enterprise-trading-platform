@@ -31,6 +31,8 @@ public final class Order {
     private BigDecimal fillFxRate;
     /** Realised P&L in account currency, booked when a SELL fills. */
     private BigDecimal realisedPnl;
+    /** When the customer cancelled the order; carried by ORDER_CANCELLED. */
+    private Instant cancelledOn;
 
     public Order(Long accountId, Long instrumentId, OrderSide side,
                  int quantity, BigDecimal price, String idempotencyKey) {
@@ -144,6 +146,14 @@ public final class Order {
 
     public void setRealisedPnl(BigDecimal realisedPnl) {
         this.realisedPnl = realisedPnl;
+    }
+
+    public Instant getCancelledOn() {
+        return cancelledOn;
+    }
+
+    public void setCancelledOn(Instant cancelledOn) {
+        this.cancelledOn = cancelledOn;
     }
 
     /**

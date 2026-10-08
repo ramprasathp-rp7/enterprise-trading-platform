@@ -10,8 +10,8 @@ INSERT INTO orders (account_id, instrument_id, side, quantity, price, executed_p
 SELECT a.id, i.id, 'BUY', 40, 1580.25, 1580.25, 'FILLED', 'SEED-0001-C', TIMESTAMP '2026-02-05 10:00:00+00', TIMESTAMP '2026-02-05 10:00:03+00', TIMESTAMP '2026-02-05 10:00:03+00', NULL
 FROM accounts a, instruments i WHERE a.account_id = 'ACC-000001' AND i.symbol = 'INFY.NS';
 
-INSERT INTO orders (account_id, instrument_id, side, quantity, price, executed_price, status, idempotency_key, created_on, updated_on, executed_on, rejected_reason)
-SELECT a.id, i.id, 'BUY', 10, 190.00, NULL, 'CANCELLED', 'SEED-0001-D', TIMESTAMP '2026-03-10 16:20:00+00', TIMESTAMP '2026-03-10 16:45:00+00', NULL, NULL
+INSERT INTO orders (account_id, instrument_id, side, quantity, price, executed_price, status, idempotency_key, created_on, updated_on, executed_on, rejected_reason, cancelled_on)
+SELECT a.id, i.id, 'BUY', 10, 190.00, NULL, 'CANCELLED', 'SEED-0001-D', TIMESTAMP '2026-03-10 16:20:00+00', TIMESTAMP '2026-03-10 16:45:00+00', NULL, NULL, TIMESTAMP '2026-03-10 16:45:00+00'
 FROM accounts a, instruments i WHERE a.account_id = 'ACC-000001' AND i.symbol = 'AAPL';
 
 INSERT INTO orders (account_id, instrument_id, side, quantity, price, executed_price, status, idempotency_key, created_on, updated_on, executed_on, rejected_reason)
@@ -26,8 +26,8 @@ INSERT INTO orders (account_id, instrument_id, side, quantity, price, executed_p
 SELECT a.id, i.id, 'SELL', 20, 185.00, 185.00, 'FILLED', 'SEED-0004-B', TIMESTAMP '2026-04-02 11:30:00+00', TIMESTAMP '2026-04-02 11:30:02+00', TIMESTAMP '2026-04-02 11:30:02+00', NULL
 FROM accounts a, instruments i WHERE a.account_id = 'ACC-000004' AND i.symbol = 'AAPL';
 
-INSERT INTO orders (account_id, instrument_id, side, quantity, price, executed_price, status, idempotency_key, created_on, updated_on, executed_on, rejected_reason)
-SELECT a.id, i.id, 'BUY', 10, 140.00, NULL, 'CANCELLED', 'SEED-0004-C', TIMESTAMP '2026-05-01 15:00:00+00', TIMESTAMP '2026-05-01 15:10:00+00', NULL, NULL
+INSERT INTO orders (account_id, instrument_id, side, quantity, price, executed_price, status, idempotency_key, created_on, updated_on, executed_on, rejected_reason, cancelled_on)
+SELECT a.id, i.id, 'BUY', 10, 140.00, NULL, 'CANCELLED', 'SEED-0004-C', TIMESTAMP '2026-05-01 15:00:00+00', TIMESTAMP '2026-05-01 15:10:00+00', NULL, NULL, TIMESTAMP '2026-05-01 15:10:00+00'
 FROM accounts a, instruments i WHERE a.account_id = 'ACC-000004' AND i.symbol = 'TATASTEEL.BO';
 
 INSERT INTO orders (account_id, instrument_id, side, quantity, price, executed_price, status, idempotency_key, created_on, updated_on, executed_on, rejected_reason)
