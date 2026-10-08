@@ -8,14 +8,62 @@
 }
 
 .fee-table {
-  min-width: 560px;
+  min-width: 680px;
 }
 
-/* Three evenly spaced columns */
+/* Three evenly spaced data columns, plus a fixed actions column */
 .fee-table col.col-asset,
 .fee-table col.col-flat-fee,
 .fee-table col.col-percentage-fee {
-  width: calc(100% / 3);
+  width: calc((100% - 200px) / 3);
+}
+
+.fee-table col.col-actions {
+  width: 200px;
+}
+
+.fee-table th.actions,
+.fee-table td.actions {
+  text-align: right;
+}
+
+.fee-table tr.editing td {
+  background: var(--brand-soft);
+  /* Keep the asset name, inputs and buttons on one line; don't clip the input focus ring */
+  vertical-align: middle;
+  overflow: visible;
+}
+
+.row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Number input with a $ or % affix, centred in its column */
+.fee-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fee-input .form-input {
+  /* Same height as the Save / Cancel buttons so the row lines up */
+  height: var(--control-h-sm);
+  width: 120px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.fee-input-affix {
+  font-weight: 600;
+  color: var(--ink-500);
+}
+
+.fee-table .field-error {
+  text-align: center;
+  margin-top: 4px;
+  white-space: normal;
 }
 
 /* Centre the fee columns so the three columns read as evenly spaced

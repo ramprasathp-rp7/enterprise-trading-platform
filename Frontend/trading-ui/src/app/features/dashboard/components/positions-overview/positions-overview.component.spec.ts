@@ -98,6 +98,31 @@ describe('PositionsOverviewComponent', () => {
     expect(fixture.nativeElement.querySelector('[data-testid="holdings-empty"]')).not.toBeNull();
   });
 
+  it('drops fully sold positions from the holdings and from what it hands the dashboard', async () => {
+    const withClosed = [
+      ...positions.slice(0, 2),
+      { symbol: 'FX:EURUSD', quantity: 0, averageCost: 0.925 } as PositionResponse,
+      { symbol: 'TSLA', quantity: 0, averageCost: 337 } as PositionResponse,
+    ];
+    accounts.getPositions.mockReturnValue(of(withClosed));
+    const emitted: PositionResponse[][] = [];
+    await TestBed.configureTestingModule({
+      imports: [PositionsOverviewComponent],
+      providers: [provideRouter([]), { provide: AccountsService, useValue: accounts }],
+    }).compileComponents();
+    fixture = TestBed.createComponent(PositionsOverviewComponent);
+    component = fixture.componentInstance;
+    component.accountId = 7;
+    component.positionsLoaded.subscribe((p) => emitted.push(p));
+    fixture.detectChanges();
+
+    expect(component.rows().map((r) => r.symbol)).toEqual(['AAPL', 'MSFT']);
+    expect(component.positionsCount()).toBe(2);
+    expect(emitted[0].map((p) => p.symbol)).toEqual(['MSFT', 'AAPL']);
+    expect(fixture.nativeElement.querySelector('[data-testid="holding-TSLA"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="holding-FX:EURUSD"]')).toBeNull();
+  });
+
   it('picks the largest holding and lists the rest after it', async () => {
     await create();
 

@@ -43,7 +43,7 @@ SELECT a.id, i.id, 'SELL', 20, 2500.00, 2500.00, 'FILLED', 'SEED-0005-C', TIMEST
 FROM accounts a, instruments i WHERE a.account_id = 'ACC-000005' AND i.symbol = 'RELIANCE.NS';
 
 INSERT INTO orders (account_id, instrument_id, side, quantity, price, executed_price, status, idempotency_key, created_on, updated_on, executed_on, rejected_reason)
-SELECT a.id, i.id, 'BUY', 1000, 0.9250, 0.9250, 'FILLED', 'SEED-0006-A', TIMESTAMP '2026-03-10 08:05:00+00', TIMESTAMP '2026-03-10 08:05:01+00', TIMESTAMP '2026-03-10 08:05:01+00', NULL
+SELECT a.id, i.id, 'BUY', 1000, 0.93, 0.93, 'FILLED', 'SEED-0006-A', TIMESTAMP '2026-03-10 08:05:00+00', TIMESTAMP '2026-03-10 08:05:01+00', TIMESTAMP '2026-03-10 08:05:01+00', NULL
 FROM accounts a, instruments i WHERE a.account_id = 'ACC-000006' AND i.symbol = 'FX:EURUSD';
 
 INSERT INTO orders (account_id, instrument_id, side, quantity, price, executed_price, status, idempotency_key, created_on, updated_on, executed_on, rejected_reason)
@@ -53,6 +53,10 @@ FROM accounts a, instruments i WHERE a.account_id = 'ACC-000006' AND i.symbol = 
 INSERT INTO orders (account_id, instrument_id, side, quantity, price, executed_price, status, idempotency_key, created_on, updated_on, executed_on, rejected_reason)
 SELECT a.id, i.id, 'BUY', 25, 1600.00, NULL, 'NEW', 'SEED-0006-C', TIMESTAMP '2026-08-20 09:05:00+00', TIMESTAMP '2026-08-20 09:05:00+00', NULL, NULL
 FROM accounts a, instruments i WHERE a.account_id = 'ACC-000006' AND i.symbol = 'INFY.NS';
+
+-- The updates below fill in columns of rows inserted above. trg_orders_set_updated would stamp
+-- updated_on with the seeding time, so it is off until they are done and the seeded timestamps stand.
+ALTER TABLE orders DISABLE TRIGGER trg_orders_set_updated;
 
 -- Multi-currency (migration 022). Rates are account (USD) per instrument-currency unit, at the seed
 -- reference FX:USDINR = 83.47, so INR -> USD = 1 / 83.47. USD instruments keep the default rate of 1.
@@ -71,3 +75,23 @@ WHERE status = 'FILLED' AND idempotency_key LIKE 'SEED-%';
 --   SEED-0005-C: 20 RELIANCE.NS * (2500.00 * 0.0119803522 - 28.752845)      =  23.96
 UPDATE orders SET realised_pnl = 100.00 WHERE idempotency_key = 'SEED-0004-B';
 UPDATE orders SET realised_pnl = 23.96  WHERE idempotency_key = 'SEED-0005-C';
+
+-- Fees on the filled orders, in USD, as FeeDeductionService computes them: flat + percentage of the
+-- account-currency notional (002_asset_fees.sql: EQUITY 5.00 + 0.01%, FX 2.50 + 0.005%), rounded half up.
+-- 006_transactions.sql books the same amounts as FEE transactions.
+UPDATE orders o
+SET fee = v.fee
+FROM (VALUES
+    ('SEED-0001-A', 5.15),  -- 60 PFE  * 25.00                    = 1500.00
+    ('SEED-0001-B', 5.11),  -- 40 PFE  * 26.25                    = 1050.00
+    ('SEED-0001-C', 5.08),  -- 40 INFY.NS * 1580.25 INR           =  757.28
+    ('SEED-0004-A', 5.36),  -- 20 AAPL * 180.00                   = 3600.00
+    ('SEED-0004-B', 5.37),  -- 20 AAPL * 185.00                   = 3700.00
+    ('SEED-0005-A', 5.03),  -- 200 TATASTEEL.BO * 145.75 INR      =  349.23
+    ('SEED-0005-B', 5.14),  -- 50 RELIANCE.NS * 2400.00 INR       = 1437.64
+    ('SEED-0005-C', 5.06),  -- 20 RELIANCE.NS * 2500.00 INR       =  599.02
+    ('SEED-0006-A', 2.55)   -- 1000 FX:EURUSD * 0.93              =  930.00
+) AS v(idempotency_key, fee)
+WHERE o.idempotency_key = v.idempotency_key;
+
+ALTER TABLE orders ENABLE TRIGGER trg_orders_set_updated;

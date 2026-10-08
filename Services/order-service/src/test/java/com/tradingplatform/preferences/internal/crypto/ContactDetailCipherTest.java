@@ -37,6 +37,23 @@ class ContactDetailCipherTest {
     }
 
     @Test
+    void adminValuesRoundTripAndAreBoundToTheAdmin() {
+        byte[] blob = cipher.encryptForAdmin("admin-1", "ops@example.com");
+
+        assertEquals("ops@example.com", cipher.decryptForAdmin("admin-1", blob));
+        assertThrows(ContactDetailCryptoException.class, () -> cipher.decryptForAdmin("admin-2", blob));
+    }
+
+    @Test
+    void adminAndCustomerCiphertextsAreNotInterchangeable() {
+        byte[] customerBlob = cipher.encrypt(2L, "customer@example.com");
+        byte[] adminBlob = cipher.encryptForAdmin("2", "ops@example.com");
+
+        assertThrows(ContactDetailCryptoException.class, () -> cipher.decryptForAdmin("2", customerBlob));
+        assertThrows(ContactDetailCryptoException.class, () -> cipher.decrypt(2L, adminBlob));
+    }
+
+    @Test
     void differentKeyDoesNotDecrypt() {
         byte[] blob = cipher.encrypt(2L, "customer@example.com");
         byte[] otherKey = new byte[32];

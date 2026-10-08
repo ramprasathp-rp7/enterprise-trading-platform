@@ -30,6 +30,13 @@ class PreferencesModuleBoundaryTest {
                     .should().dependOnClassesThat().areAssignableTo(PreferenceResolver.class)
                     .because("a resolution route reachable with a customer token would leak contact details");
 
+    /** Same for the admin resolution path. */
+    @ArchTest
+    static final ArchRule adminResolverIsNotReachableFromAnyRoute =
+            noClasses().that().areAnnotatedWith(RestController.class).or().areAnnotatedWith(Controller.class)
+                    .should().dependOnClassesThat().areAssignableTo(AdminPreferenceResolver.class)
+                    .because("a resolution route would leak an admin's contact details");
+
     /** The module reads its own table only, and other modules' data through their services. */
     @ArchTest
     static final ArchRule moduleDoesNotUseOtherModulesMappers =

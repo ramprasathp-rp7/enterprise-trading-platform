@@ -2,7 +2,7 @@ import { Injectable, inject , signal } from '@angular/core';
 import { Subscription, timer } from 'rxjs';
 import { OrderNotificationResponse, OrderNotificationsService } from '../../api/generated/order-notifications';
 import { CoreAuthService } from '../auth/core-auth.service';
-import { NotificationService } from './notification.service';
+import { NotificationService, storageOwner } from './notification.service';
 import { orderStatusNotice } from './order-messages';
 
 /** How often the feed is checked while an order placed in this session may still complete */
@@ -24,7 +24,8 @@ export const ORDER_NOTIFICATION_MAX_AGE_MS = 60 * 60_000;
  * consumes it and serves GET /accounts/{id}/order-notifications, which this service polls.
  * Nothing here infers an outcome from order history or from the place-order response.
  *
- * The cursor (largest notification id already handled) is kept per account in localStorage.
+ * The cursor (largest notification id already handled) is kept per user and account in
+ * localStorage, so a new user on an account another user has used here starts fresh.
  * On the very first start there is no cursor: the latest id only sets it, so history is not
  * replayed into the bell. Each session first checks the saved cursor against the feed's newest
  * id; if the feed was reset (newest < cursor) the cursor restarts from it instead of waiting
@@ -42,6 +43,7 @@ export class OrderStatusWatcherService {
   readonly fills = this.fillCount.asReadonly();
   private polling: Subscription | null = null;
   private accountId: number | null = null;
+  private owner: string | null = null;
   private inFlight = false;
   private lastPoll = 0;
   private fastUntil = 0;
@@ -50,11 +52,13 @@ export class OrderStatusWatcherService {
 
   /** Start watching the signed-in customer's order notifications. */
   start(): void {
-    const accountId = this.authService.currentUser()?.accountId ?? null;
+    const user = this.authService.currentUser();
+    const accountId = user?.accountId ?? null;
     if (this.polling || !accountId) {
       return;
     }
     this.accountId = accountId;
+    this.owner = storageOwner(user);
     this.lastPoll = 0;
     this.cursorChecked = false;
     this.polling = timer(0, ORDER_FEED_FAST_MS).subscribe(() => this.tick());
@@ -73,6 +77,7 @@ export class OrderStatusWatcherService {
     this.polling?.unsubscribe();
     this.polling = null;
     this.accountId = null;
+    this.owner = null;
     this.inFlight = false;
     this.fastUntil = 0;
     this.cursorChecked = false;
@@ -178,7 +183,7 @@ export class OrderStatusWatcherService {
 
   private readCursor(accountId: number): number | null {
     try {
-      const raw = localStorage.getItem(CURSOR_PREFIX + accountId);
+      const raw = localStorage.getItem(this.cursorKey(accountId));
       if (raw === null) {
         return null;
       }
@@ -192,9 +197,13 @@ export class OrderStatusWatcherService {
 
   private writeCursor(accountId: number, id: number): void {
     try {
-      localStorage.setItem(CURSOR_PREFIX + accountId, String(id));
+      localStorage.setItem(this.cursorKey(accountId), String(id));
     } catch {
       // Storage unavailable: dedupe keys still stop repeats within this session.
     }
+  }
+
+  private cursorKey(accountId: number): string {
+    return `${CURSOR_PREFIX}${this.owner}:${accountId}`;
   }
 }

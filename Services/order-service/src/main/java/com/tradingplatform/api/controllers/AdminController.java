@@ -7,6 +7,7 @@ import com.tradingplatform.api.services.FeeService;
 import com.tradingplatform.domain.dto.OrderStatusChange;
 import com.tradingplatform.domain.dto.TransactionHistoryEntry;
 import com.tradingplatform.domain.dto.FeeStructureResponse;
+import com.tradingplatform.domain.dto.FeeUpdateRequest;
 import com.tradingplatform.domain.dto.AccountHistorySnapshotResponse;
 
 import java.time.Instant;
@@ -14,11 +15,15 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import jakarta.validation.Valid;
+
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -142,6 +147,24 @@ public class AdminController {
     @GetMapping("/fees/{assetType}")
     public ResponseEntity<FeeStructureResponse> getFeeByAssetType(@PathVariable String assetType) {
         FeeStructureResponse fee = feeService.getFeeByAssetType(assetType);
+        return ResponseEntity.ok(fee);
+    }
+
+    /**
+     * Update the fee structure for a specific asset type (admin only).
+     * PUT /api/v1/admin/fees/{assetType}
+     *
+     * Takes effect for every order placed after the update; orders already placed keep the fee
+     * they were quoted.
+     *
+     * @param assetType the asset type (e.g., "EQUITY", "FX")
+     * @param request the new flat fee and percentage fee (decimal form, 0.0001 = 0.01%)
+     * @return the updated fee structure
+     */
+    @PutMapping("/fees/{assetType}")
+    public ResponseEntity<FeeStructureResponse> updateFee(@PathVariable String assetType,
+                                                          @Valid @RequestBody FeeUpdateRequest request) {
+        FeeStructureResponse fee = feeService.updateFee(assetType, request);
         return ResponseEntity.ok(fee);
     }
 

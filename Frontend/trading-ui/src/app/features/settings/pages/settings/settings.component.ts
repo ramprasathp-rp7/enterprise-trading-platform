@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AlertChannel, AlertChannelEntry } from '../../../../api/generated/preferences';
 import { PreferencesStore } from '../../preferences.store';
+import { CoreAuthService } from '../../../../core/auth/core-auth.service';
 
 /** The channels that need an address */
 type ContactChannel = typeof AlertChannel.Email | typeof AlertChannel.Sms;
@@ -23,7 +24,8 @@ const E164_PATTERN = /^\+[1-9]\d{7,14}$/;
 const CHANNEL_ORDER: AlertChannel[] = [AlertChannel.Email, AlertChannel.Sms, AlertChannel.InApp];
 
 /**
- * Preferences page: choose one or more channels the platform reaches you on about trades and alerts.
+ * Preferences page: choose one or more channels the platform reaches you on. Customers hear about
+ * their trades and price alerts; admins (at /admin/preferences) about customer registrations.
  */
 @Component({
   selector: 'app-settings',
@@ -35,6 +37,13 @@ const CHANNEL_ORDER: AlertChannel[] = [AlertChannel.Email, AlertChannel.Sms, Ale
 export class SettingsComponent implements OnInit {
   readonly store = inject(PreferencesStore);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly authService = inject(CoreAuthService);
+
+  /** Admins are notified about different events, so the page explains that */
+  readonly isAdmin = this.authService.isAdmin();
+  readonly subtitle = this.isAdmin
+    ? 'Choose how we tell you when a customer you register is set up.'
+    : 'Choose how we tell you about filled, rejected and cancelled orders and your price alerts.';
 
   readonly channels: ChannelOption[] = [
     { value: AlertChannel.Email, label: 'Email', icon: 'fa-envelope', hint: 'We email the address below.' },

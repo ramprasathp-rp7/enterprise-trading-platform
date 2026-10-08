@@ -83,4 +83,41 @@ describe('TokenService', () => {
     await expect(svc.rotateRefreshTokenByOpaque('opaque', user)).rejects.toThrow();
     expect(repo.revokeFamily).toHaveBeenCalledWith(familyId);
   });
+
+  test('rotate refresh rejects an expired token without revoking the family', async () => {
+    const user: any = { id: 'u5', account_id: 30, roles: ['user'] };
+    const old = { id: 'old', user_id: 'u5', token_hash: 'h', family_id: 'fam', revoked_on: null, expires_on: new Date(Date.now() - 1000) };
+    (repo.findByHash as jest.Mock).mockResolvedValueOnce(old);
+    (repo.revokeFamily as jest.Mock).mockClear();
+
+    await expect(svc.rotateRefreshTokenByOpaque('opaque', user)).rejects.toThrow('Unauthorised');
+    expect(repo.revokeFamily).not.toHaveBeenCalled();
+  });
+
+  const validClaims = { sub: 'u1', accountId: 10, roles: ['user'], iat: 1, exp: 2, iss: 'auth-service' };
+
+  test.each([
+    ['sub', { sub: undefined }],
+    ['accountId (null)', { accountId: null }],
+    ['accountId (undefined)', { accountId: undefined }],
+    ['roles', { roles: undefined }],
+    ['roles (not an array)', { roles: 'user' }],
+    ['roles (empty)', { roles: [] }],
+    ['iat', { iat: undefined }],
+    ['exp', { exp: undefined }],
+    ['iss', { iss: undefined }],
+  ])('verifyAccessToken rejects a token missing %s', async (_name, override) => {
+    (jwtService.verifyAsync as jest.Mock).mockResolvedValueOnce({ ...validClaims, ...override });
+    await expect(svc.verifyAccessToken('token')).resolves.toBeNull();
+  });
+
+  test('verifyAccessToken accepts accountId 0', async () => {
+    (jwtService.verifyAsync as jest.Mock).mockResolvedValueOnce({ ...validClaims, accountId: 0 });
+    await expect(svc.verifyAccessToken('token')).resolves.not.toBeNull();
+  });
+
+  test('verifyAccessToken handles non-Error throws', async () => {
+    (jwtService.verifyAsync as jest.Mock).mockRejectedValueOnce('weird');
+    await expect(svc.verifyAccessToken('token')).resolves.toBeNull();
+  });
 });

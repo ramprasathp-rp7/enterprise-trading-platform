@@ -11,6 +11,7 @@ git_push.sh
 index.ts
 model/errorResponse.ts
 model/feeStructureResponse.ts
+model/feeUpdateRequest.ts
 model/models.ts
 model/orderStatusChange.ts
 model/transactionHistoryEntry.ts

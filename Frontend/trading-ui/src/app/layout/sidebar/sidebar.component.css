@@ -280,6 +280,42 @@
   height: 28px;
 }
 
+/* Roomier spacing when the window is tall enough. The customer menu grows to about 610px, which
+   still fits from 760px (navbar 64 + footer 44 + 32 padding), so the sidebar never scrolls. */
+@media (min-height: 760px) {
+  .sidebar-header {
+    padding: 20px 14px 10px 22px;
+  }
+
+  .sidebar-nav {
+    padding-bottom: 8px;
+  }
+
+  .nav-section {
+    margin: 16px 22px 6px;
+  }
+
+  .nav-item,
+  .sidebar.collapsed .nav-item {
+    margin: 2px 10px;
+  }
+
+  .nav-link,
+  .sidebar.collapsed .nav-link {
+    padding-top: 7px;
+    padding-bottom: 7px;
+  }
+
+  .nav-content {
+    gap: 2px;
+  }
+
+  .sidebar-footer {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+}
+
 /* The full menu (descriptions included) is about 513px tall, which fits windows from 653px
    (navbar 64 + footer 44 + 32 padding). Shorter windows step down so it still never scrolls. */
 @media (max-height: 652px) {

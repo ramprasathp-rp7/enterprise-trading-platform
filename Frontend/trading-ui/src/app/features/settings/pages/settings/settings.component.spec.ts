@@ -5,17 +5,34 @@ import { of, throwError } from 'rxjs';
 import { SettingsComponent } from './settings.component';
 import { PreferencesStore } from '../../preferences.store';
 import { AlertChannelEntry, PreferencesResponse } from '../../../../api/generated/preferences';
+import { CoreAuthService } from '../../../../core/auth/core-auth.service';
 
 describe('SettingsComponent', () => {
   let fixture: ComponentFixture<SettingsComponent>;
   let component: SettingsComponent;
   let preferences: ReturnType<typeof signal<PreferencesResponse | null>>;
   let store: Record<string, unknown>;
+  let admin: boolean;
 
   const el = (testId: string): HTMLElement | null =>
     fixture.nativeElement.querySelector(`[data-testid="${testId}"]`);
 
+  const create = () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [SettingsComponent],
+      providers: [
+        { provide: PreferencesStore, useValue: store },
+        { provide: CoreAuthService, useValue: { isAdmin: () => admin } },
+      ],
+    });
+    fixture = TestBed.createComponent(SettingsComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  };
+
   beforeEach(() => {
+    admin = false;
     preferences = signal<PreferencesResponse | null>({
       accountId: 7,
       alertChannels: [{ channel: 'IN_APP', contactDetail: null }],
@@ -34,13 +51,21 @@ describe('SettingsComponent', () => {
       }),
       resetToDefault: vi.fn(() => of(undefined)),
     };
-    TestBed.configureTestingModule({
-      imports: [SettingsComponent],
-      providers: [{ provide: PreferencesStore, useValue: store }],
-    });
-    fixture = TestBed.createComponent(SettingsComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
+    create();
+  });
+
+  it('tells customers it is about their orders and price alerts', () => {
+    expect(el('preferences-subtitle')?.textContent).toContain('orders and your price alerts');
+  });
+
+  it('tells admins it is about customer registrations, with the same channel choices', () => {
+    admin = true;
+    create();
+
+    expect(el('preferences-subtitle')?.textContent).toContain('customer you register');
+    expect(el('channel-EMAIL')).not.toBeNull();
+    expect(el('channel-SMS')).not.toBeNull();
+    expect(el('channel-IN_APP')).not.toBeNull();
   });
 
   it('loads preferences and explains the default when nothing is stored', () => {

@@ -20,7 +20,8 @@ public enum ErrorCode {
     ALR_409("ALR-409"),
     STR_404("STR-404"),
     STR_409("STR-409"),
-    MKT_404("MKT-404");
+    MKT_404("MKT-404"),
+    ASS_404("ASS-404");
 
     private final String code;
 

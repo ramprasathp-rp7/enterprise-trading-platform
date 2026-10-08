@@ -41,6 +41,8 @@ import com.tradingplatform.preferences.PreferenceResolver;
 import com.tradingplatform.preferences.AlertTarget;
 import com.tradingplatform.preferences.ResolvedAlertChannels;
 import com.tradingplatform.preferences.internal.crypto.ContactDetailCipher;
+import com.tradingplatform.preferences.internal.service.AdminPreferencesService;
+import com.tradingplatform.preferences.internal.service.AdminPreferencesView;
 import com.tradingplatform.preferences.internal.service.AlertChannelEntry;
 import com.tradingplatform.preferences.internal.service.DefaultPreferenceResolver;
 import com.tradingplatform.preferences.internal.service.LastKnownChannels;
@@ -59,6 +61,8 @@ class PreferencesPersistenceRestartTest {
 
     private static final Path MIGRATION =
             Path.of("../../Database/postgres/order-service/migrations/014_create_customer_preferences.sql");
+    private static final Path ADMIN_MIGRATION =
+            Path.of("../../Database/postgres/order-service/migrations/024_create_admin_preferences.sql");
     private static final String KEY = Base64.getEncoder().encodeToString(
             "restart-test-key-0123456789abcde".getBytes(StandardCharsets.US_ASCII));
 
@@ -78,6 +82,8 @@ class PreferencesPersistenceRestartTest {
                 s.execute("INSERT INTO accounts (id) VALUES (2), (3)");
             }
             ScriptUtils.executeSqlScript(c, new FileSystemResource(MIGRATION));
+            assertTrue(Files.exists(ADMIN_MIGRATION), "migration 024 not found at " + ADMIN_MIGRATION.toAbsolutePath());
+            ScriptUtils.executeSqlScript(c, new FileSystemResource(ADMIN_MIGRATION));
         }
     }
 
@@ -144,6 +150,29 @@ class PreferencesPersistenceRestartTest {
         }
     }
 
+    @Test
+    void adminPreferencesSurviveARestartAndStayEncrypted() throws Exception {
+        String admin = "f47ac10b-58cc-4372-a567-0e02b2c3d479";
+        try (AnnotationConfigApplicationContext first = start()) {
+            first.getBean(AdminPreferencesService.class).replace(admin, List.of(EMAIL, IN_APP));
+        }
+
+        try (AnnotationConfigApplicationContext second = start()) {
+            AdminPreferencesView view = second.getBean(AdminPreferencesService.class).get(admin);
+            assertTrue(view.configured());
+            assertEquals(List.of(new AlertTarget(AlertChannel.EMAIL, "customer@example.com"), AlertTarget.inApp()),
+                    view.alertChannels());
+            assertFalse(second.getBean(AdminPreferencesService.class).get("someone-else").configured());
+        }
+
+        try (Connection c = DriverManager.getConnection(url, "sa", "");
+             Statement s = c.createStatement();
+             ResultSet rs = s.executeQuery("SELECT contact_detail_enc FROM admin_preferences WHERE alert_channel = 'EMAIL'")) {
+            assertTrue(rs.next());
+            assertFalse(new String(rs.getBytes(1), StandardCharsets.ISO_8859_1).contains("customer@example.com"));
+        }
+    }
+
     private AnnotationConfigApplicationContext start() {
         AnnotationConfigApplicationContext ctx = new AnnotationConfigApplicationContext();
         ctx.getEnvironment().getPropertySources().addFirst(new MapPropertySource("test",
@@ -200,6 +229,11 @@ class PreferencesPersistenceRestartTest {
         PreferencesService preferencesService(PreferencesMapper mapper, ContactDetailCipher cipher,
                                               AccountService accountService, LastKnownChannels lastKnown) {
             return new PreferencesService(mapper, cipher, accountService, lastKnown);
+        }
+
+        @Bean
+        AdminPreferencesService adminPreferencesService(AdminPreferencesMapper mapper, ContactDetailCipher cipher) {
+            return new AdminPreferencesService(mapper, cipher);
         }
 
         @Bean

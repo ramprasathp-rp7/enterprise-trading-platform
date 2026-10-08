@@ -7,11 +7,14 @@ import { NotificationService } from '../../../../core/notifications/notification
 import { FormControl } from '@angular/forms';
 import { AdminUserRegistrationComponent } from './user-registration';
 import { environment } from '../../../../core/config/environment';
+import { of, throwError } from 'rxjs';
+import { AdminNotificationsService } from '../../../../api/generated/preferences';
 
 describe('AdminUserRegistrationComponent', () => {
   let component: AdminUserRegistrationComponent;
   let fixture: ComponentFixture<AdminUserRegistrationComponent>;
   let http: HttpTestingController;
+  let adminNotifications: { notifyCustomerRegistered: ReturnType<typeof vi.fn> };
   const registerUrl = `${environment.AUTH_SERVICE_URL}/auth/register`;
 
   const fillValidForm = () =>
@@ -23,9 +26,15 @@ describe('AdminUserRegistrationComponent', () => {
 
   beforeEach(async () => {
     vi.useFakeTimers();
+    adminNotifications = { notifyCustomerRegistered: vi.fn(() => of({ channels: ['IN_APP'] })) };
     await TestBed.configureTestingModule({
       imports: [AdminUserRegistrationComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        { provide: AdminNotificationsService, useValue: adminNotifications },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(AdminUserRegistrationComponent);
@@ -84,6 +93,7 @@ describe('AdminUserRegistrationComponent', () => {
     expect(component.loading()).toBe(false);
     expect(component.successMessage()).toBe("User 'jdoe' registered successfully!");
     expect(component.form.value.username).toBeNull();
+    expect(adminNotifications.notifyCustomerRegistered).toHaveBeenCalledWith({ username: 'jdoe', accountId: 1001 });
     expect(notify).toHaveBeenCalledWith({
       kind: 'user-registered',
       title: 'Registration successful',
@@ -93,6 +103,39 @@ describe('AdminUserRegistrationComponent', () => {
 
     vi.advanceTimersByTime(5000);
     expect(component.successMessage()).toBe('');
+  });
+
+  it('sends the notice to the admin channels and leaves the bell alone when in-app was not chosen', () => {
+    const notify = vi.spyOn(TestBed.inject(NotificationService), 'notify');
+    adminNotifications.notifyCustomerRegistered.mockReturnValueOnce(of({ channels: ['EMAIL', 'SMS'] }));
+    fillValidForm();
+
+    component.onSubmit();
+    http.expectOne(registerUrl).flush({});
+
+    expect(adminNotifications.notifyCustomerRegistered).toHaveBeenCalledTimes(1);
+    expect(notify).not.toHaveBeenCalled();
+    expect(component.successMessage()).toBe("User 'jdoe' registered successfully!");
+  });
+
+  it('still puts the notice in the bell when the notification service cannot be reached', () => {
+    const notify = vi.spyOn(TestBed.inject(NotificationService), 'notify');
+    adminNotifications.notifyCustomerRegistered.mockReturnValueOnce(throwError(() => new Error('down')));
+    fillValidForm();
+
+    component.onSubmit();
+    http.expectOne(registerUrl).flush({});
+
+    expect(notify).toHaveBeenCalledWith(expect.objectContaining({ kind: 'user-registered' }));
+  });
+
+  it('sends no notice when registration fails', () => {
+    fillValidForm();
+
+    component.onSubmit();
+    http.expectOne(registerUrl).flush({ message: 'Username already exists' }, { status: 409, statusText: 'Conflict' });
+
+    expect(adminNotifications.notifyCustomerRegistered).not.toHaveBeenCalled();
   });
 
   it('shows the server message when registration fails', () => {

@@ -203,23 +203,20 @@ describe('PositionsComponent', () => {
     portfolio.getPortfolioSummary.mockReturnValue(of({ ...summary, partial: true }));
     await create();
 
-    // The priced holding gets a Stale badge; the unpriced one gets No price instead
-    expect(fixture.nativeElement.querySelectorAll('[data-testid="stale-badge"]').length).toBe(1);
+    // No Stale badge on the priced holding; the unpriced one gets No price
+    expect(fixture.nativeElement.querySelectorAll('[data-testid="stale-badge"]').length).toBe(0);
     expect(fixture.nativeElement.querySelectorAll('[data-testid="unpriced-badge"]').length).toBe(1);
     const warning = fixture.nativeElement.querySelector('[data-testid="pricing-warning"]');
     expect(warning).not.toBeNull();
     expect(warning.textContent).toContain('could not be priced');
-    expect(component.stalePositionCount()).toBe(2);
   });
 
-  it('warns about delayed quotes when every holding is priced but some are stale', async () => {
+  it('shows no warning when every holding is priced, even if some quotes are stale', async () => {
     portfolio.getPricedPositions.mockReturnValue(of([{ ...positions[0], stale: true }, positions[1]]));
     await create();
 
-    expect(fixture.nativeElement.querySelectorAll('[data-testid="stale-badge"]').length).toBe(1);
-    const warning = fixture.nativeElement.querySelector('[data-testid="pricing-warning"]');
-    expect(warning).not.toBeNull();
-    expect(warning.textContent).toContain('1 holding is valued from a delayed quote');
+    expect(fixture.nativeElement.querySelectorAll('[data-testid="stale-badge"]').length).toBe(0);
+    expect(fixture.nativeElement.querySelector('[data-testid="pricing-warning"]')).toBeNull();
   });
 
   it('still shows holdings when the summary request fails', async () => {
