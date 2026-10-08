@@ -3,10 +3,15 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
+    "sync-config": "node scripts/sync-platform-config.mjs",
+    "start": "node scripts/sync-platform-config.mjs --serve",
+    "prebuild": "npm run sync-config",
     "build": "ng build",
+    "prewatch": "npm run sync-config",
     "watch": "ng build --watch --configuration development",
+    "pretest": "npm run sync-config",
     "test": "ng test",
+    "pretest:coverage": "npm run sync-config",
     "test:coverage": "ng test --watch=false --coverage",
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
@@ -56,7 +61,8 @@
     "jsdom": "^28.0.0",
     "prettier": "^3.8.1",
     "typescript": "~5.9.2",
-    "vitest": "^4.0.8"
+    "vitest": "^4.0.8",
+    "yaml": "^2.9.1"
   },
   "overrides": {
     "piscina": "^5.3.2",

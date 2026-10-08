@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import { ConfigurationService } from './configuration.service';
 
 describe('ConfigurationService', () => {
@@ -16,12 +19,15 @@ describe('ConfigurationService', () => {
     'REFRESH_TOKEN_LIFETIME',
     'PORT',
     'PGPOOL_MAX',
+    'PLATFORM_CONFIG_PATH',
   ];
 
   beforeEach(() => {
     jest.spyOn(console, 'log').mockImplementation(() => undefined);
     jest.spyOn(console, 'error').mockImplementation(() => undefined);
     for (const key of managedKeys) delete process.env[key];
+    // Keep tests independent of the repo's Config/application.yaml
+    process.env.PLATFORM_CONFIG_PATH = join(tmpdir(), 'missing-platform-config.yaml');
   });
 
   afterEach(() => {
@@ -55,13 +61,66 @@ describe('ConfigurationService', () => {
     expect(config.getAccessTokenLifetime()).toBe(900);
     expect(config.getRefreshTokenLifetime()).toBe(604800);
     expect(config.getPort()).toBe(3000);
+    expect(config.getCorsOrigins()).toEqual(['http://localhost:4200', 'http://localhost:3000']);
     expect(config.getDatabaseConfig()).toEqual({
       host: 'localhost',
       port: 5432,
       username: 'postgres',
       password: 'pw',
-      database: 'enterprise_trading_platform',
+      database: 'trading_system_db',
       poolMax: 10,
+    });
+  });
+
+  describe('with a platform config file', () => {
+    let dir: string;
+
+    beforeEach(() => {
+      dir = mkdtempSync(join(tmpdir(), 'platform-config-'));
+      process.env.PLATFORM_CONFIG_PATH = join(dir, 'application.yaml');
+      writeFileSync(
+        process.env.PLATFORM_CONFIG_PATH,
+        [
+          'frontend:',
+          '  url: http://ui.local',
+          '  port: 4300',
+          'services:',
+          '  auth:',
+          '    url: http://auth.local',
+          '    port: 3100',
+          'database:',
+          '  host: db.local',
+          '  port: 5433',
+          '  name: yaml_db',
+          '  user: yaml_user',
+        ].join('\n'),
+      );
+      process.env.JWT_SECRET = validSecret;
+      process.env.PGPASSWORD = 'pw';
+    });
+
+    afterEach(() => rmSync(dir, { recursive: true, force: true }));
+
+    test('reads ports, origins and database settings from the file', () => {
+      const config = new ConfigurationService();
+
+      expect(config.getPort()).toBe(3100);
+      expect(config.getCorsOrigins()).toEqual(['http://ui.local:4300', 'http://auth.local:3100']);
+      expect(config.getDatabaseConfig()).toMatchObject({
+        host: 'db.local',
+        port: 5433,
+        username: 'yaml_user',
+        database: 'yaml_db',
+      });
+    });
+
+    test('lets environment variables override the file', () => {
+      process.env.PORT = '4000';
+      process.env.AUTH_POSTGRES_DB = 'env_db';
+      const config = new ConfigurationService();
+
+      expect(config.getPort()).toBe(4000);
+      expect(config.getDatabaseConfig().database).toBe('env_db');
     });
   });
 

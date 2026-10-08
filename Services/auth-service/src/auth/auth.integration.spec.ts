@@ -1,13 +1,15 @@
 import * as jwt from 'jsonwebtoken';
 import { beforeAll, describe, expect, it } from '@jest/globals';
+import { loadPlatformConfig, toOrigin } from '../config/platform-config';
 // Integration tests require external services. Run only when RUN_INTEGRATION_TESTS=true
 // Force-enable integration tests when this file is executed.
 // NOTE: This will attempt network calls to external services during test runs.
 process.env.RUN_INTEGRATION_TESTS = 'true';
 if (process.env.RUN_INTEGRATION_TESTS === 'true') {
 describe('Auth Service Integration with Trade REST API', () => {
-  const AUTH_SERVICE_URL = 'http://localhost:3000';
-  const TRADE_API_URL = 'http://localhost:8080';
+  const platform = loadPlatformConfig();
+  const AUTH_SERVICE_URL = toOrigin(platform.services?.auth) ?? 'http://localhost:3000';
+  const TRADE_API_URL = toOrigin(platform.services?.order) ?? 'http://localhost:8081';
   
   const JWT_SECRET = process.env.JWT_SECRET || 'test-shared-secret-32-bytes-minimum-key';
   const JWT_ISSUER = process.env.JWT_ISSUER || 'auth-service';

@@ -47,7 +47,7 @@ public class TradeApiOrderClient {
 
     @Autowired
     public TradeApiOrderClient(RestClient.Builder builder,
-                               @Value("${trading.strategy.trade-api-url:http://localhost:8080}") String baseUrl,
+                               @Value("${trading.strategy.trade-api-url:http://localhost:${server.port:8081}}") String baseUrl,
                                @Value("${trading.strategy.order-timeout-ms:5000}") long timeoutMs) {
         this(builder.clone()
             .baseUrl(baseUrl)

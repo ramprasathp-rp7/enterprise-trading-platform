@@ -5,6 +5,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app/app.module';
 import { JsonLogger } from './common/logging/json.logger';
 import { AuthExceptionFilter } from './common/errors/auth-exception.filter';
+import { ConfigurationService } from './config/configuration.service';
 
 async function bootstrap() {
   const logger = new JsonLogger('Bootstrap');
@@ -13,10 +14,11 @@ async function bootstrap() {
     const app = await NestFactory.create(AppModule, {
       logger: new JsonLogger('NestFactory'),
     });
+    const configService = app.get(ConfigurationService);
 
     // Enable CORS for browser requests from UI
     app.enableCors({
-      origin: ['http://localhost:4200', 'http://localhost:3000'],
+      origin: configService.getCorsOrigins(),
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
@@ -67,7 +69,7 @@ async function bootstrap() {
       jsonDocumentUrl: 'docs/json',
     });
 
-    const port = process.env.PORT || 3000;
+    const port = configService.getPort();
     await app.listen(port);
     logger.log(`Auth service listening on port ${port}`);
   } catch (error: unknown) {

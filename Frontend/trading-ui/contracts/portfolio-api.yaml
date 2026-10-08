@@ -8,7 +8,7 @@ info:
     Binding contract for the Portfolio and P&L extension, built in Sprint 10. Mandatory for this
     programme, and safe to build first, because none of the other extensions depend on it.
 
-    These routes are served by the Trade REST API on 8080, as a module beside the order and
+    These routes are served by the Trade REST API on 8081, as a module beside the order and
     account routes. They are not a separate deployable.
 
     ## Why this is a separate set of routes
@@ -68,9 +68,9 @@ info:
     name: Instructional use only
 
 servers:
-  - url: http://localhost:8080
+  - url: http://localhost:8081
     description: Local development.
-  - url: http://trade-api:8080
+  - url: http://trade-api:8081
     description: Service name inside the Docker Compose network.
 
 tags:

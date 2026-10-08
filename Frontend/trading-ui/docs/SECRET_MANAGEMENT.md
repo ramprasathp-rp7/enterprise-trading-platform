@@ -79,7 +79,7 @@ npm run build --configuration development
 Uses `environment.development.ts`:
 ```typescript
 AUTH_SERVICE_URL: 'http://localhost:3000',
-TRADE_API_URL: 'http://localhost:8080',
+TRADE_API_URL: 'http://localhost:8081',
 ```
 
 ### Production Build

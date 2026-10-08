@@ -17,7 +17,7 @@ python3 -m venv .venv
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | `localhost`, `5432`, `enterprise_trading_platform`, `postgres`, *(empty)* | Postgres connection |
+| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | `localhost`, `5432`, `trading_system_db`, `postgres`, *(empty)* | Postgres connection |
 | `ANALYTICS_DUCKDB_PATH` | `Database/duckdb/analytics/analytics_store.duckdb` | Where the DuckDB file lives |
 | `ANALYTICS_SCHEMA_PATH` | `Database/duckdb/analytics/analytics-schema.sql` | Path to the binding contract DDL |
 | `ANALYTICS_STAGING_DIR` | `.staging` | Where `etl-extract` writes its JSON dumps |

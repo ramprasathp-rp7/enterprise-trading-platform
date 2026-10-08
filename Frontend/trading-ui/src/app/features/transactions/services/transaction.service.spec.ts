@@ -6,7 +6,7 @@ import { provideApi as provideTransactionsApi } from '../../../api/generated/tra
 import { TransactionService } from './transaction.service';
 
 describe('TransactionService', () => {
-  const base = 'http://localhost:8080/api/v1/accounts';
+  const base = 'http://localhost:8081/api/v1/accounts';
   let service: TransactionService;
   let http: HttpTestingController;
 
@@ -15,7 +15,7 @@ describe('TransactionService', () => {
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
-        provideTransactionsApi('http://localhost:8080'),
+        provideTransactionsApi('http://localhost:8081'),
       ],
     });
     service = TestBed.inject(TransactionService);
