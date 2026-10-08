@@ -1,4 +1,4 @@
--- Migration 024: Track whether an order's latest event has reached Kafka, and when it was cancelled
+-- Migration 025: Track whether an order's latest event has reached Kafka, and when it was cancelled
 --
 -- Every order status has exactly one event:
 --   NEW       -> ORDER_PLACED    on orders        (published and replayed by the Trade REST API)
