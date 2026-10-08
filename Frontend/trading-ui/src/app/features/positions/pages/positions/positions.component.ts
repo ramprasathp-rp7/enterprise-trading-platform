@@ -142,8 +142,6 @@ export class PositionsComponent implements OnInit {
       return fetchedAt && (!latest || fetchedAt > latest) ? fetchedAt : latest;
     }, null)
   );
-  /** Holdings priced from a stale quote or not priced at all */
-  readonly stalePositionCount = computed(() => this.positions().filter((p) => p.stale).length);
 
   constructor() {
     // Keep every held symbol's live price fresh from the quote cache
