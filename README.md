@@ -43,7 +43,7 @@ and publishes the outcome on `trade-events`. The order service then deducts the 
 The full walk-through, with diagrams, is in [`Documents/architecture.md`](Documents/architecture.md).
 
 **Ports and the database connection for every part are in one file:
-[`Configuration/application.yaml`](Configuration/application.yaml).** The services, the frontend and the
+[`Config/application.yaml`](Config/application.yaml).** The services, the frontend and the
 Playwright tests read it; environment variables override it.
 
 ---
@@ -52,9 +52,12 @@ Playwright tests read it; environment variables override it.
 
 ```text
 .
-├── Configuration/            # application.yaml: shared ports, URLs and database settings
+├── Config/                   # application.yaml: shared ports, URLs and database settings
 ├── Contracts/                # OpenAPI contracts shared across services (auth, trade, Fauxnance)
 ├── Database/
+│   ├── schema.sql            # every table, index and function (all migrations, in order)
+│   ├── seed_data.sql         # baseline and reference data (all seed INSERTs, in order)
+│   ├── generate-sql.sh       # rebuilds the two files above from the migration and seed folders
 │   ├── postgres/
 │   │   ├── auth-service/     # migrations, seed and apply.sh for the auth schema
 │   │   └── order-service/    # numbered migrations (001-026), seed and apply.sh for the trade tables
@@ -67,7 +70,8 @@ Playwright tests read it; environment variables override it.
 │   ├── auth-service/         # NestJS authentication service
 │   ├── order-service/        # Spring Boot Trade REST API
 │   └── executor-service/     # Spring Boot order executor and market data poller
-├── .example.env              # template for the .env every part reads
+├── .env.example              # canonical template for the .env every part reads
+├── .example.env              # legacy alias kept in sync for older scripts/docs
 └── manifest.env              # settings for the course's check harness
 ```
 
@@ -104,7 +108,7 @@ Every part has its own README with setup details (see [Documentation](#documenta
 ### 1. Environment
 
 ```bash
-cp .example.env .env
+cp .env.example .env
 ```
 
 Fill in the database password, `FAUXNANCE_API_KEY`, `JWT_SECRET` (32+ bytes, shared by all services),
@@ -117,16 +121,36 @@ bash Infrastructure/Kafka/scripts/kafka-setup.sh
 ```
 
 Starts the broker container on the host in `EC2_PRIVATE_IP` and creates the topics.
+The services use `EC2_PRIVATE_IP` plus `kafka.port` from `Config/application.yaml`
+(default `9092`).
 
 ### 3. Database
+
+Create the database (`database.name` in `Config/application.yaml`, `trading_system_db` by default),
+then run the schema and the seed data:
+
+```bash
+createdb trading_system_db
+psql -v ON_ERROR_STOP=1 -d trading_system_db -f Database/schema.sql
+psql -v ON_ERROR_STOP=1 -d trading_system_db -f Database/seed_data.sql
+```
+
+`schema.sql` creates every table, index and function (the `auth` schema and the trade tables);
+`seed_data.sql` loads the baseline data: accounts, instruments, fees, sample orders and positions, known
+account ids and the admin users. Both are generated from the numbered files in `Database/postgres/*/` by
+`bash Database/generate-sql.sh`; run it after adding a migration or seed file.
+
+The per-service scripts do the same thing in two steps and read the database name from `.env`:
 
 ```bash
 bash Database/postgres/auth-service/apply.sh
 bash Database/postgres/order-service/apply.sh
 ```
 
-Each script applies its migrations in order, then its seed data (known accounts and admin users for auth;
-accounts, fees, instruments, orders and positions for the trade tables), to the database named in `.env`.
+Canonical schema and seed sources:
+- `Database/postgres/auth-service/migrations` and `Database/postgres/auth-service/seed`
+- `Database/postgres/order-service/migrations` and `Database/postgres/order-service/seed`
+- `Database/duckdb/analytics/analytics-schema.sql` (ETL contract)
 
 ### 4. Services
 
@@ -141,6 +165,17 @@ cd Frontend/trading-ui && npm ci && npm start                          # :4200
 
 Open http://localhost:4200 and sign in with a seeded user. The order service's health check is
 http://localhost:8081/health, and the auth service's API docs are at http://localhost:3000/docs.
+
+### 5. Deployment rehearsal workflow
+
+For a repeatable local deployment rehearsal (env prep, Kafka bootstrap, schema migration/seed, service start,
+health checks, and test smoke commands), follow:
+[`Documents/deployment-rehearsal.md`](Documents/deployment-rehearsal.md).
+
+The runbook also documents accepted local-only fallback behavior that must be overridden before any shared
+environment deployment:
+- JWT fallback in `ApiSecurityConfiguration` and `StrategyTokenIssuer`
+- Preferences key fallback in `ContactDetailCipher`
 
 ---
 
@@ -169,6 +204,8 @@ services are in [`Documents/003_notes_on_testing_and_coverage.md`](Documents/003
 | Design decisions | [`Documents/sprint-10/decision-log/`](Documents/sprint-10/decision-log/) |
 | Security review | [`Documents/sprint-10/security-review/`](Documents/sprint-10/security-review/) |
 | Testing and coverage | [`Documents/003_notes_on_testing_and_coverage.md`](Documents/003_notes_on_testing_and_coverage.md) |
+| Deployment rehearsal runbook | [`Documents/deployment-rehearsal.md`](Documents/deployment-rehearsal.md) |
+| Deployment verification results | [`Documents/004_deployment_verification.md`](Documents/004_deployment_verification.md) |
 | Replayed orders never settle twice | [`Documents/001_notes_on_double_debit_replay_verification.md`](Documents/001_notes_on_double_debit_replay_verification.md) |
 | SonarQube quality gate | [`Documents/002_notes_on_SonarQube_quality_gate.md`](Documents/002_notes_on_SonarQube_quality_gate.md) |
 | Angular app | [`Frontend/trading-ui/README.md`](Frontend/trading-ui/README.md) |

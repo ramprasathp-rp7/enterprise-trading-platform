@@ -26,7 +26,7 @@ describe('ConfigurationService', () => {
     jest.spyOn(console, 'log').mockImplementation(() => undefined);
     jest.spyOn(console, 'error').mockImplementation(() => undefined);
     for (const key of managedKeys) delete process.env[key];
-    // Keep tests independent of the repo's Configuration/application.yaml
+    // Keep tests independent of the repo's Config/application.yaml
     process.env.PLATFORM_CONFIG_PATH = join(tmpdir(), 'missing-platform-config.yaml');
   });
 
@@ -51,25 +51,19 @@ describe('ConfigurationService', () => {
     expect(() => new ConfigurationService()).toThrow('PGPASSWORD environment variable is required');
   });
 
-  test('applies defaults when only required variables are set', () => {
+  test('refuses to start when a host, port or name is configured nowhere', () => {
     process.env.JWT_SECRET = validSecret;
     process.env.PGPASSWORD = 'pw';
-    const config = new ConfigurationService();
+    process.env.JWT_ISSUER = 'auth-service';
 
-    expect(config.getJwtSecret()).toBe(validSecret);
-    expect(config.getJwtIssuer()).toBe('auth-service');
-    expect(config.getAccessTokenLifetime()).toBe(900);
-    expect(config.getRefreshTokenLifetime()).toBe(604800);
-    expect(config.getPort()).toBe(3000);
-    expect(config.getCorsOrigins()).toEqual(['http://localhost:4200', 'http://localhost:3000']);
-    expect(config.getDatabaseConfig()).toEqual({
-      host: 'localhost',
-      port: 5432,
-      username: 'postgres',
-      password: 'pw',
-      database: 'trading_system_db',
-      poolMax: 10,
-    });
+    // No env var and no config file: no silent localhost
+    expect(() => new ConfigurationService()).toThrow('PGHOST / database.host is not configured');
+  });
+
+  test('requires JWT_ISSUER', () => {
+    Object.assign(process.env, { JWT_SECRET: validSecret, PGPASSWORD: 'pw', PGHOST: 'db', PGPORT: '5432', PGUSER: 'u', AUTH_POSTGRES_DB: 'd' });
+
+    expect(() => new ConfigurationService()).toThrow('JWT_ISSUER is not configured');
   });
 
   describe('with a platform config file', () => {
@@ -97,9 +91,28 @@ describe('ConfigurationService', () => {
       );
       process.env.JWT_SECRET = validSecret;
       process.env.PGPASSWORD = 'pw';
+      process.env.JWT_ISSUER = 'auth-service';
     });
 
     afterEach(() => rmSync(dir, { recursive: true, force: true }));
+
+    test('tuning values default when not set', () => {
+      const config = new ConfigurationService();
+
+      expect(config.getJwtIssuer()).toBe('auth-service');
+      expect(config.getAccessTokenLifetime()).toBe(900);
+      expect(config.getRefreshTokenLifetime()).toBe(604800);
+      expect(config.getDatabaseConfig().poolMax).toBe(10);
+    });
+
+    test('needs the frontend and auth entries for the CORS origins', () => {
+      writeFileSync(
+        process.env.PLATFORM_CONFIG_PATH!,
+        ['database:', '  host: db', '  port: 5432', '  name: d', '  user: u', 'services:', '  auth:', '    port: 3000'].join('\n'),
+      );
+
+      expect(() => new ConfigurationService()).toThrow('frontend.url / frontend.port is not configured');
+    });
 
     test('reads ports, origins and database settings from the file', () => {
       const config = new ConfigurationService();
@@ -124,7 +137,13 @@ describe('ConfigurationService', () => {
     });
   });
 
-  test('reads every value from the environment', () => {
+  test('reads every value from the environment (origins still from the config file)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'platform-config-'));
+    process.env.PLATFORM_CONFIG_PATH = join(dir, 'application.yaml');
+    writeFileSync(
+      process.env.PLATFORM_CONFIG_PATH,
+      ['frontend:', '  url: http://ui', '  port: 4200', 'services:', '  auth:', '    url: http://auth', '    port: 3000'].join('\n'),
+    );
     Object.assign(process.env, {
       JWT_SECRET: validSecret,
       JWT_ISSUER: 'issuer-x',
@@ -154,5 +173,6 @@ describe('ConfigurationService', () => {
     });
     expect(config.get('jwt').issuer).toBe('issuer-x');
     expect(config.get('missing')).toBeUndefined();
+    rmSync(dir, { recursive: true, force: true });
   });
 });

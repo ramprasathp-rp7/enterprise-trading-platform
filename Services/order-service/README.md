@@ -3,7 +3,7 @@
 The platform's main backend. It takes orders, holds accounts, cash, positions and the transaction ledger, and
 serves everything the Angular app shows except sign-in. Spring Boot 3.4, Java 21, MyBatis on PostgreSQL, Kafka.
 
-Port: **8081** (from `Configuration/application.yaml`, `services.order.port`).
+Port: **8081** (from `Config/application.yaml`, `services.order.port`).
 
 ## What it contains
 
@@ -40,8 +40,8 @@ decision log in [`Documents/sprint-10/decision-log/`](../../Documents/sprint-10/
 
 - JDK 21 and Maven 3.9+
 - PostgreSQL 15+ with the `trading_system_db` database
-- Kafka (the platform's broker, port 29092 from the host)
-- A `.env` at the repository root (copy `.example.env`); this service needs at least `PGPASSWORD`,
+- Kafka (the platform's broker, host from `EC2_PRIVATE_IP`, port from `Config/application.yaml`, default 9092)
+- A `.env` at the repository root (copy `.env.example`); this service needs at least `PGPASSWORD`,
   `FAUXNANCE_API_KEY`, `FAUXNANCE_BASE_URL`, `JWT_SECRET`, `JWT_ISSUER` and `PREFERENCES_CONTACT_KEY`
 
 ### Database
@@ -61,7 +61,7 @@ cd Services/order-service
 mvn spring-boot:run
 ```
 
-The service reads `../../.env` and `../../Configuration/application.yaml` relative to the directory you start
+The service reads `../../.env` and `../../Config/application.yaml` relative to the directory you start
 it from, so start it from `Services/order-service`. Any setting can be overridden with an environment
 variable, for example `SERVICES_ORDER_PORT=8090` or `DATABASE_NAME=other_db`.
 

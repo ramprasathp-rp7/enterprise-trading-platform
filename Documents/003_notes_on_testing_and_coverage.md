@@ -21,7 +21,7 @@ coverage (both sides of every `if`, `?:` and `switch`) is lower everywhere and i
 - **Unit tests need nothing running.** They use mocks and in-memory fakes: no database, Kafka or Fauxnance.
 - **Integration and end-to-end tests need the platform running** (PostgreSQL, Kafka, the three services and,
   for E2E, the UI). They are called out below.
-- The services read `../../.env` and `../../Configuration/application.yaml`. Unit tests do not need either.
+- The services read `../../.env` and `../../Config/application.yaml`. Unit tests do not need either.
 
 ## Frontend (Angular)
 
@@ -55,7 +55,7 @@ reports `Cannot find package 'yaml'`, run `npm install`.
 ### End-to-end (Playwright)
 
 Needs the UI, auth-service, order-service, executor-service, PostgreSQL and Kafka running. URLs default to
-`Configuration/application.yaml`; `E2E_BASE_URL`, `E2E_AUTH_API` and `E2E_TRADE_API` override them.
+`Config/application.yaml`; `E2E_BASE_URL`, `E2E_AUTH_API` and `E2E_TRADE_API` override them.
 
 ```bash
 cd Frontend/trading-ui

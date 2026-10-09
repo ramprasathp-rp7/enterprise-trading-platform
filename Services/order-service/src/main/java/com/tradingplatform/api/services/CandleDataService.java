@@ -35,7 +35,7 @@ public class CandleDataService {
 
     public CandleDataService(RestTemplate restTemplate,
                              ObjectMapper objectMapper,
-                             @Value("${FAUXNANCE_BASE_URL}") String baseUrl,
+                             @Value("${FAUXNANCE_BASE_URL:${fauxnance.url}}") String baseUrl,
                              @Value("${FAUXNANCE_API_KEY:}") String apiKey) {
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper;

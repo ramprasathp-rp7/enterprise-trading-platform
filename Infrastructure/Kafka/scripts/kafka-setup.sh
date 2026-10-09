@@ -8,6 +8,10 @@
 #   KAFKA_CLUSTER_ID, KAFKA_CONTAINER_NAME, KAFKA_DOCKER_IMAGE
 #   Topic configurations (partitions, retention)
 #
+# Runtime expectation:
+#   Services resolve Kafka as ${EC2_PRIVATE_IP}:${kafka.port}, where kafka.port
+#   comes from Config/application.yaml (default 9092).
+#
 ###############################################################################
 
 set -euo pipefail

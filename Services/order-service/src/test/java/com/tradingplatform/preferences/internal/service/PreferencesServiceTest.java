@@ -39,7 +39,7 @@ class PreferencesServiceTest {
     void setUp() {
         mapper = new FakePreferencesMapper();
         accountService = mock(AccountService.class);
-        service = new PreferencesService(mapper, new ContactDetailCipher(""), accountService, new LastKnownChannels());
+        service = new PreferencesService(mapper, new ContactDetailCipher("MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="), accountService, new LastKnownChannels());
     }
 
     private static AlertChannelEntry email(String address) {

@@ -4,7 +4,7 @@ Fills or rejects the orders the order service accepts. It consumes `ORDER_PLACED
 quote, applies the fill rule, settles cash and positions in PostgreSQL, and publishes the outcome. It also polls
 Fauxnance for every instrument and publishes the quotes. Spring Boot 3.2, Java 21, MyBatis, Kafka.
 
-Port: **8082** (from `Configuration/application.yaml`, `services.executor.port`).
+Port: **8082** (from `Config/application.yaml`, `services.executor.port`).
 
 ## What it contains
 
@@ -39,7 +39,7 @@ and the SonarQube setup in [`Documents/002_notes_on_SonarQube_quality_gate.md`](
 - JDK 21 and Maven 3.9+
 - PostgreSQL 15+ with the order-service schema applied (`bash Database/postgres/order-service/apply.sh`);
   the executor uses the same database and creates no tables of its own
-- Kafka (port 29092 from the host)
+- Kafka (host from `EC2_PRIVATE_IP`, port from `Config/application.yaml`, default 9092)
 - A `.env` at the repository root with `PGPASSWORD`, `FAUXNANCE_API_KEY` and `FAUXNANCE_BASE_URL`
 
 ### Run
@@ -49,7 +49,7 @@ cd Services/executor-service
 mvn spring-boot:run
 ```
 
-Start it from `Services/executor-service`: it reads `../../.env` and `../../Configuration/application.yaml`
+Start it from `Services/executor-service`: it reads `../../.env` and `../../Config/application.yaml`
 relative to that directory. Settings can be overridden with environment variables, e.g.
 `SERVICES_EXECUTOR_PORT`, `POLL_INTERVAL_SECONDS` (default 300, never below `MIN_POLL_INTERVAL_SECONDS`, 60).
 

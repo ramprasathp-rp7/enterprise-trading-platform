@@ -57,5 +57,3 @@ What decided it is that the frontend must know the service URLs at build time (t
 - Document the YAML schema and regeneration process in `PLATFORM_CONFIG.md`
 - Add validation to ensure all referenced services in the contracts exist in the YAML
 - Consider making `sync-platform-config.mjs` check if the generated file is out of date and warn before build
-
-> **Update (2026-10-09):** the folder was renamed, so the file now lives at `Configuration/application.yaml`. The services, the frontend config sync script and Playwright read it from there.

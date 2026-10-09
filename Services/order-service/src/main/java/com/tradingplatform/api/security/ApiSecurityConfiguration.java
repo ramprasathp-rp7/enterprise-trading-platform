@@ -29,9 +29,13 @@ public class ApiSecurityConfiguration {
 
     @Bean
     public JwtDecoder jwtDecoder(
-        @Value("${JWT_SECRET:test-shared-secret-32-bytes-minimum-key}") String jwtSecret,
-        @Value("${JWT_ISSUER:auth-service}") String jwtIssuer
+        @Value("${JWT_SECRET}") String jwtSecret,
+        @Value("${JWT_ISSUER}") String jwtIssuer
     ) {
+        // Same rule as the auth service, which signs the tokens: no secret, no start
+        if (jwtSecret.isBlank() || jwtSecret.getBytes(StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalStateException("JWT_SECRET must be set and at least 32 bytes (see .env.example)");
+        }
         NimbusJwtDecoder decoder = NimbusJwtDecoder
             .withSecretKey(new SecretKeySpec(jwtSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"))
             .macAlgorithm(MacAlgorithm.HS256)
@@ -65,7 +69,7 @@ public class ApiSecurityConfiguration {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource(
-        @Value("${frontend.origin:http://localhost:4200}") String frontendOrigin
+        @Value("${frontend.origin}") String frontendOrigin
     ) {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(List.of(frontendOrigin));

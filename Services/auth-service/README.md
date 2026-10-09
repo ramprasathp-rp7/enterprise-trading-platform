@@ -4,7 +4,7 @@ Signs users in for the Enterprise Trading Platform. It registers users, issues J
 refresh tokens, and answers "who am I". The order and executor services trust its tokens (same secret and
 issuer). NestJS 11 on Node.js, TypeORM on PostgreSQL.
 
-Port: **3000** (from `Configuration/application.yaml`, `services.auth.port`).
+Port: **3000** (from `Config/application.yaml`, `services.auth.port`).
 
 ## What it contains
 
@@ -16,7 +16,7 @@ Port: **3000** (from `Configuration/application.yaml`, `services.auth.port`).
 | `tokens/` | JWT signing and verification, refresh-token rotation and family revocation |
 | `users/` | User lookup, argon2id password hashing, demo user seeding |
 | `database/` | TypeORM connection, `users` / `refresh_tokens` / `known_account_ids` entities and repositories |
-| `config/` | Settings from environment variables and `Configuration/application.yaml` |
+| `config/` | Settings from environment variables and `Config/application.yaml` |
 | `guards/` | JWT guard for protected routes |
 | `common/` | JSON logger with secrets redacted, roles, error filter, `@CurrentUser` |
 
@@ -29,7 +29,7 @@ The contract is [`Contracts/auth-api.yaml`](../../Contracts/auth-api.yaml); the 
 
 - Node.js 20 or later
 - PostgreSQL 15+ with the auth schema applied (`Database/postgres/auth-service/apply.sh`)
-- A `.env` at the repository root (copy `.example.env`)
+- A `.env` at the repository root (copy `.env.example`)
 
 ### Install and run
 
@@ -48,7 +48,7 @@ Once running:
 
 ### Configuration
 
-The port, allowed browser origin and database host/port/name come from `Configuration/application.yaml`
+The port, allowed browser origin and database host/port/name come from `Config/application.yaml`
 (path overridable with `PLATFORM_CONFIG_PATH`). Environment variables override it:
 
 | Variable | Purpose |

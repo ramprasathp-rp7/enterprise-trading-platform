@@ -53,12 +53,12 @@ class InfrastructureConfigTest {
     }
 
     @Test
-    void consumersDefaultToLocalKafka() {
+    void consumersRefuseToStartWithoutABroker() {
         KafkaProperties properties = mock(KafkaProperties.class);
         when(properties.getBootstrapServers()).thenReturn(null);
 
-        assertThat(new KafkaConsumerConfig().consumerFactory(properties).getConfigurationProperties())
-            .containsEntry(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> new KafkaConsumerConfig().consumerFactory(properties))
+            .isInstanceOf(IllegalStateException.class);
     }
 
     @Test

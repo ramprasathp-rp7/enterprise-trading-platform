@@ -24,7 +24,7 @@ class DefaultAdminPreferenceResolverTest {
     @BeforeEach
     void setUp() {
         mapper = new FakeAdminPreferencesMapper();
-        service = new AdminPreferencesService(mapper, new ContactDetailCipher(""));
+        service = new AdminPreferencesService(mapper, new ContactDetailCipher("MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="));
         resolver = new DefaultAdminPreferenceResolver(service);
     }
 

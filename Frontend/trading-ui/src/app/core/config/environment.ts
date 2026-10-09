@@ -11,5 +11,5 @@ export const environment = {
   ...baseEnvironment,
   
   // AUTH_SERVICE_URL and TRADE_API_URL come from baseEnvironment, which reads
-  // Configuration/application.yaml (services.auth / services.order) at build time.
+  // Config/application.yaml (services.auth / services.order) at build time.
 } as const;

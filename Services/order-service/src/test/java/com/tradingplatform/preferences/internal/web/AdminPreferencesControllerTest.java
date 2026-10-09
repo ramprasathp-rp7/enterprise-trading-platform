@@ -45,7 +45,7 @@ class AdminPreferencesControllerTest {
     @BeforeEach
     void setUp() {
         mapper = new FakeAdminPreferencesMapper();
-        AdminPreferencesService service = new AdminPreferencesService(mapper, new ContactDetailCipher(""));
+        AdminPreferencesService service = new AdminPreferencesService(mapper, new ContactDetailCipher("MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="));
         mockMvc = MockMvcBuilders.standaloneSetup(new AdminPreferencesController(new AdminIdentity(), service))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();

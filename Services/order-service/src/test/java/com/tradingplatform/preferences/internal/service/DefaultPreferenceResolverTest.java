@@ -34,7 +34,7 @@ class DefaultPreferenceResolverTest {
     void setUp() {
         mapper = new FakePreferencesMapper();
         LastKnownChannels lastKnown = new LastKnownChannels();
-        service = new PreferencesService(mapper, new ContactDetailCipher(""), mock(AccountService.class), lastKnown);
+        service = new PreferencesService(mapper, new ContactDetailCipher("MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="), mock(AccountService.class), lastKnown);
         resolver = new DefaultPreferenceResolver(service, lastKnown);
     }
 

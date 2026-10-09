@@ -43,9 +43,10 @@ public class KafkaConsumerConfig {
         Map<String, Object> consumerProps = new HashMap<>();
         
         // Bootstrap servers: from KafkaProperties or application.properties
-        String bootstrapServers = kafkaProperties.getBootstrapServers() != null
-                ? String.join(",", kafkaProperties.getBootstrapServers())
-                : "localhost:9092";
+        if (kafkaProperties.getBootstrapServers() == null || kafkaProperties.getBootstrapServers().isEmpty()) {
+            throw new IllegalStateException("spring.kafka.bootstrap-servers is not configured (EC2_PRIVATE_IP and kafka.port)");
+        }
+        String bootstrapServers = String.join(",", kafkaProperties.getBootstrapServers());
         consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         
         // Key and value deserializers
