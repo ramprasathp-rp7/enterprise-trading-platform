@@ -182,4 +182,52 @@ describe('BlotterComponent', () => {
       expect(mockBlotterStore.clearCancelResult).toHaveBeenCalled();
     });
   });
+
+  describe('account from the token, states and filters', () => {
+    it('falls back to the account in the access token', () => {
+      mockAuthService.currentUser.mockReturnValue(null);
+      mockAuthService.accessToken.mockReturnValue('jwt');
+      mockAuthService.decodeJWT.mockReturnValue({ accountId: 456 });
+
+      component.ngOnInit();
+
+      expect(mockBlotterStore.loadOrderHistory).toHaveBeenCalledWith(456);
+    });
+
+    it('skips loading when the token cannot be read or has no account', () => {
+      const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      mockAuthService.currentUser.mockReturnValue(null);
+      mockAuthService.accessToken.mockReturnValue('jwt');
+      mockAuthService.decodeJWT.mockReturnValueOnce({}).mockImplementationOnce(() => {
+        throw new Error('bad token');
+      });
+
+      component.ngOnInit();
+      component.ngOnInit();
+
+      expect(mockBlotterStore.loadOrderHistory).not.toHaveBeenCalled();
+      expect(error).toHaveBeenCalled();
+    });
+
+    it('shows a load error and the loading state', () => {
+      mockBlotterStore.lastError.mockReturnValue('Service unavailable');
+      fixture.detectChanges();
+      expect(fixture.nativeElement.textContent).toContain('Unable to load orders');
+
+      mockBlotterStore.lastError.mockReturnValue(null);
+      mockBlotterStore.isLoading.mockReturnValue(true);
+      mockBlotterStore.orders.mockReturnValue([]);
+      const loading = TestBed.createComponent(BlotterComponent);
+      loading.detectChanges();
+      expect(loading.nativeElement.textContent).toContain('Loading order history');
+    });
+
+    it('passes filter changes to the store', () => {
+      mockBlotterStore.setFilters = vi.fn();
+
+      component.onFiltersChanged({ symbol: 'AAPL' });
+
+      expect(mockBlotterStore.setFilters).toHaveBeenCalledWith({ symbol: 'AAPL' });
+    });
+  });
 });

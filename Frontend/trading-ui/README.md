@@ -1,142 +1,77 @@
-# Sprint 09: Enterprise Trading Platform - Angular UI
+# Trading UI (Angular)
 
-## Project Overview
+The browser app for customers and admins. Angular 21 standalone components with signals; every backend call
+goes through a client generated from an OpenAPI contract.
 
-Angular 21 standalone components frontend for the Enterprise Trading Platform. Built with signals for state management, generated API clients from OpenAPI contracts, and comprehensive test coverage.
+Dev server: **http://localhost:4200** (from `Configuration/application.yaml`, `frontend.port`).
 
-**Status**: Production Ready | **Node**: 20.19+ | **Angular**: 21
+## What it contains
 
----
+| Folder (`src/app/…`) | What it does |
+|---|---|
+| `features/dashboard` | Cash, portfolio value, net-worth chart, holdings and watchlist cards |
+| `features/order-ticket` | Placing limit orders: instrument search, live price, fees, budget warning |
+| `features/blotter` | Order history with status badges, filters and cancelling NEW orders |
+| `features/positions` | Holdings with live prices, P&L and filters |
+| `features/instruments` | Every instrument with market data, filters, sorting, Buy/Sell and symbol discovery |
+| `features/watchlist` | Watchlists with live prices, sorting and filters, and price alerts |
+| `features/notifications` | Notification history with a detail panel for each notification |
+| `features/settings` | Preferences: theme, order budget, market, default quantity, alert channels |
+| `features/strategies`, `features/advice` | Automated strategies and buy/sell/hold signals |
+| `features/transactions`, `features/account` | Deposits, withdrawals, statements |
+| `features/admin` | Analytics, fee management, user registration |
+| `features/sign-in` | Login and registration pages |
+| `core` | Auth (tokens, guards, interceptor, refresh), notifications bell, live quotes, theme, account settings |
+| `layout` | Customer and admin shells, navbar, sidebars, footer |
+| `shared` | Currency formatting, statement PDF, motion directives (price flash, panel fade) |
+| `api/generated` | Generated clients, one per contract in [`contracts/`](contracts/) |
 
-## Engineering Contract
-
-This project adheres to 10 fixed requirements:
-
-1.   **Angular 21 Workspace** - `npm ci`, `npm run build`, `npm test` all succeed
-2.   **Standalone Components & Signals** - No NgModules, observables stop at HttpClient
-3.   **Sources in `src/`** - Specs as `*.spec.ts` beside implementations
-4.   **Generated API Clients** - Typed clients from contracts, never hand-written
-5.   **Committed Generated Output** - Regenerated on contract change, never edited manually
-6.   **Functional Interceptor** - Registered once, specs for attach and do-not-attach cases
-7.   **Route Guards** - All routes except sign-in protected, redirect with return address
-8.   **Order Ticket Validation** - Validates before submission, renders all error codes
-9.   **Blotter Badges** - Per-status badge distinguishing working from finished orders
-10.  **Playwright E2E Tests** - Environment-driven, two journey scenarios
-
----
-
-## Quick Start
+## Setup
 
 ### Prerequisites
 
-- **Node.js** 20.19+, 22.12+, or 24+
-- **npm** 10+
-- Backend services running:
-  - Auth Service: `http://localhost:3000`
-  - Trade API: `http://localhost:8081`
+- Node.js 20.19+, 22.12+ or 24+, and npm 10+
+- Java 11+ only if you regenerate API clients (the OpenAPI generator runs on the JVM)
+- The backend running: auth-service (3000), order-service (8081) and executor-service (8082)
 
-### Installation & Build
+### Install and run
 
 ```bash
-# Install dependencies
+cd Frontend/trading-ui
 npm ci
-
-# Build application
-npm run build
-
-# Run tests
-npm test
-
-# Generate API clients from contracts
-npm run generate:auth
-npm run generate:trade
+npm start          # syncs the platform config, then serves on http://localhost:4200
 ```
 
-### Development Server
+`npm start`, `npm run build` and `npm test` first run `npm run sync-config`, which writes
+`src/app/core/config/platform-config.generated.ts` from `Configuration/application.yaml`. After changing a
+port in that file, run `npm run sync-config` (or just `npm start`) again.
+
+### Build
 
 ```bash
-# Start dev server (default: http://localhost:4200)
-npm start
+npm run build      # production build into dist/
 ```
 
----
+### Regenerating API clients
 
-## Project Structure
+The clients in `src/app/api/generated` are generated, committed and never edited by hand. After changing a
+contract in `contracts/`:
 
+```bash
+npm run generate:<name>   # e.g. generate:instruments, generate:account-settings
+npm run generate          # every client
 ```
-src/app/
-+-- core/                      # Infrastructure 
-|   +-- auth/                  # JWT management, guards, interceptors
-|   +-- services/              # HTTP, logging, error handling
-|   +-- config/                # Environment, API endpoints, constants
-|   +-- interceptors/          # HTTP error handling
-|
-+-- features/                  # Business logic by domain
-|   +-- sign-in/                  # User login & registration
-|   |   +-- pages/login/
-|   |   +-- pages/register/
-|   |   +-- components/credential-form/
-|   |   +-- sign-in.service.ts
-|   |   +-- sign-in.store.ts
-|   |   +-- sign-in.models.ts
-|   |
-|   +-- order-ticket/          # Order ticket creation
-|   |   +-- pages/order-ticket/
-|   |   +-- components/order-form/
-|   |   +-- components/symbol-lookup/
-|   |   +-- components/side-selector/
-|   |   +-- components/order-summary/
-|   |   +-- services/order-ticket.service.ts
-|   |   +-- services/order-ticket-validator.ts
-|   |   +-- order-ticket.store.ts
-|   |   +-- order-ticket.models.ts
-|   |
-|   +-- blotter/               # Order history & tracking
-|   |   +-- pages/blotter/
-|   |   +-- components/order-list/
-|   |   +-- components/order-status-badge/
-|   |   +-- components/order-filters/
-|   |   +-- services/order-history.service.ts
-|   |   +-- services/order-cancel.service.ts
-|   |   +-- blotter.store.ts
-|   |   +-- blotter.models.ts
-|   |
-|   +-- dashboard/             # Portfolio & analytics dashboard
-|       +-- pages/dashboard/
-|       +-- components/portfolio-header/
-|       +-- components/balance-summary/
-|       +-- components/positions-overview/
-|       +-- components/performance-chart/
-|       +-- services/dashboard.service.ts
-|       +-- dashboard.store.ts
-|       +-- dashboard.models.ts
-|
-+-- shared/                    # Reusable components, services, models & utilities
-|   +-- components/
-|   |   +-- common/            # Base UI components
-|   |   |
-|   |   +-- trading/           # Trading-domain components
-|   |
-|   +-- pipes/                 # Data formatting
-|   |
-|   +-- directives/            # Behavioral directives
-|   |
-|   +-- services/              # Business logic services
-|   +-- models/                # Shared type definitions
-|   |
-|   +-- utils/                 # Utility functions & constants
-|   |
-|   +-- shared.module.ts       # NgModule with all exports
-|   +-- index.ts               # Barrel export for easy imports
-|   
-|
-+-- layout/                    # Application shell 
-|   +-- shell/                 # Root layout container
-|   +-- navbar/                # Top navigation bar
-|   +-- sidebar/               # Left feature menu
-|   +-- footer/                # Bottom footer
-|
-+-- api/generated/             # Generated API clients 
-    +-- auth/                  # Auth service client (from auth-api.yaml)
-    +-- trade/                 # Trade API client (from trade-api.yaml)
+
+## Tests
+
+```bash
+npm test                  # unit tests (Vitest), watch mode
+npx ng test --watch=false # unit tests once
+npm run test:coverage     # unit tests with coverage (HTML in coverage/sprint-09-trading-ui/)
+npm run e2e               # Playwright journeys; needs the full backend running
 ```
+
+The coverage thresholds in `angular.json` fail the run below 80%. See
+[`docs/E2E_TESTING.md`](docs/E2E_TESTING.md) for the end-to-end journeys and
+[`Documents/003_notes_on_testing_and_coverage.md`](../../Documents/003_notes_on_testing_and_coverage.md) for
+every service's test and coverage commands.

@@ -199,5 +199,25 @@ describe('OrderListRowComponent', () => {
       expect(quantityCell.textContent).toBe('0');
     });
   });
-});
 
+  describe('created timestamp', () => {
+    const createdWith = (createdOn: unknown) => {
+      component.order = { ...mockOrder, createdOn } as any;
+      return component.createdOn;
+    };
+
+    it('reads epoch seconds and milliseconds as well as ISO strings', () => {
+      expect(createdWith(1791540000)).toContain('2026');
+      expect(createdWith(1791540000000)).toContain('2026');
+      expect(createdWith('2026-10-09T10:00:00Z')).toContain('Oct');
+    });
+
+    it('shows nothing for a missing value and the raw text for an unreadable one', () => {
+      expect(createdWith(null)).toBe('');
+      expect(createdWith('   ')).toBe('');
+      expect(createdWith('not a date')).toBe('not a date');
+      component.order = null as any;
+      expect(component.createdOn).toBe('');
+    });
+  });
+});

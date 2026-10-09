@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, ActivatedRoute } from '@angular/router';
+import { CoreAuthService } from '../../../../core/auth/core-auth.service';
 import { vi } from 'vitest';
 import { LoginComponent } from './login.component';
 import { SignInStore } from '../../sign-in.store';
@@ -90,6 +91,27 @@ describe('LoginComponent', () => {
       await component.onSubmit(credentials);
 
       expect(router.navigateByUrl).toHaveBeenCalledWith('/order-ticket');
+    });
+
+    it('should not send an admin back to the customer dashboard', async () => {
+      const auth = TestBed.inject(CoreAuthService);
+      vi.spyOn(auth, 'isAdmin').mockReturnValue(true);
+      vi.spyOn(auth, 'getDashboardRoute').mockReturnValue('/admin/analytics');
+      (TestBed.inject(ActivatedRoute).snapshot.queryParams as any) = { returnUrl: '/dashboard?tab=1' };
+      store.login.mockResolvedValue(true);
+
+      await component.onSubmit({ username: 'demo.admin', password: 'password123' });
+
+      expect(router.navigateByUrl).toHaveBeenCalledWith('/admin/analytics');
+    });
+
+    it('should refuse a protocol-relative returnUrl', async () => {
+      (TestBed.inject(ActivatedRoute).snapshot.queryParams as any) = { returnUrl: '//evil.example/x' };
+      store.login.mockResolvedValue(true);
+
+      await component.onSubmit({ username: 'priya.menon', password: 'password123' });
+
+      expect(router.navigateByUrl).not.toHaveBeenCalledWith('//evil.example/x');
     });
 
     it('should refuse an off-origin returnUrl and redirect to dashboard', async () => {

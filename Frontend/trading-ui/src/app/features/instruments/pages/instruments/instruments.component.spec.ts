@@ -141,4 +141,70 @@ describe('InstrumentsComponent', () => {
 
     expect(el('discover-feedback')?.textContent).toContain('Market data is unavailable right now.');
   });
+
+  describe('details accordion and helpers', () => {
+    const detailsRow = () => {
+      const row = document.createElement('tr');
+      row.innerHTML = '<td><div class="details-clip"><div class="details-inner"></div></div></td>';
+      return row;
+    };
+    const event = (target: HTMLElement) => ({ target, animationComplete: vi.fn() });
+
+    it('slides the details open and closed, clipping only while they move', async () => {
+      const row = detailsRow();
+      const clip = row.querySelector('.details-clip') as HTMLElement;
+      const inner = row.querySelector('.details-inner') as HTMLElement;
+      let finish!: () => void;
+      clip.animate = vi.fn(() => ({ finished: new Promise<void>((resolve) => (finish = resolve)) })) as never;
+      const opening = event(row);
+
+      component.slideDetails(opening as never, 'open');
+
+      expect(inner.style.overflow).toBe('hidden');
+      expect((clip.animate as ReturnType<typeof vi.fn>).mock.calls[0][0][0]).toEqual({ gridTemplateRows: '0fr', opacity: 0 });
+      finish();
+      await Promise.resolve();
+      expect(opening.animationComplete).toHaveBeenCalled();
+      expect(inner.style.overflow).toBe('');
+
+      const closing = event(row);
+      component.slideDetails(closing as never, 'close');
+      expect((clip.animate as ReturnType<typeof vi.fn>).mock.calls[1][1]).toEqual(expect.objectContaining({ duration: 200 }));
+    });
+
+    it('finishes straight away without the animation API or the row parts', () => {
+      const bare = event(document.createElement('tr'));
+      component.slideDetails(bare as never, 'open');
+      expect(bare.animationComplete).toHaveBeenCalled();
+
+      const row = detailsRow();
+      (row.querySelector('.details-clip') as HTMLElement).animate = undefined as never;
+      const noApi = event(row);
+      component.slideDetails(noApi as never, 'close');
+      expect(noApi.animationComplete).toHaveBeenCalled();
+    });
+
+    it('clears every filter back to all markets', () => {
+      component.query.set('aapl');
+      component.assetClass.set('FX');
+      component.tradableOnly.set(true);
+
+      component.clearFilters();
+
+      expect(component.query()).toBe('');
+      expect(component.assetClass()).toBe('ALL');
+      expect(component.tradableOnly()).toBe(false);
+      expect(component.market()).toBe('ALL');
+    });
+
+    it('shows a dash for a spread without bid and ask, and ignores an empty discovery', () => {
+      const row = component.rows()[0];
+      expect(component.spread({ ...row, bid: null })).toBe('—');
+      expect(component.spread({ ...row, bid: 1, ask: 1.5 })).toContain('0.5');
+
+      component.discoverText.set('   ');
+      component.discover();
+      expect(component.discovering()).toBe(false);
+    });
+  });
 });

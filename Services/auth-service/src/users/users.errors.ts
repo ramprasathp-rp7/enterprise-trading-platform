@@ -12,6 +12,14 @@ export class AccountIdAlreadyExistsError extends Error {
   }
 }
 
+/** The accountId is not a trading account the platform knows (auth.known_account_ids) */
+export class UnknownAccountIdError extends Error {
+  constructor(accountId: number) {
+    super(`Account ID ${accountId} does not exist`);
+    this.name = 'UnknownAccountIdError';
+  }
+}
+
 export class UserNotFoundError extends Error {
   constructor(identifier: string) {
     super(`User not found: ${identifier}`);

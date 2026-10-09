@@ -27,9 +27,10 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  /* Room for the cards' shadows and a gap under the last card, without shifting their edges */
-  padding: 4px 10px 32px 4px;
-  margin: -4px -10px 0 -4px;
+  /* Room for the cards' glow (the sidebar's raised shadow) and a gap under the last card, without
+     shifting their edges. Left stays inside the grid gap so it never covers the section links. */
+  padding: 8px 28px 40px 20px;
+  margin: -8px -28px 0 -20px;
 }
 
 /* Cards keep their full height and the column scrolls, rather than squeezing them to fit */
@@ -47,7 +48,7 @@
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
   background: var(--surface);
-  box-shadow: var(--shadow-card), var(--panel-edge);
+  box-shadow: var(--shadow-raised), var(--panel-edge);
 }
 
 .settings-nav-link {
@@ -129,6 +130,8 @@
   position: relative;
   overflow: hidden;
   scroll-margin-top: 12px;
+  /* Same raised shadow as the sidebar: a soft blue glow in dark mode */
+  box-shadow: var(--shadow-raised), var(--panel-edge);
 }
 
 /* Thin accent line, as on the other summary cards */

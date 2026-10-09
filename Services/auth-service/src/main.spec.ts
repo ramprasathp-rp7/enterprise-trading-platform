@@ -5,7 +5,13 @@ import { AuthExceptionFilter } from './common/errors/auth-exception.filter';
 import { JsonLogger } from './common/logging/json.logger';
 import { bootstrap, configureApp, validationExceptionFactory } from './main';
 
+const config = {
+  getCorsOrigins: () => ['http://localhost:4200'],
+  getPort: jest.fn(() => 3000),
+};
+
 const fakeApp = () => ({
+  get: jest.fn(() => config),
   enableCors: jest.fn(),
   useGlobalFilters: jest.fn(),
   useGlobalPipes: jest.fn(),
@@ -22,7 +28,7 @@ describe('main', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
-    delete process.env.PORT;
+    config.getPort.mockReturnValue(3000);
   });
 
   describe('validationExceptionFactory', () => {
@@ -47,13 +53,13 @@ describe('main', () => {
     });
   });
 
-  test('configureApp sets up CORS, the error filter, validation and the docs', () => {
+  test('configureApp sets up CORS from the configuration, the error filter, validation and the docs', () => {
     const app = fakeApp();
 
     configureApp(app as any);
 
     expect(app.enableCors).toHaveBeenCalledWith(expect.objectContaining({
-      origin: ['http://localhost:4200', 'http://localhost:3000'],
+      origin: ['http://localhost:4200'],
       credentials: true,
     }));
     expect(app.useGlobalFilters.mock.calls[0][0]).toBeInstanceOf(AuthExceptionFilter);
@@ -61,26 +67,33 @@ describe('main', () => {
     expect(SwaggerModule.setup).toHaveBeenCalledWith('docs', app, {}, { jsonDocumentUrl: 'docs/json' });
   });
 
-  test('bootstrap listens on PORT, or 3000 by default', async () => {
+  test('bootstrap listens on the configured port', async () => {
     const app = fakeApp();
     jest.spyOn(NestFactory, 'create').mockResolvedValue(app as any);
 
     await bootstrap();
     expect(app.listen).toHaveBeenCalledWith(3000);
 
-    process.env.PORT = '3100';
+    config.getPort.mockReturnValue(3100);
     await bootstrap();
-    expect(app.listen).toHaveBeenLastCalledWith('3100');
+    expect(app.listen).toHaveBeenLastCalledWith(3100);
   });
 
   test('bootstrap logs a redacted error and exits when the app cannot start', async () => {
-    const exit = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as any);
-    jest.spyOn(NestFactory, 'create').mockRejectedValue(new Error('db down'));
+    // npm test loads the repository .env, which may set NODE_ENV=development (full stacks)
+    const env = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      const exit = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as any);
+      jest.spyOn(NestFactory, 'create').mockRejectedValue(new Error('db down'));
 
-    await bootstrap();
+      await bootstrap();
 
-    expect(JsonLogger.prototype.error).toHaveBeenCalledWith('Failed to start application', '[REDACTED]');
-    expect(exit).toHaveBeenCalledWith(1);
+      expect(JsonLogger.prototype.error).toHaveBeenCalledWith('Failed to start application', '[REDACTED]');
+      expect(exit).toHaveBeenCalledWith(1);
+    } finally {
+      process.env.NODE_ENV = env;
+    }
   });
 
   test('bootstrap shows the stack in development and stringifies non-errors', async () => {

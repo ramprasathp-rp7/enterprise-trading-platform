@@ -33,7 +33,6 @@ export class LoginComponent {
   private route = inject(ActivatedRoute);
   private authService = inject(CoreAuthService);
   readonly themeService = inject(ThemeService);
-  private readonly defaultReturnUrl = '/dashboard';
 
   // Track whether login was successful
   isLoginSuccessful = signal<boolean>(false);
@@ -81,28 +80,6 @@ export class LoginComponent {
    */
   onSignOut(): void {
     this.store.logout();
-  }
-
-  private getSafeReturnUrl(candidate: unknown): string {
-    if (
-      typeof candidate !== 'string' ||
-      candidate.length === 0 ||
-      !candidate.startsWith('/') ||
-      candidate.startsWith('//')
-    ) {
-      return this.defaultReturnUrl;
-    }
-
-    try {
-      const parsed = new URL(candidate, window.location.origin);
-      if (parsed.origin !== window.location.origin || !parsed.pathname.startsWith('/')) {
-        return this.defaultReturnUrl;
-      }
-
-      return `${parsed.pathname}${parsed.search}${parsed.hash}`;
-    } catch {
-      return this.defaultReturnUrl;
-    }
   }
 
   /**

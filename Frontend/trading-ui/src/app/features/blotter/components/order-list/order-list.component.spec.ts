@@ -192,4 +192,27 @@ describe('OrderListComponent', () => {
       expect(fixture.nativeElement.querySelector('.cancel-progress').textContent).toContain('Cancelling');
     });
   });
+
+  describe('date and money formatting', () => {
+    it('formats ISO strings and epoch values, and keeps unreadable text', () => {
+      expect(component.formatDate('2026-10-09T10:00:00Z')).toContain('2026');
+      expect(component.formatDate(1791540000)).toContain('2026');
+      expect(component.formatDate(1791540000000)).toContain('2026');
+      expect(component.formatDate('later')).toBe('later');
+      expect(component.formatDate(null)).toBe('');
+      expect(component.formatDate('  ')).toBe('');
+    });
+
+    it('splits a timestamp into date and time, or keeps the raw text', () => {
+      const parts = component.formatDateParts('2026-10-09T10:00:00Z');
+      expect(parts?.date).toContain('2026');
+      expect(parts?.time).toMatch(/\d/);
+      expect(component.formatDateParts('later')).toEqual({ date: 'later', time: '' });
+      expect(component.formatDateParts(undefined)).toBeNull();
+    });
+
+    it('formats money in the given currency', () => {
+      expect(component.formatCurrency(1600, 'INR')).toContain('1,600.00');
+    });
+  });
 });

@@ -160,6 +160,69 @@ class PriceAlertServiceTest {
         assertTrue(service.getAlerts(ACCOUNT, null, null).isEmpty());
     }
 
+    @Test
+    void getAlertAndItsFiringsNewestFirst() {
+        PriceAlertResponse created = service.createAlert(ACCOUNT, request("AAPL", "190", AlertMode.EVERY_QUOTE));
+        PriceAlert alert = store.alerts.get(created.alertId());
+        java.time.Instant quoteAt = java.time.Instant.parse("2026-10-09T10:00:00Z");
+        store.upsertPending(new com.tradingplatform.watchlist.alerts.model.PriceAlertTrigger(
+            alert, new BigDecimal("191"), quoteAt, "AAPL 191 >= 190"));
+
+        assertEquals("AAPL", service.getAlert(ACCOUNT, created.alertId()).symbol());
+        assertEquals(1, service.getTriggers(ACCOUNT, created.alertId()).size());
+        assertEquals(1, service.getRecentTriggers(ACCOUNT, null).size());
+    }
+
+    @Test
+    void settingTheSameStateChangesNothing_andResumingWatchesAgain() {
+        PriceAlertResponse created = service.createAlert(ACCOUNT, request("AAPL", "190", AlertMode.ONCE));
+
+        assertTrue(service.setActive(ACCOUNT, created.alertId(), true).active());
+        service.setActive(ACCOUNT, created.alertId(), false);
+        PriceAlertResponse resumed = service.setActive(ACCOUNT, created.alertId(), true);
+
+        assertTrue(resumed.active());
+        assertTrue(index.isWatched("AAPL"));
+    }
+
+    @Test
+    void createAlert_requiresDirectionAndMode() {
+        assertThrows(com.tradingplatform.domain.exception.InvalidOrderException.class, () -> service.createAlert(ACCOUNT,
+            new CreatePriceAlertRequest("AAPL", null, new BigDecimal("190"), AlertMode.ONCE)));
+        assertThrows(com.tradingplatform.domain.exception.InvalidOrderException.class, () -> service.createAlert(ACCOUNT,
+            new CreatePriceAlertRequest("AAPL", AlertDirection.ABOVE, new BigDecimal("190"), null)));
+    }
+
+    @Test
+    void racesOnTheSameRuleBecomeConflicts() {
+        java.util.concurrent.atomic.AtomicBoolean raceLost = new java.util.concurrent.atomic.AtomicBoolean();
+        FakePriceAlertStore racing = new FakePriceAlertStore() {
+            @Override
+            public int insert(PriceAlert alert) {
+                if (raceLost.get()) {
+                    throw new org.springframework.dao.DuplicateKeyException("uq_active_rule");
+                }
+                return super.insert(alert);
+            }
+
+            @Override
+            public int updateActive(Long alertId, Long accountId, boolean active, String deactivatedReason) {
+                if (active && raceLost.get()) {
+                    throw new org.springframework.dao.DuplicateKeyException("uq_active_rule");
+                }
+                return super.updateActive(alertId, accountId, active, deactivatedReason);
+            }
+        };
+        PriceAlertService racy = new PriceAlertService(racing, racing, new FakeInstrumentMapper(Map.of(
+            "AAPL", Instrument.tradable(1L, "AAPL", "Apple Inc.", AssetClass.EQUITY, "USD"))), index, MAX_ACTIVE, MAX_TOTAL);
+        PriceAlert paused = racing.seed(ACCOUNT, "AAPL", AlertDirection.ABOVE, "150", AlertMode.ONCE);
+        racing.updateActive(paused.getAlertId(), ACCOUNT, false, PriceAlert.PAUSED);
+        raceLost.set(true);
+
+        assertThrows(PriceAlertConflictException.class, () -> racy.createAlert(ACCOUNT, request("AAPL", "190", AlertMode.ONCE)));
+        assertThrows(PriceAlertConflictException.class, () -> racy.setActive(ACCOUNT, paused.getAlertId(), true));
+    }
+
     private static CreatePriceAlertRequest request(String symbol, String threshold, AlertMode mode) {
         return new CreatePriceAlertRequest(symbol, AlertDirection.ABOVE, new BigDecimal(threshold), mode);
     }

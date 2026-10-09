@@ -1,4 +1,4 @@
-# 0031 Price alerts fire on stale quotes too, at most once per observation
+# 0034 Price alerts fire on stale quotes too, at most once per observation
 
 | Field | Value |
 |---|---|

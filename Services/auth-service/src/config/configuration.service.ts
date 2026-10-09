@@ -26,7 +26,7 @@ export class ConfigurationService {
       throw new Error('JWT_SECRET must be at least 32 bytes');
     }
 
-    // Ports and database come from Config/application.yaml; env vars still override them
+    // Ports and database come from Configuration/application.yaml; env vars still override them
     const platform = loadPlatformConfig();
 
     // Database configuration

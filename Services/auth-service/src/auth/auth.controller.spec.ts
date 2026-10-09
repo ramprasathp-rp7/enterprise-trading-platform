@@ -1,6 +1,6 @@
-import { ConflictException, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, UnauthorizedException, UnprocessableEntityException } from '@nestjs/common';
 import { AuthController } from './auth.controller';
-import { AccountIdAlreadyExistsError, UsernameAlreadyExistsError } from '../users/users.errors';
+import { AccountIdAlreadyExistsError, UnknownAccountIdError, UsernameAlreadyExistsError } from '../users/users.errors';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -39,8 +39,13 @@ describe('AuthController', () => {
       await expect(controller.register(dto)).rejects.toBeInstanceOf(ConflictException);
     });
 
+    test('maps an unknown account id to a 422 validation error', async () => {
+      authService.register.mockRejectedValueOnce(new UnknownAccountIdError(99));
+      await expect(controller.register(dto)).rejects.toBeInstanceOf(UnprocessableEntityException);
+    });
+
     test('rethrows other errors unchanged', async () => {
-      const err = new Error('Account ID 99 does not exist');
+      const err = new Error('database unavailable');
       authService.register.mockRejectedValueOnce(err);
       await expect(controller.register(dto)).rejects.toBe(err);
     });

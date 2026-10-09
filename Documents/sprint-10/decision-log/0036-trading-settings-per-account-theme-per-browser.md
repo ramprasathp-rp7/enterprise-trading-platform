@@ -1,4 +1,4 @@
-# 0033 Trading settings are stored per account; the colour theme stays in the browser; the order budget only warns
+# 0036 Trading settings are stored per account; the colour theme stays in the browser; the order budget only warns
 
 | Field | Value |
 |---|---|

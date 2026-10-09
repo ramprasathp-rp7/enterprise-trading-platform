@@ -335,4 +335,56 @@ describe('BlotterStore', () => {
       expect(store.cancelResult()).toBeNull();
     });
   });
+
+  describe('filters and cancel errors', () => {
+    it('filters by status and by part of the symbol, and clears filters', () => {
+      mockOrderHistoryService.getOrderHistory.mockReturnValue(of(filledOrders));
+      store.loadOrderHistory(123);
+
+      store.setFilters({ status: OrderStatus.Filled, symbol: 'goo' });
+      expect(store.filteredOrders().map((o) => o.orderId)).toEqual(['ord-002']);
+
+      store.setFilters({ symbol: 'zzz' });
+      expect(store.filteredOrders()).toEqual([]);
+
+      store.setFilters({ status: OrderStatus.Rejected });
+      expect(store.filteredOrders()).toEqual([]);
+
+      store.clearFilters();
+      expect(store.filteredOrders()).toHaveLength(2);
+      store.stopPolling();
+    });
+
+    it('explains each cancel failure', () => {
+      const cancel = { cancelOrder: vi.fn() };
+      (store as any).orderCancelService = cancel;
+      mockOrderHistoryService.getOrderHistory.mockReturnValue(of(mockOrders));
+      store.loadOrderHistory(123);
+      const failWith = (status: number, error: unknown = {}) => {
+        cancel.cancelOrder.mockReturnValueOnce(throwError(() => ({ status, error })));
+        store.cancelOrder('ord-001');
+        return store.cancelResult()?.message;
+      };
+
+      expect(failWith(404)).toContain('could not be found');
+      expect(failWith(403)).toContain('not active');
+      expect(failWith(401)).toContain('session has expired');
+      expect(failWith(0)).toContain('Unable to reach');
+      expect(failWith(500, { message: 'Ledger locked', errorCode: 'X-1' })).toBe('Ledger locked');
+      expect(store.cancelResult()?.errorCode).toBe('X-1');
+      expect(failWith(500)).toContain('Failed to cancel');
+      store.stopPolling();
+    });
+
+    it('does not start a second poll while one is running', () => {
+      mockOrderHistoryService.getOrderHistory.mockReturnValue(of(mockOrders));
+      store.loadOrderHistory(123);
+      expect(store.isPolling()).toBe(true);
+
+      (store as any).startPolling(123);
+
+      expect(store.isPolling()).toBe(true);
+      store.stopPolling();
+    });
+  });
 });

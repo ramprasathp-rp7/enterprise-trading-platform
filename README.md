@@ -1,87 +1,193 @@
 # Enterprise Trading Platform
 
-> **Team:** `chennai-capstone-SE2-team1`  
-> Enterprise Trading Platform capstone project context and repository structure up to Sprint 5.
+> **Team:** `chennai-capstone-SE2-team1`
+
+A trading platform for customers and admins. Customers sign in, watch live prices, place limit orders that are
+filled or rejected against real quotes, and follow their holdings, P&L, watchlists, price alerts and automated
+strategies. Admins manage fees, register users and see platform analytics.
+
+It is three services, a PostgreSQL database and a Kafka broker behind one Angular app, plus an analytics ETL.
+Market data comes from the Fauxnance API.
 
 ---
 
-## Table of Contents
-1. [Tech Stack & Tooling](#-tech-stack--tooling)
-2. [Repository Structure](#-repository-structure)
-3. [Sprint Progress & Roadmap](#-sprint-progress--roadmap)
-4. [Getting Started & Local Setup](#-getting-started--local-setup)
+## Table of contents
+
+1. [Architecture](#architecture)
+2. [Repository structure](#repository-structure)
+3. [Tech stack](#tech-stack)
+4. [Getting started](#getting-started)
+5. [Tests and coverage](#tests-and-coverage)
+6. [Documentation](#documentation)
+7. [Sprint history](#sprint-history)
 
 ---
 
-## Tech Stack & Tooling
+## Architecture
 
-| Layer | Technologies & Tools |
-| :--- | :--- |
-| **Domain Engine (Sprint 5)** | Pure Java 21 (Zero frameworks, Jakarta Bean Validation, Maven Enforcer rule) |
-| **Analytics ETL (Sprint 4)** | Python 3.11+, DuckDB (OLAP), Pandas, Plotly (`full_html=True`), Pytest |
-| **Trade Database (Sprint 3)** | PostgreSQL 15+ (3NF Schema, `VARCHAR` + `CHECK` constraints, DB-level unique constraints) |
-| **Testing & Build** | JUnit 5, Surefire, Pytest, Maven Enforcer (`bannedDependencies`) |
-| **Market Data API** | Fauxnance REST API (`X-Api-Key`, candles, quotes, usage, health) |
-| **Diagrams & Documentation** | Mermaid.js (`classDiagram`, `sequenceDiagram`, `erDiagram` in Markdown) |
+![System overview](Documents/architecture/system-overview.svg)
+
+| Component | Folder | Port | What it does |
+| :--- | :--- | :---: | :--- |
+| Angular app | [`Frontend/trading-ui`](Frontend/trading-ui) | 4200 | Every screen for customers and admins; calls the APIs through generated clients |
+| Auth service | [`Services/auth-service`](Services/auth-service) | 3000 | Users, login, registration, JWT access and refresh tokens |
+| Order service (Trade REST API) | [`Services/order-service`](Services/order-service) | 8081 | Orders, accounts, portfolio and P&L, instruments, watchlists, price alerts, notifications, preferences, strategies, advice, admin |
+| Executor service | [`Services/executor-service`](Services/executor-service) | 8082 | Fills or rejects orders from Kafka against live quotes, settles them, publishes outcomes and market data |
+| Analytics ETL | [`ETL`](ETL) | n/a | Incremental load from PostgreSQL into a DuckDB star schema |
+| PostgreSQL | [`Database/postgres`](Database/postgres) | 5432 | One database, `trading_system_db`, with the `auth` schema and the trade tables |
+| Kafka | [`Infrastructure/Kafka`](Infrastructure/Kafka) | 9092 / 29092 | Topics `orders`, `trade-events`, `market-data` and their dead-letter topics |
+
+An order goes from the UI to the order service, which validates it, reserves the cash and publishes
+`ORDER_PLACED`. The executor prices it against a live quote, fills or rejects it, settles cash and positions,
+and publishes the outcome on `trade-events`. The order service then deducts the fee and notifies the customer.
+The full walk-through, with diagrams, is in [`Documents/architecture.md`](Documents/architecture.md).
+
+**Ports and the database connection for every part are in one file:
+[`Configuration/application.yaml`](Configuration/application.yaml).** The services, the frontend and the
+Playwright tests read it; environment variables override it.
 
 ---
 
-## Repository Structure
+## Repository structure
 
 ```text
 .
-├── sprint-03-trade-database/   # PostgreSQL schema (migrations, seed, design, probes, queries, scripts)
-├── sprint-04-analytics-etl/    # Installable Python package (extract, transform, load, claims, tests)
-├── sprint-05-domain-engine/    # Standalone pure-Java 21 Maven module (entities, enums, services, tests)
-├── manifest.env                 # Harness manifest consumed by scripts/check.sh
-├── .example.env                 # Shared environment variable template
-└── README.md                   # Project documentation
+├── Configuration/            # application.yaml: shared ports, URLs and database settings
+├── Contracts/                # OpenAPI contracts shared across services (auth, trade, Fauxnance)
+├── Database/
+│   ├── postgres/
+│   │   ├── auth-service/     # migrations, seed and apply.sh for the auth schema
+│   │   └── order-service/    # numbered migrations (001-026), seed and apply.sh for the trade tables
+│   └── duckdb/analytics/     # the analytics star schema the ETL loads into
+├── Documents/                # architecture, sprint 10 features and decision log, testing notes, runbooks
+├── ETL/                      # Python analytics pipeline (extract, transform, load) and its tests
+├── Frontend/trading-ui/      # Angular 21 app, its OpenAPI contracts and generated clients, Playwright E2E
+├── Infrastructure/Kafka/     # broker and topic setup, single-message replay script
+├── Services/
+│   ├── auth-service/         # NestJS authentication service
+│   ├── order-service/        # Spring Boot Trade REST API
+│   └── executor-service/     # Spring Boot order executor and market data poller
+├── .example.env              # template for the .env every part reads
+└── manifest.env              # settings for the course's check harness
 ```
 
----
-
-## Sprint Progress & Roadmap
-
-| Sprint | Module | Core Deliverables | Status |
-| :---: | :--- | :--- | :---: |
-| **03** | **Trade Database** | 3NF PostgreSQL schema, numbered migrations, `VARCHAR` + `CHECK` constraints, DB-level idempotency (`23505`), index justifications, live constraint violation probes. | **Complete** |
-| **04** | **Analytics ETL** | Installable Python package, DuckDB star schema target, Plotly dashboard (3+ business claims), 4-way error handling, quarantine pattern for defective rows, Fauxnance caching. | **Complete** |
-| **05** | **Domain Engine** | Framework-free Java 21 module, 4 entities, 4 enums, `PlaceOrderRequest` DTO validation, 7 domain exceptions, 8 order placement rules, `IdempotencyKeyChecker` seam interface, 66 JUnit 5 tests. | **Complete** |
+Every part has its own README with setup details (see [Documentation](#documentation)).
 
 ---
 
-## Getting Started & Local Setup
+## Tech stack
+
+| Layer | Technologies |
+| :--- | :--- |
+| Frontend | Angular 21 (standalone components, signals), TypeScript, OpenAPI Generator, Vitest, Playwright |
+| Auth service | NestJS 11, TypeORM, argon2id, JWT (HS256), Jest |
+| Order and executor services | Java 21, Spring Boot 3, MyBatis, Spring Kafka, JUnit 5, Mockito, JaCoCo |
+| Data | PostgreSQL 15+ (numbered migrations), DuckDB (analytics) |
+| Messaging | Apache Kafka (Docker) |
+| Analytics | Python 3.11+, Pandas, DuckDB, Plotly, pytest |
+| Market data | Fauxnance REST API (quotes, candles, symbol registry; 2000 requests a day) |
+| Quality | SonarQube, JaCoCo, V8 coverage, Jest coverage |
+
+---
+
+## Getting started
 
 ### Prerequisites
-* **Java Development Kit (JDK):** 21
-* **Python:** 3.11 or higher
-* **PostgreSQL:** 15+
-* **Maven:** 3.9+
 
-### Environment Configuration
-Copy the template environment file and set your local credentials:
+- JDK 21 and Maven 3.9+
+- Node.js 20.19+ (or 22.12+ / 24+) and npm 10+
+- PostgreSQL 15+
+- Docker, for Kafka
+- Python 3.11+, only for the ETL
+- A Fauxnance API key
+
+### 1. Environment
+
 ```bash
 cp .example.env .env
 ```
-> **Note:** Never commit `.env` or expose your `FAUXNANCE_API_KEY`.
 
-### 1. Database Setup (Sprint 3)
+Fill in the database password, `FAUXNANCE_API_KEY`, `JWT_SECRET` (32+ bytes, shared by all services),
+`PREFERENCES_CONTACT_KEY` and the Kafka host settings. Never commit `.env`.
+
+### 2. Kafka
+
 ```bash
-cd sprint-03-trade-database
-./apply.sh
+bash Infrastructure/Kafka/scripts/kafka-setup.sh
 ```
 
-### 2. Analytics Pipeline Setup (Sprint 4)
+Starts the broker container on the host in `EC2_PRIVATE_IP` and creates the topics.
+
+### 3. Database
+
 ```bash
-cd sprint-04-analytics-etl
-python -m venv .venv
-source .venv/bin/activate  # On Windows (PowerShell): .venv\Scripts\Activate.ps1
-pip install -e '.[dev]'
-pytest
+bash Database/postgres/auth-service/apply.sh
+bash Database/postgres/order-service/apply.sh
 ```
 
-### 3. Domain Engine Build & Test (Sprint 5)
+Each script applies its migrations in order, then its seed data (known accounts and admin users for auth;
+accounts, fees, instruments, orders and positions for the trade tables), to the database named in `.env`.
+
+### 4. Services
+
+Start each in its own terminal, from its own folder:
+
 ```bash
-cd sprint-05-domain-engine
-mvn clean verify
+cd Services/auth-service && npm ci && npm run build && npm start      # :3000
+cd Services/order-service && mvn spring-boot:run                       # :8081
+cd Services/executor-service && mvn spring-boot:run                    # :8082
+cd Frontend/trading-ui && npm ci && npm start                          # :4200
 ```
+
+Open http://localhost:4200 and sign in with a seeded user. The order service's health check is
+http://localhost:8081/health, and the auth service's API docs are at http://localhost:3000/docs.
+
+---
+
+## Tests and coverage
+
+| Part | Unit tests | Line coverage |
+| :--- | :--- | :---: |
+| Frontend | `cd Frontend/trading-ui && npx ng test --watch=false` | 96.8% |
+| Auth service | `cd Services/auth-service && npx jest --testPathIgnorePatterns integration` | 99.8% |
+| Order service | `cd Services/order-service && mvn test` | 96.3% |
+| Executor service | `cd Services/executor-service && mvn test` | 96.8% |
+| ETL | `cd ETL && python -m pytest` | not measured |
+
+End-to-end tests (`npm run e2e` in `Frontend/trading-ui`) run in Chromium, Firefox and WebKit and need
+the whole platform running. Coverage commands, report locations and the integration tests that need live
+services are in [`Documents/003_notes_on_testing_and_coverage.md`](Documents/003_notes_on_testing_and_coverage.md).
+
+---
+
+## Documentation
+
+| Topic | Where |
+| :--- | :--- |
+| Architecture and the order lifecycle | [`Documents/architecture.md`](Documents/architecture.md) |
+| Sprint 10 features (watchlists, alerts, notifications, preferences, P&L, charts, advice, strategies) | [`Documents/sprint-10/README.md`](Documents/sprint-10/README.md) |
+| Design decisions | [`Documents/sprint-10/decision-log/`](Documents/sprint-10/decision-log/) |
+| Security review | [`Documents/sprint-10/security-review/`](Documents/sprint-10/security-review/) |
+| Testing and coverage | [`Documents/003_notes_on_testing_and_coverage.md`](Documents/003_notes_on_testing_and_coverage.md) |
+| Replayed orders never settle twice | [`Documents/001_notes_on_double_debit_replay_verification.md`](Documents/001_notes_on_double_debit_replay_verification.md) |
+| SonarQube quality gate | [`Documents/002_notes_on_SonarQube_quality_gate.md`](Documents/002_notes_on_SonarQube_quality_gate.md) |
+| Angular app | [`Frontend/trading-ui/README.md`](Frontend/trading-ui/README.md) |
+| Auth service | [`Services/auth-service/README.md`](Services/auth-service/README.md) |
+| Order service | [`Services/order-service/README.md`](Services/order-service/README.md) |
+| Executor service | [`Services/executor-service/README.md`](Services/executor-service/README.md) |
+| Analytics ETL | [`ETL/README.md`](ETL/README.md) |
+
+---
+
+## Sprint history
+
+| Sprint | Delivered |
+| :---: | :--- |
+| 3 | PostgreSQL trade schema: numbered migrations, `CHECK` constraints, database-level idempotency |
+| 4 | Analytics ETL into a DuckDB star schema, with quarantine of bad rows and a Plotly dashboard |
+| 5 | Framework-free Java domain engine: entities, order placement rules, domain exceptions |
+| 6 | Trade REST API: synchronous order placement in one transaction with optimistic locking, global error handling |
+| 7 | Asynchronous execution over Kafka: order executor, duplicate-delivery protection, dead-letter topics, SonarQube gate |
+| 8 | Auth service: registration, login, refresh-token rotation, roles, one answer for every login failure |
+| 9 | Angular app: sign-in, route guards, order ticket, blotter, dashboard, Playwright journeys |
+| 10 | Watchlists and price alerts, notifications, preferences, portfolio P&L, candle charts, trade advice, automated strategies, multi-currency, instruments and symbol discovery, account settings, shared platform configuration |

@@ -10,11 +10,11 @@ The Enterprise Trading Platform is three services, a PostgreSQL database and a K
 |---|---|---|---|---|
 | Angular app | `Frontend/trading-ui` | Angular 21, generated API clients, Vitest, Playwright | 4200 | The screens for customers and admins. Holds no business rules |
 | Auth service | `Services/auth-service` | NestJS 11, TypeScript, argon2id, Jest | 3000 | Users, login, registration, refresh tokens. Tables in the `auth` schema |
-| Trade REST API | `Services/order-service` | Spring Boot, MyBatis | 8080 | Orders, accounts, portfolio and P&L, watchlists, price alerts, preferences, notifications, advice, strategies, admin |
-| Order executor | `Services/executor-service` | Spring Boot, MyBatis | 8000 | Consumes orders, prices them, fills or rejects them, settles cash and positions, publishes the outcome |
+| Trade REST API | `Services/order-service` | Spring Boot, MyBatis | 8081 | Orders, accounts, portfolio and P&L, watchlists, price alerts, preferences, notifications, advice, strategies, admin |
+| Order executor | `Services/executor-service` | Spring Boot, MyBatis | 8082 | Consumes orders, prices them, fills or rejects them, settles cash and positions, publishes the outcome |
 | Analytics ETL | `ETL` | Python, DuckDB, Pandas, Plotly | none (command line) | Incremental load from PostgreSQL into a DuckDB star schema, and its reconciliation |
 | PostgreSQL | `Database/postgres/*` | PostgreSQL 15+ | 5432 | Numbered migrations and seeds for the auth and trade tables, in one database |
-| Kafka | `Infrastructure/Kafka` | Kafka in Docker | 9092 | Topics `orders`, `trade-events`, `market-data` and their dead-letter topics |
+| Kafka | `Infrastructure/Kafka` | Kafka in Docker | 9092 / 29092 | Topics `orders`, `trade-events`, `market-data` and their dead-letter topics |
 | API contracts | `Frontend/trading-ui/contracts`, `Contracts` | OpenAPI | n/a | One YAML file per API. The Angular clients are generated from them |
 
 ## What happens when a customer places an order

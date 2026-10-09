@@ -222,4 +222,127 @@ class FeeDeductionServiceTest {
         );
         return objectMapper.writeValueAsString(envelope);
     }
+
+    // ===== Messages it acknowledges without charging a fee =====
+
+    private final org.springframework.kafka.support.Acknowledgment ack =
+        mock(org.springframework.kafka.support.Acknowledgment.class);
+
+    private String message(UUID orderId, EventType type, BigDecimal executedPrice) throws Exception {
+        TradeEventPayload payload = new TradeEventPayload(orderId.toString(), 1L, "AAPL", "BUY", 10,
+            executedPrice, executedPrice, executedPrice, new BigDecimal("5.00"), "FILLED", null,
+            null, 10, executedPrice, null);
+        return objectMapper.writeValueAsString(new MessageEnvelope<>(UUID.randomUUID().toString(), type,
+            Instant.now(), com.tradingplatform.api.events.Source.TRADE_EXECUTOR, 1, payload));
+    }
+
+    private Order filledOrder(UUID orderId) {
+        Order order = new Order(orderId, 1L, 2L, OrderSide.BUY, 10, new BigDecimal("100.00"), "idem-" + orderId);
+        order.markFilled(new BigDecimal("100.00"));
+        return order;
+    }
+
+    private void verifyNothingCharged() {
+        verify(accountMapper, never()).updateAccount(any(Account.class), anyInt());
+        verify(transactionMapper, never()).insertTransaction(eq(null));
+    }
+
+    @Test
+    void ignoresEventsOtherThanFills() throws Exception {
+        feeDeductionService.handleOrderFilled(message(UUID.randomUUID(), EventType.ORDER_REJECTED, BigDecimal.TEN), ack);
+
+        verify(orderMapper, never()).findOrderById(any());
+    }
+
+    @Test
+    void acknowledgesUnknownOrders() throws Exception {
+        feeDeductionService.handleOrderFilled(message(UUID.randomUUID(), EventType.ORDER_FILLED, BigDecimal.TEN), ack);
+
+        verify(ack).acknowledge();
+        verifyNothingCharged();
+    }
+
+    @Test
+    void acknowledgesOrdersThatAreNotFilled() throws Exception {
+        UUID orderId = UUID.randomUUID();
+        when(orderMapper.findOrderById(orderId))
+            .thenReturn(new Order(orderId, 1L, 2L, OrderSide.BUY, 10, new BigDecimal("100.00"), "idem-new"));
+
+        feeDeductionService.handleOrderFilled(message(orderId, EventType.ORDER_FILLED, BigDecimal.TEN), ack);
+
+        verify(ack).acknowledge();
+        verify(instrumentMapper, never()).findById(any());
+    }
+
+    @Test
+    void acknowledgesFillsWithoutAnExecutedPriceOrInstrument() throws Exception {
+        UUID orderId = UUID.randomUUID();
+        when(orderMapper.findOrderById(orderId)).thenReturn(filledOrder(orderId));
+
+        feeDeductionService.handleOrderFilled(message(orderId, EventType.ORDER_FILLED, null), ack);
+        feeDeductionService.handleOrderFilled(message(orderId, EventType.ORDER_FILLED, new BigDecimal("100.00")), ack);
+
+        verify(ack, times(2)).acknowledge();
+        verifyNothingCharged();
+    }
+
+    @Test
+    void noFeeStructureMeansNoFeeButTheSettlementIsStillRecorded() throws Exception {
+        UUID orderId = UUID.randomUUID();
+        when(orderMapper.findOrderById(orderId)).thenReturn(filledOrder(orderId));
+        when(instrumentMapper.findById(2L)).thenReturn(Instrument.tradable(2L, "AAPL", "Apple", AssetClass.EQUITY, "USD"));
+
+        feeDeductionService.handleOrderFilled(message(orderId, EventType.ORDER_FILLED, new BigDecimal("100.00")), ack);
+
+        ArgumentCaptor<Transaction> tx = ArgumentCaptor.forClass(Transaction.class);
+        verify(transactionMapper).insertTransaction(tx.capture());
+        assertEquals(TransactionType.BUY, tx.getValue().getTransactionType());
+        verify(accountMapper, never()).updateAccount(any(Account.class), anyInt());
+        verify(ack).acknowledge();
+    }
+
+    @Test
+    void acknowledgesWhenTheAccountIsMissingOrChangedUnderneath() throws Exception {
+        UUID orderId = UUID.randomUUID();
+        when(orderMapper.findOrderById(orderId)).thenReturn(filledOrder(orderId));
+        when(instrumentMapper.findById(2L)).thenReturn(Instrument.tradable(2L, "AAPL", "Apple", AssetClass.EQUITY, "USD"));
+        when(assetFeeMapper.findByAssetType("EQUITY"))
+            .thenReturn(new AssetFeeStructure("EQUITY", new BigDecimal("5.00"), new BigDecimal("0.0001")));
+        when(transactionMapper.existsByOrderIdAndTransactionType(orderId, TransactionType.BUY)).thenReturn(true);
+        when(accountMapper.findByAccountId(1L))
+            .thenReturn(null)
+            .thenReturn(new Account(1L, "ACC-1", "Alice", new BigDecimal("5000.00"), "USD", AccountStatus.ACTIVE, 0));
+        when(accountMapper.updateAccount(any(Account.class), anyInt())).thenReturn(0);
+
+        feeDeductionService.handleOrderFilled(message(orderId, EventType.ORDER_FILLED, new BigDecimal("100.00")), ack);
+        feeDeductionService.handleOrderFilled(message(orderId, EventType.ORDER_FILLED, new BigDecimal("100.00")), ack);
+
+        verify(ack, times(2)).acknowledge();
+        verify(orderMapper, never()).updateOrderFee(any(), any());
+        verify(transactionMapper, never()).insertTransaction(any());
+    }
+
+    @Test
+    void badPayloadsAndUnexpectedErrorsAreAcknowledgedNotRetriedForever() throws Exception {
+        UUID orderId = UUID.randomUUID();
+        String badId = message(orderId, EventType.ORDER_FILLED, BigDecimal.TEN).replace(orderId.toString(), "not-a-uuid");
+        when(orderMapper.findOrderById(orderId)).thenThrow(new IllegalStateException("db down"));
+
+        feeDeductionService.handleOrderFilled(badId, ack);
+        feeDeductionService.handleOrderFilled(message(orderId, EventType.ORDER_FILLED, BigDecimal.TEN), ack);
+        feeDeductionService.handleOrderFilled("{not json", ack);
+
+        verify(ack, times(3)).acknowledge();
+    }
+
+    @Test
+    void optimisticLockConflictsAreAcknowledged() throws Exception {
+        UUID orderId = UUID.randomUUID();
+        when(orderMapper.findOrderById(orderId))
+            .thenThrow(new com.tradingplatform.domain.exception.OptimisticLockException("account", 1L));
+
+        feeDeductionService.handleOrderFilled(message(orderId, EventType.ORDER_FILLED, BigDecimal.TEN), ack);
+
+        verify(ack).acknowledge();
+    }
 }

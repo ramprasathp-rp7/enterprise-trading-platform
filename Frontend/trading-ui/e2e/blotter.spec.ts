@@ -50,8 +50,32 @@ test.describe('Order Blotter Journey', () => {
   const STATUSES = ['NEW', 'FILLED', 'REJECTED', 'CANCELLED'];
 
   /** GET /api/v1/accounts/{id}/orders, the request the blotter loads its history from */
-  const isOrderHistoryResponse = (r: any) =>
-    /\/api\/v1\/accounts\/\d+\/orders(\?|$)/.test(r.url()) && r.request().method() === 'GET';
+  const ORDER_HISTORY_URL = /\/api\/v1\/accounts\/\d+\/orders(\?|$)/;
+
+  /**
+   * Captures the next order-history response. Playwright fetches it itself and hands it on to the page,
+   * so the body is read while it exists: WebKit drops response bodies quickly, and the blotter keeps
+   * re-requesting the history while an order is NEW, so reading it later through waitForResponse fails
+   * there with "Missing resource for given requestId".
+   */
+  async function nextOrderHistory(page: any): Promise<{ next: Promise<{ ok: boolean; orders: any[] }> }> {
+    let resolve!: (value: { ok: boolean; orders: any[] }) => void;
+    const result = new Promise<{ ok: boolean; orders: any[] }>((r) => (resolve = r));
+    let captured = false;
+    await page.route(ORDER_HISTORY_URL, async (route: any) => {
+      // The CORS preflight (OPTIONS) and later polls go straight to the server
+      if (captured || route.request().method() !== 'GET') {
+        return route.fallback();
+      }
+      captured = true;
+      const response = await route.fetch();
+      const orders = response.ok() ? await response.json() : [];
+      await route.fulfill({ response });
+      resolve({ ok: response.ok(), orders });
+    });
+    // Wrapped: an async function returning a bare promise would wait for it
+    return { next: result };
+  }
 
   /**
    * Helper: Sign in and navigate to blotter.
@@ -94,13 +118,13 @@ test.describe('Order Blotter Journey', () => {
     
     // Navigate to blotter, capturing the history it loads
     console.log(`📊 Navigating to blotter...`);
-    const historyResponse = page.waitForResponse(isOrderHistoryResponse, { timeout: 10000 });
+    const history = await nextOrderHistory(page);
     await page.goto(`${E2E_BASE_URL}/blotter`);
-    const response = await historyResponse;
-    expect(response.ok()).toBe(true);
+    const { ok, orders } = await history.next;
+    expect(ok).toBe(true);
     await expect(page.locator(ORDER_LIST).first()).toBeVisible({ timeout: 10000 });
     console.log(`✅ Blotter page loaded`);
-    return response.json();
+    return orders;
   }
 
   /**
@@ -168,12 +192,11 @@ test.describe('Order Blotter Journey', () => {
     // Refresh re-requests the history and the list re-renders
     const refreshBtn = page.locator('[data-testid="refresh-btn"]');
     await expect(refreshBtn).toBeEnabled();
-    const refreshed = page.waitForResponse(isOrderHistoryResponse, { timeout: 10000 });
+    const refreshed = await nextOrderHistory(page);
     await refreshBtn.click();
-    const response = await refreshed;
-    
-    expect(response.ok()).toBe(true);
-    const latest: unknown[] = await response.json();
+    const { ok, orders: latest } = await refreshed.next;
+
+    expect(ok).toBe(true);
     await expect(refreshBtn).toBeEnabled();
     await expect(page.locator(ORDER_ROWS)).toHaveCount(latest.length);
   });

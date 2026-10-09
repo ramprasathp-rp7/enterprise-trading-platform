@@ -1,4 +1,4 @@
-# 0032 Symbol discovery lists any symbol the Fauxnance registry knows and can quote, as an ordinary instrument
+# 0035 Symbol discovery lists any symbol the Fauxnance registry knows and can quote, as an ordinary instrument
 
 | Field | Value |
 |---|---|
@@ -33,7 +33,7 @@ from `GET /api/v1/instruments` instead of its own copy, and discovery is offered
 finds nothing, as well as on the Instruments page.
 
 A new `instruments.exchange` column (migration 026) holds the registry's exchange, so the USA / NSE market
-preference (decision 0033) can filter on it. Seeded rows are backfilled from their symbols.
+preference (decision 0036) can filter on it. Seeded rows are backfilled from their symbols.
 
 ## Consequences
 

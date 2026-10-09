@@ -6,6 +6,7 @@ import {
   UseGuards,
   ConflictException,
   UnauthorizedException,
+  UnprocessableEntityException,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
@@ -23,7 +24,7 @@ import { DecodedToken } from '../tokens/token-claims';
 import { TokenService } from '../tokens/tokens.service';
 import { UsersService } from '../users/users.service';
 import { RefreshTokenRepository } from '../database/repositories/refresh-token.repository';
-import { AccountIdAlreadyExistsError, UsernameAlreadyExistsError } from '../users/users.errors';
+import { AccountIdAlreadyExistsError, UnknownAccountIdError, UsernameAlreadyExistsError } from '../users/users.errors';
 import * as crypto from 'crypto';
 
 @ApiTags('Auth')
@@ -65,6 +66,10 @@ export class AuthController {
     } catch (error) {
       if (error instanceof UsernameAlreadyExistsError || error instanceof AccountIdAlreadyExistsError) {
         throw new ConflictException('Registration failed');
+      }
+      // The contract: registering against an unknown accountId fails validation (422 VAL-422)
+      if (error instanceof UnknownAccountIdError) {
+        throw new UnprocessableEntityException('accountId does not refer to a trading account');
       }
       throw error;
     }
