@@ -5,7 +5,7 @@
  * This file is never replaced during builds, so all environment files
  * can safely import from it.
  *
- * Service URLs come from Configuration/application.yaml via platform-config.generated.ts.
+ * Service URLs come from Config/application.yaml via platform-config.generated.ts.
  */
 
 import { PLATFORM_URLS } from './platform-config.generated';

@@ -34,11 +34,11 @@ import com.tradingplatform.services.SymbolDiscoveryService;
  * The local quota counter in QuoteClient tracks daily requests and auto-resets at UTC midnight.
  * 
  * Configuration (via environment variables or application.properties):
- * - POLL_INTERVAL_SECONDS: Poll interval in seconds (default: 300, every five minutes). Will be clamped to MIN_POLL_INTERVAL_SECONDS if lower.
- * - MIN_POLL_INTERVAL_SECONDS: Minimum allowed poll interval in seconds (default: 60). Cannot be configured below this value.
+ * - poll.interval.seconds: Poll interval in seconds (default: 300, every five minutes). Will be clamped to min.poll.interval.seconds if lower.
+ * - min.poll.interval.seconds: Minimum allowed poll interval in seconds (default: 60). Cannot be configured below this value.
  * 
  * Examples:
- *   export POLL_INTERVAL_SECONDS=30  # Will be enforced to MIN_POLL_INTERVAL_SECONDS if that's higher
+ *   export POLL_INTERVAL_SECONDS=30  # Will be enforced to min.poll.interval.seconds if that's higher
  *   export MIN_POLL_INTERVAL_SECONDS=45  # Override minimum interval requirement
  */
 @Component
@@ -60,9 +60,9 @@ public class MarketDataPoller {
             QuoteClient quoteClient,
             KafkaTemplate<String, String> kafkaTemplate,
             ObjectMapper objectMapper,
-            @Value("${POLL_INTERVAL_SECONDS:#{T(java.lang.System).getenv('POLL_INTERVAL_SECONDS') != null ? T(java.lang.Integer).parseInt(T(java.lang.System).getenv('POLL_INTERVAL_SECONDS')) : 300}}")
+            @Value("${poll.interval.seconds:300}")
             int pollIntervalSeconds,
-            @Value("${MIN_POLL_INTERVAL_SECONDS:60}")
+            @Value("${min.poll.interval.seconds:60}")
             int minPollIntervalSeconds) {
         this.symbolDiscoveryService = symbolDiscoveryService;
         this.quoteClient = quoteClient;
@@ -84,15 +84,15 @@ public class MarketDataPoller {
 
     /**
      * Scheduled method that polls for market data at the configured interval.
-     * The interval is read from POLL_INTERVAL_SECONDS (default 300s, every five minutes) and validated against
-     * MIN_POLL_INTERVAL_SECONDS. Note the schedule itself reads POLL_INTERVAL_SECONDS directly, so the
+        * The interval is read from poll.interval.seconds (default 300s, every five minutes) and validated against
+        * min.poll.interval.seconds. Note the schedule itself reads poll.interval.seconds directly, so the
      * clamp in the constructor only logs a warning; keep the property at or above the minimum.
      * Both values can be configured via environment variables or application.properties.
      * 
      * Note: This polls continuously at a fixed rate. The interval is validated at initialization time.
      * If configured interval is below the minimum, it will be clamped to the minimum value.
      */
-    @Scheduled(fixedDelayString = "${POLL_INTERVAL_SECONDS:300}000")
+    @Scheduled(fixedDelayString = "${poll.interval.seconds:300}000")
     public void pollMarketData() {
         try {
             logger.info("Starting market data poll cycle");

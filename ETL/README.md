@@ -17,7 +17,8 @@ python3 -m venv .venv
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | `localhost`, `5432`, `trading_system_db`, `postgres`, *(empty)* | Postgres connection |
+| `PGHOST`, `PGPORT`, `POSTGRES_DB` (or `PGDATABASE`), `PGUSER`, `PGPASSWORD` | `localhost`, `5432`, `trading_system_db`, `postgres`, *(empty)* | Postgres connection |
+| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | *(fallback only)* | Backwards-compatible aliases if PG* names are absent |
 | `ANALYTICS_DUCKDB_PATH` | `Database/duckdb/analytics/analytics_store.duckdb` | Where the DuckDB file lives |
 | `ANALYTICS_SCHEMA_PATH` | `Database/duckdb/analytics/analytics-schema.sql` | Path to the binding contract DDL |
 | `ANALYTICS_STAGING_DIR` | `.staging` | Where `etl-extract` writes its JSON dumps |
@@ -87,11 +88,8 @@ figures recomputed directly from Postgres `orders`. Also reports that day's
 dead-letter count, so a mismatch fully explained by quarantined rows is
 distinguishable from a real bug in the transform or merge logic.
 
-## Known deviation from the sprint README's suggested layout
+## Repository layout note
 
-The sprint README describes `etl/` as living inside
-`sprint-07-event-backbone/`, alongside `executor/`. This package instead
-lives at the repository root (`analytics-pipeline/`), by explicit choice.
-Be ready to justify this at review — the reference setup commands in the
-README (`cd .. && pip install -e 'etl[dev]'`) assume the nested layout and
-will need adjusting for this location.
+This package lives at `ETL/` in the repository root and is run from there.
+Any setup note that assumes a different folder name should be adapted to this
+layout.

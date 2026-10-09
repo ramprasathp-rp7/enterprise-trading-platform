@@ -22,6 +22,10 @@ const E2E_SYMBOL = process.env.E2E_SYMBOL || 'AAPL';
 test.setTimeout(60000);
 
 test.describe('Place Order Journey', () => {
+  // This suite shares one test account and submits real orders, so run it serially
+  // to avoid cross-test contention and browser-specific timing flakes.
+  test.describe.configure({ mode: 'serial' });
+
   /**
    * Setup: Register test user and sign in before all tests
    */
@@ -78,11 +82,13 @@ test.describe('Place Order Journey', () => {
     await passwordInput.fill(E2E_PASSWORD);
     
     console.log(`📝 Form filled, submitting...`);
-    await submitBtn.click();
+    // Firefox can occasionally keep waiting on SPA navigation after submit;
+    // noWaitAfter keeps the click deterministic and we assert outcomes below.
+    await submitBtn.click({ noWaitAfter: true });
     
     // Wait for redirect to dashboard
     try {
-      await page.waitForURL(url => url.pathname.includes('/dashboard'), { timeout: 10000 });
+      await page.waitForURL((url: URL) => url.pathname.includes('/dashboard'), { timeout: 10000 });
       console.log(`✅ Redirected to /dashboard`);
     } catch (e) {
       console.log(`⏳ No redirect, checking token...`);
@@ -136,7 +142,12 @@ test.describe('Place Order Journey', () => {
     // Button is enabled when an account exists; invalid state is enforced on submit.
     const submitBtn = page.locator('[data-testid="submit-order-btn"]');
     await submitBtn.waitFor({ timeout: 10000 });
-    
+
+    // Start from empty fields: the account's default-quantity preference (Preferences > Trading)
+    // and a symbol in the URL would otherwise prefill them
+    await page.locator('[data-testid="quantity-input"]').fill('');
+    await page.locator('[data-testid="price-input"]').fill('');
+
     await submitBtn.click();
     await expect(page.locator('[data-testid="symbol-input"]')).toHaveClass(/is-invalid/);
     await expect(page.locator('[data-testid="quantity-input"]')).toHaveClass(/is-invalid/);

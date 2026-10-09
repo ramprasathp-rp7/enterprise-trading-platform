@@ -15,17 +15,23 @@ loadEnv({ path: path.resolve(__dirname, '.env.local'), override: false });
 loadEnv({ path: path.resolve(__dirname, '..', '..', 'manifest.env'), override: false });
 
 /**
- * Default the E2E URLs from Configuration/application.yaml, the shared port settings.
+ * Default the E2E URLs from Config/application.yaml, the shared port settings.
  * Any E2E_* variable set in the environment or a .env file still wins.
+ * Expected defaults are frontend:4200, auth:3000, order:8081.
  */
 type Endpoint = { url?: string; port?: number } | undefined;
-const platformConfigPath = path.resolve(__dirname, '..', '..', 'Configuration', 'application.yaml');
+const platformConfigPath = path.resolve(__dirname, '..', '..', 'Config', 'application.yaml');
 const platform = fs.existsSync(platformConfigPath) ? parse(fs.readFileSync(platformConfigPath, 'utf8')) ?? {} : {};
-const origin = (entry: Endpoint, fallback: string) =>
-  entry?.url ? (entry.port ? `${entry.url}:${entry.port}` : entry.url) : fallback;
-process.env.E2E_BASE_URL ||= origin(platform.frontend, 'http://localhost:4200');
-process.env.E2E_AUTH_API ||= origin(platform.services?.auth, 'http://localhost:3000');
-process.env.E2E_TRADE_API ||= origin(platform.services?.order, 'http://localhost:8081');
+// An E2E_* variable wins; otherwise the URL comes from the config file. Neither is an error, not a localhost guess.
+const origin = (entry: Endpoint, key: string): string => {
+  if (!entry?.url) {
+    throw new Error(`Set E2E_* or add ${key}.url to ${platformConfigPath}`);
+  }
+  return entry.port ? `${entry.url}:${entry.port}` : entry.url;
+};
+process.env.E2E_BASE_URL ||= origin(platform.frontend, 'frontend');
+process.env.E2E_AUTH_API ||= origin(platform.services?.auth, 'services.auth');
+process.env.E2E_TRADE_API ||= origin(platform.services?.order, 'services.order');
 
 /**
  * See https://playwright.dev/docs/test-configuration.

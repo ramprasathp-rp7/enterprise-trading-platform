@@ -26,29 +26,36 @@ export class ConfigurationService {
       throw new Error('JWT_SECRET must be at least 32 bytes');
     }
 
-    // Ports and database come from Configuration/application.yaml; env vars still override them
+    // Ports and database come from Config/application.yaml; env vars still override them
     const platform = loadPlatformConfig();
 
     // Database configuration
-    const pgHost = process.env.PGHOST || platform.database?.host || 'localhost';
-    const pgPort = parseInt(process.env.PGPORT || String(platform.database?.port ?? 5432), 10);
-    const pgUser = process.env.PGUSER || platform.database?.user || 'postgres';
+    // No hardcoded hosts, ports or names: each comes from an env var or Config/application.yaml
+    const required = <T>(value: T | undefined | null | '', setting: string): T => {
+      if (value === undefined || value === null || value === '') {
+        logger.error(`${setting} is not configured`);
+        throw new Error(`${setting} is not configured: set it in .env or Config/application.yaml`);
+      }
+      return value;
+    };
     const pgPassword = process.env.PGPASSWORD;
-    const pgDatabase = process.env.AUTH_POSTGRES_DB || platform.database?.name || 'trading_system_db';
-
     if (!pgPassword) {
       logger.error('PGPASSWORD is not set');
       throw new Error('PGPASSWORD environment variable is required');
     }
+    const pgHost = required(process.env.PGHOST || platform.database?.host, 'PGHOST / database.host');
+    const pgPort = parseInt(String(required(process.env.PGPORT || platform.database?.port, 'PGPORT / database.port')), 10);
+    const pgUser = required(process.env.PGUSER || platform.database?.user, 'PGUSER / database.user');
+    const pgDatabase = required(process.env.AUTH_POSTGRES_DB || platform.database?.name, 'AUTH_POSTGRES_DB / database.name');
 
     // Other configuration
-    const jwtIssuer = process.env.JWT_ISSUER || 'auth-service';
+    const jwtIssuer = required(process.env.JWT_ISSUER, 'JWT_ISSUER');
     const accessTokenLifetime = parseInt(process.env.ACCESS_TOKEN_LIFETIME || '900', 10);
     const refreshTokenLifetime = parseInt(process.env.REFRESH_TOKEN_LIFETIME || '604800', 10);
-    const port = parseInt(process.env.PORT || String(platform.services?.auth?.port ?? 3000), 10);
+    const port = parseInt(String(required(process.env.PORT || platform.services?.auth?.port, 'PORT / services.auth.port')), 10);
     const corsOrigins = [
-      toOrigin(platform.frontend) ?? 'http://localhost:4200',
-      toOrigin(platform.services?.auth) ?? `http://localhost:${port}`,
+      required(toOrigin(platform.frontend), 'frontend.url / frontend.port'),
+      required(toOrigin(platform.services?.auth), 'services.auth.url / services.auth.port'),
     ];
     const pgPoolMax = parseInt(process.env.PGPOOL_MAX || '10', 10);
 

@@ -3,7 +3,7 @@
 The browser app for customers and admins. Angular 21 standalone components with signals; every backend call
 goes through a client generated from an OpenAPI contract.
 
-Dev server: **http://localhost:4200** (from `Configuration/application.yaml`, `frontend.port`).
+Dev server: **http://localhost:4200** (from `Config/application.yaml`, `frontend.port`).
 
 ## What it contains
 
@@ -43,7 +43,7 @@ npm start          # syncs the platform config, then serves on http://localhost:
 ```
 
 `npm start`, `npm run build` and `npm test` first run `npm run sync-config`, which writes
-`src/app/core/config/platform-config.generated.ts` from `Configuration/application.yaml`. After changing a
+`src/app/core/config/platform-config.generated.ts` from `Config/application.yaml`. After changing a
 port in that file, run `npm run sync-config` (or just `npm start`) again.
 
 ### Build

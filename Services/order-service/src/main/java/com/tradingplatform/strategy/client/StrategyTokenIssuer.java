@@ -42,8 +42,8 @@ public class StrategyTokenIssuer {
     private final Clock clock;
 
     @Autowired
-    public StrategyTokenIssuer(@Value("${JWT_SECRET:test-shared-secret-32-bytes-minimum-key}") String secret,
-                               @Value("${JWT_ISSUER:auth-service}") String issuer,
+    public StrategyTokenIssuer(@Value("${JWT_SECRET}") String secret,
+                               @Value("${JWT_ISSUER}") String issuer,
                                @Value("${trading.strategy.token-ttl-seconds:60}") long ttlSeconds) {
         this(secret, issuer, Duration.ofSeconds(ttlSeconds), Clock.systemUTC());
     }

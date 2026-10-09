@@ -1,7 +1,5 @@
 package com.tradingplatform.preferences.internal.crypto;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -22,16 +20,11 @@ import java.util.Base64;
  * onto another row fails to decrypt rather than leaking one person's address to another's
  * notifications.
  *
- * The key is PREFERENCES_CONTACT_KEY (base64 of 32 bytes). When it is unset a published dev key is
- * used and a warning is logged at start-up, the same convention as the JWT dev secret.
+ * The key is PREFERENCES_CONTACT_KEY (base64 of 32 bytes), from .env; the service does not start
+ * without it.
  */
 @Component
 public class ContactDetailCipher {
-
-    private static final Logger logger = LoggerFactory.getLogger(ContactDetailCipher.class);
-
-    /** Published in the source, so only fit for local development. Exactly 32 bytes. */
-    static final byte[] DEV_KEY = "dev-only-preferences-contact-key".getBytes(StandardCharsets.US_ASCII);
 
     private static final String TRANSFORMATION = "AES/GCM/NoPadding";
     private static final int IV_BYTES = 12;
@@ -41,17 +34,15 @@ public class ContactDetailCipher {
     private final SecureRandom random = new SecureRandom();
 
     public ContactDetailCipher(@Value("${PREFERENCES_CONTACT_KEY:}") String base64Key) {
-        byte[] keyBytes;
         if (base64Key == null || base64Key.isBlank()) {
-            logger.warn("PREFERENCES_CONTACT_KEY is not set; using the published development key. "
-                    + "Set it before storing real contact details.");
-            keyBytes = DEV_KEY;
-        } else {
-            try {
-                keyBytes = Base64.getDecoder().decode(base64Key.trim());
-            } catch (IllegalArgumentException e) {
-                throw new IllegalStateException("PREFERENCES_CONTACT_KEY must be base64", e);
-            }
+            throw new IllegalStateException(
+                "PREFERENCES_CONTACT_KEY is required: base64 of 32 random bytes (openssl rand -base64 32)");
+        }
+        byte[] keyBytes;
+        try {
+            keyBytes = Base64.getDecoder().decode(base64Key.trim());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalStateException("PREFERENCES_CONTACT_KEY must be base64", e);
         }
         if (keyBytes.length != 32) {
             throw new IllegalStateException("PREFERENCES_CONTACT_KEY must decode to 32 bytes (AES-256)");

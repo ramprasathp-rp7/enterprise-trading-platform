@@ -46,7 +46,7 @@ public class FauxnanceApiClient {
 
     public FauxnanceApiClient(RestTemplate restTemplate, ObjectMapper objectMapper,
                               @Value("${FAUXNANCE_API_KEY:}") String apiKey,
-                              @Value("${FAUXNANCE_BASE_URL}") String baseUrl) {
+                              @Value("${FAUXNANCE_BASE_URL:${fauxnance.url}}") String baseUrl) {
         this.restTemplate = Objects.requireNonNull(restTemplate, "restTemplate cannot be null");
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper cannot be null");
         this.apiKey = Objects.requireNonNull(apiKey, "apiKey cannot be null");

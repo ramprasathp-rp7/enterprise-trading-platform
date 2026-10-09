@@ -49,7 +49,7 @@ class PreferencesControllerTest {
     void setUp() {
         mapper = new FakePreferencesMapper();
         PreferencesService service = new PreferencesService(
-                mapper, new ContactDetailCipher(""), mock(AccountService.class), new LastKnownChannels());
+                mapper, new ContactDetailCipher("MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="), mock(AccountService.class), new LastKnownChannels());
         mockMvc = MockMvcBuilders.standaloneSetup(new PreferencesController(new AccountAccessAuthorizer(), service))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();

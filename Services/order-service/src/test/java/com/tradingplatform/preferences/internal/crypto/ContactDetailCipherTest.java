@@ -72,9 +72,8 @@ class ContactDetailCipherTest {
     }
 
     @Test
-    void blankKeyFallsBackToDevKey() {
-        ContactDetailCipher dev = new ContactDetailCipher("");
-
-        assertEquals("+447700900123", dev.decrypt(2L, dev.encrypt(2L, "+447700900123")));
+    void aMissingKeyStopsStartup() {
+        assertThrows(IllegalStateException.class, () -> new ContactDetailCipher(""));
+        assertThrows(IllegalStateException.class, () -> new ContactDetailCipher(null));
     }
 }

@@ -2,14 +2,13 @@
 hardcoded, matching the operational services' pattern of reading everything
 from .env / the process environment.
 
-Postgres connection deliberately uses the libpq-standard variable names
+Postgres connection uses the libpq-standard variable names
 (PGHOST, PGPORT, PGUSER, PGPASSWORD, POSTGRES_DB / PGDATABASE) already used
-elsewhere in this repo's .env (psql reads these automatically), rather than
-inventing a second, redundant DB_* naming just for this package. psycopg is
-libpq-based, so passing no explicit host/user/etc. to psycopg.connect()
-already picks these up on its own -- pg_dsn below is built explicitly
-anyway, so this package works the same whether or not that auto-pickup is
-relied on elsewhere.
+elsewhere in this repo's .env (psql reads these automatically).
+
+For backwards compatibility with earlier ETL docs, DB_HOST/DB_PORT/DB_USER/
+DB_PASSWORD/DB_NAME are accepted as fallbacks when the PG* names are absent.
+The PG* names remain canonical.
 """
 from __future__ import annotations
 
@@ -65,12 +64,12 @@ class Config:
             return path_str
         
         return cls(
-            pg_host=os.environ.get("PGHOST", "localhost"),
-            pg_port=int(os.environ.get("PGPORT", "5432")),
+            pg_host=os.environ.get("PGHOST", os.environ.get("DB_HOST", "localhost")),
+            pg_port=int(os.environ.get("PGPORT", os.environ.get("DB_PORT", "5432"))),
             # POSTGRES_DB is what this repo's .env actually sets; PGDATABASE
             # is the libpq-standard fallback name for the same thing.
-            pg_db=os.environ.get("POSTGRES_DB", os.environ.get("PGDATABASE", "trading_system_db")),
-            pg_user=os.environ.get("PGUSER", "postgres"),
+            pg_db=os.environ.get("POSTGRES_DB", os.environ.get("PGDATABASE", os.environ.get("DB_NAME", "trading_system_db"))),
+            pg_user=os.environ.get("PGUSER", os.environ.get("DB_USER", "postgres")),
             # This repo's .env sets both PGPASSWORD and DB_PASSWORD to the
             # same value; prefer PGPASSWORD as the libpq-standard one, fall
             # back to DB_PASSWORD if only that's set.

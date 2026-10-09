@@ -31,6 +31,7 @@ leap_capstone_psql/
 # Environment & Credentials (contain secrets)
 .env
 manifest.env
+!.env.example
 !.example.env
 
 # IDE & OS Files
@@ -52,3 +53,9 @@ sprint-04-analytics-etl/.cache/
 context/
 # order-service market data cache snapshot (MARKET_DATA_CACHE_FILE)
 Services/order-service/data/
+
+# Generated test output (Playwright reports, results, coverage, ETL staging)
+playwright-report/
+test-results/
+coverage/
+.staging/
