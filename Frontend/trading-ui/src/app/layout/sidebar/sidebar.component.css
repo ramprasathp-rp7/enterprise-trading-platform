@@ -280,9 +280,36 @@
   height: 28px;
 }
 
-/* Roomier spacing when the window is tall enough. The customer menu grows to about 610px, which
-   still fits from 760px (navbar 64 + footer 44 + 32 padding), so the sidebar never scrolls. */
-@media (min-height: 760px) {
+/* The menu has 11 items in three groups and never scrolls. Tall windows show each item's description;
+   below that the rows drop the description but keep their breathing room, and only short windows
+   tighten up. Card heights are measured (room = window - navbar 64 - footer 44 - padding 32). */
+
+/* 760-869px: labels only, airy rows (card about 620px) */
+.nav-description {
+  display: none;
+}
+
+.nav-section {
+  margin: 16px 22px 6px;
+}
+
+.nav-item,
+.sidebar.collapsed .nav-item {
+  margin: 2px 10px;
+}
+
+.nav-link,
+.sidebar.collapsed .nav-link {
+  padding-top: 7px;
+  padding-bottom: 7px;
+}
+
+/* From 870px: descriptions back (card about 690px) */
+@media (min-height: 870px) {
+  .nav-description {
+    display: block;
+  }
+
   .sidebar-header {
     padding: 20px 14px 10px 22px;
   }
@@ -291,19 +318,10 @@
     padding-bottom: 8px;
   }
 
-  .nav-section {
-    margin: 16px 22px 6px;
-  }
-
-  .nav-item,
-  .sidebar.collapsed .nav-item {
-    margin: 2px 10px;
-  }
-
   .nav-link,
   .sidebar.collapsed .nav-link {
-    padding-top: 7px;
-    padding-bottom: 7px;
+    padding-top: 8px;
+    padding-bottom: 8px;
   }
 
   .nav-content {
@@ -316,16 +334,38 @@
   }
 }
 
-/* The full menu (descriptions included) is about 513px tall, which fits windows from 653px
-   (navbar 64 + footer 44 + 32 padding). Shorter windows step down so it still never scrolls. */
-@media (max-height: 652px) {
-  .nav-description {
-    display: none;
+/* 700-759px (card about 550px) */
+@media (max-height: 759px) {
+  .nav-section {
+    margin: 14px 22px 5px;
+  }
+
+  .nav-item,
+  .sidebar.collapsed .nav-item {
+    margin: 1px 10px;
+  }
+
+  .nav-link,
+  .sidebar.collapsed .nav-link {
+    padding-top: 5px;
+    padding-bottom: 5px;
   }
 }
 
-/* Very short windows (from about 545px): tighter rows and smaller icons */
-@media (max-height: 615px) {
+/* 660-699px (card about 486px) */
+@media (max-height: 699px) {
+  .nav-section {
+    margin: 8px 22px 3px;
+  }
+
+  .nav-link,
+  .sidebar.collapsed .nav-link {
+    padding-top: 3px;
+    padding-bottom: 3px;
+  }
+}
+
+@media (max-height: 659px) {
   .nav-section {
     margin: 6px 22px 2px;
   }

@@ -1,5 +1,6 @@
 import { Component, OnInit, computed, effect, inject, signal, untracked } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { finalize } from 'rxjs/operators';
@@ -15,7 +16,38 @@ import { NotificationService } from '../../../../core/notifications/notification
 import { currencySymbol, formatMoney, toAccountCurrency } from '../../../../shared/currency';
 import { LiveQuoteStore } from '../../../../core/market-data/live-quote.store';
 import { OrderStatusWatcherService } from '../../../../core/notifications/order-status-watcher.service';
-import { InstrumentCatalogService } from '../../../instruments/services/instrument-catalog.service';
+import { InstrumentCatalogService, exchangeOf, inMarket } from '../../../instruments/services/instrument-catalog.service';
+import { FlashOnChangeDirective } from '../../../../shared/flash-on-change.directive';
+
+export type HoldingsMarket = 'ALL' | 'USA' | 'NSE' | 'OTHER';
+export type HoldingsSort = 'value-desc' | 'pnl-desc' | 'pnl-asc' | 'pnl-pct-desc' | 'symbol' | 'quantity-desc';
+
+/** Orders holdings; holdings without the figure being sorted on go last */
+export function sortHoldings(rows: readonly LivePosition[], sort: HoldingsSort): LivePosition[] {
+  const by = (pick: (p: LivePosition) => number | null | undefined, dir: 1 | -1) => (a: LivePosition, b: LivePosition) => {
+    const va = pick(a);
+    const vb = pick(b);
+    if (va == null || vb == null) {
+      return va == null && vb == null ? 0 : va == null ? 1 : -1;
+    }
+    return (va - vb) * dir || a.symbol.localeCompare(b.symbol);
+  };
+  const list = [...rows];
+  switch (sort) {
+    case 'pnl-desc':
+      return list.sort(by((p) => p.unrealisedPnlAccount ?? p.unrealisedPnl, -1));
+    case 'pnl-asc':
+      return list.sort(by((p) => p.unrealisedPnlAccount ?? p.unrealisedPnl, 1));
+    case 'pnl-pct-desc':
+      return list.sort(by((p) => p.unrealisedPnlPercent, -1));
+    case 'symbol':
+      return list.sort((a, b) => a.symbol.localeCompare(b.symbol));
+    case 'quantity-desc':
+      return list.sort(by((p) => p.quantity, -1));
+    default:
+      return list.sort(by((p) => p.marketValueAccount ?? p.marketValue, -1));
+  }
+}
 
 /** A holding valued at its live price: the latest quote in the order service's cache,
  * or the portfolio API's price when the cache has none */
@@ -39,7 +71,7 @@ export interface LivePosition extends PricedPosition {
 @Component({
   selector: 'app-positions',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, FormsModule, FlashOnChangeDirective],
   templateUrl: './positions.component.html',
   styleUrls: ['./positions.component.css'],
 })
@@ -94,6 +126,61 @@ export class PositionsComponent implements OnInit {
       };
     })
   );
+  /** Holdings filters and order */
+  readonly holdingsQuery = signal('');
+  readonly holdingsMarket = signal<HoldingsMarket>('ALL');
+  readonly holdingsClass = signal<'ALL' | 'EQUITY' | 'FX' | 'CRYPTO'>('ALL');
+  readonly holdingsPnl = signal<'all' | 'gain' | 'loss'>('all');
+  readonly holdingsSort = signal<HoldingsSort>('value-desc');
+
+  readonly holdingsSortOptions: { value: HoldingsSort; label: string }[] = [
+    { value: 'value-desc', label: 'Market value (largest first)' },
+    { value: 'pnl-desc', label: 'Unrealised P&L (best first)' },
+    { value: 'pnl-asc', label: 'Unrealised P&L (worst first)' },
+    { value: 'pnl-pct-desc', label: 'Return % (best first)' },
+    { value: 'symbol', label: 'Symbol (A–Z)' },
+    { value: 'quantity-desc', label: 'Quantity (largest first)' },
+  ];
+
+  /** Holdings after the filters and the chosen order (totals and weights still cover every holding) */
+  readonly visiblePositions = computed<LivePosition[]>(() => {
+    const q = this.holdingsQuery().trim().toUpperCase();
+    const market = this.holdingsMarket();
+    const cls = this.holdingsClass();
+    const pnl = this.holdingsPnl();
+    const filtered = this.livePositions().filter((p) => {
+      const instrument = this.catalog.find(p.symbol);
+      const exchange = exchangeOf({ symbol: p.symbol, exchange: instrument?.exchange });
+      const inChosenMarket =
+        market === 'ALL' ||
+        (market === 'OTHER' ? !inMarket({ symbol: p.symbol, exchange }, 'USA') && !inMarket({ symbol: p.symbol, exchange }, 'NSE') : inMarket({ symbol: p.symbol, exchange }, market));
+      const assetClass = instrument?.assetClass ?? (exchange === 'FX' ? 'FX' : exchange === 'CRYPTO' ? 'CRYPTO' : 'EQUITY');
+      const gain = p.unrealisedPnlAccount ?? p.unrealisedPnl ?? null;
+      return (
+        (!q || p.symbol.toUpperCase().includes(q) || (instrument?.name ?? '').toUpperCase().includes(q)) &&
+        inChosenMarket &&
+        (cls === 'ALL' || assetClass === cls) &&
+        (pnl === 'all' || (gain !== null && (pnl === 'gain' ? gain > 0 : gain < 0)))
+      );
+    });
+    return sortHoldings(filtered, this.holdingsSort());
+  });
+
+  readonly holdingsFiltered = computed(
+    () =>
+      !!this.holdingsQuery().trim() ||
+      this.holdingsMarket() !== 'ALL' ||
+      this.holdingsClass() !== 'ALL' ||
+      this.holdingsPnl() !== 'all',
+  );
+
+  clearHoldingsFilters(): void {
+    this.holdingsQuery.set('');
+    this.holdingsMarket.set('ALL');
+    this.holdingsClass.set('ALL');
+    this.holdingsPnl.set('all');
+  }
+
   /** Market value of the priced holdings in the account's currency (the Weight column is a share of this) */
   readonly totalMarketValue = computed(() =>
     this.livePositions().reduce((sum, p) => sum + (p.marketValueAccount ?? 0), 0)

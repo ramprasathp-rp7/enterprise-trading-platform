@@ -1,0 +1,200 @@
+openapi: 3.1.0
+
+info:
+  title: Account Settings REST API
+  version: 1.0.0
+  summary: The customer's trading settings on the Preferences page.
+  description: |
+    Binding contract for the account settings of the Trade REST API. The Angular UI generates its typed
+    client from this file, so a field renamed here is a compile error there.
+
+    ## What the settings hold
+
+    - `orderBudget`: the most one order should cost, in the account's currency. The order ticket warns
+      when an order's notional is above it. It never blocks an order. `null` means no budget.
+    - `market`: which markets instrument lists and searches show by default. `USA` is NYSE and NASDAQ,
+      `NSE` is the National Stock Exchange of India, `ALL` shows every market including FX and crypto.
+    - `defaultQuantity`: prefilled in the order ticket. `null` means no prefill.
+
+    `GET` with nothing stored answers the defaults (`orderBudget: null`, `market: ALL`,
+    `defaultQuantity: null`, `configured: false`). `PUT` replaces everything. `DELETE` goes back to the
+    defaults.
+
+    The colour theme is not here: it is a per-browser setting the app keeps in the browser.
+
+    ## Authentication
+
+    Every `/api/v1/**` route requires a valid signed JWT in the `Authorization` header. A missing,
+    malformed, expired or wrongly signed token is `AUTH-401`, 401. A valid token whose `accountId`
+    claim does not match the account being addressed is `ACC-403`, 403.
+
+  contact:
+    name: Enterprise Trading Platform, programme materials
+  license:
+    name: Instructional use only
+
+servers:
+  - url: http://localhost:8081
+    description: Local development
+
+tags:
+  - name: AccountSettings
+    description: Read, replace and reset the signed-in customer's trading settings.
+
+security:
+  - bearerAuth: []
+
+paths:
+  /api/v1/accounts/{accountId}/settings:
+    parameters:
+      - $ref: '#/components/parameters/AccountIdPath'
+    get:
+      tags: [AccountSettings]
+      operationId: getAccountSettings
+      summary: Read the account's settings
+      responses:
+        '200':
+          description: The stored settings, or the defaults.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountSettingsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/AccountNotFound'
+    put:
+      tags: [AccountSettings]
+      operationId: updateAccountSettings
+      summary: Replace the account's settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountSettingsRequest'
+      responses:
+        '200':
+          description: The settings as now stored.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountSettingsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/AccountNotFound'
+        '422':
+          description: A value is out of range (`VAL-422`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags: [AccountSettings]
+      operationId: resetAccountSettings
+      summary: Go back to the default settings
+      responses:
+        '204':
+          description: Settings removed.
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/AccountNotFound'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    AccountIdPath:
+      name: accountId
+      in: path
+      required: true
+      description: Numeric account key (ACCOUNTS.id); must match the token's accountId claim.
+      schema:
+        type: integer
+        format: int64
+
+  responses:
+    Unauthorised:
+      description: Missing or invalid token (`AUTH-401`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Token does not reach this account (`ACC-403`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    AccountNotFound:
+      description: The account does not exist (`ACC-404`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    MarketPreference:
+      type: string
+      enum: [USA, NSE, ALL]
+
+    AccountSettingsRequest:
+      type: object
+      required: [market]
+      properties:
+        orderBudget:
+          type: [number, 'null']
+          minimum: 0.01
+          maximum: 1000000000
+          description: Most one order should cost, in the account's currency. Null clears it.
+        market:
+          $ref: '#/components/schemas/MarketPreference'
+        defaultQuantity:
+          type: [integer, 'null']
+          format: int32
+          minimum: 1
+          maximum: 1000000
+          description: Prefilled order quantity. Null clears it.
+
+    AccountSettingsResponse:
+      type: object
+      required: [accountId, market, configured]
+      properties:
+        accountId:
+          type: integer
+          format: int64
+        orderBudget:
+          type: [number, 'null']
+        market:
+          $ref: '#/components/schemas/MarketPreference'
+        defaultQuantity:
+          type: [integer, 'null']
+          format: int32
+        configured:
+          type: boolean
+          description: False when nothing is stored and the defaults are shown.
+        updatedAt:
+          type: [string, 'null']
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      required: [errorCode, message]
+      properties:
+        errorCode:
+          type: string
+          enum: [AUTH-401, ACC-403, ACC-404, VAL-422]
+        message:
+          type: string

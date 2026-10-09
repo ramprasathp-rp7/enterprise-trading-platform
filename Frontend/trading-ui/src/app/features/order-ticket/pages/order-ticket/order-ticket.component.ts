@@ -1,4 +1,4 @@
-import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, OnInit, computed, inject, signal, effect, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -18,6 +18,7 @@ import { Instrument } from '../../../instruments/instrument.models';
 import { InstrumentSearchComponent } from '../../../instruments/components/instrument-search/instrument-search.component';
 import { InstrumentPanelComponent } from '../../../instruments/components/instrument-panel/instrument-panel.component';
 import { InstrumentCatalogService } from '../../../instruments/services/instrument-catalog.service';
+import { AccountSettingsStore } from '../../../../core/settings/account-settings.store';
 import { LiveQuoteStore } from '../../../../core/market-data/live-quote.store';
 import { formatMoney } from '../../../../shared/currency';
 
@@ -37,6 +38,7 @@ export class OrderTicketComponent implements OnInit {
   private orderWatcher = inject(OrderStatusWatcherService);
   private catalog = inject(InstrumentCatalogService);
   private liveQuotes = inject(LiveQuoteStore);
+  private settings = inject(AccountSettingsStore);
 
   readonly symbol = signal<string>('');
   readonly side = signal<OrderSide>(OrderSide.Buy);
@@ -172,9 +174,34 @@ export class OrderTicketComponent implements OnInit {
 
   readonly formatMoney = formatMoney;
 
+  /** The order budget from the Preferences page, in the account's currency (null = none) */
+  readonly orderBudget = this.settings.orderBudget;
+  /** The currency the budget is in: the account's (falls back to the instrument's while it loads) */
+  readonly budgetCurrency = computed(() => this.store.accountCurrency?.() ?? this.instrumentCurrency() ?? 'USD');
+  /** The order's estimated cost in the budget's currency */
+  readonly budgetNotional = computed(() =>
+    this.foreignAccountCurrency() ? this.estimatedNotionalAccount() : this.estimatedNotional(),
+  );
+  /** True when the order would cost more than the budget: warn, never block */
+  readonly overBudget = computed(() => {
+    const budget = this.orderBudget();
+    const notional = this.budgetNotional();
+    return budget !== null && notional !== null && notional > budget;
+  });
+
   constructor() {
     // Keep today's FX rate for the selected instrument fresh while the ticket is open
     this.liveQuotes.track(() => this.fxSymbols());
+
+    // Prefill the default quantity from the Preferences page, once, if the field is untouched
+    effect(() => {
+      const preferred = this.settings.defaultQuantity();
+      untracked(() => {
+        if (preferred && !this.quantity().trim() && !this.quantityTouched()) {
+          this.quantity.set(String(preferred));
+        }
+      });
+    });
   }
 
   readonly canSubmit = computed(() => {

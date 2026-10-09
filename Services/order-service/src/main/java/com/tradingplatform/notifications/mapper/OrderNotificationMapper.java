@@ -43,6 +43,10 @@ public interface OrderNotificationMapper {
                                       @Param("afterId") long afterId,
                                       @Param("limit") int limit);
 
+    /** History page: the account's most recent notifications on every channel, newest first. */
+    @Select(SELECT_COLUMNS + "WHERE account_id = #{accountId} ORDER BY notification_id DESC LIMIT #{limit}")
+    List<OrderNotification> findHistory(@Param("accountId") long accountId, @Param("limit") int limit);
+
     /** The account's most recent in-app notifications, newest first. */
     @Select(SELECT_COLUMNS + "WHERE account_id = #{accountId} AND in_app ORDER BY notification_id DESC LIMIT #{limit}")
     List<OrderNotification> findLatest(@Param("accountId") long accountId, @Param("limit") int limit);

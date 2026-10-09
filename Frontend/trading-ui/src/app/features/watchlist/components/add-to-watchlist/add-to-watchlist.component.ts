@@ -29,7 +29,7 @@ import { WatchlistStore } from '../../watchlist.store';
     </button>
 
     @if (open()) {
-      <div class="menu" role="menu" data-testid="watchlist-menu">
+      <div class="menu anim-pop" animate.leave="anim-pop-out" role="menu" data-testid="watchlist-menu">
         <p class="menu-title">Save {{ symbol() }} to…</p>
 
         @if (store.isLoading() && !store.isLoaded()) {

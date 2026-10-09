@@ -1,0 +1,39 @@
+sequenceDiagram
+    autonumber
+    actor C as Customer
+    participant UI as Angular app
+    participant API as Trade REST API
+    participant DB as PostgreSQL
+    participant K as Kafka
+    participant EX as Order executor
+    participant FX as Fauxnance API
+
+    C->>UI: Place an order
+    UI->>API: POST /api/v1/orders (Bearer JWT)
+    API->>DB: Validate and record the order as NEW
+    API->>K: orders: ORDER_PLACED (key accountId)
+    API-->>UI: Order accepted, shown as received
+
+    K->>EX: orders (group trade-executor)
+    EX->>FX: Quote, plus FX rate if currencies differ
+    EX->>EX: Fill rule decides to fill or reject
+    alt Filled
+        EX->>DB: One transaction: cash, position, order marked FILLED
+        EX->>K: trade-events: ORDER_FILLED
+    else Rejected
+        EX->>DB: Order marked REJECTED with the reason
+        EX->>K: trade-events: ORDER_REJECTED
+    end
+
+    K->>API: trade-events (group fee-deduction-service)
+    API->>DB: BUY or SELL transaction, then the fee and a FEE transaction (once per order)
+
+    K->>API: trade-events (group order-notifications)
+    API->>DB: Store the outcome once per event
+    API->>API: Resolve the customer's channels,<br/>send email and SMS stubs
+
+    loop every 5 s after an order, 30 s otherwise
+        UI->>API: GET order-notifications after the last id seen
+    end
+    API-->>UI: New outcome
+    UI-->>C: Notification bell shows the result

@@ -132,14 +132,52 @@ class PriceAlertEvaluatorTest {
     }
 
     @Test
-    @DisplayName("Stale quotes are ignored")
-    void staleQuote_doesNotTrigger() {
+    @DisplayName("Stale quotes still fire (e.g. the last price while the market is closed), marked in the reason")
+    void staleQuote_triggers() {
+        PriceAlert alert = watch(store.seed(ACCOUNT, "AAPL", AlertDirection.ABOVE, "190", AlertMode.ONCE));
+
+        assertEquals(1, evaluator.onQuote("AAPL", stale("AAPL", "200", T0.minusSeconds(3600)), T0));
+
+        assertFalse(alert.isActive());
+        PriceAlertTrigger trigger = store.triggersFor(alert).get(0);
+        assertEquals("AAPL 200 >= 190 (ABOVE, ONCE, stale quote)", trigger.getReason());
+        assertEquals(T0.minusSeconds(3600), trigger.getQuoteAt(), "a stale quote is keyed on when it was observed");
+    }
+
+    @Test
+    @DisplayName("EVERY_QUOTE on a stale price: the same old price arriving every refresh fires once")
+    void staleQuote_sameObservationRepeated_firesOnce_newObservationFiresAgain() {
+        PriceAlert alert = watch(store.seed(ACCOUNT, "AAPL", AlertDirection.ABOVE, "190", AlertMode.EVERY_QUOTE));
+        Instant lastClose = T0.minusSeconds(3600);
+
+        evaluator.onQuote("AAPL", stale("AAPL", "200", lastClose), T0);
+        evaluator.onQuote("AAPL", stale("AAPL", "200", lastClose), T0.plusSeconds(300));
+        evaluator.onQuote("AAPL", stale("AAPL", "200", lastClose), T0.plusSeconds(600));
+        assertEquals(1, alert.getTriggerCount());
+
+        // The market opens: a fresh quote is new data and fires again
+        evaluator.onQuote("AAPL", quote("AAPL", "201"), T0.plusSeconds(900));
+        assertEquals(2, alert.getTriggerCount());
+        assertTrue(alert.isActive());
+    }
+
+    @Test
+    @DisplayName("A stale quote below an ABOVE level does not fire")
+    void staleQuote_notCrossed_doesNotTrigger() {
+        watch(store.seed(ACCOUNT, "AAPL", AlertDirection.ABOVE, "250", AlertMode.ONCE));
+
+        assertEquals(0, evaluator.onQuote("AAPL", stale("AAPL", "200", T0.minusSeconds(3600)), T0));
+        assertTrue(store.triggers.isEmpty());
+    }
+
+    @Test
+    @DisplayName("A quote without a price is ignored")
+    void quoteWithoutPrice_isIgnored() {
         watch(store.seed(ACCOUNT, "AAPL", AlertDirection.ABOVE, "190", AlertMode.ONCE));
 
-        QuotePayload stale = new QuotePayload("AAPL", new BigDecimal("200"), null, null, "USD",
-            null, null, null, "CLOSED", true, T0);
+        QuotePayload noPrice = new QuotePayload("AAPL", null, null, null, "USD", null, null, null, "CLOSED", true, T0);
 
-        assertEquals(0, evaluator.onQuote("AAPL", stale, T0));
+        assertEquals(0, evaluator.onQuote("AAPL", noPrice, T0));
         assertTrue(store.triggers.isEmpty());
     }
 
@@ -215,6 +253,11 @@ class PriceAlertEvaluatorTest {
     private PriceAlert watch(PriceAlert alert) {
         index.watch(alert.getSymbol());
         return alert;
+    }
+
+    private static QuotePayload stale(String symbol, String price, Instant observedAt) {
+        BigDecimal p = new BigDecimal(price);
+        return new QuotePayload(symbol, p, p, p, "USD", null, null, null, "unknown", true, observedAt);
     }
 
     private static QuotePayload quote(String symbol, String price) {

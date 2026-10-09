@@ -1,6 +1,5 @@
 package com.tradingplatform.api.services;
 
-import com.tradingplatform.api.events.QuotePayload;
 import com.tradingplatform.api.mappers.InstrumentMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -75,7 +74,7 @@ public class MarketDataRefreshScheduler {
 
         Instant receivedAt = Instant.now();
         quotes.values().forEach(quote ->
-            marketDataCache.updateQuote(quote.getSymbol(), toPayload(quote), receivedAt));
+            marketDataCache.updateQuote(quote.getSymbol(), quote.toPayload(), receivedAt));
 
         if (quotes.size() < symbols.size()) {
             List<String> unquoted = symbols.stream().filter(symbol -> !quotes.containsKey(symbol)).toList();
@@ -98,22 +97,5 @@ public class MarketDataRefreshScheduler {
         java.util.LinkedHashSet<String> all = new java.util.LinkedHashSet<>(symbols);
         all.addAll(fxSymbols);
         return List.copyOf(all);
-    }
-
-    /** Same fields the executor's market-data poller publishes to the topic. */
-    private static QuotePayload toPayload(FauxnanceApiClient.QuoteData quote) {
-        return new QuotePayload(
-            quote.getSymbol(),
-            quote.getPrice(),
-            quote.getBid(),
-            quote.getAsk(),
-            quote.getCurrency(),
-            quote.getChange(),
-            quote.getChangePercent(),
-            quote.getPreviousClose(),
-            quote.getMarketState(),
-            quote.isStale(),
-            quote.getQuoteAsOf()
-        );
     }
 }

@@ -4,11 +4,9 @@ import com.tradingplatform.mappers.AccountMapper;
 import com.tradingplatform.mappers.PositionMapper;
 
 import jakarta.transaction.Transactional;
-
 import com.tradingplatform.enums.OrderSide;
 import com.tradingplatform.exception.OptimisticLockException;
 import com.tradingplatform.domain.Account;
-import com.tradingplatform.domain.Feeable;
 import com.tradingplatform.domain.Order;
 import com.tradingplatform.domain.Position;
 import org.springframework.stereotype.Service;

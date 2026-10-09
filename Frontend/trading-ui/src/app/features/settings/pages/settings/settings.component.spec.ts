@@ -6,6 +6,10 @@ import { SettingsComponent } from './settings.component';
 import { PreferencesStore } from '../../preferences.store';
 import { AlertChannelEntry, PreferencesResponse } from '../../../../api/generated/preferences';
 import { CoreAuthService } from '../../../../core/auth/core-auth.service';
+import { AccountSettings, AccountSettingsStore, DEFAULT_ACCOUNT_SETTINGS } from '../../../../core/settings/account-settings.store';
+import { ThemeService } from '../../../../core/services/theme.service';
+import { ActivatedRoute, convertToParamMap } from '@angular/router';
+import { AccountsService } from '../../../../api/generated/trade';
 
 describe('SettingsComponent', () => {
   let fixture: ComponentFixture<SettingsComponent>;
@@ -13,17 +17,21 @@ describe('SettingsComponent', () => {
   let preferences: ReturnType<typeof signal<PreferencesResponse | null>>;
   let store: Record<string, unknown>;
   let admin: boolean;
+  let tradingSettings: ReturnType<typeof signal<AccountSettings>>;
+  let settingsStore: Record<string, unknown>;
 
   const el = (testId: string): HTMLElement | null =>
     fixture.nativeElement.querySelector(`[data-testid="${testId}"]`);
 
-  const create = () => {
+  const create = (extraProviders: unknown[] = []) => {
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       imports: [SettingsComponent],
       providers: [
+        ...(extraProviders as never[]),
         { provide: PreferencesStore, useValue: store },
-        { provide: CoreAuthService, useValue: { isAdmin: () => admin } },
+        { provide: AccountSettingsStore, useValue: settingsStore },
+        { provide: CoreAuthService, useValue: { isAdmin: () => admin, currentUser: () => (admin ? null : { id: 'u-7', accountId: 7 }) } },
       ],
     });
     fixture = TestBed.createComponent(SettingsComponent);
@@ -51,7 +59,117 @@ describe('SettingsComponent', () => {
       }),
       resetToDefault: vi.fn(() => of(undefined)),
     };
+    localStorage.removeItem(ThemeService.STORAGE_KEY);
+    tradingSettings = signal<AccountSettings>({ ...DEFAULT_ACCOUNT_SETTINGS });
+    settingsStore = {
+      settings: tradingSettings,
+      error: signal<string | null>(null),
+      ensureLoaded: vi.fn(),
+      save: vi.fn((input: Pick<AccountSettings, 'orderBudget' | 'market' | 'defaultQuantity'>) => {
+        const saved = { ...input, configured: true, updatedAt: '2026-10-09T08:00:00Z' };
+        tradingSettings.set(saved);
+        return of(saved);
+      }),
+      reset: vi.fn(() => {
+        tradingSettings.set({ ...DEFAULT_ACCOUNT_SETTINGS });
+        return of(undefined);
+      }),
+    };
     create();
+  });
+
+  describe('appearance', () => {
+    it('offers light, dark and system themes and applies a choice straight away', () => {
+      const theme = TestBed.inject(ThemeService);
+
+      (el('theme-dark') as HTMLButtonElement).click();
+      fixture.detectChanges();
+      expect(theme.mode()).toBe('dark');
+      expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+      expect(el('theme-dark')?.getAttribute('aria-checked')).toBe('true');
+
+      (el('theme-system') as HTMLButtonElement).click();
+      fixture.detectChanges();
+      expect(theme.mode()).toBe('system');
+      expect(localStorage.getItem(ThemeService.STORAGE_KEY)).toBe('system');
+    });
+  });
+
+  describe('trading settings', () => {
+    const type = (testId: string, value: string) => {
+      const input = el(testId) as HTMLInputElement;
+      input.value = value;
+      input.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+    };
+
+    it('loads the stored settings into the form', () => {
+      expect(settingsStore['ensureLoaded']).toHaveBeenCalled();
+      tradingSettings.set({ orderBudget: 5000, market: 'NSE', defaultQuantity: 10, configured: true, updatedAt: null });
+      fixture.detectChanges();
+
+      expect(component.budgetText()).toBe('5000');
+      expect(component.quantityText()).toBe('10');
+      expect(component.marketChoice()).toBe('NSE');
+      expect((el('market-NSE') as HTMLInputElement).checked).toBe(true);
+    });
+
+    it('saves budget, market and default quantity', async () => {
+      type('budget-input', '2500.555');
+      type('quantity-input', '25');
+      (el('market-USA') as HTMLInputElement).click();
+      fixture.detectChanges();
+
+      (el('save-trading') as HTMLButtonElement).click();
+      fixture.detectChanges();
+
+      expect(settingsStore['save']).toHaveBeenCalledWith({ orderBudget: 2500.555, market: 'USA', defaultQuantity: 25 });
+      expect(el('trading-feedback')?.textContent).toContain('saved');
+    });
+
+    it('treats empty fields as no budget and no default quantity', () => {
+      tradingSettings.set({ orderBudget: 5000, market: 'ALL', defaultQuantity: 10, configured: true, updatedAt: null });
+      fixture.detectChanges();
+      (el('budget-clear') as HTMLButtonElement).click();
+      type('quantity-input', '');
+
+      (el('save-trading') as HTMLButtonElement).click();
+
+      expect(settingsStore['save']).toHaveBeenCalledWith({ orderBudget: null, market: 'ALL', defaultQuantity: null });
+    });
+
+    it('will not save an invalid budget or quantity', () => {
+      type('budget-input', '-5');
+      expect(el('budget-error')).not.toBeNull();
+      expect((el('save-trading') as HTMLButtonElement).disabled).toBe(true);
+
+      type('budget-input', '100');
+      type('quantity-input', '1.5');
+      expect(el('quantity-error')).not.toBeNull();
+      expect((el('save-trading') as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    it('resets to the defaults', () => {
+      tradingSettings.set({ orderBudget: 5000, market: 'USA', defaultQuantity: 10, configured: true, updatedAt: null });
+      fixture.detectChanges();
+
+      (el('reset-trading') as HTMLButtonElement).click();
+      fixture.detectChanges();
+
+      expect(settingsStore['reset']).toHaveBeenCalled();
+      expect(component.marketChoice()).toBe('ALL');
+      expect(component.budgetText()).toBe('');
+    });
+
+    it('is not offered to admins, who have no trading account', () => {
+      admin = true;
+      create();
+
+      expect(el('trading-section')).toBeNull();
+      expect(el('appearance-section')).not.toBeNull();
+      expect(el('notifications-section')).not.toBeNull();
+      expect(settingsStore['ensureLoaded']).not.toHaveBeenCalledTimes(2);
+    });
   });
 
   it('tells customers it is about their orders and price alerts', () => {
@@ -217,5 +335,69 @@ describe('SettingsComponent', () => {
     fixture.detectChanges();
 
     expect(el('preferences-feedback')?.textContent).toContain('Cannot reach');
+  });
+
+  describe('section navigation', () => {
+    afterEach(() => vi.useRealTimers());
+
+    it('glides the cards to a section and keeps the clicked one highlighted while it moves', () => {
+      vi.useFakeTimers();
+      const column = el('settings-scroll') as HTMLElement;
+      const scrollTo = vi.fn();
+      (column as unknown as { scrollTo: unknown }).scrollTo = scrollTo;
+
+      (el('nav-section-trading') as HTMLButtonElement).click();
+      fixture.detectChanges();
+
+      expect(component.activeSection()).toBe('trading');
+      expect(scrollTo).toHaveBeenCalledWith(expect.objectContaining({ behavior: 'smooth' }));
+      // A scroll event mid-glide does not move the highlight
+      column.dispatchEvent(new Event('scroll'));
+      expect(component.activeSection()).toBe('trading');
+
+      vi.advanceTimersByTime(1000);
+      column.dispatchEvent(new Event('scroll'));
+      // Scrolled to the end (an empty test layout): the last section is the one being read
+      expect(component.activeSection()).toBe('notifications');
+    });
+
+    it('falls back to setting scrollTop where smooth scrolling is unavailable', () => {
+      const column = el('settings-scroll') as HTMLElement;
+      (column as unknown as { scrollTo: unknown }).scrollTo = undefined;
+
+      component.scrollTo('notifications');
+
+      expect(component.activeSection()).toBe('notifications');
+      // Lands 4px above the card; jsdom has no layout and does not clamp the value as browsers do
+      expect(column.scrollTop).toBe(-4);
+    });
+
+    it('opens on the section named in the link', async () => {
+      create([{ provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: convertToParamMap({ section: 'trading' }) } } }]);
+      await fixture.whenStable();
+
+      expect(component.activeSection()).toBe('trading');
+    });
+  });
+
+  describe('trading settings errors and currency', () => {
+    it('shows a failed save and a failed reset', () => {
+      component.budgetText.set('100');
+      component.tradingDirty.set(true);
+      (settingsStore['save'] as ReturnType<typeof vi.fn>).mockReturnValue(throwError(() => new Error('Budget too large')));
+      component.saveTrading();
+      expect(component.tradingFeedback()).toEqual({ text: 'Budget too large', error: true });
+
+      (settingsStore['reset'] as ReturnType<typeof vi.fn>).mockReturnValue(throwError(() => new Error('Offline')));
+      component.resetTrading();
+      expect(component.tradingFeedback()).toEqual({ text: 'Offline', error: true });
+      expect(component.tradingSaving()).toBe(false);
+    });
+
+    it('shows the budget in the account currency', () => {
+      create([{ provide: AccountsService, useValue: { getBalance: () => of({ accountId: 7, cashBalance: 1, currency: 'INR' }) } }]);
+
+      expect(component.accountCurrency()).toBe('INR');
+    });
   });
 });

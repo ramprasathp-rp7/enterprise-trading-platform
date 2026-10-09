@@ -1,154 +1,375 @@
 <div class="page settings-page">
-  <!-- One centred column: heading, messages, then the preferences card -->
-  <div class="settings-column">
-    <header class="settings-heading">
-      <span class="heading-icon" aria-hidden="true"><i class="fas fa-sliders"></i></span>
+  <header class="page-header">
+    <div class="page-heading">
       <p class="page-eyebrow">{{ isAdmin ? 'Admin' : 'Account' }}</p>
       <h1 class="page-title">Preferences</h1>
-      <p class="page-subtitle" data-testid="preferences-subtitle">{{ subtitle }}</p>
-    </header>
+      <p class="page-subtitle">
+        {{ isAdmin ? 'How the platform looks and how we reach you.' : 'How the platform looks, how you trade, and how we reach you.' }}
+      </p>
+    </div>
+  </header>
 
-    @if (feedback(); as f) {
-      <div class="alert" [class.alert-success]="!f.error" [class.alert-danger]="f.error" role="status" data-testid="preferences-feedback">
-        <i class="fas" [class.fa-check-circle]="!f.error" [class.fa-circle-exclamation]="f.error"></i>
-        <p>{{ f.text }}</p>
-        <button type="button" class="alert-close" (click)="feedback.set(null)" aria-label="Dismiss"><i class="fas fa-xmark"></i></button>
-      </div>
-    }
-
-    @if (store.error(); as error) {
-      <div class="alert alert-danger" role="alert">
-        <i class="fas fa-circle-exclamation"></i>
-        <p>{{ error }}</p>
-        <button type="button" class="btn btn-outline btn-sm" (click)="store.load()">Retry</button>
-      </div>
-    }
-
-    @if (store.preferences(); as prefs) {
-      @if (!prefs.configured) {
-        <div class="alert alert-warning" role="status" data-testid="preferences-default-banner">
-          <i class="fas fa-circle-info"></i>
-          <p>You haven't chosen any channels yet, so notifications go to your in-app inbox.</p>
-        </div>
+  <div class="settings-layout">
+    <!-- Section links: jump to a card -->
+    <nav class="settings-nav" aria-label="Preference sections">
+      @for (section of sections; track section.id) {
+        <button
+          type="button"
+          class="settings-nav-link"
+          [class.active]="activeSection() === section.id"
+          [attr.aria-current]="activeSection() === section.id ? 'true' : null"
+          (click)="scrollTo(section.id)"
+          [attr.data-testid]="'nav-section-' + section.id"
+        >
+          <span class="nav-icon" aria-hidden="true"><i class="fas" [ngClass]="section.icon"></i></span>
+          <span class="nav-text">
+            <span class="nav-label">{{ section.label }}</span>
+            <span class="nav-hint">{{ section.hint }}</span>
+          </span>
+        </button>
       }
-    }
+    </nav>
 
-    <section class="panel settings-card">
-      <form class="settings-form" (ngSubmit)="save()" data-testid="preferences-form">
-        <!-- Channels -->
-        <fieldset class="settings-section channel-group" [disabled]="store.isLoading()">
-          <div class="section-head">
-            <legend class="section-title">Alert channels</legend>
-            <span class="section-meta">{{ selected().size }} of {{ channels.length }} selected</span>
+    <!-- Only the cards scroll; the page title and the section links stay in view -->
+    <div class="settings-column" #column (scroll)="onColumnScroll()" data-testid="settings-scroll">
+      <!-- ===== APPEARANCE ===== -->
+      <section class="panel settings-card" id="section-appearance" data-testid="appearance-section" aria-labelledby="appearance-title">
+        <header class="card-head">
+          <span class="card-icon" aria-hidden="true"><i class="fas fa-palette"></i></span>
+          <div>
+            <h2 class="card-title" id="appearance-title">Appearance</h2>
+            <p class="card-subtitle">Applies straight away and is remembered on this browser.</p>
           </div>
-          <p class="field-help">Pick one or more. We notify you on every channel you choose.</p>
-
-          <div class="channel-options">
-            @for (option of channels; track option.value) {
-              <label class="channel-option" [class.selected]="isSelected(option.value)">
-                <input
-                  type="checkbox"
-                  [checked]="isSelected(option.value)"
-                  (change)="toggle(option.value)"
-                  [attr.data-testid]="'channel-' + option.value"
-                />
+        </header>
+        <div class="settings-section">
+          <div class="section-head">
+            <h3 class="section-title">Theme</h3>
+            <span class="section-meta">Now showing {{ theme.theme() === 'dark' ? 'dark' : 'light' }}</span>
+          </div>
+          <div class="theme-options" role="radiogroup" aria-label="Theme">
+            @for (option of themeOptions; track option.value) {
+              <button
+                type="button"
+                role="radio"
+                class="theme-option"
+                [class.selected]="theme.mode() === option.value"
+                [attr.aria-checked]="theme.mode() === option.value"
+                (click)="theme.setMode(option.value)"
+                [attr.data-testid]="'theme-' + option.value"
+              >
+                <span class="theme-preview" [attr.data-preview]="option.value" aria-hidden="true">
+                  <span class="tp-top"></span>
+                  <span class="tp-side"></span>
+                  <span class="tp-card tp-card-1"></span>
+                  <span class="tp-card tp-card-2"></span>
+                </span>
+                <span class="theme-text">
+                  <span class="theme-label"><i class="fas" [ngClass]="option.icon" aria-hidden="true"></i> {{ option.label }}</span>
+                  <span class="theme-hint">{{ option.hint }}</span>
+                </span>
                 <span class="channel-check" aria-hidden="true"><i class="fas fa-check"></i></span>
-                <span class="channel-icon" aria-hidden="true"><i class="fas" [ngClass]="option.icon"></i></span>
-                <span class="channel-label">{{ option.label }}</span>
-                <span class="channel-hint">{{ option.hint }}</span>
-              </label>
+              </button>
             }
           </div>
-          @if (nothingSelected()) {
-            <p class="field-error" data-testid="channels-error"><i class="fas fa-circle-exclamation"></i> Choose at least one channel.</p>
-          }
-        </fieldset>
+        </div>
+      </section>
 
-        <!-- Contact details, only for the channels that need one -->
-        @if (emailSelected() || smsSelected()) {
-          <div class="settings-section">
-            <div class="section-head">
-              <h2 class="section-title">Contact details</h2>
-              <span class="section-meta"><i class="fas fa-lock" aria-hidden="true"></i> Stored encrypted</span>
+      <!-- ===== TRADING (customers) ===== -->
+      @if (!isAdmin) {
+        <section class="panel settings-card" id="section-trading" data-testid="trading-section" aria-labelledby="trading-title">
+          <form class="settings-form" (ngSubmit)="saveTrading()" data-testid="trading-form">
+            <header class="card-head">
+              <span class="card-icon" aria-hidden="true"><i class="fas fa-sliders"></i></span>
+              <div>
+                <h2 class="card-title" id="trading-title">Trading</h2>
+                <p class="card-subtitle">Guard-rails and shortcuts for placing orders.</p>
+              </div>
+            </header>
+
+            @if (tradingFeedback(); as f) {
+              <div class="card-alert alert" [class.alert-success]="!f.error" [class.alert-danger]="f.error" role="status" data-testid="trading-feedback">
+                <i class="fas" [class.fa-check-circle]="!f.error" [class.fa-circle-exclamation]="f.error"></i>
+                <p>{{ f.text }}</p>
+              </div>
+            }
+            @if (settingsStore.error(); as error) {
+              <div class="card-alert alert alert-danger" role="alert">
+                <i class="fas fa-circle-exclamation"></i>
+                <p>{{ error }}</p>
+                <button type="button" class="btn btn-outline btn-sm" (click)="settingsStore.ensureLoaded(true)">Retry</button>
+              </div>
+            }
+
+            <!-- Order budget -->
+            <div class="settings-section">
+              <div class="section-head">
+                <h3 class="section-title"><label for="orderBudget">Order budget</label></h3>
+                <span class="section-meta"><i class="fas fa-triangle-exclamation" aria-hidden="true"></i> Warning only</span>
+              </div>
+              <p class="field-help">
+                The most a single order should cost. The order ticket warns you before you place an order above it; it never blocks the order.
+              </p>
+              <div class="inline-field">
+                <div class="input-with-prefix" [class.invalid]="budgetError()">
+                  <span class="prefix">{{ accountCurrency() }}</span>
+                  <input
+                    id="orderBudget"
+                    name="orderBudget"
+                    class="form-input"
+                    type="number"
+                    inputmode="decimal"
+                    min="0.01"
+                    step="0.01"
+                    placeholder="No budget"
+                    [ngModel]="budgetText()"
+                    (ngModelChange)="setBudget($event === null ? '' : '' + $event)"
+                    [attr.aria-invalid]="!!budgetError()"
+                    data-testid="budget-input"
+                  />
+                </div>
+                @if (budgetText()) {
+                  <button type="button" class="btn btn-ghost btn-sm" (click)="clearBudget()" data-testid="budget-clear">No budget</button>
+                }
+              </div>
+              @if (budgetError(); as error) {
+                <p class="field-error" data-testid="budget-error"><i class="fas fa-circle-exclamation"></i> {{ error }}</p>
+              }
             </div>
 
-            <div class="contact-fields">
-              @if (emailSelected()) {
-                <div class="form-field">
-                  <label class="field-label" for="contactEmail">Email address</label>
-                  <div class="input-with-icon" [class.invalid]="emailError() && contacts().EMAIL">
-                    <i class="fas fa-envelope" aria-hidden="true"></i>
-                    <input
-                      id="contactEmail"
-                      class="form-input"
-                      name="contactEmail"
-                      type="email"
-                      autocomplete="off"
-                      maxlength="254"
-                      placeholder="you@example.com"
-                      [ngModel]="contacts().EMAIL"
-                      (ngModelChange)="setContact('EMAIL', $event)"
-                      [attr.aria-invalid]="!!emailError()"
-                      data-testid="contact-email-input"
-                    />
-                  </div>
-                  @if (emailError() && contacts().EMAIL) {
-                    <p class="field-error" data-testid="contact-email-error">{{ emailError() }}</p>
-                  }
+            <!-- Default quantity -->
+            <div class="settings-section">
+              <div class="section-head">
+                <h3 class="section-title"><label for="defaultQuantity">Default order quantity</label></h3>
+                <span class="section-meta">Optional</span>
+              </div>
+              <p class="field-help">Prefilled in the order ticket so you can place your usual size in one step.</p>
+              <div class="inline-field">
+                <div class="input-with-prefix narrow" [class.invalid]="quantityError()">
+                  <span class="prefix"><i class="fas fa-hashtag" aria-hidden="true"></i></span>
+                  <input
+                    id="defaultQuantity"
+                    name="defaultQuantity"
+                    class="form-input"
+                    type="number"
+                    inputmode="numeric"
+                    min="1"
+                    step="1"
+                    placeholder="None"
+                    [ngModel]="quantityText()"
+                    (ngModelChange)="setQuantity($event === null ? '' : '' + $event)"
+                    [attr.aria-invalid]="!!quantityError()"
+                    data-testid="quantity-input"
+                  />
                 </div>
-              }
-
-              @if (smsSelected()) {
-                <div class="form-field">
-                  <label class="field-label" for="contactSms">Mobile number</label>
-                  <div class="input-with-icon" [class.invalid]="smsError() && contacts().SMS">
-                    <i class="fas fa-mobile-screen" aria-hidden="true"></i>
-                    <input
-                      id="contactSms"
-                      class="form-input"
-                      name="contactSms"
-                      type="tel"
-                      autocomplete="off"
-                      maxlength="254"
-                      placeholder="+447700900123"
-                      [ngModel]="contacts().SMS"
-                      (ngModelChange)="setContact('SMS', $event)"
-                      [attr.aria-invalid]="!!smsError()"
-                      data-testid="contact-sms-input"
-                    />
-                  </div>
-                  @if (smsError() && contacts().SMS) {
-                    <p class="field-error" data-testid="contact-sms-error">{{ smsError() }}</p>
-                  }
-                </div>
+              </div>
+              @if (quantityError(); as error) {
+                <p class="field-error" data-testid="quantity-error"><i class="fas fa-circle-exclamation"></i> {{ error }}</p>
               }
             </div>
-            <p class="field-help">Used only to send you notifications.</p>
+
+            <!-- Markets -->
+            <fieldset class="settings-section">
+              <div class="section-head">
+                <legend class="section-title">Markets</legend>
+                <span class="section-meta">Default for lists and searches</span>
+              </div>
+              <p class="field-help">Which exchanges instrument search and the Instruments page show first. You can always switch to all markets there.</p>
+              <div class="channel-options market-options" role="radiogroup" aria-label="Markets">
+                @for (option of marketOptions; track option.value) {
+                  <label class="channel-option" [class.selected]="marketChoice() === option.value">
+                    <input
+                      type="radio"
+                      name="market"
+                      [value]="option.value"
+                      [checked]="marketChoice() === option.value"
+                      (change)="chooseMarket(option.value)"
+                      [attr.data-testid]="'market-' + option.value"
+                    />
+                    <span class="channel-check" aria-hidden="true"><i class="fas fa-check"></i></span>
+                    <span class="channel-icon" aria-hidden="true"><i class="fas" [ngClass]="option.icon"></i></span>
+                    <span class="channel-label">{{ option.label }}</span>
+                    <span class="channel-hint">{{ option.hint }}</span>
+                    <span class="market-count">{{ marketCounts()[option.value] }} instruments</span>
+                  </label>
+                }
+              </div>
+            </fieldset>
+
+            <div class="form-actions">
+              <span class="save-status" data-testid="trading-status">
+                @if (tradingDirty()) {
+                  <i class="fas fa-pen" aria-hidden="true"></i> Unsaved changes
+                } @else if (tradingLastSaved(); as saved) {
+                  <i class="fas fa-circle-check" aria-hidden="true"></i> Last saved {{ saved | date: 'MMM d, y, h:mm a' }}
+                } @else {
+                  <i class="fas fa-circle-info" aria-hidden="true"></i> Using the defaults
+                }
+              </span>
+              @if (settingsStore.settings().configured) {
+                <button type="button" class="btn btn-outline" [disabled]="tradingSaving()" (click)="resetTrading()" data-testid="reset-trading">
+                  Reset to default
+                </button>
+              }
+              <button type="submit" class="btn btn-primary" [disabled]="!canSaveTrading()" data-testid="save-trading">
+                <i class="fas" [class.fa-floppy-disk]="!tradingSaving()" [class.fa-spinner]="tradingSaving()" [class.fa-spin]="tradingSaving()"></i>
+                {{ tradingSaving() ? 'Saving…' : 'Save trading settings' }}
+              </button>
+            </div>
+          </form>
+        </section>
+      }
+
+      <!-- ===== NOTIFICATIONS ===== -->
+      <section class="panel settings-card" id="section-notifications" data-testid="notifications-section" aria-labelledby="notifications-title">
+        <header class="card-head">
+          <span class="card-icon" aria-hidden="true"><i class="fas fa-bell"></i></span>
+          <div>
+            <h2 class="card-title" id="notifications-title">Notifications</h2>
+            <p class="card-subtitle" data-testid="preferences-subtitle">{{ subtitle }}</p>
+          </div>
+        </header>
+
+        @if (feedback(); as f) {
+          <div class="card-alert alert" [class.alert-success]="!f.error" [class.alert-danger]="f.error" role="status" data-testid="preferences-feedback">
+            <i class="fas" [class.fa-check-circle]="!f.error" [class.fa-circle-exclamation]="f.error"></i>
+            <p>{{ f.text }}</p>
+            <button type="button" class="alert-close" (click)="feedback.set(null)" aria-label="Dismiss"><i class="fas fa-xmark"></i></button>
           </div>
         }
 
-        <!-- Status and actions -->
-        <div class="form-actions">
-          <span class="save-status" data-testid="preferences-status">
-            @if (lastSaved(); as saved) {
-              <i class="fas fa-circle-check" aria-hidden="true"></i> Last saved {{ saved | date: 'MMM d, y, h:mm a' }}
-            } @else if (store.preferences()?.configured) {
-              <i class="fas fa-circle-check" aria-hidden="true"></i> Saved
-            } @else if (store.preferences()) {
-              <i class="fas fa-circle-info" aria-hidden="true"></i> Using the default: in-app only
-            }
-          </span>
-          @if (store.preferences()?.configured) {
-            <button type="button" class="btn btn-outline" [disabled]="saving()" (click)="resetToDefault()" data-testid="reset-preferences">
-              Reset to default
-            </button>
+        @if (store.error(); as error) {
+          <div class="card-alert alert alert-danger" role="alert">
+            <i class="fas fa-circle-exclamation"></i>
+            <p>{{ error }}</p>
+            <button type="button" class="btn btn-outline btn-sm" (click)="store.load()">Retry</button>
+          </div>
+        }
+
+        @if (store.preferences(); as prefs) {
+          @if (!prefs.configured) {
+            <div class="card-alert alert alert-warning" role="status" data-testid="preferences-default-banner">
+              <i class="fas fa-circle-info"></i>
+              <p>You haven't chosen any channels yet, so notifications go to your in-app inbox.</p>
+            </div>
           }
-          <button type="submit" class="btn btn-primary" [disabled]="!canSave()" data-testid="save-preferences">
-            <i class="fas" [class.fa-floppy-disk]="!saving()" [class.fa-spinner]="saving()" [class.fa-spin]="saving()"></i>
-            {{ saving() ? 'Saving…' : 'Save preferences' }}
-          </button>
-        </div>
-      </form>
-    </section>
+        }
+
+        <form class="settings-form" (ngSubmit)="save()" data-testid="preferences-form">
+          <!-- Channels -->
+          <fieldset class="settings-section channel-group" [disabled]="store.isLoading()">
+            <div class="section-head">
+              <legend class="section-title">Alert channels</legend>
+              <span class="section-meta">{{ selected().size }} of {{ channels.length }} selected</span>
+            </div>
+            <p class="field-help">Pick one or more. We notify you on every channel you choose.</p>
+
+            <div class="channel-options">
+              @for (option of channels; track option.value) {
+                <label class="channel-option" [class.selected]="isSelected(option.value)">
+                  <input
+                    type="checkbox"
+                    [checked]="isSelected(option.value)"
+                    (change)="toggle(option.value)"
+                    [attr.data-testid]="'channel-' + option.value"
+                  />
+                  <span class="channel-check" aria-hidden="true"><i class="fas fa-check"></i></span>
+                  <span class="channel-icon" aria-hidden="true"><i class="fas" [ngClass]="option.icon"></i></span>
+                  <span class="channel-label">{{ option.label }}</span>
+                  <span class="channel-hint">{{ option.hint }}</span>
+                </label>
+              }
+            </div>
+            @if (nothingSelected()) {
+              <p class="field-error" data-testid="channels-error"><i class="fas fa-circle-exclamation"></i> Choose at least one channel.</p>
+            }
+          </fieldset>
+
+          <!-- Contact details, only for the channels that need one -->
+          @if (emailSelected() || smsSelected()) {
+            <div class="settings-section">
+              <div class="section-head">
+                <h3 class="section-title">Contact details</h3>
+                <span class="section-meta"><i class="fas fa-lock" aria-hidden="true"></i> Stored encrypted</span>
+              </div>
+
+              <div class="contact-fields">
+                @if (emailSelected()) {
+                  <div class="form-field">
+                    <label class="field-label" for="contactEmail">Email address</label>
+                    <div class="input-with-icon" [class.invalid]="emailError() && contacts().EMAIL">
+                      <i class="fas fa-envelope" aria-hidden="true"></i>
+                      <input
+                        id="contactEmail"
+                        class="form-input"
+                        name="contactEmail"
+                        type="email"
+                        autocomplete="off"
+                        maxlength="254"
+                        placeholder="you@example.com"
+                        [ngModel]="contacts().EMAIL"
+                        (ngModelChange)="setContact('EMAIL', $event)"
+                        [attr.aria-invalid]="!!emailError()"
+                        data-testid="contact-email-input"
+                      />
+                    </div>
+                    @if (emailError() && contacts().EMAIL) {
+                      <p class="field-error" data-testid="contact-email-error">{{ emailError() }}</p>
+                    }
+                  </div>
+                }
+
+                @if (smsSelected()) {
+                  <div class="form-field">
+                    <label class="field-label" for="contactSms">Mobile number</label>
+                    <div class="input-with-icon" [class.invalid]="smsError() && contacts().SMS">
+                      <i class="fas fa-mobile-screen" aria-hidden="true"></i>
+                      <input
+                        id="contactSms"
+                        class="form-input"
+                        name="contactSms"
+                        type="tel"
+                        autocomplete="off"
+                        maxlength="254"
+                        placeholder="+447700900123"
+                        [ngModel]="contacts().SMS"
+                        (ngModelChange)="setContact('SMS', $event)"
+                        [attr.aria-invalid]="!!smsError()"
+                        data-testid="contact-sms-input"
+                      />
+                    </div>
+                    @if (smsError() && contacts().SMS) {
+                      <p class="field-error" data-testid="contact-sms-error">{{ smsError() }}</p>
+                    }
+                  </div>
+                }
+              </div>
+              <p class="field-help">Used only to send you notifications.</p>
+            </div>
+          }
+
+          <!-- Status and actions -->
+          <div class="form-actions">
+            <span class="save-status" data-testid="preferences-status">
+              @if (lastSaved(); as saved) {
+                <i class="fas fa-circle-check" aria-hidden="true"></i> Last saved {{ saved | date: 'MMM d, y, h:mm a' }}
+              } @else if (store.preferences()?.configured) {
+                <i class="fas fa-circle-check" aria-hidden="true"></i> Saved
+              } @else if (store.preferences()) {
+                <i class="fas fa-circle-info" aria-hidden="true"></i> Using the default: in-app only
+              }
+            </span>
+            @if (store.preferences()?.configured) {
+              <button type="button" class="btn btn-outline" [disabled]="saving()" (click)="resetToDefault()" data-testid="reset-preferences">
+                Reset to default
+              </button>
+            }
+            <button type="submit" class="btn btn-primary" [disabled]="!canSave()" data-testid="save-preferences">
+              <i class="fas" [class.fa-floppy-disk]="!saving()" [class.fa-spinner]="saving()" [class.fa-spin]="saving()"></i>
+              {{ saving() ? 'Saving…' : 'Save preferences' }}
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
   </div>
 </div>

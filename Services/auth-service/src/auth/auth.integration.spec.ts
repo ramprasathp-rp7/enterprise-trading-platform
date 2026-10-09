@@ -20,44 +20,49 @@ describe('Auth Service Integration with Trade REST API', () => {
   let testAccountId: number;
   
   /**
-   * Setup: Register a test user before running integration tests
+   * Setup: a user to test with. The platform allows one user per trading account and only knows the
+   * accounts in auth.known_account_ids, so the credentials are stable rather than new on every run:
+   * the first run registers them, later runs get 409 and simply log in again.
+   *
+   *   AUTH_IT_ACCOUNT_ID                 account to register the test user on (default 6)
+   *   AUTH_IT_USERNAME, AUTH_IT_PASSWORD use an existing customer instead of registering one
    */
   beforeAll(async () => {
-    // Generate unique credentials for this test run
-    const timestamp = Date.now();
-    testUsername = `test_user_${timestamp}`;
-    testPassword = `Test@Pass${timestamp}`;
-    testAccountId = 6; // Internal numeric ID used in JWT and trade API routes
-    
-    try {
-      // Register the test user
+    const useExisting = !!(process.env.AUTH_IT_USERNAME && process.env.AUTH_IT_PASSWORD);
+    testAccountId = Number(process.env.AUTH_IT_ACCOUNT_ID ?? 6);
+    testUsername = process.env.AUTH_IT_USERNAME ?? `it_user_account_${testAccountId}`;
+    testPassword = process.env.AUTH_IT_PASSWORD ?? `it-pass-account-${testAccountId}`;
+
+    if (!useExisting) {
       const registerResponse = await fetch(`${AUTH_SERVICE_URL}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: testUsername,
-          password: testPassword,
-          accountId: testAccountId,
-          roles: ['CUSTOMER'],
-        }),
+        body: JSON.stringify({ username: testUsername, password: testPassword, accountId: testAccountId }),
       });
-      
       if (registerResponse.status === 201) {
-        console.log(`Test user registered: ${testUsername}`);
-      } else if (registerResponse.status === 409) {
-        const text = await registerResponse.text();
-        console.warn('Register returned 409 (user may already exist):', text);
-        // Continue: user already exists from a previous test run, attempt login later
-      } else {
-        const text = await registerResponse.text();
-        console.error('Register failed:', registerResponse.status, text);
-        throw new Error(`Register failed: ${registerResponse.status} ${text}`);
+        console.log(`Test user registered: ${testUsername} on account ${testAccountId}`);
+      } else if (registerResponse.status !== 409) {
+        // 422: the account is not a known trading account
+        throw new Error(`Register failed: ${registerResponse.status} ${await registerResponse.text()}. ` +
+          'Set AUTH_IT_ACCOUNT_ID to an account in auth.known_account_ids.');
       }
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      console.error('Failed to register test user:', errorMsg);
-      throw error;
     }
+
+    // Check the credentials work, and test against the account the token is actually for
+    const loginResponse = await fetch(`${AUTH_SERVICE_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: testUsername, password: testPassword }),
+    });
+    if (loginResponse.status !== 200) {
+      throw new Error(
+        `Cannot log in as ${testUsername} (${loginResponse.status}). Account ${testAccountId} probably already ` +
+        'belongs to another user: set AUTH_IT_ACCOUNT_ID to a free known account, or AUTH_IT_USERNAME and ' +
+        'AUTH_IT_PASSWORD to an existing customer.',
+      );
+    }
+    const { accessToken: token } = (await loginResponse.json()) as { accessToken: string };
+    testAccountId = (jwt.decode(token) as { accountId: number }).accountId;
   });
 
   describe('Happy Path: Token from Auth Service accepted by Trade API', () => {

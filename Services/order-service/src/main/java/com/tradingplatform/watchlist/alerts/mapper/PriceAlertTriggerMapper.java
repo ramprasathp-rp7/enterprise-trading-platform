@@ -45,6 +45,13 @@ public interface PriceAlertTriggerMapper {
             + "ORDER BY t.triggered_at DESC, t.trigger_id DESC")
     List<PriceAlertTrigger> findByAlertId(@Param("alertId") Long alertId, @Param("accountId") Long accountId);
 
+    /** History page: the account's most recent firings on every channel, with the channels used, newest first. */
+    @Select("SELECT t.trigger_id, t.alert_id, t.account_id, t.price, t.quote_at, t.triggered_at, "
+            + "t.reason, t.delivery_status, t.channels, t.in_app, a.symbol, a.direction, a.threshold, a.mode "
+            + "FROM price_alert_triggers t JOIN price_alerts a ON a.alert_id = t.alert_id "
+            + "WHERE t.account_id = #{accountId} ORDER BY t.triggered_at DESC, t.trigger_id DESC LIMIT #{limit}")
+    List<PriceAlertTrigger> findHistoryByAccountId(@Param("accountId") Long accountId, @Param("limit") int limit);
+
     /** Recent triggers for the UI bell: only those the customer gets in-app (preferences). */
     @Select("<script>" + SELECT_JOINED + "WHERE t.account_id = #{accountId} AND t.in_app"
             + "<if test='since != null'> AND t.triggered_at &gt; #{since}</if>"

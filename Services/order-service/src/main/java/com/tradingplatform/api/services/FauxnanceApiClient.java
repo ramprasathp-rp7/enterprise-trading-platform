@@ -33,6 +33,7 @@ public class FauxnanceApiClient {
     private static final Logger log = LoggerFactory.getLogger(FauxnanceApiClient.class);
     private static final int MAX_BATCH_SIZE = 25;
     private static final String QUOTES_ENDPOINT = "/quotes";
+    private static final String SYMBOLS_ENDPOINT = "/symbols";
     private static final String USAGE_ENDPOINT = "/usage";
     private static final String HEALTH_ENDPOINT = "/health";
     
@@ -122,6 +123,63 @@ public class FauxnanceApiClient {
             log.error("Fauxnance API call failed for symbols {}: {}", symbols, ex.getMessage());
             throw ex;
         }
+    }
+
+    /**
+     * Looks a symbol up in the Fauxnance registry (GET /symbols/{symbol}), which also runs an exact
+     * upstream discovery for symbols it has not seen before. Costs one request of the daily quota.
+     *
+     * @return the registry entry, or empty when Fauxnance does not recognise the symbol (400 or 404)
+     * @throws IllegalStateException when Fauxnance cannot be reached or answers anything else
+     */
+    public java.util.Optional<SymbolInfo> findSymbol(String symbol) {
+        String url = String.format("%s%s/%s", baseUrl, SYMBOLS_ENDPOINT,
+            java.net.URLEncoder.encode(symbol, java.nio.charset.StandardCharsets.UTF_8));
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("X-Api-Key", apiKey);
+        ResponseEntity<String> response;
+        try {
+            response = restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(headers), String.class);
+        } catch (org.springframework.web.client.HttpClientErrorException.NotFound
+                 | org.springframework.web.client.HttpClientErrorException.BadRequest ex) {
+            log.info("Fauxnance does not recognise symbol {}", symbol);
+            return java.util.Optional.empty();
+        } catch (RestClientException ex) {
+            throw new IllegalStateException("Symbol lookup failed: " + ex.getMessage(), ex);
+        }
+        if (response.getStatusCode().value() == 404 || response.getStatusCode().value() == 400) {
+            return java.util.Optional.empty();
+        }
+        if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
+            throw new IllegalStateException("Symbol lookup returned status " + response.getStatusCode());
+        }
+        try {
+            JsonNode data = objectMapper.readTree(response.getBody()).path("data");
+            String name = optionalText(data, "name");
+            if (data.isMissingNode() || name == null) {
+                return java.util.Optional.empty();
+            }
+            String returned = optionalText(data, "symbol");
+            return java.util.Optional.of(new SymbolInfo(
+                returned != null ? returned.toUpperCase(java.util.Locale.ROOT) : symbol,
+                name,
+                optionalText(data, "type"),
+                optionalText(data, "exchange"),
+                optionalText(data, "currency"),
+                !data.has("active") || data.path("active").asBoolean(true)));
+        } catch (Exception ex) {
+            throw new IllegalStateException("Could not read the symbol lookup response", ex);
+        }
+    }
+
+    /**
+     * A Fauxnance symbol registry entry.
+     *
+     * @param type     equity, etf, fx or crypto
+     * @param exchange NYSE, NASDAQ, NSE, BSE, FX or CRYPTO
+     * @param active   false for a delisted symbol
+     */
+    public record SymbolInfo(String symbol, String name, String type, String exchange, String currency, boolean active) {
     }
 
     /**
@@ -414,6 +472,12 @@ public class FauxnanceApiClient {
 
         public BigDecimal getPreviousClose() {
             return previousClose;
+        }
+
+        /** The cache's QUOTE payload for this quote (same fields the executor's poller publishes). */
+        public com.tradingplatform.api.events.QuotePayload toPayload() {
+            return new com.tradingplatform.api.events.QuotePayload(symbol, price, bid, ask, currency, change,
+                changePercent, previousClose, marketState, stale, quoteAsOf);
         }
 
         public String getMarketState() {

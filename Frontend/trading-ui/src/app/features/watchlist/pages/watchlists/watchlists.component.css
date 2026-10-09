@@ -148,9 +148,50 @@
 }
 
 /* ===== SELECTED WATCHLIST ===== */
-/* The instrument search results drop down below the header; do not clip them */
+/* The instrument search results drop down below the header, so the panel must not clip
+   (overflow: visible). The table wrapper clips itself to the panel's rounded bottom corners
+   instead, so its rows and backgrounds never square them off. */
 .detail-panel {
   overflow: visible;
+}
+
+.detail-panel > .table-wrapper,
+.detail-panel > .empty-state {
+  border-radius: 0 0 calc(var(--r-lg) - 1px) calc(var(--r-lg) - 1px);
+}
+
+.detail-panel > .panel-header {
+  border-radius: calc(var(--r-lg) - 1px) calc(var(--r-lg) - 1px) 0 0;
+}
+
+.watch-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.watch-filter {
+  width: min(220px, 100%);
+}
+
+.sort-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  color: var(--ink-500);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sort-field .filter-select {
+  width: auto;
+  min-width: 210px;
 }
 
 .add-search {
@@ -260,12 +301,18 @@
   font-size: 11px;
 }
 
+/* The cell stays a table cell (vertically centred like the rest of the row); the buttons sit
+   in a flex box inside it */
 .watch-table .actions {
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.watch-table .row-actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 6px;
-  white-space: nowrap;
 }
 
 .remove-btn:hover:not(:disabled) {

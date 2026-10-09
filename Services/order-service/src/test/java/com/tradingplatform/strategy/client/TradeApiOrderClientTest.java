@@ -121,4 +121,60 @@ class TradeApiOrderClientTest {
 
         assertEquals("HTTP-404", assertThrows(OrderPlacementException.class, this::place).getErrorCode());
     }
+
+    private static org.springframework.test.web.client.ResponseCreator unreachable() {
+        return request -> {
+            throw new java.net.ConnectException("connection refused");
+        };
+    }
+
+    @Test
+    void retriesOnceWhenTheTradeApiIsUnreachable() {
+        server.expect(once(), requestTo("http://trade-api/api/v1/orders")).andRespond(unreachable());
+        server.expect(once(), requestTo("http://trade-api/api/v1/orders"))
+            .andRespond(withSuccess("{\"orderId\":\"ORD-retry\"}", MediaType.APPLICATION_JSON));
+
+        assertEquals("ORD-retry", place().orderId());
+        server.verify();
+    }
+
+    @Test
+    void givesUpWhenTheTradeApiStaysUnreachable() {
+        server.expect(times(2), requestTo("http://trade-api/api/v1/orders")).andRespond(unreachable());
+
+        OrderPlacementException e = assertThrows(OrderPlacementException.class, this::place);
+
+        assertTrue(e.getMessage().contains("unreachable"));
+        server.verify();
+    }
+
+    @Test
+    void aRetryThatIsRejectedOrDuplicateIsReportedAsSuch() {
+        server.expect(once(), requestTo("http://trade-api/api/v1/orders")).andRespond(withServerError());
+        server.expect(once(), requestTo("http://trade-api/api/v1/orders"))
+            .andRespond(withStatus(HttpStatus.CONFLICT).contentType(MediaType.APPLICATION_JSON)
+                .body("{\"errorCode\":\"VAL-422\",\"message\":\"Market closed\"}"));
+
+        OrderPlacementException e = assertThrows(OrderPlacementException.class, this::place);
+
+        assertEquals("VAL-422", e.getErrorCode());
+        server.verify();
+    }
+
+    @Test
+    void anUnreadableErrorBodyFallsBackToTheHttpStatus() {
+        server.expect(once(), requestTo("http://trade-api/api/v1/orders"))
+            .andRespond(withStatus(HttpStatus.BAD_REQUEST).contentType(MediaType.TEXT_HTML).body("<html>nope</html>"));
+
+        OrderPlacementException e = assertThrows(OrderPlacementException.class, this::place);
+
+        assertEquals("HTTP-400", e.getErrorCode());
+    }
+
+    @Test
+    void theSpringConstructorAppliesTheBaseUrlAndTimeout() {
+        TradeApiOrderClient configured = new TradeApiOrderClient(RestClient.builder(), "http://localhost:1", 50);
+        assertThrows(OrderPlacementException.class,
+            () -> configured.placeOrder("tok", 1L, "AAPL", OrderSide.BUY, 1, BigDecimal.ONE, KEY));
+    }
 }

@@ -137,4 +137,13 @@ describe('NotificationBellComponent', () => {
       expect(component.icon({ kind } as any)).toMatch(/^fa-/);
     }
   });
+
+  it('links to the full notification history', () => {
+    openPanel();
+    q('[data-testid="view-all-notifications"]').click();
+    fixture.detectChanges();
+
+    expect(navigate).toHaveBeenCalledWith(['/notifications']);
+    expect(q('[data-testid="notification-panel"]')).toBeNull();
+  });
 });

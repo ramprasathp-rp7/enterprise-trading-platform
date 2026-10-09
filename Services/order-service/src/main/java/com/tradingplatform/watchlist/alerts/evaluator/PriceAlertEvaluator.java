@@ -31,7 +31,10 @@ import com.tradingplatform.watchlist.alerts.notify.PriceAlertNotification;
  * Per quote:
  * 1. ActiveAlertIndex decides whether anyone watches the symbol and whether this quote is new.
  *    Most quotes stop here without a database call.
- * 2. Stale quotes and quotes without a price are ignored.
+ * 2. Quotes without a price are ignored. Stale quotes (Fauxnance serving its last price, for example
+ *    while the market is closed) are evaluated too, so an alert set past the last price still fires.
+ *    A stale quote is identified by when it was observed (quoteAsOf), not when the cache received it:
+ *    the same old price arriving again every refresh fires an alert at most once.
  * 3. Active alerts for the symbol are loaded through the partial index on PRICE_ALERTS(symbol).
  * 4. Each alert fires when crossed (ABOVE: price >= threshold, BELOW: price <= threshold) and the
  *    quote is newer than the last one that fired it.
@@ -101,10 +104,13 @@ public class PriceAlertEvaluator {
             return 0;
         }
         BigDecimal price = quote.price();
-        if (price == null || Boolean.TRUE.equals(quote.stale())) {
+        if (price == null) {
             index.markEvaluated(symbol, quoteAt);
             return 0;
         }
+        boolean stale = Boolean.TRUE.equals(quote.stale());
+        // A stale quote is the same observation every refresh: key it on when it was observed
+        Instant observedAt = stale && quote.quoteAsOf() != null ? quote.quoteAsOf() : quoteAt;
 
         List<PriceAlert> alerts;
         try {
@@ -119,7 +125,7 @@ public class PriceAlertEvaluator {
         for (PriceAlert alert : alerts) {
             Outcome outcome;
             try {
-                outcome = evaluate(alert, price, quoteAt);
+                outcome = evaluate(alert, price, observedAt, stale);
             } catch (RuntimeException e) {
                 logger.warn("Price alert {} could not be evaluated; will retry", alert.getAlertId(), e);
                 outcome = Outcome.FAILED;
@@ -137,6 +143,10 @@ public class PriceAlertEvaluator {
     }
 
     Outcome evaluate(PriceAlert alert, BigDecimal price, Instant quoteAt) {
+        return evaluate(alert, price, quoteAt, false);
+    }
+
+    Outcome evaluate(PriceAlert alert, BigDecimal price, Instant quoteAt, boolean stale) {
         if (alert.getLastQuoteAt() != null && !quoteAt.isAfter(alert.getLastQuoteAt())) {
             return Outcome.NOT_CROSSED;
         }
@@ -144,7 +154,7 @@ public class PriceAlertEvaluator {
             return Outcome.NOT_CROSSED;
         }
 
-        PriceAlertTrigger trigger = new PriceAlertTrigger(alert, price, quoteAt, reason(alert, price));
+        PriceAlertTrigger trigger = new PriceAlertTrigger(alert, price, quoteAt, reason(alert, price, stale));
         triggerMapper.upsertPending(trigger);
         if (trigger.getTriggerId() != null) {
             try {
@@ -165,8 +175,14 @@ public class PriceAlertEvaluator {
 
     /** Why the alert fired, e.g. "AAPL 191.2 >= 190 (ABOVE, ONCE)" */
     static String reason(PriceAlert alert, BigDecimal price) {
+        return reason(alert, price, false);
+    }
+
+    /** As above; a stale price is marked, e.g. "AAPL 191.2 >= 190 (ABOVE, ONCE, stale quote)" */
+    static String reason(PriceAlert alert, BigDecimal price, boolean stale) {
         return alert.getSymbol() + " " + plain(price) + " " + alert.getDirection().operator() + " "
-            + plain(alert.getThreshold()) + " (" + alert.getDirection() + ", " + alert.getMode() + ")";
+            + plain(alert.getThreshold()) + " (" + alert.getDirection() + ", " + alert.getMode()
+            + (stale ? ", stale quote" : "") + ")";
     }
 
     private static String plain(BigDecimal value) {

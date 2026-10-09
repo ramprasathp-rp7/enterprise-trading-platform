@@ -1,0 +1,12 @@
+{
+  "inputSpec": "./contracts/instruments-api.yaml",
+  "outputDir": "./src/app/api/generated/instruments",
+  "generatorName": "typescript-angular",
+  "skipValidateSpec": true,
+  "validateSpec": false,
+  "packageName": "api.instruments",
+  "additionalProperties": {
+    "apiModulePrefix": "InstrumentsApi",
+    "ngVersion": "21.0.0"
+  }
+}

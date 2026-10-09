@@ -26,7 +26,7 @@ describe('ConfigurationService', () => {
     jest.spyOn(console, 'log').mockImplementation(() => undefined);
     jest.spyOn(console, 'error').mockImplementation(() => undefined);
     for (const key of managedKeys) delete process.env[key];
-    // Keep tests independent of the repo's Config/application.yaml
+    // Keep tests independent of the repo's Configuration/application.yaml
     process.env.PLATFORM_CONFIG_PATH = join(tmpdir(), 'missing-platform-config.yaml');
   });
 

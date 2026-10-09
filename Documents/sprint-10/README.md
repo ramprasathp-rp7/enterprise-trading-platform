@@ -10,14 +10,14 @@ Sprint 10 added seven features to the Enterprise Trading Platform:
 6. [Trade advisor](#6-trade-advisor)
 7. [Strategy executor (automated trading)](#7-strategy-executor-automated-trading)
 
-All of them run inside the Trade REST API (`Services/order-service`, port 8080) and the Angular app (`Frontend/trading-ui`). Most of them depend on one shared piece, [live prices](#0-shared-foundation-live-prices), so that is described first.
+All of them run inside the Trade REST API (`Services/order-service`, port 8081) and the Angular app (`Frontend/trading-ui`). Most of them depend on one shared piece, [live prices](#0-shared-foundation-live-prices), so that is described first.
 
 Related documents in this folder:
 
 - [`decision-log/`](decision-log/): the design decisions behind preferences and notifications
   (0001–0007), multi-currency (0008), watchlists and price alerts (0009–0012), candle data (0013),
   admin fee editing (0014), dashboard holdings (0015) and migration numbering (0016).
-- [`decision-log/`](decision-log/): the design decisions behind preferences, multi-currency, live prices (0009 to 0012), notifications (0013, 0014), the trade advisor (0015), the generated API clients (0016), and the browser's notification state and admin preferences (0017, 0018).
+- [`decision-log/`](decision-log/): the design decisions behind preferences, multi-currency, live prices (0009 to 0012), notifications (0013, 0014), the trade advisor (0015), the generated API clients (0016), the browser's notification state and admin preferences (0017, 0018), platform configuration, account snapshots and P&L booking (0031 to 0033), and price alerts on stale quotes, symbol discovery and trading settings (0034 to 0036).
 - [`security-review/`](security-review/): the combined OWASP review of these modules.
 
 ## Conventions every feature follows

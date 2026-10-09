@@ -6,6 +6,8 @@ import { SidebarComponent } from '../sidebar/sidebar.component';
 import { FooterComponent } from '../footer/footer.component';
 import { OrderStatusWatcherService } from '../../core/notifications/order-status-watcher.service';
 import { PriceAlertWatcherService } from '../../features/watchlist/alerts/price-alert-watcher.service';
+import { InstrumentCatalogService } from '../../features/instruments/services/instrument-catalog.service';
+import { AccountSettingsStore } from '../../core/settings/account-settings.store';
 
 /**
  * Shell Component
@@ -26,11 +28,18 @@ import { PriceAlertWatcherService } from '../../features/watchlist/alerts/price-
 export class ShellComponent implements OnInit, OnDestroy {
   private readonly orderWatcher = inject(OrderStatusWatcherService);
   private readonly priceAlertWatcher = inject(PriceAlertWatcherService);
+  private readonly catalog = inject(InstrumentCatalogService);
+  private readonly settings = inject(AccountSettingsStore);
 
-  /** Customer pages: announce order status changes and fired price alerts wherever the user is */
+  /**
+   * Customer pages: announce order status changes and fired price alerts wherever the user is,
+   * and load the instrument catalogue (including discovered symbols) and the trading settings
+   */
   ngOnInit(): void {
     this.orderWatcher.start();
     this.priceAlertWatcher.start();
+    this.catalog.load();
+    this.settings.ensureLoaded();
   }
 
   ngOnDestroy(): void {

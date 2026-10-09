@@ -1,0 +1,232 @@
+<div class="page page-wide notifications-page">
+  <header class="page-header">
+    <div class="page-heading">
+      <p class="page-eyebrow">{{ isAdmin ? 'Admin' : 'Account' }}</p>
+      <h1 class="page-title">Notifications</h1>
+      <p class="page-subtitle">
+        {{ isAdmin ? 'Everything the platform has told you on this browser.' : 'Every order update and price alert, on every channel, with the details.' }}
+      </p>
+    </div>
+    <div class="header-actions">
+      @if (unreadCount() > 0) {
+        <button type="button" class="btn btn-outline" (click)="markAllRead()" data-testid="mark-all-read">
+          <i class="fas fa-check-double"></i> Mark all read
+        </button>
+      }
+      @if (!isAdmin) {
+        <button type="button" class="btn btn-outline" (click)="load()" [disabled]="loading()" data-testid="refresh-history">
+          <i class="fas fa-rotate" [class.fa-spin]="loading()"></i> Refresh
+        </button>
+      }
+    </div>
+  </header>
+
+  @if (loadError(); as error) {
+    <div class="alert alert-warning" role="alert" data-testid="history-error">
+      <i class="fas fa-circle-exclamation"></i>
+      <p>{{ error }}</p>
+      <button type="button" class="btn btn-outline btn-sm" (click)="load()">Retry</button>
+    </div>
+  }
+
+  <div class="history-layout">
+    <!-- ===== LIST ===== -->
+    <section class="panel list-panel" aria-label="Notification history">
+      <div class="list-toolbar">
+        <div class="pill-tabs" role="group" aria-label="Show">
+          @for (option of categoryOptions; track option.value) {
+            <button
+              type="button"
+              class="pill-tab"
+              [class.active]="category() === option.value"
+              [attr.aria-pressed]="category() === option.value"
+              (click)="category.set(option.value)"
+              [attr.data-testid]="'category-' + option.value"
+            >
+              <i class="fas" [ngClass]="option.icon" aria-hidden="true"></i>
+              {{ option.label }} <span class="pill-count">{{ counts()[option.value] }}</span>
+            </button>
+          }
+        </div>
+        <div class="list-filters">
+          <div class="input-with-icon">
+            <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+            <input
+              class="search-input"
+              type="search"
+              [ngModel]="query()"
+              (ngModelChange)="query.set($event)"
+              placeholder="Search notifications"
+              aria-label="Search notifications"
+              data-testid="history-search"
+            />
+          </div>
+          <label class="toggle-check">
+            <input type="checkbox" [checked]="unreadOnly()" (change)="unreadOnly.set(!unreadOnly())" data-testid="unread-only" />
+            Unread only
+          </label>
+        </div>
+      </div>
+
+      @if (loading() && serverItems() === null) {
+        <div class="loading-state"><i class="fas fa-spinner fa-spin"></i><p>Loading your history…</p></div>
+      } @else {
+        <div class="list-scroll">
+          @for (group of groups(); track group.label) {
+            <p class="day-label">{{ group.label }}</p>
+            <ul class="history-list">
+              @for (entry of group.entries; track entry.id) {
+                <li>
+                  <button
+                    type="button"
+                    class="history-item"
+                    [class.selected]="selectedId() === entry.id"
+                    [class.unread]="!entry.read"
+                    [attr.data-kind]="entry.kind"
+                    (click)="select(entry)"
+                    [attr.data-testid]="'history-item-' + entry.id"
+                  >
+                    <span class="kind-icon" aria-hidden="true"><i class="fas" [ngClass]="icon(entry)"></i></span>
+                    <span class="item-text">
+                      <span class="item-title">{{ entry.title }}</span>
+                      <span class="item-message">{{ entry.message }}</span>
+                    </span>
+                    <span class="item-meta">
+                      <span class="item-time">{{ entry.occurredAt | date: 'h:mm a' }}</span>
+                      @if (!entry.read) {
+                        <span class="dot" aria-label="Unread"></span>
+                      }
+                    </span>
+                  </button>
+                </li>
+              }
+            </ul>
+          } @empty {
+            <div class="empty-state" data-testid="history-empty">
+              <i class="fas fa-bell-slash"></i>
+              <p>{{ entries().length ? 'Nothing matches these filters' : 'No notifications yet' }}</p>
+              <small>{{ entries().length ? 'Try another filter.' : 'Order updates, price alerts and exports will appear here.' }}</small>
+            </div>
+          }
+        </div>
+      }
+    </section>
+
+    <!-- ===== DETAILS ===== -->
+    <section class="panel detail-panel" [appReplayAnimation]="selectedId()" aria-label="Notification details" data-testid="history-detail">
+      @if (selected(); as entry) {
+        <header class="detail-head" [attr.data-kind]="entry.kind">
+          <span class="detail-icon" aria-hidden="true"><i class="fas" [ngClass]="icon(entry)"></i></span>
+          <div class="detail-heading">
+            <h2 class="detail-title">{{ entry.title }}</h2>
+            <p class="detail-time">{{ entry.occurredAt | date: 'EEEE, MMM d, y · h:mm:ss a' }}</p>
+          </div>
+          @if (statusLabel(entry); as status) {
+            <span class="status-pill" [attr.data-status]="entry.server?.status">{{ status }}</span>
+          }
+        </header>
+
+        <div class="detail-body">
+          <p class="detail-message" data-testid="detail-message">{{ entry.message }}</p>
+
+          @if (entry.channels) {
+            <div class="detail-block">
+              <h3 class="block-title">Sent to</h3>
+              <div class="channel-chips" data-testid="detail-channels">
+                @for (code of entry.channels; track code) {
+                  <span class="channel-chip"><i class="fas" [ngClass]="channel(code).icon" aria-hidden="true"></i> {{ channel(code).label }}</span>
+                }
+              </div>
+              @if (entry.inApp === false) {
+                <p class="block-note">Not shown in the bell: in-app is not one of your channels.</p>
+              }
+              @if (entry.channels.includes('EMAIL') || entry.channels.includes('SMS')) {
+                <p class="block-note">Email and SMS are not delivered yet; the platform logs them.</p>
+              }
+            </div>
+          }
+
+          @if (entry.server?.order; as order) {
+            <div class="detail-block">
+              <h3 class="block-title">Order</h3>
+              <dl class="detail-grid" data-testid="detail-order">
+                <div><dt>Instrument</dt><dd>{{ entry.server?.symbol ?? '—' }}</dd></div>
+                <div><dt>Side</dt><dd [class.buy]="order.side === 'BUY'" [class.sell]="order.side === 'SELL'">{{ order.side ?? '—' }}</dd></div>
+                <div><dt>Quantity</dt><dd>{{ order.quantity ?? '—' }}</dd></div>
+                <div><dt>Limit price</dt><dd>{{ price(order.limitPrice, entry.server?.symbol) }}</dd></div>
+                <div><dt>Executed price</dt><dd>{{ price(order.executedPrice, entry.server?.symbol) }}</dd></div>
+                <div><dt>Value</dt><dd>{{ notional(entry.server!) }}</dd></div>
+                @if (order.reason) {
+                  <div class="wide"><dt>Reason</dt><dd>{{ order.reason }}</dd></div>
+                }
+                <div class="wide"><dt>Order ID</dt><dd class="mono">{{ order.orderId ?? '—' }}</dd></div>
+              </dl>
+              <div class="detail-actions">
+                @if (order.orderId) {
+                  <a class="btn btn-primary btn-sm" [routerLink]="['/order-confirmation', order.orderId]" data-testid="view-order">
+                    <i class="fas fa-receipt"></i> View order
+                  </a>
+                }
+                <a class="btn btn-outline btn-sm" routerLink="/blotter"><i class="fas fa-list-ul"></i> Order blotter</a>
+                @if (entry.server?.symbol) {
+                  <a class="btn btn-outline btn-sm" routerLink="/order-ticket" [queryParams]="{ symbol: entry.server?.symbol, side: order.side }">
+                    <i class="fas fa-rotate-right"></i> Trade again
+                  </a>
+                }
+              </div>
+            </div>
+          }
+
+          @if (entry.server?.priceAlert; as alert) {
+            <div class="detail-block">
+              <h3 class="block-title">Price alert</h3>
+              <dl class="detail-grid" data-testid="detail-alert">
+                <div><dt>Instrument</dt><dd>{{ entry.server?.symbol ?? '—' }}</dd></div>
+                <div><dt>Condition</dt><dd>{{ alert.direction === 'BELOW' ? '≤' : '≥' }} {{ price(alert.threshold, entry.server?.symbol) }}</dd></div>
+                <div><dt>Price</dt><dd>{{ price(alert.price, entry.server?.symbol) }}</dd></div>
+                <div><dt>Mode</dt><dd>{{ alert.mode === 'ONCE' ? 'Once' : 'Every update' }}</dd></div>
+                <div><dt>Quote time</dt><dd>{{ alert.quoteAt ? (alert.quoteAt | date: 'MMM d, h:mm a') : '—' }}</dd></div>
+                <div><dt>Delivery</dt><dd>{{ entry.server?.status ? (entry.server?.status | titlecase) : '—' }}</dd></div>
+                @if (alert.reason) {
+                  <div class="wide"><dt>Why it fired</dt><dd class="mono">{{ alert.reason }}</dd></div>
+                }
+              </dl>
+              <div class="detail-actions">
+                <a class="btn btn-primary btn-sm" routerLink="/watchlists"><i class="fas fa-bookmark"></i> Watchlists</a>
+                @if (entry.server?.symbol) {
+                  <a class="btn btn-outline btn-sm" routerLink="/order-ticket" [queryParams]="{ symbol: entry.server?.symbol }">
+                    <i class="fas fa-pen-to-square"></i> Trade {{ entry.server?.symbol }}
+                  </a>
+                }
+              </div>
+            </div>
+          }
+
+          @if (entry.local; as local) {
+            <div class="detail-block">
+              <h3 class="block-title">Details</h3>
+              <dl class="detail-grid">
+                <div><dt>Type</dt><dd>{{ local.kind.replace('-', ' ') | titlecase }}</dd></div>
+                <div><dt>Status</dt><dd>{{ local.read ? 'Read' : 'Unread' }}</dd></div>
+                <div class="wide"><dt>Shown in</dt><dd>The notification bell on this browser</dd></div>
+              </dl>
+              @if (local.link; as link) {
+                <div class="detail-actions">
+                  <a class="btn btn-primary btn-sm" [routerLink]="link.path" [queryParams]="link.queryParams ?? {}" data-testid="detail-open-link">
+                    <i class="fas fa-arrow-up-right-from-square"></i> Open
+                  </a>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="empty-state">
+          <i class="fas fa-hand-pointer"></i>
+          <p>Pick a notification</p>
+          <small>Its details will appear here.</small>
+        </div>
+      }
+    </section>
+  </div>
+</div>

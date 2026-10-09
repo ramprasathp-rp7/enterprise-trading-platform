@@ -1,0 +1,179 @@
+openapi: 3.1.0
+
+info:
+  title: Instruments REST API
+  version: 1.0.0
+  summary: The instrument catalogue and symbol discovery.
+  description: |
+    Binding contract for the instrument catalogue of the Trade REST API. The Angular UI generates its
+    typed client from this file, so a field renamed here is a compile error there.
+
+    ## The catalogue
+
+    `GET /api/v1/instruments` lists every instrument in the `instruments` table, delisted ones included
+    (`tradable: false`), in id order. `exchange` is where it trades: `NYSE`, `NASDAQ`, `NSE`, `BSE`,
+    `FX` or `CRYPTO`. The market preference groups them: USA is NYSE and NASDAQ, NSE is NSE.
+
+    ## Symbol discovery
+
+    `POST /api/v1/instruments/discover` adds a symbol the platform does not list yet. The order service
+    looks it up in the Fauxnance symbol registry (`GET /symbols/{symbol}`) and asks for one quote. When
+    both answer, the instrument is stored, its quote goes into the quote cache straight away, and its
+    daily candles load in the background. From then on it is an ordinary instrument: the quote refresh
+    and the executor's poller cover every symbol in the table. A symbol that is already listed is
+    returned as it is (200, `created: false`) without calling Fauxnance. A new one costs two Fauxnance
+    requests from the shared daily quota.
+
+    ## Authentication
+
+    Every `/api/v1/**` route requires a valid signed JWT in the `Authorization` header (`AUTH-401`,
+    401, otherwise). Instruments are reference data, so any signed-in user may read and discover them.
+
+  contact:
+    name: Enterprise Trading Platform, programme materials
+  license:
+    name: Instructional use only
+
+servers:
+  - url: http://localhost:8081
+    description: Local development
+
+tags:
+  - name: Instruments
+    description: The instrument catalogue and symbol discovery.
+
+security:
+  - bearerAuth: []
+
+paths:
+  /api/v1/instruments:
+    get:
+      tags: [Instruments]
+      operationId: listInstruments
+      summary: Every listed instrument
+      responses:
+        '200':
+          description: The catalogue, in id order.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InstrumentResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+
+  /api/v1/instruments/discover:
+    post:
+      tags: [Instruments]
+      operationId: discoverInstrument
+      summary: List a symbol that Fauxnance can quote
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiscoverInstrumentRequest'
+      responses:
+        '200':
+          description: The symbol was already listed; nothing changed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoveredInstrumentResponse'
+        '201':
+          description: The symbol was found and is now listed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoveredInstrumentResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '404':
+          description: Fauxnance does not recognise the symbol, or has no price for it (`INS-404`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: The text cannot be a symbol (`VAL-422`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Fauxnance could not be reached (`MKT-503`). Try again shortly.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    Unauthorised:
+      description: Missing or invalid token (`AUTH-401`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    InstrumentResponse:
+      type: object
+      required: [id, symbol, name, assetClass, currency, exchange, tradable]
+      properties:
+        id:
+          type: integer
+          format: int64
+        symbol:
+          type: string
+          examples: ['AAPL', 'INFY.NS', 'FX:EURUSD', 'X:BTC-USD']
+        name:
+          type: string
+        assetClass:
+          type: string
+          enum: [EQUITY, FX, CRYPTO]
+        currency:
+          type: string
+          description: ISO 4217 code the instrument trades in.
+        exchange:
+          type: string
+          enum: [NYSE, NASDAQ, NSE, BSE, FX, CRYPTO]
+        tradable:
+          type: boolean
+          description: False for a delisted instrument; orders for it are rejected.
+
+    DiscoverInstrumentRequest:
+      type: object
+      required: [symbol]
+      properties:
+        symbol:
+          type: string
+          maxLength: 20
+          description: 'Case-insensitive. Letters, digits and the separators . : - ^ = only.'
+
+    DiscoveredInstrumentResponse:
+      type: object
+      required: [instrument, created]
+      properties:
+        instrument:
+          $ref: '#/components/schemas/InstrumentResponse'
+        created:
+          type: boolean
+          description: True when this call added the instrument.
+
+    ErrorResponse:
+      type: object
+      required: [errorCode, message]
+      properties:
+        errorCode:
+          type: string
+          enum: [AUTH-401, INS-404, VAL-422, MKT-503]
+        message:
+          type: string

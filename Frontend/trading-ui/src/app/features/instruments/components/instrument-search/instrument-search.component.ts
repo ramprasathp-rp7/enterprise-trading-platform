@@ -12,7 +12,8 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Instrument } from '../../instrument.models';
-import { InstrumentCatalogService } from '../../services/instrument-catalog.service';
+import { InstrumentCatalogService, MarketGroup, marketLabel } from '../../services/instrument-catalog.service';
+import { AccountSettingsStore } from '../../../../core/settings/account-settings.store';
 
 let nextId = 0;
 
@@ -58,7 +59,7 @@ let nextId = 0;
       </div>
 
       @if (showResults()) {
-        <ul class="results" role="listbox" [id]="listId" data-testid="instrument-search-results">
+        <ul class="results anim-pop" animate.leave="anim-pop-out" role="listbox" [id]="listId" data-testid="instrument-search-results">
           @for (instrument of results(); track instrument.symbol; let i = $index) {
             <li
               role="option"
@@ -86,7 +87,33 @@ let nextId = 0;
               </span>
             </li>
           } @empty {
-            <li class="no-results" role="presentation">No instruments match “{{ query() }}”</li>
+            <li class="no-results" role="presentation">
+              No instruments match “{{ query() }}”@if (filteredMarket()) { in {{ marketName() }}}
+            </li>
+          }
+          @if (canDiscover()) {
+            <li role="presentation" class="discover-row">
+              <button
+                type="button"
+                class="discover-btn"
+                (mousedown)="$event.preventDefault()"
+                (click)="discover()"
+                [disabled]="discovering()"
+                data-testid="instrument-discover"
+              >
+                <i class="fas" [class.fa-satellite-dish]="!discovering()" [class.fa-spinner]="discovering()" [class.fa-spin]="discovering()" aria-hidden="true"></i>
+                {{ discovering() ? 'Looking up ' + discoverSymbol() + '…' : 'Look up “' + discoverSymbol() + '” in market data' }}
+              </button>
+              @if (discoverError(); as error) {
+                <span class="discover-error" data-testid="instrument-discover-error">{{ error }}</span>
+              }
+            </li>
+          }
+          @if (filteredMarket()) {
+            <li role="presentation" class="market-hint" data-testid="instrument-search-market">
+              <span>Showing {{ marketName() }}</span>
+              <button type="button" class="link" (mousedown)="$event.preventDefault()" (click)="showAllMarkets.set(true)">Show all markets</button>
+            </li>
           }
         </ul>
       }
@@ -279,12 +306,77 @@ let nextId = 0;
       color: var(--ink-500);
       font-size: 14px;
     }
+
+    .discover-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 6px 8px 10px;
+    }
+
+    .discover-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px dashed var(--brand);
+      border-radius: var(--r-md);
+      background: var(--brand-soft);
+      color: var(--brand-strong);
+      font: inherit;
+      font-size: 13.5px;
+      font-weight: 600;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .discover-btn:hover:not(:disabled) {
+      background: var(--surface-sunken);
+    }
+
+    .discover-btn:disabled {
+      cursor: progress;
+      opacity: 0.8;
+    }
+
+    .discover-error {
+      padding: 0 4px;
+      color: var(--negative);
+      font-size: 12.5px;
+    }
+
+    .market-hint {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 12px;
+      border-top: 1px solid var(--line);
+      color: var(--ink-500);
+      font-size: 12.5px;
+    }
+
+    .market-hint .link {
+      border: 0;
+      background: none;
+      padding: 0;
+      color: var(--brand);
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
   `],
 })
 export class InstrumentSearchComponent implements AfterViewInit {
   private readonly catalog = inject(InstrumentCatalogService);
+  private readonly settings = inject(AccountSettingsStore);
 
   readonly placeholder = input('Search instruments by symbol or name');
+  /** Limit results to a market; by default the customer's market preference */
+  readonly market = input<MarketGroup | null | undefined>(undefined);
+  /** Offer symbol discovery when nothing matches */
+  readonly allowDiscovery = input(true);
   /** Focus the input when shown (e.g. in the search dialog) */
   readonly autofocus = input(false);
   /** Keep results open even when the input is not focused (dialog mode) */
@@ -303,7 +395,32 @@ export class InstrumentSearchComponent implements AfterViewInit {
   readonly query = signal('');
   readonly focused = signal(false);
   readonly activeIndex = signal(0);
-  readonly results = computed(() => this.catalog.search(this.query()));
+  /** Set by "Show all markets" until the box is cleared */
+  readonly showAllMarkets = signal(false);
+  readonly discovering = signal(false);
+  readonly discoverError = signal<string | null>(null);
+
+  /** The market results are limited to, or null for all markets */
+  readonly filteredMarket = computed<MarketGroup | null>(() => {
+    if (this.showAllMarkets()) {
+      return null;
+    }
+    const chosen = this.market() === undefined ? this.settings.market() : this.market();
+    return chosen && chosen !== 'ALL' ? chosen : null;
+  });
+  readonly marketName = computed(() => marketLabel(this.filteredMarket()));
+  readonly results = computed(() => this.catalog.search(this.query(), 8, this.filteredMarket()));
+  /** The query as a symbol to look up, when it could be one */
+  readonly discoverSymbol = computed(() => this.query().trim().toUpperCase());
+  readonly canDiscover = computed(() => {
+    const symbol = this.discoverSymbol();
+    return (
+      this.allowDiscovery() &&
+      /^[A-Z0-9][A-Z0-9.:\-^=]{0,19}$/.test(symbol) &&
+      !this.results().some((i) => i.symbol === symbol) &&
+      !this.catalog.find(symbol)
+    );
+  });
   readonly showResults = computed(() => this.alwaysShowResults() || (this.focused() && this.query().trim().length > 0));
 
   ngAfterViewInit(): void {
@@ -318,6 +435,7 @@ export class InstrumentSearchComponent implements AfterViewInit {
 
   onInput(value: string): void {
     this.query.set(value);
+    this.discoverError.set(null);
     this.activeIndex.set(0);
   }
 
@@ -364,7 +482,31 @@ export class InstrumentSearchComponent implements AfterViewInit {
     this.inputRef?.nativeElement.blur();
   }
 
+  /** Symbol discovery: list the typed symbol if market data knows it, then pick it */
+  discover(): void {
+    const symbol = this.discoverSymbol();
+    if (!symbol || this.discovering()) {
+      return;
+    }
+    this.discovering.set(true);
+    this.discoverError.set(null);
+    this.catalog.discover(symbol).subscribe({
+      next: ({ instrument }) => {
+        this.discovering.set(false);
+        this.choose(instrument);
+      },
+      error: (err: { error?: { message?: string }; status?: number }) => {
+        this.discovering.set(false);
+        this.discoverError.set(
+          err?.error?.message ?? (err?.status === 0 ? 'Cannot reach the trading service.' : `No market data was found for ${symbol}.`),
+        );
+      },
+    });
+  }
+
   clear(): void {
+    this.showAllMarkets.set(false);
+    this.discoverError.set(null);
     this.query.set('');
     this.activeIndex.set(0);
     this.inputRef?.nativeElement.focus();

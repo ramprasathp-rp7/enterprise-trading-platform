@@ -1,4 +1,5 @@
-/* Preferences page — one centred column; panel and form styles come from the global design system */
+/* Preferences page — section links on the left, one card per section; panel and form styles come
+   from the global design system */
 
 :host {
   display: block;
@@ -6,55 +7,131 @@
   height: 100%;
 }
 
-/* Centred horizontally, and vertically when the window has room */
+/* The page itself doesn't scroll: the title stays put and only the cards column scrolls, so
+   picking a section glides the cards instead of moving the whole page */
+.page.settings-page {
+  overflow: hidden;
+  padding-bottom: 0;
+}
+
+.settings-layout {
+  display: grid;
+  grid-template-columns: 256px minmax(0, 780px);
+  gap: var(--stack-gap, 20px);
+  align-items: stretch;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 .settings-column {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  width: 100%;
-  max-width: 720px;
-  margin: auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Room for the cards' glow (the sidebar's raised shadow) and a gap under the last card, without
+     shifting their edges. Left stays inside the grid gap so it never covers the section links. */
+  padding: 8px 28px 40px 20px;
+  margin: -8px -28px 0 -20px;
 }
 
-/* ===== HEADING ===== */
-.settings-heading {
+/* Cards keep their full height and the column scrolls, rather than squeezing them to fit */
+.settings-column > * {
+  flex-shrink: 0;
+}
+
+/* ===== SECTION LINKS ===== */
+.settings-nav {
+  align-self: start;
   display: flex;
   flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-raised), var(--panel-edge);
+}
+
+.settings-nav-link {
+  display: flex;
   align-items: center;
-  text-align: center;
+  gap: 12px;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--ink-700, var(--ink-900));
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--t-fast), color var(--t-fast);
 }
 
-.heading-icon {
-  width: 48px;
-  height: 48px;
+.settings-nav-link:hover {
+  background: var(--surface-sunken);
+}
+
+.settings-nav-link.active {
+  background: var(--brand-soft);
+  color: var(--brand-strong);
+}
+
+.settings-nav-link .nav-icon {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 12px;
-  border-radius: 14px;
-  background: var(--brand-soft);
-  color: var(--brand);
-  font-size: 19px;
-  box-shadow: 0 0 0 6px color-mix(in srgb, var(--brand-soft) 50%, transparent);
+  border-radius: 10px;
+  background: var(--surface-sunken);
+  color: var(--ink-500);
+  font-size: 13px;
 }
 
-.settings-heading .page-eyebrow {
-  margin-bottom: 4px;
+.settings-nav-link.active .nav-icon {
+  background: var(--brand-gradient, var(--brand));
+  color: #ffffff;
 }
 
-.settings-heading .page-subtitle {
-  max-width: 520px;
+.nav-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
 }
 
-.alert p {
-  flex: 1;
-  margin: 0;
+.nav-label {
+  font-size: 14px;
+  font-weight: 650;
 }
 
-/* ===== CARD ===== */
+/* One line each; the column is wide enough for every hint, the ellipsis is only a safety net */
+.nav-label,
+.nav-hint {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav-hint {
+  font-size: 12px;
+  color: var(--ink-500);
+}
+
+/* ===== CARDS ===== */
+.settings-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--stack-gap, 20px);
+  min-width: 0;
+}
+
 .settings-card {
   position: relative;
   overflow: hidden;
+  scroll-margin-top: 12px;
+  /* Same raised shadow as the sidebar: a soft blue glow in dark mode */
+  box-shadow: var(--shadow-raised), var(--panel-edge);
 }
 
 /* Thin accent line, as on the other summary cards */
@@ -67,6 +144,49 @@
   opacity: 0.7;
 }
 
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 26px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.card-icon {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-size: 16px;
+}
+
+.card-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink-900);
+}
+
+.card-subtitle {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--ink-500);
+}
+
+.card-alert {
+  margin: 16px 26px 0;
+}
+
+.alert p {
+  flex: 1;
+  margin: 0;
+}
+
 .settings-form {
   display: flex;
   flex-direction: column;
@@ -74,10 +194,14 @@
 
 .settings-section {
   margin: 0;
-  padding: 22px 26px;
+  padding: 20px 26px;
   border: 0;
   border-bottom: 1px solid var(--line);
   min-width: 0;
+}
+
+.settings-section:last-child {
+  border-bottom: 0;
 }
 
 .section-head {
@@ -94,6 +218,10 @@
   font-size: 15px;
   font-weight: 650;
   color: var(--ink-900);
+}
+
+.section-title label {
+  cursor: pointer;
 }
 
 .section-meta {
@@ -114,7 +242,206 @@
   color: var(--ink-500);
 }
 
-/* ===== CHANNEL TILES ===== */
+/* ===== THEME TILES ===== */
+.theme-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.theme-option {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast), background-color var(--t-fast);
+}
+
+.theme-option:hover {
+  border-color: var(--line-strong);
+}
+
+.theme-option.selected {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-soft) 70%, transparent);
+}
+
+.theme-option:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* A miniature app window in the theme's own colours, whatever theme is showing now */
+.theme-preview {
+  position: relative;
+  display: block;
+  height: 78px;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 1px solid rgba(127, 127, 127, 0.25);
+  --tp-bg: #f4f6fb;
+  --tp-bar: #ffffff;
+  --tp-side: #e7ebf3;
+  --tp-card: #ffffff;
+  --tp-accent: #4f46e5;
+  background: var(--tp-bg);
+}
+
+.theme-preview[data-preview='dark'] {
+  --tp-bg: #0b1020;
+  --tp-bar: #121a30;
+  --tp-side: #182241;
+  --tp-card: #141c33;
+  --tp-accent: #818cf8;
+}
+
+/* System: light on one side, dark on the other */
+.theme-preview[data-preview='system'] {
+  background: linear-gradient(135deg, #f4f6fb 0 50%, #0b1020 50% 100%);
+}
+
+.theme-preview > span {
+  position: absolute;
+  display: block;
+  border-radius: 4px;
+}
+
+.tp-top {
+  inset: 0 0 auto 0;
+  height: 14px;
+  border-radius: 0 !important;
+  background: var(--tp-bar);
+  box-shadow: inset 0 -1px 0 rgba(127, 127, 127, 0.18);
+}
+
+.tp-side {
+  top: 22px;
+  left: 8px;
+  width: 22%;
+  bottom: 8px;
+  background: var(--tp-side);
+}
+
+.tp-card {
+  left: calc(22% + 16px);
+  right: 8px;
+  background: var(--tp-card);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.tp-card-1 {
+  top: 22px;
+  height: 22px;
+  border-left: 3px solid var(--tp-accent);
+}
+
+.tp-card-2 {
+  top: 50px;
+  bottom: 8px;
+}
+
+.theme-preview[data-preview='system'] .tp-top,
+.theme-preview[data-preview='system'] .tp-card {
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.theme-preview[data-preview='system'] .tp-side {
+  background: rgba(130, 140, 170, 0.4);
+}
+
+.theme-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.theme-label {
+  font-weight: 650;
+  color: var(--ink-900);
+}
+
+.theme-label i {
+  width: 16px;
+  color: var(--brand);
+}
+
+.theme-hint {
+  font-size: 12.5px;
+  color: var(--ink-500);
+}
+
+.theme-option .channel-check {
+  top: 18px;
+  right: 18px;
+}
+
+/* ===== BUDGET / QUANTITY FIELDS ===== */
+.inline-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.input-with-prefix {
+  display: flex;
+  align-items: stretch;
+  width: min(320px, 100%);
+  border: 1px solid var(--line-strong, var(--line));
+  border-radius: var(--r-md);
+  background: var(--surface);
+  overflow: hidden;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+
+.input-with-prefix.narrow {
+  width: min(200px, 100%);
+}
+
+.input-with-prefix:focus-within {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-soft);
+}
+
+.input-with-prefix.invalid {
+  border-color: var(--negative);
+}
+
+.input-with-prefix .prefix {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  border-right: 1px solid var(--line);
+  background: var(--surface-sunken);
+  color: var(--ink-500);
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
+.input-with-prefix .form-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.input-with-prefix .form-input:focus {
+  box-shadow: none;
+}
+
+/* ===== CHANNEL AND MARKET TILES ===== */
 .channel-options {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -147,7 +474,7 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-soft) 70%, transparent);
 }
 
-/* The real checkbox stays focusable but hidden; the tile is the control */
+/* The real checkbox or radio stays focusable but hidden; the tile is the control */
 .channel-option input {
   position: absolute;
   opacity: 0;
@@ -196,7 +523,8 @@
   transition: background-color var(--t-fast), border-color var(--t-fast), color var(--t-fast);
 }
 
-.channel-option.selected .channel-check {
+.channel-option.selected .channel-check,
+.theme-option.selected .channel-check {
   border-color: var(--brand);
   background: var(--brand);
   color: #ffffff;
@@ -211,6 +539,21 @@
   font-size: 12.5px;
   line-height: 1.4;
   color: var(--ink-500);
+}
+
+.market-count {
+  margin-top: 6px;
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  background: var(--surface-sunken);
+  color: var(--ink-500);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.channel-option.selected .market-count {
+  background: var(--surface);
+  color: var(--brand-strong);
 }
 
 /* ===== CONTACT FIELDS ===== */
@@ -285,40 +628,44 @@
 }
 
 /* ===== RESPONSIVE ===== */
-/* Short windows: drop the heading icon and tighten spacing so the card fits without scrolling */
-@media (max-height: 820px) {
-  .heading-icon {
-    display: none;
+@media (max-width: 1100px) {
+  .settings-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
   }
 
-  .settings-column {
-    gap: 12px;
+  .settings-nav {
+    position: static;
+    flex-direction: row;
+    overflow-x: auto;
   }
 
-  .settings-section {
-    padding-top: 16px;
-    padding-bottom: 16px;
-  }
-
-  .channel-options {
-    margin-top: 12px;
-  }
-
-  .form-actions {
-    padding-top: 12px;
-    padding-bottom: 12px;
+  .settings-nav-link {
+    flex: 1;
+    min-width: max-content;
   }
 }
 
 @media (max-width: 720px) {
-  .channel-options {
+  .channel-options,
+  .theme-options {
     grid-template-columns: 1fr;
   }
 
   .settings-section,
-  .form-actions {
+  .form-actions,
+  .card-head {
     padding-left: 18px;
     padding-right: 18px;
+  }
+
+  .card-alert {
+    margin-left: 18px;
+    margin-right: 18px;
+  }
+
+  .nav-hint {
+    display: none;
   }
 
   .save-status {

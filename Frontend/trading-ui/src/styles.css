@@ -866,6 +866,92 @@ select.form-input,
   opacity: 0.6;
 }
 
+/* Filter pills: a row of toggle buttons for list filters (market, class, kind) */
+.pill-tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--surface-sunken);
+}
+
+.pill-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-500);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--t-fast), color var(--t-fast), box-shadow var(--t-fast);
+}
+
+.pill-tab:hover:not(.active) {
+  color: var(--ink-900);
+}
+
+.pill-tab.active {
+  background: var(--surface);
+  border-color: var(--line);
+  color: var(--ink-900);
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.1);
+}
+
+.pill-tab .pill-count {
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: var(--r-pill);
+  background: var(--surface-sunken);
+  color: var(--ink-500);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.pill-tab.active .pill-count {
+  background: var(--brand-soft);
+  color: var(--brand-strong);
+}
+
+/* Sortable column header button */
+.sort-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.sort-head:hover {
+  color: var(--ink-900);
+}
+
+.sort-head i {
+  font-size: 10px;
+  opacity: 0.45;
+}
+
+.sort-head.sorted {
+  color: var(--brand-strong);
+}
+
+.sort-head.sorted i {
+  opacity: 1;
+}
+
 /* Key/value summary list used in side rails */
 .summary-list {
   display: flex;
@@ -1565,6 +1651,125 @@ select.form-input,
 @keyframes rise-in {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================================================
+   MOTION
+   One place for the app's transitions: route changes, dropdowns opening and
+   closing, panels expanding, content appearing and prices ticking. Everything
+   is skipped for users who prefer reduced motion.
+   =========================================================================== */
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* Dropdowns and popovers grow from their anchor */
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes pop-out {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(-4px) scale(0.98); }
+}
+
+/* Expanded rows and detail panels slide open */
+@keyframes expand-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes flash-up {
+  from { background-color: var(--positive-soft); color: var(--positive); }
+  to { background-color: transparent; }
+}
+
+@keyframes flash-down {
+  from { background-color: var(--negative-soft); color: var(--negative); }
+  to { background-color: transparent; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Route changes: the old page fades out while the new one rises in (.page > * above).
+     The navbar and sidebar sit in the root snapshot, so only the active item cross-fades. */
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 180ms;
+  }
+
+  ::view-transition-old(page-content) {
+    animation: fade-out 140ms ease-in both;
+  }
+
+  ::view-transition-new(page-content) {
+    animation: fade-in 220ms var(--ease) both;
+  }
+
+  /* Opening: any dropdown or popover */
+  .anim-pop {
+    transform-origin: top center;
+    animation: pop-in 170ms var(--ease) both;
+  }
+
+  /* Closing, via animate.leave="anim-pop-out": Angular waits for this before removing it */
+  .anim-pop-out {
+    transform-origin: top center;
+    animation: pop-out 120ms ease-in both;
+    pointer-events: none;
+  }
+
+  .anim-fade-out {
+    animation: fade-out 120ms ease-in both;
+    pointer-events: none;
+  }
+
+  /* Content that appears while the page is open: expanded rows, detail panels, messages */
+  .anim-expand {
+    animation: expand-in 220ms var(--ease) both;
+  }
+
+  .anim-fade {
+    animation: fade-in 200ms var(--ease) both;
+  }
+
+  /* Panels whose content is swapped in place (ReplayAnimationDirective). Opacity only, so the
+     panel never becomes a stacking context that would trap its dropdowns. */
+  .anim-swap {
+    animation: fade-in 200ms var(--ease);
+  }
+
+  .alert,
+  .empty-state {
+    animation: fade-in 220ms var(--ease) both;
+  }
+
+  /* Rows that join a list (filters, sorting into view, new data) fade in; existing rows stay */
+  .anim-rows > tr,
+  .anim-rows > li {
+    animation: fade-in 220ms var(--ease) both;
+  }
+
+  /* A live price that just changed flashes green or red (FlashOnChangeDirective) */
+  .flash-up {
+    animation: flash-up 900ms ease-out;
+  }
+
+  .flash-down {
+    animation: flash-down 900ms ease-out;
+  }
+}
+
+.flash-up,
+.flash-down {
+  border-radius: 6px;
 }
 
 /* ============================================================================

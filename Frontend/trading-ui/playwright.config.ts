@@ -15,11 +15,11 @@ loadEnv({ path: path.resolve(__dirname, '.env.local'), override: false });
 loadEnv({ path: path.resolve(__dirname, '..', '..', 'manifest.env'), override: false });
 
 /**
- * Default the E2E URLs from Config/application.yaml, the shared port settings.
+ * Default the E2E URLs from Configuration/application.yaml, the shared port settings.
  * Any E2E_* variable set in the environment or a .env file still wins.
  */
 type Endpoint = { url?: string; port?: number } | undefined;
-const platformConfigPath = path.resolve(__dirname, '..', '..', 'Config', 'application.yaml');
+const platformConfigPath = path.resolve(__dirname, '..', '..', 'Configuration', 'application.yaml');
 const platform = fs.existsSync(platformConfigPath) ? parse(fs.readFileSync(platformConfigPath, 'utf8')) ?? {} : {};
 const origin = (entry: Endpoint, fallback: string) =>
   entry?.url ? (entry.port ? `${entry.url}:${entry.port}` : entry.url) : fallback;

@@ -2,6 +2,7 @@ import { Component, ElementRef, HostListener, inject, signal } from '@angular/co
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { AppNotification, NotificationKind, NotificationService } from './notification.service';
+import { CoreAuthService } from '../auth/core-auth.service';
 
 const KIND_ICON: Record<NotificationKind, string> = {
   welcome: 'fa-hand-sparkles',
@@ -41,7 +42,7 @@ const KIND_ICON: Record<NotificationKind, string> = {
     </button>
 
     @if (open()) {
-      <section class="panel-pop" role="dialog" aria-label="Notifications" data-testid="notification-panel">
+      <section class="panel-pop" animate.leave="anim-pop-out" role="dialog" aria-label="Notifications" data-testid="notification-panel">
         <header class="pop-header">
           <h2>Notifications</h2>
           @if (seenNow().size > 0) {
@@ -76,6 +77,9 @@ const KIND_ICON: Record<NotificationKind, string> = {
           </ul>
           <footer class="pop-footer">
             <button type="button" class="link-btn muted" (click)="service.clear()" data-testid="clear-notifications">Clear all</button>
+            <button type="button" class="link-btn" (click)="viewAll()" data-testid="view-all-notifications">
+              View all <i class="fas fa-arrow-right" aria-hidden="true"></i>
+            </button>
           </footer>
         } @else {
           <div class="empty" data-testid="notifications-empty">
@@ -83,6 +87,11 @@ const KIND_ICON: Record<NotificationKind, string> = {
             <p>You're all caught up</p>
             <small>Order updates and exports will appear here.</small>
           </div>
+          <footer class="pop-footer">
+            <button type="button" class="link-btn" (click)="viewAll()" data-testid="view-all-notifications">
+              View notification history <i class="fas fa-arrow-right" aria-hidden="true"></i>
+            </button>
+          </footer>
         }
       </section>
     }
@@ -290,7 +299,8 @@ const KIND_ICON: Record<NotificationKind, string> = {
 
     .pop-footer {
       display: flex;
-      justify-content: center;
+      justify-content: space-between;
+      align-items: center;
       padding: 8px;
       border-top: 1px solid var(--line);
     }
@@ -320,6 +330,7 @@ const KIND_ICON: Record<NotificationKind, string> = {
 export class NotificationBellComponent {
   readonly service = inject(NotificationService);
   private readonly router = inject(Router);
+  private readonly auth = inject(CoreAuthService, { optional: true });
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   readonly open = signal(false);
@@ -358,6 +369,12 @@ export class NotificationBellComponent {
   /** Unread, or unread when this panel was opened */
   isNew(n: AppNotification): boolean {
     return !n.read || this.seenNow().has(n.id);
+  }
+
+  /** The full history page: customers and admins each have one */
+  viewAll(): void {
+    this.close();
+    this.router.navigate([this.auth?.isAdmin?.() ? '/admin/notifications' : '/notifications']);
   }
 
   openNotification(n: AppNotification): void {

@@ -396,3 +396,56 @@
   border-color: color-mix(in srgb, var(--negative) 35%, var(--line));
   background: linear-gradient(180deg, var(--negative-soft), var(--surface-sunken));
 }
+
+/* ===== ORDER BUDGET WARNING (Preferences → Trading) ===== */
+.budget-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--warning);
+  border-radius: var(--r-md);
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-size: 13px;
+}
+
+.budget-warning > i {
+  margin-top: 2px;
+}
+
+.budget-warning-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--ink-900);
+}
+
+.budget-warning-text strong {
+  color: var(--warning);
+}
+
+.budget-warning-text a {
+  align-self: flex-start;
+  color: var(--brand);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.budget-warning-text a:hover {
+  text-decoration: underline;
+}
+
+.submit-button.over-budget {
+  background: var(--warning);
+  border-color: var(--warning);
+  box-shadow: none;
+}
+
+/* The instrument search drops its results over the ticket card below it; lift the header so the
+   card (whose children are positioned with z-index 1) never paints over the dropdown */
+.order-ticket-container > .page-header {
+  position: relative;
+  z-index: 40;
+}

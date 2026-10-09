@@ -85,7 +85,7 @@
     </section>
 
     <!-- Selected watchlist -->
-    <section class="panel detail-panel">
+    <section class="panel detail-panel" [appReplayAnimation]="selected()?.watchlistId">
       @if (selected(); as list) {
         <header class="panel-header">
           <div>
@@ -99,6 +99,55 @@
           </div>
         </header>
 
+        @if (list.items.length) {
+          <div class="watch-toolbar" data-testid="watch-toolbar">
+            <div class="input-with-icon watch-filter">
+              <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+              <input
+                class="search-input"
+                type="search"
+                [ngModel]="filterText()"
+                (ngModelChange)="filterText.set($event)"
+                placeholder="Filter this list"
+                aria-label="Filter this watchlist"
+                data-testid="watch-filter"
+              />
+            </div>
+            <div class="pill-tabs" role="group" aria-label="Asset class">
+              @for (option of [{ v: 'ALL', l: 'All' }, { v: 'EQUITY', l: 'Equity' }, { v: 'FX', l: 'FX' }, { v: 'CRYPTO', l: 'Crypto' }]; track option.v) {
+                <button
+                  type="button"
+                  class="pill-tab"
+                  [class.active]="classFilter() === option.v"
+                  [attr.aria-pressed]="classFilter() === option.v"
+                  (click)="classFilter.set($any(option.v))"
+                  [attr.data-testid]="'watch-class-' + option.v"
+                >{{ option.l }}</button>
+              }
+            </div>
+            <div class="pill-tabs" role="group" aria-label="Today's move">
+              @for (option of [{ v: 'all', l: 'Any move', i: 'fa-arrows-up-down' }, { v: 'gainers', l: 'Gainers', i: 'fa-arrow-trend-up' }, { v: 'losers', l: 'Losers', i: 'fa-arrow-trend-down' }]; track option.v) {
+                <button
+                  type="button"
+                  class="pill-tab"
+                  [class.active]="moveFilter() === option.v"
+                  [attr.aria-pressed]="moveFilter() === option.v"
+                  (click)="moveFilter.set($any(option.v))"
+                  [attr.data-testid]="'watch-move-' + option.v"
+                ><i class="fas" [ngClass]="option.i" aria-hidden="true"></i> {{ option.l }}</button>
+              }
+            </div>
+            <label class="sort-field">
+              <span><i class="fas fa-arrow-down-wide-short" aria-hidden="true"></i> Sort</span>
+              <select class="filter-select" [ngModel]="sortKey()" (ngModelChange)="setSort($event)" aria-label="Sort watchlist" data-testid="watch-sort">
+                @for (option of sortOptions; track option.value) {
+                  <option [value]="option.value">{{ option.label }}</option>
+                }
+              </select>
+            </label>
+          </div>
+        }
+
         <div class="table-wrapper">
           <table class="data-table watch-table">
             <thead>
@@ -111,7 +160,7 @@
                 <th class="actions-head"><span class="sr-only">Actions</span></th>
               </tr>
             </thead>
-            <tbody>
+            <tbody class="anim-rows">
               @for (row of rows(); track row.item.watchlistItemId) {
                 <tr [attr.data-testid]="'watch-row-' + row.item.symbol">
                   <td>
@@ -119,7 +168,7 @@
                     <span class="row-name">{{ row.name }}</span>
                   </td>
                   <td><span class="pill no-dot">{{ row.assetClass }}</span></td>
-                  <td class="num" [title]="priceTitle(row)" [attr.data-testid]="'price-' + row.item.symbol">
+                  <td class="num" [appFlashOnChange]="row.price" [title]="priceTitle(row)" [attr.data-testid]="'price-' + row.item.symbol">
                     @if (row.price !== null) {
                       <span class="cell-strong">{{ formatPrice(row) }}</span>
                       <span class="price-meta">
@@ -145,32 +194,42 @@
                   </td>
                   <td class="cell-muted">{{ row.item.createdAt | date: 'MMM d, y' }}</td>
                   <td class="actions">
-                    @if (row.tradable) {
-                      <a class="btn btn-outline btn-sm" routerLink="/order-ticket" [queryParams]="{ symbol: row.item.symbol }">Trade</a>
-                    } @else {
-                      <span class="untradable" title="Orders for this instrument are rejected"><i class="fas fa-ban" aria-hidden="true"></i> Not tradable</span>
-                    }
-                    <app-price-alert-button [symbol]="row.item.symbol" />
-                    <button
-                      type="button"
-                      class="btn btn-ghost btn-sm remove-btn"
-                      (click)="removeItem(row)"
-                      [disabled]="removingIds().has(row.item.watchlistItemId)"
-                      [attr.aria-label]="'Remove ' + row.item.symbol"
-                      [attr.data-testid]="'remove-' + row.item.symbol"
-                    >
-                      <i class="fas fa-xmark"></i>
-                    </button>
+                    <div class="row-actions">
+                      @if (row.tradable) {
+                        <a class="btn btn-outline btn-sm" routerLink="/order-ticket" [queryParams]="{ symbol: row.item.symbol }">Trade</a>
+                      } @else {
+                        <span class="untradable" title="Orders for this instrument are rejected"><i class="fas fa-ban" aria-hidden="true"></i> Not tradable</span>
+                      }
+                      <app-price-alert-button [symbol]="row.item.symbol" />
+                      <button
+                        type="button"
+                        class="btn btn-ghost btn-sm remove-btn"
+                        (click)="removeItem(row)"
+                        [disabled]="removingIds().has(row.item.watchlistItemId)"
+                        [attr.aria-label]="'Remove ' + row.item.symbol"
+                        [attr.data-testid]="'remove-' + row.item.symbol"
+                      >
+                        <i class="fas fa-xmark"></i>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               } @empty {
                 <tr>
                   <td colspan="6">
-                    <div class="empty-state">
-                      <i class="fas fa-magnifying-glass-chart"></i>
-                      <p>This watchlist is empty</p>
-                      <small>Search above to add instruments.</small>
-                    </div>
+                    @if (list.items.length) {
+                      <div class="empty-state" data-testid="watch-no-match">
+                        <i class="fas fa-filter-circle-xmark"></i>
+                        <p>No instruments match these filters</p>
+                        <button type="button" class="btn btn-outline btn-sm" (click)="clearFilters()">Clear filters</button>
+                      </div>
+                    } @else {
+                      <div class="empty-state">
+                        <i class="fas fa-magnifying-glass-chart"></i>
+                        <p>This watchlist is empty</p>
+                        <small>Search above to add instruments.</small>
+                      </div>
+                    }
                   </td>
                 </tr>
               }
