@@ -17,7 +17,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.UUID;
@@ -56,7 +55,8 @@ public class TradeEventPublisher {
     }
 
     /**
-     * Publish a trade event (ORDER_FILLED or ORDER_REJECTED) to trade-events topic.
+     * Publish a trade event (ORDER_FILLED or ORDER_REJECTED) to trade-events topic. Used by the executor
+     * for a fresh outcome and by OutcomeReplayScheduler to republish one still pending.
      * 
      * Message structure:
      * - Topic: trade-events
@@ -64,58 +64,19 @@ public class TradeEventPublisher {
      * - Value: MessageEnvelope containing TradeEventPayload
      * - EventType: ORDER_FILLED or ORDER_REJECTED (determined by status)
      * 
-     * @param orderId The order ID
-     * @param accountId The account ID (used as Kafka key)
-     * @param status The final status (FILLED or REJECTED)
-     * @param quotedPrice The original quoted price from ORDER_PLACED (for fee recalculation)
-     * @param executedPrice The executed price (null if rejected)
-     * @param originalFee The fee calculated at order placement time
-     * @param rejectReason The rejection reason (null if filled)
-     * @param executedOn The timestamp when order was executed
-     * @return completes with true once Kafka acknowledged the event, false if publishing failed
-     * @throws RuntimeException if serialization fails
-     */
-    public CompletableFuture<Boolean> publishTradeEvent(
-        UUID orderId,
-        long accountId,
-        OrderStatus status,
-        BigDecimal quotedPrice,
-        BigDecimal executedPrice,
-        BigDecimal originalFee,
-        String rejectReason,
-        Instant executedOn
-    ) {
-        return publishTradeEvent(orderId, accountId, status, quotedPrice, executedPrice, originalFee, rejectReason,
-            executedOn, null);
-    }
-
-    /** Rebuilds and publishes the trade event of a FILLED / REJECTED order still pending (replay). */
-    public CompletableFuture<Boolean> publishOutcome(PendingOutcome outcome) {
-        return publishTradeEvent(outcome.id(), outcome.accountId(), outcome.status(), outcome.price(),
-            outcome.executedPrice(), outcome.fee(), outcome.rejectedReason(), outcome.executedOn(),
-            outcome.fillFxRate());
-    }
-
-    /**
-     * As above, carrying the instrument-to-account FX rate the executor fetched at fill. The fee
-     * deduction service settles the BUY/SELL transaction and the fee in account currency at this rate.
+     * The outcome price is published as the quoted price and its fee as the original fee. The fee
+     * deduction service settles the BUY/SELL transaction and the fee in account currency at the
+     * outcome fill FX rate (null if rejected).
      *
-     * @param fillFxRate Account-currency units per instrument-currency unit at fill (null if rejected)
      * @return completes with true once Kafka acknowledged the event, false if publishing failed;
      *         inside a transaction it completes after commit, and never if the transaction rolls back
      * @throws RuntimeException if serialization fails
      */
-    public CompletableFuture<Boolean> publishTradeEvent(
-        UUID orderId,
-        long accountId,
-        OrderStatus status,
-        BigDecimal quotedPrice,
-        BigDecimal executedPrice,
-        BigDecimal originalFee,
-        String rejectReason,
-        Instant executedOn,
-        BigDecimal fillFxRate
-    ) {
+    public CompletableFuture<Boolean> publishOutcome(PendingOutcome outcome) {
+        UUID orderId = outcome.id();
+        long accountId = outcome.accountId();
+        OrderStatus status = outcome.status();
+
         // Determine event type based on status
         EventType eventType = (status == OrderStatus.FILLED)
             ? EventType.ORDER_FILLED
@@ -129,16 +90,16 @@ public class TradeEventPublisher {
             null,  // side - not needed for event publishing
             null,  // quantity - not needed for event publishing
             null,  // price - not needed for event publishing
-            quotedPrice,  // quotedPrice from ORDER_PLACED
-            executedPrice,
-            originalFee,  // originalFee from ORDER_PLACED
+            outcome.price(),  // quotedPrice from ORDER_PLACED
+            outcome.executedPrice(),
+            outcome.fee(),  // originalFee from ORDER_PLACED
             status.name(),
-            rejectReason,
+            outcome.rejectedReason(),
             null,  // cashDelta - not calculated by executor
             null,  // positionQuantityAfter - not returned by executor
             null,  // averageCostAfter - not returned by executor
-            executedOn,
-            fillFxRate
+            outcome.executedOn(),
+            outcome.fillFxRate()
         );
 
         // Wrap in message envelope
@@ -160,30 +121,30 @@ public class TradeEventPublisher {
                 orderId, accountId, status, e);
             throw new RuntimeException("Trade event serialization failed: " + e.getMessage(), e);
         }
-        ProducerRecord<String, String> record = new ProducerRecord<>(
+        ProducerRecord<String, String> producerRecord = new ProducerRecord<>(
             TRADE_EVENTS_TOPIC,
             String.valueOf(accountId),  // Key: account ID for partitioning
             messageJson
         );
 
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            return send(record, orderId, accountId, status, eventType);
+            return send(producerRecord, orderId, accountId, status, eventType);
         }
         CompletableFuture<Boolean> published = new CompletableFuture<>();
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                send(record, orderId, accountId, status, eventType).thenAccept(published::complete);
+                send(producerRecord, orderId, accountId, status, eventType).thenAccept(published::complete);
             }
         });
         return published;
     }
 
     /** Sends the event; never throws and never completes exceptionally. */
-    private CompletableFuture<Boolean> send(ProducerRecord<String, String> record, UUID orderId, long accountId,
+    private CompletableFuture<Boolean> send(ProducerRecord<String, String> producerRecord, UUID orderId, long accountId,
                                             OrderStatus status, EventType eventType) {
         try {
-            return kafkaTemplate.send(record).handleAsync((result, exception) -> {
+            return kafkaTemplate.send(producerRecord).handleAsync((result, exception) -> {
                 if (exception == null) {
                     logger.info("Published trade event: orderId={}, accountId={}, status={}, eventType={}",
                         orderId, accountId, status, eventType);

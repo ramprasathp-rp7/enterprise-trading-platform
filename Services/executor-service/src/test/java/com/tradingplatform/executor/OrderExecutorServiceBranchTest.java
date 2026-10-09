@@ -3,7 +3,7 @@ package com.tradingplatform.executor;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.clearInvocations;
@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import com.tradingplatform.domain.Account;
 import com.tradingplatform.domain.Instrument;
 import com.tradingplatform.domain.Order;
+import com.tradingplatform.domain.PendingOutcome;
 import com.tradingplatform.enums.AccountStatus;
 import com.tradingplatform.enums.AssetClass;
 import com.tradingplatform.enums.OrderSide;
@@ -162,8 +163,7 @@ class OrderExecutorServiceBranchTest {
         executor.process(order, QUOTED, ORIGINAL_FEE);
 
         verifyRejected("No price available");
-        verify(publisher).publishTradeEvent(eq(order.getId()), eq(1L), eq(OrderStatus.REJECTED), eq(QUOTED),
-            isNull(), eq(ORIGINAL_FEE), eq("No price available"), any(Instant.class));
+        verify(publisher).publishOutcome(rejected(order.getId(), "No price available"));
     }
 
     @Test
@@ -173,8 +173,7 @@ class OrderExecutorServiceBranchTest {
 
         executor.process(order, QUOTED, ORIGINAL_FEE);
 
-        verify(publisher).publishTradeEvent(eq(order.getId()), eq(1L), eq(OrderStatus.REJECTED), eq(QUOTED),
-            isNull(), eq(ORIGINAL_FEE), eq("Instrument is not tradable"), any(Instant.class));
+        verify(publisher).publishOutcome(rejected(order.getId(), "Instrument is not tradable"));
     }
 
     @Test
@@ -184,15 +183,13 @@ class OrderExecutorServiceBranchTest {
 
         executor.process(order, QUOTED, ORIGINAL_FEE);
 
-        verify(publisher).publishTradeEvent(eq(order.getId()), eq(1L), eq(OrderStatus.REJECTED), eq(QUOTED),
-            isNull(), eq(ORIGINAL_FEE), eq("Suspended Account"), any(Instant.class));
+        verify(publisher).publishOutcome(rejected(order.getId(), "Suspended Account"));
     }
 
     @Test
     void rejectNewPublishesOnlyWhenTheOrderWasStillNew() {
         executor.rejectNew(order.getId(), 1L, "Pricing service unavailable: down", QUOTED, ORIGINAL_FEE);
-        verify(publisher).publishTradeEvent(eq(order.getId()), eq(1L), eq(OrderStatus.REJECTED), eq(QUOTED),
-            isNull(), eq(ORIGINAL_FEE), eq("Pricing service unavailable: down"), any(Instant.class));
+        verify(publisher).publishOutcome(rejected(order.getId(), "Pricing service unavailable: down"));
 
         // e.g. the customer cancelled it meanwhile: nothing is updated, nothing is published
         clearInvocations(publisher);
@@ -208,8 +205,7 @@ class OrderExecutorServiceBranchTest {
         executor.process(order, QUOTED, ORIGINAL_FEE);
 
         verifyRejected("Order rejected by fill rule");
-        verify(publisher).publishTradeEvent(eq(order.getId()), eq(1L), eq(OrderStatus.REJECTED), eq(QUOTED),
-            isNull(), eq(ORIGINAL_FEE), eq("Order rejected by fill rule"), any(Instant.class));
+        verify(publisher).publishOutcome(rejected(order.getId(), "Order rejected by fill rule"));
     }
 
     @Test
@@ -278,8 +274,7 @@ class OrderExecutorServiceBranchTest {
         verifyRejected("Insufficient funds");
         verifyNoInteractions(settlementService);
         // The rejection reaches trade-events, so the customer is notified
-        verify(publisher).publishTradeEvent(eq(order.getId()), eq(1L), eq(OrderStatus.REJECTED), eq(QUOTED),
-            isNull(), eq(ORIGINAL_FEE), eq("Insufficient funds"), any(Instant.class));
+        verify(publisher).publishOutcome(rejected(order.getId(), "Insufficient funds"));
     }
 
     @Test
@@ -296,8 +291,7 @@ class OrderExecutorServiceBranchTest {
         verify(orderMapper).updateOrderStatus(eq(order.getId()), eq(OrderStatus.FILLED), isNull(),
             eq(executed), eq(new BigDecimal("2.25")), any(Instant.class));
         verify(orderMapper).recordFill(order.getId(), BigDecimal.ONE, null);
-        verify(publisher).publishTradeEvent(eq(order.getId()), eq(1L), eq(OrderStatus.FILLED), eq(QUOTED),
-            eq(executed), eq(ORIGINAL_FEE), isNull(), any(Instant.class), eq(BigDecimal.ONE));
+        verify(publisher).publishOutcome(filled(order.getId(), executed, BigDecimal.ONE));
     }
 
     @Test
@@ -324,8 +318,7 @@ class OrderExecutorServiceBranchTest {
         executor.process(order, QUOTED, ORIGINAL_FEE);
 
         verify(settlementService).settle(eq(order), any(), any());
-        verify(publisher, never()).publishTradeEvent(any(), anyLong(), any(), any(), any(), any(), any(), any());
-        verify(publisher, never()).publishTradeEvent(any(), anyLong(), any(), any(), any(), any(), any(), any(), any());
+        verify(publisher, never()).publishOutcome(any());
     }
 
     // --- multi-currency: INR instrument, USD account ---
@@ -352,8 +345,7 @@ class OrderExecutorServiceBranchTest {
 
         verify(settlementService).settle(order, new BigDecimal("99.50"), fillRate);
         verify(orderMapper).recordFill(order.getId(), fillRate, null);
-        verify(publisher).publishTradeEvent(eq(order.getId()), eq(1L), eq(OrderStatus.FILLED), eq(QUOTED),
-            eq(new BigDecimal("99.50")), eq(ORIGINAL_FEE), isNull(), any(Instant.class), eq(fillRate));
+        verify(publisher).publishOutcome(filled(order.getId(), new BigDecimal("99.50"), fillRate));
     }
 
     @Test
@@ -368,8 +360,7 @@ class OrderExecutorServiceBranchTest {
         verifyRejected("Insufficient funds");
         verifyNoInteractions(settlementService);
         // Like every rejection, it is published to trade-events so the customer is notified
-        verify(publisher).publishTradeEvent(eq(order.getId()), eq(1L), eq(OrderStatus.REJECTED), eq(QUOTED),
-            isNull(), eq(ORIGINAL_FEE), eq("Insufficient funds"), any(Instant.class));
+        verify(publisher).publishOutcome(rejected(order.getId(), "Insufficient funds"));
     }
 
     @Test
@@ -381,5 +372,19 @@ class OrderExecutorServiceBranchTest {
         org.junit.jupiter.api.Assertions.assertThrows(com.tradingplatform.quote.PricingUnavailableException.class,
             () -> executor.process(order, QUOTED, ORIGINAL_FEE));
         verifyNoInteractions(settlementService, publisher);
+    }
+
+    /** Matches the ORDER_REJECTED outcome published for an order of account 1. */
+    private static PendingOutcome rejected(UUID orderId, String reason) {
+        return argThat(o -> o.id().equals(orderId) && o.accountId() == 1L && o.status() == OrderStatus.REJECTED
+            && QUOTED.equals(o.price()) && o.executedPrice() == null && ORIGINAL_FEE.equals(o.fee())
+            && reason.equals(o.rejectedReason()) && o.executedOn() != null && o.fillFxRate() == null);
+    }
+
+    /** Matches the ORDER_FILLED outcome published for an order of account 1. */
+    private static PendingOutcome filled(UUID orderId, BigDecimal executedPrice, BigDecimal fillFxRate) {
+        return argThat(o -> o.id().equals(orderId) && o.accountId() == 1L && o.status() == OrderStatus.FILLED
+            && QUOTED.equals(o.price()) && executedPrice.equals(o.executedPrice()) && ORIGINAL_FEE.equals(o.fee())
+            && o.rejectedReason() == null && o.executedOn() != null && fillFxRate.equals(o.fillFxRate()));
     }
 }

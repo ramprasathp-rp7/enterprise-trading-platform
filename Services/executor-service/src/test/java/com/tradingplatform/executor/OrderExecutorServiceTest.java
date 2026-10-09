@@ -10,9 +10,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.mockito.ArgumentMatchers.any;
 
 import com.tradingplatform.mappers.AccountMapper;
 import com.tradingplatform.mappers.AssetFeeMapper;
@@ -25,7 +25,6 @@ import com.tradingplatform.enums.AssetClass;
 import com.tradingplatform.enums.OrderSide;
 import com.tradingplatform.enums.OrderStatus;
 import com.tradingplatform.domain.Account;
-import com.tradingplatform.domain.Feeable;
 import com.tradingplatform.domain.Instrument;
 import com.tradingplatform.domain.Order;
 import com.tradingplatform.fill.DefaultFillRule;
@@ -57,11 +56,7 @@ public class OrderExecutorServiceTest {
         // create a no-op TradeEventPublisher stub to avoid Kafka dependencies in tests
         com.tradingplatform.publisher.TradeEventPublisher tradeEventPublisher = new com.tradingplatform.publisher.TradeEventPublisher(null, new com.fasterxml.jackson.databind.ObjectMapper(), null) {
             @Override
-            public java.util.concurrent.CompletableFuture<Boolean> publishTradeEvent(java.util.UUID orderId, long accountId, com.tradingplatform.enums.OrderStatus status, java.math.BigDecimal quotedPrice, java.math.BigDecimal executedPrice, java.math.BigDecimal originalFee, String rejectReason, java.time.Instant executedOn) {
-                return java.util.concurrent.CompletableFuture.completedFuture(true);  // no-op
-            }
-            @Override
-            public java.util.concurrent.CompletableFuture<Boolean> publishTradeEvent(java.util.UUID orderId, long accountId, com.tradingplatform.enums.OrderStatus status, java.math.BigDecimal quotedPrice, java.math.BigDecimal executedPrice, java.math.BigDecimal originalFee, String rejectReason, java.time.Instant executedOn, java.math.BigDecimal fillFxRate) {
+            public java.util.concurrent.CompletableFuture<Boolean> publishOutcome(com.tradingplatform.domain.PendingOutcome outcome) {
                 return java.util.concurrent.CompletableFuture.completedFuture(true);  // no-op
             }
         };
@@ -145,7 +140,7 @@ public class OrderExecutorServiceTest {
         executor.process(o, new BigDecimal("100.00"), java.math.BigDecimal.ZERO);
 
         // Verify that updateOrderStatus was NOT called (order was skipped)
-        verify(orderMapper, org.mockito.Mockito.never()).updateOrderStatus(
+        verify(orderMapper, never()).updateOrderStatus(
             any(UUID.class),
             any(com.tradingplatform.enums.OrderStatus.class),
             any(),
@@ -154,6 +149,6 @@ public class OrderExecutorServiceTest {
             any(java.time.Instant.class)
         );
         // Verify that settlement service was NOT called
-        verify(settlementService, org.mockito.Mockito.never()).settle(any(), any());
+        verify(settlementService, never()).settle(any(), any());
     }
 }

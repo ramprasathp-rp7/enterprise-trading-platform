@@ -97,8 +97,9 @@ class OrderSettlementServiceTest {
         when(positionMapper.updatePosition(any(), anyInt())).thenReturn(0);
         when(positionMapper.insertPosition(any())).thenReturn(0);
 
-        assertThrows(IllegalStateException.class,
-            () -> service.settle(order(OrderSide.BUY, 5), new BigDecimal("10.00")));
+        Order buy = order(OrderSide.BUY, 5);
+        BigDecimal price = new BigDecimal("10.00");
+        assertThrows(IllegalStateException.class, () -> service.settle(buy, price));
     }
 
     @Test
@@ -106,8 +107,9 @@ class OrderSettlementServiceTest {
         when(positionMapper.findByAccountAndInstrument(1L, 100L)).thenReturn(null);
         when(accountMapper.updateAccount(any(), anyInt())).thenReturn(0);
 
-        OptimisticLockException ex = assertThrows(OptimisticLockException.class,
-            () -> service.settle(order(OrderSide.BUY, 1), new BigDecimal("10.00")));
+        Order buy = order(OrderSide.BUY, 1);
+        BigDecimal price = new BigDecimal("10.00");
+        OptimisticLockException ex = assertThrows(OptimisticLockException.class, () -> service.settle(buy, price));
         assertEquals("Account", ex.getResourceType());
         verify(positionMapper, never()).updatePosition(any(), anyInt());
     }
@@ -119,8 +121,9 @@ class OrderSettlementServiceTest {
         when(accountMapper.updateAccount(any(), anyInt())).thenReturn(1);
         when(positionMapper.updatePosition(any(), anyInt())).thenReturn(0);
 
-        OptimisticLockException ex = assertThrows(OptimisticLockException.class,
-            () -> service.settle(order(OrderSide.SELL, 1), new BigDecimal("10.00")));
+        Order sell = order(OrderSide.SELL, 1);
+        BigDecimal price = new BigDecimal("10.00");
+        OptimisticLockException ex = assertThrows(OptimisticLockException.class, () -> service.settle(sell, price));
         assertEquals("Position", ex.getResourceType());
         assertEquals("1:100", ex.getResourceId());
     }
@@ -128,21 +131,22 @@ class OrderSettlementServiceTest {
     @Test
     void missingAccountIsRejected() {
         when(accountMapper.findByAccountId(1L)).thenReturn(null);
-        assertThrows(IllegalStateException.class,
-            () -> service.settle(order(OrderSide.BUY, 1), BigDecimal.TEN));
+        Order buy = order(OrderSide.BUY, 1);
+        assertThrows(IllegalStateException.class, () -> service.settle(buy, BigDecimal.TEN));
     }
 
     @Test
     void nullArgumentsAreRejected() {
         assertThrows(NullPointerException.class, () -> service.settle(null, BigDecimal.TEN));
-        assertThrows(NullPointerException.class, () -> service.settle(order(OrderSide.BUY, 1), null));
+        Order buy = order(OrderSide.BUY, 1);
+        assertThrows(NullPointerException.class, () -> service.settle(buy, null));
     }
 
     @Test
     void sellingMoreThanHeldPropagatesDomainError() {
         when(positionMapper.findByAccountAndInstrument(1L, 100L)).thenReturn(null);
-        assertThrows(IllegalStateException.class,
-            () -> service.settle(order(OrderSide.SELL, 1), BigDecimal.TEN));
+        Order sell = order(OrderSide.SELL, 1);
+        assertThrows(IllegalStateException.class, () -> service.settle(sell, BigDecimal.TEN));
         verify(accountMapper, never()).updateAccount(any(), anyInt());
     }
 

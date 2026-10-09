@@ -91,8 +91,8 @@ class AccountTest {
     @Test
     void debitBeyondBalanceIsRejectedAndBalanceUnchanged() {
         Account a = account("100.00", AccountStatus.ACTIVE);
-        IllegalStateException ex = assertThrows(IllegalStateException.class,
-            () -> a.debit(new BigDecimal("100.01")));
+        BigDecimal overdraft = new BigDecimal("100.01");
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () -> a.debit(overdraft));
         assertTrue(ex.getMessage().contains("ACC-001"));
         assertEquals(new BigDecimal("100.00"), a.getCashBalance());
     }
@@ -108,9 +108,11 @@ class AccountTest {
     void nonPositiveAmountsAreRejected() {
         Account a = account("100.00", AccountStatus.ACTIVE);
         assertThrows(IllegalArgumentException.class, () -> a.credit(BigDecimal.ZERO));
-        assertThrows(IllegalArgumentException.class, () -> a.debit(new BigDecimal("-1")));
+        BigDecimal negative = new BigDecimal("-1");
+        assertThrows(IllegalArgumentException.class, () -> a.debit(negative));
         // rounds to zero at 2dp
-        assertThrows(IllegalArgumentException.class, () -> a.credit(new BigDecimal("0.001")));
+        BigDecimal belowOneCent = new BigDecimal("0.001");
+        assertThrows(IllegalArgumentException.class, () -> a.credit(belowOneCent));
         assertThrows(NullPointerException.class, () -> a.credit(null));
     }
 }

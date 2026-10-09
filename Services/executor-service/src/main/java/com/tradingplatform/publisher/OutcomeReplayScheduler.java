@@ -80,27 +80,36 @@ public class OutcomeReplayScheduler {
 
         int replayed = 0;
         for (PendingOutcome outcome : pending) {
-            if (inFlight.contains(outcome.id())) {
-                continue;
-            }
-            CompletableFuture<Boolean> published;
-            try {
-                published = tradeEventPublisher.publishOutcome(outcome);
-            } catch (RuntimeException ex) {
-                // Serialization failure: this row cannot be published as it is; carry on with the rest
-                logger.error("Outcome replay could not build trade event: orderId={}, reason={}", outcome.id(), ex.getMessage());
-                continue;
-            }
-            if (!awaitPublish(outcome.id(), published)) {
+            ReplayResult result = replay(outcome);
+            if (result == ReplayResult.KAFKA_UNAVAILABLE) {
                 logger.warn("Outcome replay stopped: Kafka unavailable; {} of {} pending trade events not republished",
                     pending.size() - replayed, pending.size());
                 break;
             }
-            replayed++;
+            if (result == ReplayResult.PUBLISHED) {
+                replayed++;
+            }
         }
         if (replayed > 0) {
             logger.info("Outcome replay: republished trade events for {} orders", replayed);
         }
+    }
+
+    private enum ReplayResult { PUBLISHED, SKIPPED, KAFKA_UNAVAILABLE }
+
+    private ReplayResult replay(PendingOutcome outcome) {
+        if (inFlight.contains(outcome.id())) {
+            return ReplayResult.SKIPPED;
+        }
+        CompletableFuture<Boolean> published;
+        try {
+            published = tradeEventPublisher.publishOutcome(outcome);
+        } catch (RuntimeException ex) {
+            // Serialization failure: this row cannot be published as it is; carry on with the rest
+            logger.error("Outcome replay could not build trade event: orderId={}, reason={}", outcome.id(), ex.getMessage());
+            return ReplayResult.SKIPPED;
+        }
+        return awaitPublish(outcome.id(), published) ? ReplayResult.PUBLISHED : ReplayResult.KAFKA_UNAVAILABLE;
     }
 
     private boolean awaitPublish(UUID orderId, CompletableFuture<Boolean> published) {

@@ -99,65 +99,90 @@ public class OrderPlacedListener {
 	}
 
 	@KafkaListener(topics = "orders", groupId = "trade-executor")
-	public void onOrderPlaced(ConsumerRecord<String, String> record, Acknowledgment ack) {
+	public void onOrderPlaced(ConsumerRecord<String, String> consumerRecord, Acknowledgment ack) {
+		ValidOrder valid = validOrder(consumerRecord, ack);
+		if (valid == null) {
+			return;
+		}
+		OrderPlacedPayload payload = valid.payload();
+		logger.info("Consuming order event: topic={}, partition={}, offset={}, orderId={}, accountId={}",
+			consumerRecord.topic(), consumerRecord.partition(), consumerRecord.offset(), payload.orderId(), payload.accountId());
+		processWithRetries(consumerRecord, payload, valid.orderUuid(), ack);
+	}
+
+	/** An ORDER_PLACED payload with every required field present and a well-formed order id. */
+	private record ValidOrder(OrderPlacedPayload payload, UUID orderUuid) {
+	}
+
+	/** Parses and validates the message; dead-letters it and returns null if it cannot be processed. */
+	private ValidOrder validOrder(ConsumerRecord<String, String> consumerRecord, Acknowledgment ack) {
 		MessageEnvelope<OrderPlacedPayload> envelope;
 		try {
-			envelope = objectMapper.readValue(record.value(), new TypeReference<MessageEnvelope<OrderPlacedPayload>>() {});
+			envelope = objectMapper.readValue(consumerRecord.value(), new TypeReference<MessageEnvelope<OrderPlacedPayload>>() {});
 		} catch (JsonProcessingException ex) {
 			logger.warn("Dead-lettering malformed order message: topic={}, partition={}, offset={}, reason={}",
-				record.topic(), record.partition(), record.offset(), ex.getMessage());
-			deadLetterAndAck(record, "Malformed JSON: " + ex.getMessage(), ack);
-			return;
+				consumerRecord.topic(), consumerRecord.partition(), consumerRecord.offset(), ex.getMessage());
+			deadLetterAndAck(consumerRecord, "Malformed JSON: " + ex.getMessage(), ack);
+			return null;
 		}
 
 		if (envelope.eventType() != EventType.ORDER_PLACED) {
 			logger.warn("Dead-lettering unexpected event type: topic={}, partition={}, offset={}, eventType={}",
-				record.topic(), record.partition(), record.offset(), envelope.eventType());
-			deadLetterAndAck(record, "Unexpected event type: " + envelope.eventType(), ack);
-			return;
+				consumerRecord.topic(), consumerRecord.partition(), consumerRecord.offset(), envelope.eventType());
+			deadLetterAndAck(consumerRecord, "Unexpected event type: " + envelope.eventType(), ack);
+			return null;
 		}
 
 		OrderPlacedPayload payload = envelope.payload();
-		if (payload == null
-			|| payload.orderId() == null || payload.orderId().isBlank()
-			|| payload.accountId() == null
-			|| payload.symbol() == null || payload.symbol().isBlank()
-			|| payload.side() == null || payload.side().isBlank()
-			|| payload.quantity() == null
-			|| payload.price() == null
-			|| payload.idempotencyKey() == null || payload.idempotencyKey().isBlank()) {
+		if (hasMissingField(payload)) {
 			logger.warn("Dead-lettering order with missing required field: topic={}, partition={}, offset={}, orderId={}",
-				record.topic(), record.partition(), record.offset(), payload == null ? null : payload.orderId());
-			deadLetterAndAck(record, "Missing required order field", ack);
-			return;
+				consumerRecord.topic(), consumerRecord.partition(), consumerRecord.offset(), payload == null ? null : payload.orderId());
+			deadLetterAndAck(consumerRecord, "Missing required order field", ack);
+			return null;
 		}
 
-		UUID orderUuid;
 		try {
-			orderUuid = UUID.fromString(payload.orderId());
+			return new ValidOrder(payload, UUID.fromString(payload.orderId()));
 		} catch (IllegalArgumentException ex) {
 			logger.warn("Dead-lettering order with invalid order identifier: topic={}, partition={}, offset={}, orderId={}",
-				record.topic(), record.partition(), record.offset(), payload.orderId());
-			deadLetterAndAck(record, "Invalid order identifier: " + payload.orderId(), ack);
-			return;
+				consumerRecord.topic(), consumerRecord.partition(), consumerRecord.offset(), payload.orderId());
+			deadLetterAndAck(consumerRecord, "Invalid order identifier: " + payload.orderId(), ack);
+			return null;
 		}
+	}
 
-		logger.info("Consuming order event: topic={}, partition={}, offset={}, orderId={}, accountId={}",
-			record.topic(), record.partition(), record.offset(), payload.orderId(), payload.accountId());
+	private static boolean hasMissingField(OrderPlacedPayload payload) {
+		return payload == null
+			|| isBlank(payload.orderId())
+			|| payload.accountId() == null
+			|| isBlank(payload.symbol())
+			|| isBlank(payload.side())
+			|| payload.quantity() == null
+			|| payload.price() == null
+			|| isBlank(payload.idempotencyKey());
+	}
 
+	private static boolean isBlank(String value) {
+		return value == null || value.isBlank();
+	}
+
+	/**
+	 * Processes the order, retrying pricing outages and transient failures with exponential back-off.
+	 * After MAX_ATTEMPTS a pricing outage rejects the order; a transient failure dead-letters it.
+	 */
+	private void processWithRetries(ConsumerRecord<String, String> consumerRecord, OrderPlacedPayload payload,
+									UUID orderUuid, Acknowledgment ack) {
 		int attempts = 0;
 		long backoffMillis = INITIAL_BACKOFF_MILLIS;
 		while (true) {
 			try {
 				processOnce(payload, orderUuid);
 				logger.info("Finished processing order event: orderId={}, accountId={}", payload.orderId(), payload.accountId());
-				if (ack != null) {
-					ack.acknowledge();
-				}
+				acknowledge(ack);
 				return;
 			} catch (NoSuchElementException | IllegalArgumentException ex) {
 				logger.warn("Dead-lettering order after terminal failure: orderId={}, reason={}", payload.orderId(), ex.getMessage());
-				deadLetterAndAck(record, ex.getMessage(), ack);
+				deadLetterAndAck(consumerRecord, ex.getMessage(), ack);
 				return;
 			} catch (PricingUnavailableException ex) {
 				// Pricing is a business outcome, not a transient system failure
@@ -168,31 +193,39 @@ public class OrderPlacedListener {
 					// Update order to REJECTED instead of dead-lettering, and publish it to trade-events
 					executorService.rejectNew(orderUuid, payload.accountId(),
 						"Pricing service unavailable: " + ex.getMessage(), payload.price(), payload.fee());
-					if (ack != null) {
-						ack.acknowledge();
-					}
+					acknowledge(ack);
 					return;
 				}
 
 				logger.warn("Retrying order after pricing outage: orderId={}, attempt={}/{}, backoffMillis={}, reason={}",
 					payload.orderId(), attempts, MAX_ATTEMPTS, backoffMillis, ex.getMessage());
-				sleep(backoffMillis);
-				backoffMillis = Math.max(backoffMillis + 1L, Math.round(backoffMillis * BACKOFF_MULTIPLIER));
+				backoffMillis = sleepAndBackOff(backoffMillis);
 			} catch (DataAccessException | KafkaException ex) {
 				// These are true transient system failures
 				attempts++;
 				if (attempts >= MAX_ATTEMPTS) {
 					logger.warn("Dead-lettering order after retry budget exhausted: orderId={}, attempts={}, reason={}",
 						payload.orderId(), attempts, ex.getMessage());
-					deadLetterAndAck(record, ex.getMessage(), ack);
+					deadLetterAndAck(consumerRecord, ex.getMessage(), ack);
 					return;
 				}
 
 				logger.warn("Retrying order after transient failure: orderId={}, attempt={}/{}, backoffMillis={}, reason={}",
 					payload.orderId(), attempts, MAX_ATTEMPTS, backoffMillis, ex.getMessage());
-				sleep(backoffMillis);
-				backoffMillis = Math.max(backoffMillis + 1L, Math.round(backoffMillis * BACKOFF_MULTIPLIER));
+				backoffMillis = sleepAndBackOff(backoffMillis);
 			}
+		}
+	}
+
+	/** Sleeps for the current back-off and returns the next, longer one. */
+	private long sleepAndBackOff(long backoffMillis) {
+		sleep(backoffMillis);
+		return Math.max(backoffMillis + 1L, Math.round(backoffMillis * BACKOFF_MULTIPLIER));
+	}
+
+	private static void acknowledge(Acknowledgment ack) {
+		if (ack != null) {
+			ack.acknowledge();
 		}
 	}
 
@@ -248,8 +281,8 @@ public class OrderPlacedListener {
 	 * Redelivery is safe: these paths have no database side effects, or are guarded by the NEW-status
 	 * check in the executor.
 	 */
-	private void deadLetterAndAck(ConsumerRecord<String, String> record, String reason, Acknowledgment ack) {
-		boolean written = deadLetter(record, reason);
+	private void deadLetterAndAck(ConsumerRecord<String, String> consumerRecord, String reason, Acknowledgment ack) {
+		boolean written = deadLetter(consumerRecord, reason);
 		if (ack == null) {
 			return;
 		}
@@ -257,28 +290,28 @@ public class OrderPlacedListener {
 			ack.acknowledge();
 		} else {
 			logger.warn("Dead-letter send failed, redelivering record later: topic={}, partition={}, offset={}, backoffMillis={}",
-				record.topic(), record.partition(), record.offset(), nackBackoffMs);
+				consumerRecord.topic(), consumerRecord.partition(), consumerRecord.offset(), nackBackoffMs);
 			ack.nack(Duration.ofMillis(nackBackoffMs));
 		}
 	}
 
 	/** Returns true once Kafka acknowledged the dead-letter record within the send timeout. */
-	private boolean deadLetter(ConsumerRecord<String, String> record, String reason) {
+	private boolean deadLetter(ConsumerRecord<String, String> consumerRecord, String reason) {
 		RecordHeaders headers = new RecordHeaders();
 		headers.add("failure-reason", reason.getBytes(StandardCharsets.UTF_8));
-		headers.add("original-topic", record.topic().getBytes(StandardCharsets.UTF_8));
-		headers.add("original-partition", Integer.toString(record.partition()).getBytes(StandardCharsets.UTF_8));
-		headers.add("original-offset", Long.toString(record.offset()).getBytes(StandardCharsets.UTF_8));
+		headers.add("original-topic", consumerRecord.topic().getBytes(StandardCharsets.UTF_8));
+		headers.add("original-partition", Integer.toString(consumerRecord.partition()).getBytes(StandardCharsets.UTF_8));
+		headers.add("original-offset", Long.toString(consumerRecord.offset()).getBytes(StandardCharsets.UTF_8));
 
 		ProducerRecord<String, String> deadLetterRecord = new ProducerRecord<>(
-			record.topic() + ".DLT",
+			consumerRecord.topic() + ".DLT",
 			null,
-			record.key(),
-			record.value(),
+			consumerRecord.key(),
+			consumerRecord.value(),
 			headers
 		);
 		logger.warn("Publishing dead-letter message: dltTopic={}, originalTopic={}, partition={}, offset={}, reason={}",
-			deadLetterRecord.topic(), record.topic(), record.partition(), record.offset(), reason);
+			deadLetterRecord.topic(), consumerRecord.topic(), consumerRecord.partition(), consumerRecord.offset(), reason);
 		try {
 			deadLetterSender.apply(deadLetterRecord).get(deadLetterSendTimeoutMs, TimeUnit.MILLISECONDS);
 			return true;
@@ -287,7 +320,7 @@ public class OrderPlacedListener {
 			return false;
 		} catch (Exception ex) {
 			logger.warn("Dead-letter message not written: dltTopic={}, originalTopic={}, partition={}, offset={}, error={}",
-				deadLetterRecord.topic(), record.topic(), record.partition(), record.offset(), ex.getMessage());
+				deadLetterRecord.topic(), consumerRecord.topic(), consumerRecord.partition(), consumerRecord.offset(), ex.getMessage());
 			return false;
 		}
 	}

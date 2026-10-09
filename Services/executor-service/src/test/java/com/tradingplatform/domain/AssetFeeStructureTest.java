@@ -43,10 +43,13 @@ class AssetFeeStructureTest {
     void constructorRejectsInvalidConfigurations() {
         assertThrows(IllegalArgumentException.class,
             () -> new AssetFeeStructure("X", BigDecimal.ZERO, BigDecimal.ZERO));
+        BigDecimal negative = new BigDecimal("-1");
+        BigDecimal oneCent = new BigDecimal("0.01");
+        BigDecimal negativeCent = new BigDecimal("-0.01");
         assertThrows(IllegalArgumentException.class,
-            () -> new AssetFeeStructure("X", new BigDecimal("-1"), new BigDecimal("0.01")));
+            () -> new AssetFeeStructure("X", negative, oneCent));
         assertThrows(IllegalArgumentException.class,
-            () -> new AssetFeeStructure("X", BigDecimal.ONE, new BigDecimal("-0.01")));
+            () -> new AssetFeeStructure("X", BigDecimal.ONE, negativeCent));
         assertThrows(NullPointerException.class,
             () -> new AssetFeeStructure(null, BigDecimal.ONE, BigDecimal.ZERO));
     }
@@ -55,7 +58,8 @@ class AssetFeeStructureTest {
     void calculateFeeRejectsNullOrNegativeVolume() {
         AssetFeeStructure fee = new AssetFeeStructure("EQUITY", BigDecimal.ONE, BigDecimal.ZERO);
         assertThrows(NullPointerException.class, () -> fee.calculateFee(null));
-        assertThrows(IllegalArgumentException.class, () -> fee.calculateFee(new BigDecimal("-1")));
+        BigDecimal negativeVolume = new BigDecimal("-1");
+        assertThrows(IllegalArgumentException.class, () -> fee.calculateFee(negativeVolume));
     }
 
     @Test

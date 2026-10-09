@@ -65,8 +65,6 @@ public class AvailableBalanceService {
             .reduce(BigDecimal.ZERO, BigDecimal::add);
         
         // Step 4: Calculate available balance
-        BigDecimal availableBalance = account.getCashBalance().subtract(reservedFunds);
-        
-        return availableBalance;
+        return account.getCashBalance().subtract(reservedFunds);
     }
 }

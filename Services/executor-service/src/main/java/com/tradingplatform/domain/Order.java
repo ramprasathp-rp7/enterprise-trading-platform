@@ -34,23 +34,7 @@ public final class Order {
 
     public Order(Long accountId, Long instrumentId, OrderSide side,
                  int quantity, BigDecimal price, String idempotencyKey) {
-        this.id = UUID.randomUUID();
-        this.accountId = Objects.requireNonNull(accountId, "accountId");
-        this.instrumentId = Objects.requireNonNull(instrumentId, "instrumentId");
-        this.side = Objects.requireNonNull(side, "side");
-        if (quantity <= 0) {
-            throw new IllegalArgumentException("quantity must be greater than zero: " + quantity);
-        }
-        this.quantity = quantity;
-        this.price = Objects.requireNonNull(price, "price");
-        if (price.signum() <= 0) {
-            throw new IllegalArgumentException("price must be greater than zero: " + price);
-        }
-        this.idempotencyKey = Objects.requireNonNull(idempotencyKey, "idempotencyKey");
-        this.createdOn = Instant.now();
-        this.status = OrderStatus.NEW;
-        this.executedPrice = null;
-        this.fee = null;
+        this(UUID.randomUUID(), accountId, instrumentId, side, quantity, price, idempotencyKey);
     }
 
     public Order(UUID id, Long accountId, Long instrumentId, OrderSide side,
@@ -80,7 +64,9 @@ public final class Order {
      * two constructors above, this does NOT default status/createdOn — a
      * FILLED order fetched from the DB must come back as FILLED, not NEW,
      * and with its real created_on, not the moment of this call.
+     * One parameter per mapped column: OrderMapper binds the row to it positionally via @Arg.
      */
+    @SuppressWarnings("java:S107")
     public Order(UUID id, Long accountId, Long instrumentId, OrderSide side, int quantity,
                  BigDecimal price, String idempotencyKey, Instant createdOn,
                  OrderStatus status, BigDecimal executedPrice, BigDecimal fee) {

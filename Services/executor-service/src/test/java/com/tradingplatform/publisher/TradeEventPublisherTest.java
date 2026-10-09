@@ -68,14 +68,14 @@ class TradeEventPublisherTest {
     void filledOrderIsPublishedAsOrderFilledKeyedByAccount() throws Exception {
         UUID orderId = UUID.randomUUID();
 
-        publisher.publishTradeEvent(orderId, 42L, OrderStatus.FILLED, new BigDecimal("100.00"),
-            new BigDecimal("99.50"), new BigDecimal("1.00"), null, EXECUTED_ON);
+        publisher.publishOutcome(new PendingOutcome(orderId, 42L, OrderStatus.FILLED, new BigDecimal("100.00"),
+            new BigDecimal("99.50"), new BigDecimal("1.00"), null, EXECUTED_ON, null));
 
-        ProducerRecord<String, String> record = sentRecord();
-        assertEquals("trade-events", record.topic());
-        assertEquals("42", record.key());
+        ProducerRecord<String, String> producerRecord = sentRecord();
+        assertEquals("trade-events", producerRecord.topic());
+        assertEquals("42", producerRecord.key());
 
-        JsonNode json = objectMapper.readTree(record.value());
+        JsonNode json = objectMapper.readTree(producerRecord.value());
         assertEquals("ORDER_FILLED", json.get("eventType").asText());
         assertEquals("trade-executor", json.get("source").asText());
         assertEquals(1, json.get("schemaVersion").asInt());
@@ -89,8 +89,8 @@ class TradeEventPublisherTest {
 
     @Test
     void rejectedOrderIsPublishedAsOrderRejectedWithReason() throws Exception {
-        publisher.publishTradeEvent(UUID.randomUUID(), 7L, OrderStatus.REJECTED, new BigDecimal("100.00"),
-            null, BigDecimal.ZERO, "Order rejected by fill rule", EXECUTED_ON);
+        publisher.publishOutcome(new PendingOutcome(UUID.randomUUID(), 7L, OrderStatus.REJECTED, new BigDecimal("100.00"),
+            null, BigDecimal.ZERO, "Order rejected by fill rule", EXECUTED_ON, null));
 
         JsonNode json = objectMapper.readTree(sentRecord().value());
         assertEquals("ORDER_REJECTED", json.get("eventType").asText());
@@ -104,8 +104,10 @@ class TradeEventPublisherTest {
         when(failing.writeValueAsString(any())).thenThrow(new JsonProcessingException("boom") {});
         TradeEventPublisher failingPublisher = new TradeEventPublisher(kafkaTemplate, failing, orderMapper);
 
-        RuntimeException ex = assertThrows(RuntimeException.class, () -> failingPublisher.publishTradeEvent(
-            UUID.randomUUID(), 1L, OrderStatus.FILLED, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ZERO, null, EXECUTED_ON));
+        PendingOutcome outcome = new PendingOutcome(UUID.randomUUID(), 1L, OrderStatus.FILLED, BigDecimal.ONE,
+            BigDecimal.ONE, BigDecimal.ZERO, null, EXECUTED_ON, null);
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> failingPublisher.publishOutcome(outcome));
         assertEquals("Trade event serialization failed: boom", ex.getMessage());
         verify(kafkaTemplate, never()).send(any(ProducerRecord.class));
     }
@@ -121,8 +123,8 @@ class TradeEventPublisherTest {
         when(kafkaTemplate.send(any(ProducerRecord.class))).thenReturn(acknowledged());
         UUID orderId = UUID.randomUUID();
 
-        Boolean published = publisher.publishTradeEvent(orderId, 42L, OrderStatus.FILLED, BigDecimal.TEN,
-            BigDecimal.TEN, BigDecimal.ONE, null, EXECUTED_ON).get(5, TimeUnit.SECONDS);
+        Boolean published = publisher.publishOutcome(new PendingOutcome(orderId, 42L, OrderStatus.FILLED, BigDecimal.TEN,
+            BigDecimal.TEN, BigDecimal.ONE, null, EXECUTED_ON, null)).get(5, TimeUnit.SECONDS);
 
         assertTrue(published);
         verify(orderMapper).markEventPublished(orderId, OrderStatus.FILLED);
@@ -135,10 +137,10 @@ class TradeEventPublisherTest {
             .thenReturn(CompletableFuture.failedFuture(new RuntimeException("broker down")))
             .thenThrow(new RuntimeException("metadata timeout"));
 
-        assertFalse(publisher.publishTradeEvent(UUID.randomUUID(), 42L, OrderStatus.REJECTED, BigDecimal.TEN,
-            null, BigDecimal.ONE, "No price available", EXECUTED_ON).get(5, TimeUnit.SECONDS));
-        assertFalse(publisher.publishTradeEvent(UUID.randomUUID(), 42L, OrderStatus.REJECTED, BigDecimal.TEN,
-            null, BigDecimal.ONE, "No price available", EXECUTED_ON).get(5, TimeUnit.SECONDS));
+        assertFalse(publisher.publishOutcome(new PendingOutcome(UUID.randomUUID(), 42L, OrderStatus.REJECTED, BigDecimal.TEN,
+            null, BigDecimal.ONE, "No price available", EXECUTED_ON, null)).get(5, TimeUnit.SECONDS));
+        assertFalse(publisher.publishOutcome(new PendingOutcome(UUID.randomUUID(), 42L, OrderStatus.REJECTED, BigDecimal.TEN,
+            null, BigDecimal.ONE, "No price available", EXECUTED_ON, null)).get(5, TimeUnit.SECONDS));
         verify(orderMapper, never()).markEventPublished(any(), any());
     }
 
@@ -146,8 +148,8 @@ class TradeEventPublisherTest {
     void insideATransactionTheEventIsSentOnlyAfterCommit() throws Exception {
         TransactionSynchronizationManager.initSynchronization();
         try {
-            publisher.publishTradeEvent(UUID.randomUUID(), 42L, OrderStatus.FILLED, BigDecimal.TEN,
-                BigDecimal.TEN, BigDecimal.ONE, null, EXECUTED_ON);
+            publisher.publishOutcome(new PendingOutcome(UUID.randomUUID(), 42L, OrderStatus.FILLED, BigDecimal.TEN,
+                BigDecimal.TEN, BigDecimal.ONE, null, EXECUTED_ON, null));
             verify(kafkaTemplate, never()).send(any(ProducerRecord.class));
 
             TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
@@ -161,8 +163,8 @@ class TradeEventPublisherTest {
     @SuppressWarnings("unchecked")
     void everyPublishOfAnOrdersEventCarriesTheSameEventId() throws Exception {
         UUID orderId = UUID.randomUUID();
-        publisher.publishTradeEvent(orderId, 42L, OrderStatus.FILLED, BigDecimal.TEN, BigDecimal.TEN, BigDecimal.ONE, null, EXECUTED_ON);
-        publisher.publishTradeEvent(orderId, 42L, OrderStatus.FILLED, BigDecimal.TEN, BigDecimal.TEN, BigDecimal.ONE, null, EXECUTED_ON);
+        publisher.publishOutcome(new PendingOutcome(orderId, 42L, OrderStatus.FILLED, BigDecimal.TEN, BigDecimal.TEN, BigDecimal.ONE, null, EXECUTED_ON, null));
+        publisher.publishOutcome(new PendingOutcome(orderId, 42L, OrderStatus.FILLED, BigDecimal.TEN, BigDecimal.TEN, BigDecimal.ONE, null, EXECUTED_ON, null));
 
         ArgumentCaptor<ProducerRecord<String, String>> captor = ArgumentCaptor.forClass(ProducerRecord.class);
         verify(kafkaTemplate, times(2)).send(captor.capture());

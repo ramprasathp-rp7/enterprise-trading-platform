@@ -76,8 +76,8 @@ class OrderPlacedListenerBranchTest {
         ack = mock(Acknowledgment.class);
         objectMapper = new ObjectMapper().registerModule(new JavaTimeModule())
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-        listener = new OrderPlacedListener(executorService, instrumentMapper, orderMapper, record -> {
-            deadLetters.add(record);
+        listener = new OrderPlacedListener(executorService, instrumentMapper, orderMapper, producerRecord -> {
+            deadLetters.add(producerRecord);
             return CompletableFuture.completedFuture(null);
         }, objectMapper);
 
@@ -92,19 +92,19 @@ class OrderPlacedListenerBranchTest {
             new BigDecimal("1.25"), idempotencyKey, Instant.parse("2026-09-17T10:15:30Z"));
     }
 
-    private ConsumerRecord<String, String> record(OrderPlacedPayload payload) throws Exception {
+    private ConsumerRecord<String, String> consumerRecord(OrderPlacedPayload payload) throws Exception {
         String json = objectMapper.writeValueAsString(new MessageEnvelope<>(UUID.randomUUID().toString(),
             EventType.ORDER_PLACED, Instant.parse("2026-09-17T10:15:30Z"), Source.TRADE_API, payload));
         return new ConsumerRecord<>("orders", 2, 99L, "42", json);
     }
 
-    private String failureReason(ProducerRecord<String, String> record) {
-        return new String(record.headers().lastHeader("failure-reason").value(), StandardCharsets.UTF_8);
+    private String failureReason(ProducerRecord<String, String> producerRecord) {
+        return new String(producerRecord.headers().lastHeader("failure-reason").value(), StandardCharsets.UTF_8);
     }
 
     @Test
     void validOrderIsExecutedAndAcknowledged() throws Exception {
-        listener.onOrderPlaced(record(payload(orderId, "AAPL", "buy", "key-1")), ack);
+        listener.onOrderPlaced(consumerRecord(payload(orderId, "AAPL", "buy", "key-1")), ack);
 
         ArgumentCaptor<Order> captor = ArgumentCaptor.forClass(Order.class);
         verify(executorService).process(captor.capture(), eq(new BigDecimal("100.00")), eq(new BigDecimal("1.25")));
@@ -120,7 +120,7 @@ class OrderPlacedListenerBranchTest {
     void cancelledOrderNeverEntersTheExecutor() throws Exception {
         when(orderMapper.findOrderStatus(orderUuid)).thenReturn(OrderStatus.CANCELLED);
 
-        listener.onOrderPlaced(record(payload(orderId, "AAPL", "BUY", "key-1")), ack);
+        listener.onOrderPlaced(consumerRecord(payload(orderId, "AAPL", "BUY", "key-1")), ack);
 
         verifyNoInteractions(executorService);
         verify(orderMapper, never()).updateOrderStatus(any(), any(), any(), any(), any(), any());
@@ -132,7 +132,7 @@ class OrderPlacedListenerBranchTest {
     void unknownSymbolPassesNullOrderToExecutor() throws Exception {
         when(instrumentMapper.findBySymbol("ZZZ")).thenReturn(null);
 
-        listener.onOrderPlaced(record(payload(orderId, "ZZZ", "SELL", "key-1")), ack);
+        listener.onOrderPlaced(consumerRecord(payload(orderId, "ZZZ", "SELL", "key-1")), ack);
 
         verify(executorService).process(isNull(), any(), any());
         verify(ack).acknowledge();
@@ -165,7 +165,7 @@ class OrderPlacedListenerBranchTest {
 
     @Test
     void nullPayloadIsDeadLettered() throws Exception {
-        listener.onOrderPlaced(record(null), ack);
+        listener.onOrderPlaced(consumerRecord(null), ack);
 
         verify(ack).acknowledge();
         assertEquals("Missing required order field", failureReason(deadLetters.get(0)));
@@ -186,7 +186,7 @@ class OrderPlacedListenerBranchTest {
             new OrderPlacedPayload(orderId, 1L, "AAPL", "BUY", 1, null, null, "k", null),
         };
         for (OrderPlacedPayload p : invalid) {
-            listener.onOrderPlaced(record(p), ack);
+            listener.onOrderPlaced(consumerRecord(p), ack);
         }
 
         assertEquals(invalid.length, deadLetters.size());
@@ -197,7 +197,7 @@ class OrderPlacedListenerBranchTest {
 
     @Test
     void invalidOrderIdIsDeadLettered() throws Exception {
-        listener.onOrderPlaced(record(payload("not-a-uuid", "AAPL", "BUY", "k")), ack);
+        listener.onOrderPlaced(consumerRecord(payload("not-a-uuid", "AAPL", "BUY", "k")), ack);
 
         verify(ack).acknowledge();
         assertEquals("Invalid order identifier: not-a-uuid", failureReason(deadLetters.get(0)));
@@ -206,7 +206,7 @@ class OrderPlacedListenerBranchTest {
 
     @Test
     void unknownSideIsDeadLetteredWithoutRetry() throws Exception {
-        listener.onOrderPlaced(record(payload(orderId, "AAPL", "HOLD", "k")), ack);
+        listener.onOrderPlaced(consumerRecord(payload(orderId, "AAPL", "HOLD", "k")), ack);
 
         verify(ack).acknowledge();
         assertEquals(1, deadLetters.size());
@@ -219,7 +219,7 @@ class OrderPlacedListenerBranchTest {
         doThrow(new java.util.NoSuchElementException("Order not found: x"))
             .when(executorService).process(any(), any(), any());
 
-        listener.onOrderPlaced(record(payload(orderId, "AAPL", "BUY", "k")), ack);
+        listener.onOrderPlaced(consumerRecord(payload(orderId, "AAPL", "BUY", "k")), ack);
 
         verify(executorService, times(1)).process(any(), any(), any());
         assertEquals("Order not found: x", failureReason(deadLetters.get(0)));
@@ -231,7 +231,7 @@ class OrderPlacedListenerBranchTest {
         doThrow(new PricingUnavailableException("quotes down"))
             .when(executorService).process(any(), any(), any());
 
-        listener.onOrderPlaced(record(payload(orderId, "AAPL", "BUY", "k")), ack);
+        listener.onOrderPlaced(consumerRecord(payload(orderId, "AAPL", "BUY", "k")), ack);
 
         verify(executorService, times(3)).process(any(), any(), any());
         verify(executorService).rejectNew(eq(orderUuid), anyLong(),
@@ -245,7 +245,7 @@ class OrderPlacedListenerBranchTest {
         doThrow(new TransientDataAccessResourceException("db down"))
             .when(executorService).process(any(), any(), any());
 
-        listener.onOrderPlaced(record(payload(orderId, "AAPL", "BUY", "k")), ack);
+        listener.onOrderPlaced(consumerRecord(payload(orderId, "AAPL", "BUY", "k")), ack);
 
         verify(executorService, times(3)).process(any(), any(), any());
         assertEquals("db down", failureReason(deadLetters.get(0)));
@@ -259,7 +259,7 @@ class OrderPlacedListenerBranchTest {
             .doNothing()
             .when(executorService).process(any(), any(), any());
 
-        listener.onOrderPlaced(record(payload(orderId, "AAPL", "BUY", "k")), null);
+        listener.onOrderPlaced(consumerRecord(payload(orderId, "AAPL", "BUY", "k")), null);
 
         verify(executorService, times(2)).process(any(), any(), any());
         assertTrue(deadLetters.isEmpty());
@@ -283,7 +283,7 @@ class OrderPlacedListenerBranchTest {
     }
 
     @Test
-    void deadLetterIsAcknowledgedOnlyOnceKafkaHasIt() throws Exception {
+    void deadLetterIsAcknowledgedOnlyOnceKafkaHasIt() {
         listener.onOrderPlaced(new ConsumerRecord<>("orders", 0, 1L, "k", "{oops"), ack);
 
         verify(ack).acknowledge();
@@ -291,9 +291,9 @@ class OrderPlacedListenerBranchTest {
     }
 
     @Test
-    void failedDeadLetterSendIsNackedForRedeliveryNotAcknowledged() throws Exception {
+    void failedDeadLetterSendIsNackedForRedeliveryNotAcknowledged() {
         OrderPlacedListener failing = new OrderPlacedListener(executorService, instrumentMapper, orderMapper,
-            record -> CompletableFuture.failedFuture(new RuntimeException("broker down")), objectMapper, 1000L, 2500L);
+            producerRecord -> CompletableFuture.failedFuture(new RuntimeException("broker down")), objectMapper, 1000L, 2500L);
 
         failing.onOrderPlaced(new ConsumerRecord<>("orders", 0, 1L, "k", "{oops"), ack);
 
@@ -304,9 +304,9 @@ class OrderPlacedListenerBranchTest {
     @Test
     void deadLetterSendThatTimesOutIsNacked() throws Exception {
         OrderPlacedListener slow = new OrderPlacedListener(executorService, instrumentMapper, orderMapper,
-            record -> new CompletableFuture<>(), objectMapper, 10L, 2500L);
+            producerRecord -> new CompletableFuture<>(), objectMapper, 10L, 2500L);
 
-        slow.onOrderPlaced(record(payload(orderId, "AAPL", "BUY", null)), ack);
+        slow.onOrderPlaced(consumerRecord(payload(orderId, "AAPL", "BUY", null)), ack);
 
         verify(ack, never()).acknowledge();
         verify(ack).nack(Duration.ofMillis(2500L));

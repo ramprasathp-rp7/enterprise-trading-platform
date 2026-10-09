@@ -53,8 +53,9 @@ class OrderTest {
             () -> new Order(1L, 100L, OrderSide.BUY, 1, BigDecimal.ZERO, "k"));
         assertThrows(IllegalArgumentException.class,
             () -> new Order(id, 1L, 100L, OrderSide.BUY, -1, BigDecimal.ONE, "k"));
+        BigDecimal negativePrice = new BigDecimal("-1");
         assertThrows(IllegalArgumentException.class,
-            () -> new Order(id, 1L, 100L, OrderSide.BUY, 1, new BigDecimal("-1"), "k"));
+            () -> new Order(id, 1L, 100L, OrderSide.BUY, 1, negativePrice, "k"));
         assertThrows(NullPointerException.class,
             () -> new Order(null, 1L, 100L, OrderSide.BUY, 1, BigDecimal.ONE, "k"));
         assertThrows(NullPointerException.class,
@@ -83,7 +84,8 @@ class OrderTest {
         assertEquals(new BigDecimal("1.25"), o.getFee());
         o.setFee(null);
         assertNull(o.getFee());
-        assertThrows(IllegalArgumentException.class, () -> o.setFee(new BigDecimal("-0.01")));
+        BigDecimal negativeFee = new BigDecimal("-0.01");
+        assertThrows(IllegalArgumentException.class, () -> o.setFee(negativeFee));
     }
 
     @Test
@@ -105,9 +107,11 @@ class OrderTest {
     @Test
     void markFilledWithNegativeFeeIsRejected() {
         Order o = newOrder();
-        assertThrows(IllegalArgumentException.class,
-            () -> o.markFilled(new BigDecimal("49.00"), new BigDecimal("-1")));
-        assertThrows(NullPointerException.class, () -> newOrder().markFilled(null));
+        BigDecimal executed = new BigDecimal("49.00");
+        BigDecimal negativeFee = new BigDecimal("-1");
+        assertThrows(IllegalArgumentException.class, () -> o.markFilled(executed, negativeFee));
+        Order other = newOrder();
+        assertThrows(NullPointerException.class, () -> other.markFilled(null));
     }
 
     @Test
@@ -142,7 +146,8 @@ class OrderTest {
         assertEquals(BigDecimal.ONE, o.getPlacementFxRate());
 
         assertThrows(IllegalArgumentException.class, () -> o.setPlacementFxRate(BigDecimal.ZERO));
-        assertThrows(IllegalArgumentException.class, () -> o.setPlacementFxRate(new BigDecimal("-1")));
+        BigDecimal negativeRate = new BigDecimal("-1");
+        assertThrows(IllegalArgumentException.class, () -> o.setPlacementFxRate(negativeRate));
     }
 
     @Test
