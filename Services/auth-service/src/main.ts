@@ -5,6 +5,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app/app.module';
 import { JsonLogger } from './common/logging/json.logger';
 import { AuthExceptionFilter } from './common/errors/auth-exception.filter';
+import { ConfigurationService } from './config/configuration.service';
 
 /**
  * Turns class-validator errors into a 422 VAL-422 response (the filter maps the status)
@@ -33,9 +34,11 @@ export function validationExceptionFactory(errors: ValidationError[]): BadReques
 
 /** CORS, the exception filter, validation and the Swagger docs */
 export function configureApp(app: INestApplication): void {
+  const configService = app.get(ConfigurationService);
+
   // Enable CORS for browser requests from UI
   app.enableCors({
-    origin: ['http://localhost:4200', 'http://localhost:3000'],
+    origin: configService.getCorsOrigins(),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
@@ -76,7 +79,9 @@ export async function bootstrap(): Promise<void> {
     });
     configureApp(app);
 
-    const port = process.env.PORT || 3000;
+    const configService = app.get(ConfigurationService);
+
+    const port = configService.getPort();
     await app.listen(port);
     logger.log(`Auth service listening on port ${port}`);
   } catch (error: unknown) {

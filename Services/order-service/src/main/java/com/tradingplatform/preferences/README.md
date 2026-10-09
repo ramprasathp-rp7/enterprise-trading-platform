@@ -2,7 +2,7 @@
 
 Sprint 10, first module in the chain preferences → notifications → watchlists. It owns how the
 platform reaches a customer: one or more **alert channels** (`EMAIL`, `SMS`, `IN_APP`), each
-with its **contact detail**. It runs inside the Trade REST API on 8080: no new port, no container,
+with its **contact detail**. It runs inside the Trade REST API on 8081: no new port, no container,
 no second token verifier.
 
 ## Boundary

@@ -13,7 +13,7 @@ import { test, expect } from '@playwright/test';
 // Environment variables (required to run tests)
 const E2E_BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:4200';
 const E2E_AUTH_API = process.env.E2E_AUTH_API || 'http://localhost:3000';
-const E2E_TRADE_API = process.env.E2E_TRADE_API || 'http://localhost:8080';
+const E2E_TRADE_API = process.env.E2E_TRADE_API || 'http://localhost:8081';
 const E2E_USERNAME = process.env.E2E_USERNAME || 'test_user_1';
 const E2E_PASSWORD = process.env.E2E_PASSWORD || 'Test@Password1';
 const E2E_ACCOUNT_ID = process.env.E2E_ACCOUNT_ID || '1';

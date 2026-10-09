@@ -10,7 +10,7 @@ info:
     POST /api/v1/orders. Every route is scoped to the token's account (ACC-403 otherwise).
 
 servers:
-  - url: http://localhost:8080
+  - url: http://localhost:8081
 
 tags:
   - name: Strategies

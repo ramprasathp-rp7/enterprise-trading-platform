@@ -69,7 +69,7 @@ class Config:
             pg_port=int(os.environ.get("PGPORT", "5432")),
             # POSTGRES_DB is what this repo's .env actually sets; PGDATABASE
             # is the libpq-standard fallback name for the same thing.
-            pg_db=os.environ.get("POSTGRES_DB", os.environ.get("PGDATABASE", "enterprise_trading_platform")),
+            pg_db=os.environ.get("POSTGRES_DB", os.environ.get("PGDATABASE", "trading_system_db")),
             pg_user=os.environ.get("PGUSER", "postgres"),
             # This repo's .env sets both PGPASSWORD and DB_PASSWORD to the
             # same value; prefer PGPASSWORD as the libpq-standard one, fall

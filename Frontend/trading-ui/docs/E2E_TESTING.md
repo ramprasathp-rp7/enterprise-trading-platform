@@ -47,7 +47,7 @@ All services must be running:
 cd sprint-08-auth-service
 npm run build && npm start
 
-# Terminal 2: Trade API / Event Backbone (port 8080)
+# Terminal 2: Trade API / Event Backbone (port 8081)
 cd sprint-07-event-backbone
 mvn spring-boot:run
 

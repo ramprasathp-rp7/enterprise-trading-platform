@@ -17,7 +17,7 @@ Ensure both databases exist and are initialized:
 ```bash
 # From repository root
 cd Database/postgres/order-service
-./apply.sh              # Creates/initializes enterprise_trading_platform database
+./apply.sh              # Creates/initializes trading_system_db database
 
 # Auth Service database may need initialization
 cd ../auth-service
@@ -73,12 +73,12 @@ mvn spring-boot:run
 Expected output:
 ```
 Started TradeApiApplication in X.XXX seconds
-Tomcat started on port(s): 8080
+Tomcat started on port(s): 8081
 ```
 
 **Health check:**
 ```bash
-curl -s http://localhost:8080/actuator/health
+curl -s http://localhost:8081/actuator/health
 ```
 
 The Trade API reads the same configuration from root `.env`:
@@ -134,7 +134,7 @@ Use the token to call a protected Trade API route:
 TOKEN="<paste_access_token_from_step_5>"
 
 # GET a protected route
-curl -X GET http://localhost:8080/api/v1/orders \
+curl -X GET http://localhost:8081/api/v1/orders \
   -H "Authorization: Bearer $TOKEN"
 
 # Expected: 200 OK with order data (if any exist)
@@ -146,16 +146,16 @@ Test that Trade API rejects tokens without valid signature:
 
 ```bash
 # Call without token
-curl -X GET http://localhost:8080/api/v1/orders
+curl -X GET http://localhost:8081/api/v1/orders
 # Expected: 401 Unauthorized with errorCode: AUTH-401
 
 # Call with invalid token
-curl -X GET http://localhost:8080/api/v1/orders \
+curl -X GET http://localhost:8081/api/v1/orders \
   -H "Authorization: Bearer invalid.token.here"
 # Expected: 401 Unauthorized with errorCode: AUTH-401
 
 # Call with token signed by wrong key (see INTEGRATION_CHECKLIST.md for how to create one)
-curl -X GET http://localhost:8080/api/v1/orders \
+curl -X GET http://localhost:8081/api/v1/orders \
   -H "Authorization: Bearer <wrong_signed_token>"
 # Expected: 401 Unauthorized with errorCode: AUTH-401
 ```
@@ -178,7 +178,7 @@ curl -X GET http://localhost:8080/api/v1/orders \
 
 ### Ports already in use
 - Auth Service default: `3000` (set `PORT` env var to use different)
-- Trade API default: `8080` (set `server.port` system property)
+- Trade API default: `8081` (set `server.port` system property)
 
 ## Key Takeaway
 
