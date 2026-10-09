@@ -49,7 +49,7 @@ type AlertStatus = 'active' | 'triggered' | 'paused';
         </div>
       } @else {
         <div class="table-wrapper">
-          <table class="data-table">
+          <table class="data-table alerts-table">
             <thead>
               <tr>
                 <th>Instrument</th>
@@ -58,7 +58,7 @@ type AlertStatus = 'active' | 'triggered' | 'paused';
                 <th class="num">Now</th>
                 <th>Status</th>
                 <th>Last fired</th>
-                <th><span class="sr-only">Actions</span></th>
+                <th class="actions-head"><span class="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody>
@@ -80,6 +80,7 @@ type AlertStatus = 'active' | 'triggered' | 'paused';
                     }
                   </td>
                   <td class="actions">
+                    <div class="row-actions">
                     @if (alert.triggerCount > 0) {
                       <button type="button" class="btn btn-ghost btn-sm" (click)="toggleHistory(alert)" [attr.aria-expanded]="historyFor() === alert.alertId" title="Trigger history">
                         <i class="fas fa-clock-rotate-left"></i>
@@ -87,7 +88,7 @@ type AlertStatus = 'active' | 'triggered' | 'paused';
                     }
                     <button
                       type="button"
-                      class="btn btn-outline btn-sm"
+                      class="btn btn-outline btn-sm toggle-btn"
                       [disabled]="busyId() === alert.alertId"
                       (click)="setActive(alert, !alert.active)"
                       [attr.data-testid]="'alert-toggle-' + alert.alertId"
@@ -104,6 +105,7 @@ type AlertStatus = 'active' | 'triggered' | 'paused';
                     >
                       <i class="fas fa-xmark"></i>
                     </button>
+                    </div>
                   </td>
                 </tr>
                 @if (historyFor() === alert.alertId) {
@@ -186,11 +188,34 @@ type AlertStatus = 'active' | 'triggered' | 'paused';
       color: var(--negative);
     }
 
+    /* Columns size to their content so nothing is cut off (the global tables use equal widths) */
+    .alerts-table {
+      table-layout: auto;
+    }
+
+    /* The cell stays a table cell, vertically centred with the row; the buttons sit in a flex
+       box inside it. Pause and Resume share one width so the delete buttons line up. */
     .actions {
+      width: 1%;
+      white-space: nowrap;
+      vertical-align: middle;
+    }
+
+    .row-actions {
       display: flex;
+      align-items: center;
       justify-content: flex-end;
       gap: 6px;
-      white-space: nowrap;
+    }
+
+    .toggle-btn {
+      min-width: 82px;
+      justify-content: center;
+    }
+
+    /* The panel's rounded bottom corners clip the table */
+    .alerts-panel {
+      overflow: hidden;
     }
 
     .history-row td {

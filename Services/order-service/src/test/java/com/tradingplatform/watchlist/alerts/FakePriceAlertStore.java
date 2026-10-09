@@ -200,6 +200,15 @@ public class FakePriceAlertStore implements PriceAlertMapper, PriceAlertTriggerM
     }
 
     @Override
+    public List<PriceAlertTrigger> findHistoryByAccountId(Long accountId, int limit) {
+        return triggers.values().stream()
+            .filter(t -> t.getAccountId().equals(accountId))
+            .sorted(Comparator.comparing(PriceAlertTrigger::getTriggerId).reversed())
+            .limit(limit)
+            .toList();
+    }
+
+    @Override
     public List<PriceAlertTrigger> findRecentByAccountId(Long accountId, Instant since, int limit) {
         return triggers.values().stream()
             .filter(t -> t.getAccountId().equals(accountId))

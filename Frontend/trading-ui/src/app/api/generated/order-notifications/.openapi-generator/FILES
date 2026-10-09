@@ -10,7 +10,10 @@ git_push.sh
 index.ts
 model/errorResponse.ts
 model/models.ts
+model/notificationHistoryItem.ts
+model/orderNotificationDetails.ts
 model/orderNotificationResponse.ts
+model/priceAlertNotificationDetails.ts
 param.ts
 provide-api.ts
 query.params.ts

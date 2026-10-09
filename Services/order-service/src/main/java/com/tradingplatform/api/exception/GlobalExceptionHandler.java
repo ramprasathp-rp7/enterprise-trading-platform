@@ -109,6 +109,36 @@ public class GlobalExceptionHandler {
         );
     }
     
+    // INS-404 (symbol discovery): Fauxnance does not recognise the symbol or has no quote for it
+    
+    @ExceptionHandler(SymbolNotDiscoveredException.class)
+    public ResponseEntity<ErrorResponse> handleSymbolNotDiscovered(
+            SymbolNotDiscoveredException ex,
+            WebRequest request) {
+        
+        logger.info("Symbol not discovered: symbol={}, reason={}", ex.getSymbol(), ex.getMessage());
+        
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.INS_404, ex.getMessage()),
+            HttpStatus.NOT_FOUND
+        );
+    }
+    
+    // MKT-503: The market data provider is unavailable Maps to HTTP 503 (Service Unavailable)
+    
+    @ExceptionHandler(MarketDataUnavailableException.class)
+    public ResponseEntity<ErrorResponse> handleMarketDataUnavailable(
+            MarketDataUnavailableException ex,
+            WebRequest request) {
+        
+        logger.warn("Market data provider unavailable: {}", ex.getMessage());
+        
+        return new ResponseEntity<>(
+            new ErrorResponse(ErrorCode.MKT_503, "Market data is unavailable right now. Please try again shortly."),
+            HttpStatus.SERVICE_UNAVAILABLE
+        );
+    }
+    
     // MKT-404: No cached quote for the symbol Maps to HTTP 404 (Not Found)
     
     @ExceptionHandler(QuoteNotFoundException.class)
@@ -487,6 +517,7 @@ public class GlobalExceptionHandler {
             case ORD_400, TRANS_400 -> HttpStatus.BAD_REQUEST;
             case ORD_409, WL_409, ALR_409, STR_409 -> HttpStatus.CONFLICT;
             case VAL_422, INVALID_PREFERENCE -> HttpStatus.UNPROCESSABLE_ENTITY;
+            case MKT_503 -> HttpStatus.SERVICE_UNAVAILABLE;
         };
     }
     

@@ -247,5 +247,20 @@ class WatchlistServiceTest {
         public List<String> findConversionFxSymbols() {
             return List.of();
         }
+
+        @Override
+        public List<com.tradingplatform.instruments.model.InstrumentListing> findAllListings() {
+            return List.of();
+        }
+
+        @Override
+        public com.tradingplatform.instruments.model.InstrumentListing findListingBySymbol(String symbol) {
+            return null;
+        }
+
+        @Override
+        public int insertDiscovered(com.tradingplatform.instruments.model.InstrumentListing instrument) {
+            return 0;
+        }
     }
 }

@@ -34,7 +34,8 @@ const MENU_HEIGHT = 340;
 
     @if (open()) {
       <form
-        class="menu"
+        class="menu anim-pop"
+        animate.leave="anim-pop-out"
         role="dialog"
         [style.top.px]="menuPos().top"
         [style.left.px]="menuPos().left"

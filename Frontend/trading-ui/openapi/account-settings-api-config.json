@@ -1,0 +1,12 @@
+{
+  "inputSpec": "./contracts/account-settings-api.yaml",
+  "outputDir": "./src/app/api/generated/account-settings",
+  "generatorName": "typescript-angular",
+  "skipValidateSpec": true,
+  "validateSpec": false,
+  "packageName": "api.accountsettings",
+  "additionalProperties": {
+    "apiModulePrefix": "AccountSettingsApi",
+    "ngVersion": "21.0.0"
+  }
+}

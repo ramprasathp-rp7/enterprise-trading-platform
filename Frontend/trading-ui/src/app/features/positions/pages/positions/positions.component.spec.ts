@@ -442,4 +442,47 @@ describe('PositionsComponent', () => {
       consoleError.mockRestore();
     });
   });
+
+  describe('holdings filters', () => {
+    it('sorts by market value by default and by P&L on request', async () => {
+      await create();
+      expect(component.visiblePositions().map((p) => p.symbol)).toEqual(['AAPL', 'MSFT']);
+
+      component.holdingsSort.set('pnl-asc');
+      expect(component.visiblePositions().map((p) => p.symbol)).toEqual(['MSFT', 'AAPL']);
+      component.holdingsSort.set('symbol');
+      expect(component.visiblePositions().map((p) => p.symbol)).toEqual(['AAPL', 'MSFT']);
+    });
+
+    it('filters by profit or loss, text and market, and says how many are shown', async () => {
+      await create();
+
+      component.holdingsPnl.set('loss');
+      fixture.detectChanges();
+      expect(component.visiblePositions().map((p) => p.symbol)).toEqual(['MSFT']);
+      expect(fixture.nativeElement.querySelector('[data-testid="holdings-shown"]').textContent).toContain('1 of 2');
+
+      component.holdingsPnl.set('all');
+      component.holdingsQuery.set('apple');
+      expect(component.visiblePositions().map((p) => p.symbol)).toEqual(['AAPL']);
+
+      component.holdingsQuery.set('');
+      component.holdingsMarket.set('NSE');
+      fixture.detectChanges();
+      expect(component.visiblePositions()).toEqual([]);
+      expect(fixture.nativeElement.querySelector('[data-testid="holdings-no-match"]')).not.toBeNull();
+
+      component.clearHoldingsFilters();
+      expect(component.visiblePositions().length).toBe(2);
+    });
+
+    it('keeps the totals for every holding while filtered', async () => {
+      await create();
+      const total = component.totalMarketValue();
+
+      component.holdingsPnl.set('gain');
+
+      expect(component.totalMarketValue()).toBe(total);
+    });
+  });
 });

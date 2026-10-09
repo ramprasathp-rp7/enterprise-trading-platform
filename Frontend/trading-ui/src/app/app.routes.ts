@@ -86,6 +86,24 @@ export const routes: Routes = [
         data: { title: 'Watchlists' },
       },
       {
+        path: 'instruments',
+        canActivateChild: [canActivateChildGuard],
+        loadComponent: () =>
+          import('./features/instruments/pages/instruments/instruments.component').then(
+            (m) => m.InstrumentsComponent
+          ),
+        data: { title: 'Instruments' },
+      },
+      {
+        path: 'notifications',
+        canActivateChild: [canActivateChildGuard],
+        loadComponent: () =>
+          import('./features/notifications/pages/notifications/notifications.component').then(
+            (m) => m.NotificationsComponent
+          ),
+        data: { title: 'Notifications' },
+      },
+      {
         path: 'advice',
         canActivateChild: [canActivateChildGuard],
         loadComponent: () =>
@@ -171,6 +189,14 @@ export const routes: Routes = [
         path: 'fees',
         component: AdminFeeManagementComponent,
         data: { title: 'Fee Management' },
+      },
+      {
+        path: 'notifications',
+        loadComponent: () =>
+          import('./features/notifications/pages/notifications/notifications.component').then(
+            (m) => m.NotificationsComponent
+          ),
+        data: { title: 'Notifications' },
       },
       {
         path: 'preferences',

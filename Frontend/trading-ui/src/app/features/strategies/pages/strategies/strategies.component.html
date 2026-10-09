@@ -39,7 +39,7 @@
   }
 
   @if (formOpen()) {
-    <section class="panel form-panel" data-testid="strategy-form" aria-label="New strategy">
+    <section class="panel form-panel" animate.leave="anim-fade-out" data-testid="strategy-form" aria-label="New strategy">
       <header class="form-head">
         <h2>New strategy</h2>
         <button type="button" class="btn btn-ghost btn-sm" (click)="closeForm()" aria-label="Cancel">Cancel</button>

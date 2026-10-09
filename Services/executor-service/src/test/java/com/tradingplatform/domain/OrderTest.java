@@ -130,4 +130,29 @@ class OrderTest {
         assertThrows(IllegalStateException.class, o::markRejected);
         assertThrows(IllegalStateException.class, o::cancel);
     }
+
+    @Test
+    void placementFxRateDefaultsToOneAndMustBePositive() {
+        Order o = newOrder();
+
+        o.setPlacementFxRate(new BigDecimal("83.25"));
+        assertEquals(new BigDecimal("83.25"), o.getPlacementFxRate());
+
+        o.setPlacementFxRate(null);
+        assertEquals(BigDecimal.ONE, o.getPlacementFxRate());
+
+        assertThrows(IllegalArgumentException.class, () -> o.setPlacementFxRate(BigDecimal.ZERO));
+        assertThrows(IllegalArgumentException.class, () -> o.setPlacementFxRate(new BigDecimal("-1")));
+    }
+
+    @Test
+    void fillFxRateAndRealisedPnlAreStored() {
+        Order o = newOrder();
+
+        o.setFillFxRate(new BigDecimal("0.92"));
+        o.setRealisedPnl(new BigDecimal("-12.50"));
+
+        assertEquals(new BigDecimal("0.92"), o.getFillFxRate());
+        assertEquals(new BigDecimal("-12.50"), o.getRealisedPnl());
+    }
 }

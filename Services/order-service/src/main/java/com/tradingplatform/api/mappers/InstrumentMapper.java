@@ -21,6 +21,22 @@ public interface InstrumentMapper {
 
     @Select("SELECT id, symbol, name, asset_class, currency, tradable FROM instruments WHERE tradable = TRUE ORDER BY id")
     List<Instrument> findTradableInstruments();
+    /** The catalogue for the instruments API, with each instrument's exchange. */
+    @Select("SELECT id, symbol, name, asset_class, currency, tradable, exchange FROM instruments ORDER BY id")
+    List<com.tradingplatform.instruments.model.InstrumentListing> findAllListings();
+
+    @Select("SELECT id, symbol, name, asset_class, currency, tradable, exchange FROM instruments WHERE symbol = #{symbol}")
+    com.tradingplatform.instruments.model.InstrumentListing findListingBySymbol(@Param("symbol") String symbol);
+
+    /**
+     * Adds an instrument found by symbol discovery. The symbol is UNIQUE, so a concurrent discovery of
+     * the same symbol fails with DuplicateKeyException and the caller reads the winner back.
+     */
+    @org.apache.ibatis.annotations.Insert("INSERT INTO instruments (symbol, name, asset_class, currency, tradable, exchange) "
+        + "VALUES (#{i.symbol}, #{i.name}, #{i.assetClass}, #{i.currency}, #{i.tradable}, #{i.exchange})")
+    @org.apache.ibatis.annotations.Options(useGeneratedKeys = true, keyProperty = "i.id", keyColumn = "id")
+    int insertDiscovered(@Param("i") com.tradingplatform.instruments.model.InstrumentListing instrument);
+
     /** Every instrument symbol, delisted included, so each one has a cached quote. */
     @Select("SELECT symbol FROM instruments ORDER BY symbol")
     List<String> findAllSymbols();

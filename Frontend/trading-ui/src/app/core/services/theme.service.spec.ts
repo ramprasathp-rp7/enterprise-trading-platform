@@ -44,4 +44,33 @@ describe('ThemeService', () => {
 
     expect(['light', 'dark']).toContain(service.theme());
   });
+
+  it('follows the operating system in system mode and remembers the mode', () => {
+    const service = TestBed.inject(ThemeService);
+
+    service.setMode('system');
+
+    const osDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
+    expect(service.mode()).toBe('system');
+    expect(service.theme()).toBe(osDark ? 'dark' : 'light');
+    expect(localStorage.getItem(ThemeService.STORAGE_KEY)).toBe('system');
+  });
+
+  it('starts in system mode when nothing is saved, and restores a saved system mode', () => {
+    expect(TestBed.inject(ThemeService).mode()).toBe('system');
+
+    localStorage.setItem(ThemeService.STORAGE_KEY, 'system');
+    TestBed.resetTestingModule();
+    expect(TestBed.inject(ThemeService).mode()).toBe('system');
+  });
+
+  it('toggling from system picks an explicit theme', () => {
+    localStorage.setItem(ThemeService.STORAGE_KEY, 'system');
+    const service = TestBed.inject(ThemeService);
+    const before = service.theme();
+
+    service.toggle();
+
+    expect(service.mode()).toBe(before === 'dark' ? 'light' : 'dark');
+  });
 });

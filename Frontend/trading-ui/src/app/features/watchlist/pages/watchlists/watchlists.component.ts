@@ -12,6 +12,8 @@ import { currencySymbol } from '../../../../shared/currency';
 import { WatchlistStore } from '../../watchlist.store';
 import { PriceAlertButtonComponent } from '../../alerts/components/price-alert-button/price-alert-button.component';
 import { PriceAlertsPanelComponent } from '../../alerts/components/price-alerts-panel/price-alerts-panel.component';
+import { FlashOnChangeDirective } from '../../../../shared/flash-on-change.directive';
+import { ReplayAnimationDirective } from '../../../../shared/replay-animation.directive';
 
 /** A watchlist row: the stored item plus catalogue details and its live quote */
 export interface WatchlistRow {
@@ -33,6 +35,60 @@ export interface WatchlistRow {
   decimals: number;
 }
 
+export type WatchlistSort =
+  | 'added'
+  | 'added-desc'
+  | 'symbol'
+  | 'name'
+  | 'price-desc'
+  | 'price-asc'
+  | 'change-desc'
+  | 'change-asc';
+
+/** The sort choice is remembered per browser */
+const SORT_KEY = 'etp-watchlist-sort';
+const SORTS: readonly WatchlistSort[] = ['added', 'added-desc', 'symbol', 'name', 'price-desc', 'price-asc', 'change-desc', 'change-asc'];
+
+function readSort(): WatchlistSort {
+  try {
+    const saved = localStorage.getItem(SORT_KEY) as WatchlistSort | null;
+    return saved && SORTS.includes(saved) ? saved : 'added';
+  } catch {
+    return 'added';
+  }
+}
+
+/** Orders rows; rows without a price or change always go last */
+export function sortRows(rows: readonly WatchlistRow[], sort: WatchlistSort): WatchlistRow[] {
+  const byNumber = (pick: (r: WatchlistRow) => number | null, dir: 1 | -1) => (a: WatchlistRow, b: WatchlistRow) => {
+    const va = pick(a);
+    const vb = pick(b);
+    if (va === null || vb === null) {
+      return va === null && vb === null ? 0 : va === null ? 1 : -1;
+    }
+    return (va - vb) * dir || a.item.symbol.localeCompare(b.item.symbol);
+  };
+  const list = [...rows];
+  switch (sort) {
+    case 'added-desc':
+      return list.reverse();
+    case 'symbol':
+      return list.sort((a, b) => a.item.symbol.localeCompare(b.item.symbol));
+    case 'name':
+      return list.sort((a, b) => a.name.localeCompare(b.name));
+    case 'price-desc':
+      return list.sort(byNumber((r) => r.price, -1));
+    case 'price-asc':
+      return list.sort(byNumber((r) => r.price, 1));
+    case 'change-desc':
+      return list.sort(byNumber((r) => r.changePercent, -1));
+    case 'change-asc':
+      return list.sort(byNumber((r) => r.changePercent, 1));
+    default:
+      return list;
+  }
+}
+
 /**
  * Watchlists page: create and delete watchlists, add instruments via search,
  * remove instruments, and jump to the order ticket for any of them.
@@ -41,7 +97,7 @@ export interface WatchlistRow {
 @Component({
   selector: 'app-watchlists',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, InstrumentSearchComponent, PriceAlertButtonComponent, PriceAlertsPanelComponent],
+  imports: [CommonModule, FormsModule, RouterModule, InstrumentSearchComponent, PriceAlertButtonComponent, PriceAlertsPanelComponent, FlashOnChangeDirective, ReplayAnimationDirective],
   templateUrl: './watchlists.component.html',
   styleUrls: ['./watchlists.component.css'],
 })
@@ -71,7 +127,25 @@ export class WatchlistsComponent implements OnInit {
   /** No watchlist yet, or the shown one has no instruments: the two panels are drawn at equal height */
   readonly nothingListed = computed(() => (this.selected()?.items.length ?? 0) === 0);
 
-  readonly rows = computed<WatchlistRow[]>(() =>
+  /** How the rows are ordered; 'added' keeps the watchlist's own order */
+  readonly sortKey = signal<WatchlistSort>(readSort());
+  readonly filterText = signal('');
+  readonly classFilter = signal<'ALL' | 'EQUITY' | 'FX' | 'CRYPTO'>('ALL');
+  readonly moveFilter = signal<'all' | 'gainers' | 'losers'>('all');
+
+  readonly sortOptions: { value: WatchlistSort; label: string }[] = [
+    { value: 'added', label: 'Date added (oldest first)' },
+    { value: 'added-desc', label: 'Date added (newest first)' },
+    { value: 'symbol', label: 'Symbol (A–Z)' },
+    { value: 'name', label: 'Name (A–Z)' },
+    { value: 'price-desc', label: 'Price (high to low)' },
+    { value: 'price-asc', label: 'Price (low to high)' },
+    { value: 'change-desc', label: 'Change % (best first)' },
+    { value: 'change-asc', label: 'Change % (worst first)' },
+  ];
+
+  /** Every row of the open watchlist, in the watchlist's order */
+  readonly allRows = computed<WatchlistRow[]>(() =>
     (this.selected()?.items ?? []).map((item) => {
       const instrument = this.catalog.find(item.symbol);
       const entry = this.liveQuotes.entry(item.symbol);
@@ -94,6 +168,25 @@ export class WatchlistsComponent implements OnInit {
     }),
   );
 
+  /** The rows after the filters and the chosen order */
+  readonly rows = computed<WatchlistRow[]>(() => {
+    const q = this.filterText().trim().toUpperCase();
+    const cls = this.classFilter();
+    const move = this.moveFilter();
+    const filtered = this.allRows().filter(
+      (row) =>
+        (!q || row.item.symbol.toUpperCase().includes(q) || row.name.toUpperCase().includes(q)) &&
+        (cls === 'ALL' || row.assetClass === cls) &&
+        (move === 'all' ||
+          (move === 'gainers' ? (row.changePercent ?? 0) > 0 : (row.changePercent ?? 0) < 0)),
+    );
+    return sortRows(filtered, this.sortKey());
+  });
+
+  readonly filtersActive = computed(
+    () => !!this.filterText().trim() || this.classFilter() !== 'ALL' || this.moveFilter() !== 'all',
+  );
+
   /** Symbols of the open watchlist, for the price alerts panel */
   readonly alertSymbols = computed(() => (this.selected()?.items ?? []).map((item) => item.symbol));
 
@@ -108,6 +201,21 @@ export class WatchlistsComponent implements OnInit {
       const id = Number(params.get('id'));
       this.requestedId.set(Number.isFinite(id) && id > 0 ? id : null);
     });
+  }
+
+  setSort(sort: WatchlistSort): void {
+    this.sortKey.set(sort);
+    try {
+      localStorage.setItem(SORT_KEY, sort);
+    } catch {
+      // Storage unavailable: the order still applies for this visit
+    }
+  }
+
+  clearFilters(): void {
+    this.filterText.set('');
+    this.classFilter.set('ALL');
+    this.moveFilter.set('all');
   }
 
   select(watchlistId: number): void {

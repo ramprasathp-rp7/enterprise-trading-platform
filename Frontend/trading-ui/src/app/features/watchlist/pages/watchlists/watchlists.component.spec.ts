@@ -108,4 +108,44 @@ describe('WatchlistsComponent', () => {
     expect(api['deleteWatchlist']).toHaveBeenCalledWith(7, 2);
     expect(component.store.watchlists().map((w) => w.name)).toEqual(['Tech']);
   });
+
+  describe('sorting and filtering', () => {
+    beforeEach(() => localStorage.removeItem('etp-watchlist-sort'));
+
+    it('keeps the watchlist order by default and sorts on request, remembering the choice', () => {
+      expect(component.rows().map((r) => r.item.symbol)).toEqual(['AAPL', 'TATASTEEL.BO']);
+
+      component.setSort('symbol');
+      expect(component.rows().map((r) => r.item.symbol)).toEqual(['AAPL', 'TATASTEEL.BO']);
+      component.setSort('added-desc');
+      expect(component.rows().map((r) => r.item.symbol)).toEqual(['TATASTEEL.BO', 'AAPL']);
+      expect(localStorage.getItem('etp-watchlist-sort')).toBe('added-desc');
+    });
+
+    it('puts instruments without a price last whatever the direction', () => {
+      component.setSort('price-asc');
+      expect(component.rows().map((r) => r.item.symbol)).toEqual(['AAPL', 'TATASTEEL.BO']);
+      component.setSort('price-desc');
+      expect(component.rows().map((r) => r.item.symbol)).toEqual(['AAPL', 'TATASTEEL.BO']);
+    });
+
+    it('filters by text, class and move, and can clear the filters', () => {
+      component.filterText.set('tata');
+      expect(component.rows().map((r) => r.item.symbol)).toEqual(['TATASTEEL.BO']);
+
+      component.filterText.set('');
+      component.moveFilter.set('gainers');
+      expect(component.rows().map((r) => r.item.symbol)).toEqual(['AAPL']);
+      component.moveFilter.set('losers');
+      expect(component.rows()).toEqual([]);
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('[data-testid="watch-no-match"]')).not.toBeNull();
+
+      component.clearFilters();
+      component.classFilter.set('CRYPTO');
+      expect(component.rows()).toEqual([]);
+      component.classFilter.set('EQUITY');
+      expect(component.rows().length).toBe(2);
+    });
+  });
 });

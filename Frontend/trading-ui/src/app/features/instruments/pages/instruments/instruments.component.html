@@ -1,0 +1,273 @@
+<div class="page page-wide instruments-page">
+  <header class="page-header">
+    <div class="page-heading">
+      <p class="page-eyebrow">Markets</p>
+      <h1 class="page-title">Instruments</h1>
+      <p class="page-subtitle">Every instrument you can trade, with its latest market data.</p>
+    </div>
+    <!-- Symbol discovery -->
+    <form class="discover-form" (ngSubmit)="discover()" data-testid="discover-form">
+      <div class="input-with-icon">
+        <i class="fas fa-satellite-dish" aria-hidden="true"></i>
+        <input
+          class="form-input"
+          name="discoverSymbol"
+          [ngModel]="discoverText()"
+          (ngModelChange)="discoverText.set($event); discoverFeedback.set(null)"
+          placeholder="Find a symbol, e.g. SHOP or TCS.NS"
+          maxlength="20"
+          autocomplete="off"
+          aria-label="Symbol to look up in market data"
+          data-testid="discover-input"
+        />
+      </div>
+      <button type="submit" class="btn btn-primary" [disabled]="!discoverText().trim() || discovering()" data-testid="discover-btn">
+        <i class="fas" [class.fa-plus]="!discovering()" [class.fa-spinner]="discovering()" [class.fa-spin]="discovering()"></i>
+        {{ discovering() ? 'Looking up…' : 'Add symbol' }}
+      </button>
+    </form>
+  </header>
+
+  @if (discoverFeedback(); as f) {
+    <div class="alert" [class.alert-success]="!f.error" [class.alert-danger]="f.error" role="status" data-testid="discover-feedback">
+      <i class="fas" [class.fa-check-circle]="!f.error" [class.fa-circle-exclamation]="f.error"></i>
+      <p>{{ f.text }}</p>
+      <button type="button" class="alert-close" (click)="discoverFeedback.set(null)" aria-label="Dismiss"><i class="fas fa-xmark"></i></button>
+    </div>
+  }
+
+  <section class="panel instruments-panel" aria-label="Instruments">
+    <!-- Filters -->
+    <div class="panel-toolbar">
+      <div class="input-with-icon search-box">
+        <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+        <input
+          class="search-input"
+          type="search"
+          [ngModel]="query()"
+          (ngModelChange)="query.set($event)"
+          placeholder="Filter by symbol or name"
+          aria-label="Filter instruments"
+          data-testid="instrument-filter"
+        />
+      </div>
+
+      <div class="pill-tabs" role="group" aria-label="Market">
+        @for (option of marketOptions; track option.value) {
+          <button
+            type="button"
+            class="pill-tab"
+            [class.active]="market() === option.value"
+            [attr.aria-pressed]="market() === option.value"
+            (click)="setMarket(option.value)"
+            [attr.data-testid]="'market-filter-' + option.value"
+          >
+            {{ option.label }} <span class="pill-count">{{ marketCounts()[option.value] }}</span>
+          </button>
+        }
+      </div>
+
+      <div class="pill-tabs" role="group" aria-label="Asset class">
+        @for (option of classOptions; track option.value) {
+          <button
+            type="button"
+            class="pill-tab"
+            [class.active]="assetClass() === option.value"
+            [attr.aria-pressed]="assetClass() === option.value"
+            (click)="assetClass.set(option.value)"
+            [attr.data-testid]="'class-filter-' + option.value"
+          >
+            {{ option.label }}
+          </button>
+        }
+      </div>
+
+      <label class="toggle-check">
+        <input type="checkbox" [checked]="tradableOnly()" (change)="tradableOnly.set(!tradableOnly())" data-testid="tradable-only" />
+        Tradable only
+      </label>
+
+      <span class="toolbar-meta">
+        {{ rows().length }} of {{ marketCounts().ALL }}
+        @if (preferredMarket() !== 'ALL') {
+          · your preference: {{ preferredMarket() === 'USA' ? 'USA' : 'NSE' }}
+        }
+      </span>
+    </div>
+
+    <div class="table-wrapper">
+      <table class="data-table instruments-table">
+        <!-- Fixed column widths, so filtering rows in or out never shifts the columns -->
+        <colgroup>
+          <col class="col-instrument" />
+          <col class="col-exchange" />
+          <col class="col-class" />
+          <col class="col-price" />
+          <col class="col-change" />
+          <col class="col-bid-ask" />
+          <col class="col-status" />
+          <col class="col-actions" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>
+              <button type="button" class="sort-head" [class.sorted]="sortKey() === 'symbol'" (click)="sortBy('symbol')" data-testid="sort-symbol">
+                Instrument <i class="fas" [ngClass]="sortIcon('symbol')"></i>
+              </button>
+            </th>
+            <th>
+              <button type="button" class="sort-head" [class.sorted]="sortKey() === 'exchange'" (click)="sortBy('exchange')" data-testid="sort-exchange">
+                Exchange <i class="fas" [ngClass]="sortIcon('exchange')"></i>
+              </button>
+            </th>
+            <th>Class</th>
+            <th class="num">
+              <button type="button" class="sort-head" [class.sorted]="sortKey() === 'price'" (click)="sortBy('price')" data-testid="sort-price">
+                Price <i class="fas" [ngClass]="sortIcon('price')"></i>
+              </button>
+            </th>
+            <th class="num">
+              <button type="button" class="sort-head" [class.sorted]="sortKey() === 'change'" (click)="sortBy('change')" data-testid="sort-change">
+                Change <i class="fas" [ngClass]="sortIcon('change')"></i>
+              </button>
+            </th>
+            <th class="num">Bid / Ask</th>
+            <th>Status</th>
+            <th class="actions-head"><span class="sr-only">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody class="anim-rows">
+          @for (row of rows(); track row.instrument.symbol) {
+            <tr
+              class="instrument-row"
+              [class.expanded]="expanded() === row.instrument.symbol"
+              (click)="toggle(row.instrument.symbol)"
+              [attr.data-testid]="'instrument-row-' + row.instrument.symbol"
+            >
+              <td>
+                <span class="cell-strong">
+                  <i class="fas fa-chevron-right row-caret" aria-hidden="true"></i>
+                  {{ row.instrument.symbol }}
+                </span>
+                <span class="row-name">{{ row.instrument.name }}</span>
+              </td>
+              <td><span class="exchange-tag" [attr.data-exchange]="row.exchange">{{ row.exchange }}</span></td>
+              <td class="cell-muted">{{ row.instrument.assetClass | titlecase }}</td>
+              <td class="num" [appFlashOnChange]="row.price" [attr.data-testid]="'instrument-price-' + row.instrument.symbol">
+                @if (row.price !== null) {
+                  <span class="cell-strong">{{ price(row.price, row.instrument.symbol) }}</span>
+                  <span class="row-name">{{ row.instrument.currency }}</span>
+                } @else if (row.status === 'loading') {
+                  <span class="cell-muted"><i class="fas fa-spinner fa-spin" aria-label="Loading price"></i></span>
+                } @else {
+                  <span class="cell-muted">—</span>
+                }
+              </td>
+              <td class="num">
+                @if (row.changePercent !== null) {
+                  <span [class.up]="row.changePercent >= 0" [class.down]="row.changePercent < 0">
+                    {{ row.changePercent >= 0 ? '+' : '' }}{{ row.changePercent | number: '1.2-2' }}%
+                  </span>
+                  @if (row.change !== null) {
+                    <span class="row-name">{{ row.change >= 0 ? '+' : '' }}{{ price(row.change, row.instrument.symbol) }}</span>
+                  }
+                } @else {
+                  <span class="cell-muted">—</span>
+                }
+              </td>
+              <td class="num cell-muted bid-ask">
+                @if (row.bid !== null && row.ask !== null) {
+                  <span class="bid-ask-line" title="Bid">{{ price(row.bid, row.instrument.symbol) }}</span>
+                  <span class="bid-ask-line ask" title="Ask">{{ price(row.ask, row.instrument.symbol) }}</span>
+                } @else {
+                  —
+                }
+              </td>
+              <td>
+                @if (!row.instrument.tradable) {
+                  <span class="state-tag warn"><i class="fas fa-ban" aria-hidden="true"></i> Not tradable</span>
+                } @else if (row.status === 'missing') {
+                  <span class="state-tag">No price yet</span>
+                } @else if (row.stale) {
+                  <span class="state-tag muted" title="The last price Fauxnance has; the market is likely closed"><i class="fas fa-clock" aria-hidden="true"></i> Last close</span>
+                } @else if (row.price !== null) {
+                  <span class="state-tag live"><span class="dot" aria-hidden="true"></span> Live</span>
+                }
+              </td>
+              <td class="actions-cell">
+                <div class="row-actions">
+                  <button
+                    type="button"
+                    class="btn btn-sm trade-buy"
+                    [disabled]="!row.instrument.tradable"
+                    (click)="trade(row, 'BUY', $event)"
+                    [attr.data-testid]="'buy-' + row.instrument.symbol"
+                  >Buy</button>
+                  <button
+                    type="button"
+                    class="btn btn-sm trade-sell"
+                    [disabled]="!row.instrument.tradable"
+                    (click)="trade(row, 'SELL', $event)"
+                    [attr.data-testid]="'sell-' + row.instrument.symbol"
+                  >Sell</button>
+                </div>
+              </td>
+            </tr>
+            @if (expanded() === row.instrument.symbol) {
+              <tr
+                class="details-row"
+                (animate.enter)="slideDetails($event, 'open')"
+                (animate.leave)="slideDetails($event, 'close')"
+                [attr.data-testid]="'instrument-details-' + row.instrument.symbol"
+              >
+                <td colspan="8">
+                  <!-- Slides open and closed: the grid row grows from 0fr to 1fr -->
+                  <div class="details-clip">
+                    <div class="details-inner">
+                      <div class="details">
+                        <dl class="details-grid">
+                          <div><dt>Name</dt><dd>{{ row.instrument.name }}</dd></div>
+                          <div><dt>Exchange</dt><dd>{{ row.exchange }}</dd></div>
+                          <div><dt>Currency</dt><dd>{{ row.instrument.currency }}</dd></div>
+                          <div><dt>Asset class</dt><dd>{{ row.instrument.assetClass | titlecase }}</dd></div>
+                          <div><dt>Last price</dt><dd>{{ price(row.price, row.instrument.symbol) }}</dd></div>
+                          <div><dt>Previous close</dt><dd>{{ price(row.previousClose, row.instrument.symbol) }}</dd></div>
+                          <div><dt>Bid</dt><dd>{{ price(row.bid, row.instrument.symbol) }}</dd></div>
+                          <div><dt>Ask</dt><dd>{{ price(row.ask, row.instrument.symbol) }}</dd></div>
+                          <div><dt>Spread</dt><dd>{{ spread(row) }}</dd></div>
+                          <div><dt>Market state</dt><dd>{{ row.marketState ? (row.marketState | titlecase) : '—' }}</dd></div>
+                          <div><dt>Quote as of</dt><dd>{{ row.quoteAsOf ? (row.quoteAsOf | date: 'MMM d, h:mm a') : '—' }}</dd></div>
+                          <div><dt>Received</dt><dd>{{ row.receivedAt ? (row.receivedAt | date: 'MMM d, h:mm a') : '—' }}</dd></div>
+                        </dl>
+                        <div class="details-actions" (click)="$event.stopPropagation()">
+                          <a class="btn btn-primary btn-sm" [class.disabled]="!row.instrument.tradable" routerLink="/order-ticket" [queryParams]="{ symbol: row.instrument.symbol }">
+                            <i class="fas fa-pen-to-square"></i> Open order ticket
+                          </a>
+                          <app-add-to-watchlist [symbol]="row.instrument.symbol" />
+                          <app-price-alert-button [symbol]="row.instrument.symbol" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            }
+          } @empty {
+            <tr>
+              <td colspan="8">
+                <div class="empty-state">
+                  <i class="fas fa-magnifying-glass-chart"></i>
+                  <p>No instruments match these filters</p>
+                  @if (activeFilters()) {
+                    <button type="button" class="btn btn-outline btn-sm" (click)="clearFilters()" data-testid="clear-filters">Clear filters</button>
+                  }
+                  <small>Not listed? Add it with “Find a symbol” above.</small>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>

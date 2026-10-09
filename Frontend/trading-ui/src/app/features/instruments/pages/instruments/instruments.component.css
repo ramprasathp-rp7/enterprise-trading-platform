@@ -1,0 +1,332 @@
+/* Instruments page — layout from the global .page / .panel / .data-table system */
+
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.discover-form {
+  display: flex;
+  gap: 10px;
+  width: min(460px, 100%);
+}
+
+.discover-form .input-with-icon {
+  flex: 1;
+}
+
+.discover-form .btn {
+  flex-shrink: 0;
+}
+
+.alert p {
+  flex: 1;
+  margin: 0;
+}
+
+/* ===== TOOLBAR ===== */
+.panel-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.search-box {
+  width: min(260px, 100%);
+}
+
+.toggle-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-700, var(--ink-900));
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.toggle-check input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--brand);
+}
+
+.toolbar-meta {
+  margin-left: auto;
+  color: var(--ink-500);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+/* ===== TABLE ===== */
+/* Fixed layout: column widths come from the <col>s, not from whichever rows are showing, so
+   filters (tradable only, markets, classes) never shift the columns. Narrow windows scroll sideways. */
+.instruments-table {
+  table-layout: fixed;
+  min-width: 980px;
+}
+
+.instruments-table .col-exchange { width: 120px; }
+.instruments-table .col-class { width: 72px; }
+.instruments-table .col-price { width: 124px; }
+.instruments-table .col-change { width: 110px; }
+.instruments-table .col-bid-ask { width: 120px; }
+.instruments-table .col-status { width: 140px; }
+.instruments-table .col-actions { width: 152px; }
+
+.bid-ask-line {
+  display: block;
+  white-space: nowrap;
+}
+
+.bid-ask-line.ask {
+  font-size: 12px;
+}
+
+.instruments-table th,
+.instruments-table td {
+  padding-left: 14px;
+  padding-right: 14px;
+}
+
+.instruments-table th:first-child,
+.instruments-table td:first-child {
+  padding-left: 22px;
+}
+
+.instruments-table th:last-child,
+.instruments-table td:last-child {
+  padding-right: 22px;
+}
+
+.instrument-row {
+  cursor: pointer;
+}
+
+.instrument-row td {
+  transition: background-color 220ms var(--ease);
+}
+
+.instrument-row.expanded td {
+  background: var(--brand-soft);
+}
+
+.row-caret {
+  margin-right: 6px;
+  font-size: 10px;
+  color: var(--ink-400);
+  transition: transform 260ms cubic-bezier(0.2, 0, 0, 1), color var(--t-fast);
+}
+
+.instrument-row.expanded .row-caret {
+  transform: rotate(90deg);
+  color: var(--brand);
+}
+
+.row-name {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--ink-500);
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.num .row-name {
+  margin-left: auto;
+}
+
+.bid-ask {
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.exchange-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: var(--surface-sunken);
+  color: var(--ink-700, var(--ink-900));
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.exchange-tag[data-exchange='NSE'],
+.exchange-tag[data-exchange='BSE'] {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.exchange-tag[data-exchange='NYSE'],
+.exchange-tag[data-exchange='NASDAQ'] {
+  background: var(--info-soft);
+  color: var(--info);
+}
+
+.exchange-tag[data-exchange='CRYPTO'] {
+  background: var(--brand-soft);
+  color: var(--brand-strong);
+}
+
+.state-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-500);
+  white-space: nowrap;
+}
+
+.state-tag.live {
+  color: var(--positive);
+}
+
+.state-tag.live .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--positive);
+  box-shadow: 0 0 0 3px var(--positive-soft);
+}
+
+.state-tag.warn {
+  color: var(--warning);
+}
+
+.up {
+  color: var(--positive);
+  font-weight: 600;
+}
+
+.down {
+  color: var(--negative);
+  font-weight: 600;
+}
+
+/* Actions sit in a flex box inside the cell, so the cell stays a real table cell and the
+   buttons are centred on the row */
+.actions-cell {
+  white-space: nowrap;
+}
+
+.row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.trade-buy,
+.trade-sell {
+  min-width: 56px;
+  justify-content: center;
+  border: 1px solid transparent;
+  font-weight: 650;
+}
+
+.trade-buy {
+  background: var(--positive-soft);
+  border-color: var(--positive-line);
+  color: var(--positive);
+}
+
+.trade-sell {
+  background: var(--negative-soft);
+  border-color: var(--negative-line, var(--negative));
+  color: var(--negative);
+}
+
+.trade-buy:hover:not(:disabled),
+.trade-sell:hover:not(:disabled) {
+  filter: brightness(0.96);
+}
+
+.trade-buy:disabled,
+.trade-sell:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ===== DETAILS ROW ===== */
+.details-row td {
+  padding: 0 !important;
+  background: var(--surface-sunken);
+  white-space: normal;
+}
+
+/* Accordion: slideDetails() animates the grid row between 0fr and 1fr */
+.details-clip {
+  display: grid;
+  grid-template-rows: 1fr;
+}
+
+.details-inner {
+  min-height: 0;
+}
+
+.details {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px 24px;
+  padding: 16px 22px 18px;
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px 24px;
+  flex: 1;
+  min-width: 280px;
+  margin: 0;
+}
+
+.details-grid dt {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-500);
+}
+
+.details-grid dd {
+  margin: 2px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-900);
+  font-variant-numeric: tabular-nums;
+}
+
+.details-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.btn.disabled {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+@media (max-width: 900px) {
+  .toolbar-meta {
+    margin-left: 0;
+    flex-basis: 100%;
+  }
+
+  .discover-form {
+    width: 100%;
+  }
+}

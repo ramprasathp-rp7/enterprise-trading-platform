@@ -1,0 +1,36 @@
+flowchart TB
+    UI["<b>Angular app</b><br/>Frontend/trading-ui, port 4200<br/>used by customers and admins in a browser<br/>typed clients generated from contracts/*.yaml"]
+
+    AUTH["<b>Auth service</b><br/>NestJS, Services/auth-service, port 3000<br/>register, login, refresh, me"]
+    API["<b>Trade REST API</b><br/>Spring Boot, Services/order-service, port 8080<br/>orders, portfolio, watchlists, alerts,<br/>preferences, advice, strategies, admin"]
+
+    KAFKA{{"<b>Kafka</b><br/>topics: orders, trade-events,<br/>market-data, dead-letter"}}
+
+    EXEC["<b>Order executor</b><br/>Spring Boot, Services/executor-service, port 8000<br/>fills or rejects orders, polls quotes"]
+    ETL["<b>Analytics ETL</b><br/>Python, ETL/<br/>extract, transform, load, reconcile"]
+
+    PG[("<b>PostgreSQL 15</b><br/>enterprise_trading_platform<br/>schema auth + trade tables")]
+    DUCK[("<b>DuckDB</b><br/>analytics star schema")]
+    FAUX[/"<b>Fauxnance API</b><br/>quotes, candles, FX pairs<br/>2000 requests a day"/]
+
+    UI -->|"login, refresh,<br/>register"| AUTH
+    UI -->|"REST /api/v1<br/>Bearer JWT"| API
+
+    API <-->|"publishes orders<br/>consumes trade-events, market-data"| KAFKA
+    KAFKA <-->|"consumes orders<br/>publishes trade-events, market-data"| EXEC
+
+    AUTH ---|"auth schema"| PG
+    API ---|"trade tables"| PG
+    EXEC ---|"settles orders, cash, positions"| PG
+    ETL -->|"extract"| PG
+    ETL -->|"load"| DUCK
+
+    API -->|"quotes, candles"| FAUX
+    EXEC -->|"quotes, FX rates"| FAUX
+
+    classDef app fill:#e8f0fe,stroke:#3b5bdb,color:#111;
+    classDef store fill:#fff4e0,stroke:#d9822b,color:#111;
+    classDef ext fill:#f1f3f5,stroke:#868e96,color:#111;
+    class UI,AUTH,API,EXEC,ETL app;
+    class PG,KAFKA,DUCK store;
+    class FAUX ext;

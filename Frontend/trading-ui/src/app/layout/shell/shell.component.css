@@ -35,6 +35,8 @@ app-footer {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  /* Only the page area takes part in route transitions; navbar and sidebar stay put */
+  view-transition-name: page-content;
 }
 
 @media (max-width: 768px) {

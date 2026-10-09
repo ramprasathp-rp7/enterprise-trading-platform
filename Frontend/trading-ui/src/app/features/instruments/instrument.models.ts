@@ -8,6 +8,9 @@
 
 export type AssetClass = 'EQUITY' | 'FX' | 'CRYPTO';
 
+/** Where an instrument trades (instruments.exchange, from the Fauxnance symbol registry) */
+export type Exchange = 'NYSE' | 'NASDAQ' | 'NSE' | 'BSE' | 'FX' | 'CRYPTO';
+
 /** A tradeable instrument (mirrors the INSTRUMENTS table) */
 export interface Instrument {
   id: number;
@@ -16,6 +19,8 @@ export interface Instrument {
   assetClass: AssetClass;
   currency: string;
   tradable: boolean;
+  /** Derived from the symbol when the catalogue has none (see exchangeOf) */
+  exchange?: Exchange;
 }
 
 /** One daily OHLCV bar */

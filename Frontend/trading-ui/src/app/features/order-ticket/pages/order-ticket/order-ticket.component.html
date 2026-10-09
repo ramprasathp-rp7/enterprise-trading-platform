@@ -206,10 +206,32 @@
           </dl>
         </section>
 
+        @if (overBudget()) {
+          <div class="budget-warning" role="alert" data-testid="budget-warning">
+            <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+            <div class="budget-warning-text">
+              <strong>Above your order budget</strong>
+              <span>
+                This order is about {{ formatMoney(budgetNotional(), budgetCurrency()) }}, over your
+                {{ formatMoney(orderBudget(), budgetCurrency()) }} budget. You can still place it.
+              </span>
+              <a routerLink="/settings" [queryParams]="{ section: 'trading' }" data-testid="budget-settings-link">Change budget</a>
+            </div>
+          </div>
+        }
+
         <div class="form-footer">
-          <button type="submit" class="btn btn-primary btn-lg submit-button" data-testid="submit-order-btn" [disabled]="!canSubmit()">
+          <button
+            type="submit"
+            class="btn btn-primary btn-lg submit-button"
+            [class.over-budget]="overBudget()"
+            data-testid="submit-order-btn"
+            [disabled]="!canSubmit()"
+          >
             @if (isSubmitting()) {
               <i class="fas fa-spinner fa-spin"></i> Submitting...
+            } @else if (overBudget()) {
+              <i class="fas fa-triangle-exclamation"></i> Submit anyway
             } @else {
               <i class="fas fa-paper-plane"></i> Submit order
             }

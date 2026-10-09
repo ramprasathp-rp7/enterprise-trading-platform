@@ -1,0 +1,53 @@
+flowchart TB
+    FAUX[/"Fauxnance API"/]
+
+    subgraph WRITERS["One writer, chosen by market-data.quote-source"]
+        direction TB
+        REFRESH["MarketDataRefreshScheduler<br/>every 5 min<br/>(FAUXNANCE mode, default)"]
+        POLLER["Executor MarketDataPoller<br/>every 5 min"]
+        TOPIC{{"Kafka market-data"}}
+        CONSUMER["MarketDataConsumer<br/>(KAFKA mode)"]
+        POLLER --> TOPIC --> CONSUMER
+    end
+
+    CACHE[("MarketDataCache<br/>24 h of quotes per symbol<br/>saved to data/market-data-cache.json")]
+
+    FAUX --> REFRESH
+    FAUX --> POLLER
+    REFRESH --> CACHE
+    CONSUMER --> CACHE
+
+    subgraph READERS["Everything that needs a current price reads the cache"]
+        direction TB
+        ENDPOINT["Market data endpoints<br/>latest and intraday"]
+        ALERTS["PriceAlertEvaluator<br/>every 30 s"]
+        STRATS["StrategyEvaluator<br/>every 60 s"]
+        ADVICE["TradeAdviceService<br/>SignalEngine"]
+        RESOLVER["QuoteResolver<br/>portfolio and FX<br/>cache first, 10 min max age"]
+    end
+
+    CACHE --> ENDPOINT
+    CACHE --> ALERTS
+    CACHE --> STRATS
+    CACHE --> ADVICE
+    CACHE --> RESOLVER
+
+    ENDPOINT --> LIVE["Angular LiveQuoteStore<br/>5 min refresh<br/>watchlists, order ticket, charts"]
+    STRATS -->|"POST /api/v1/orders<br/>with a minted token"| ORDERS(["Normal order pipeline"])
+
+    TRADEEVENTS{{"Kafka trade-events"}} --> NOTIFY["TradeEventNotificationConsumer<br/>stores one row per event"]
+
+    PREFS[("Preferences<br/>customer and admin<br/>contact details encrypted")]
+
+    DISPATCH["NotificationDispatcher<br/>resolves the chosen channels"]
+    ALERTS --> DISPATCH
+    NOTIFY --> DISPATCH
+    PREFS --> DISPATCH
+
+    DISPATCH --> BELL["In-app bell<br/>Angular polls order-notifications<br/>and price-alert triggers"]
+    DISPATCH --> STUBS["Email and SMS senders<br/>logging stubs, nothing delivered"]
+
+    classDef store fill:#fff4e0,stroke:#d9822b,color:#111;
+    classDef ext fill:#f1f3f5,stroke:#868e96,color:#111;
+    class CACHE,TOPIC,TRADEEVENTS,PREFS store;
+    class FAUX ext;

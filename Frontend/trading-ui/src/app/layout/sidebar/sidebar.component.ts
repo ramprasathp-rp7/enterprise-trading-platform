@@ -67,6 +67,13 @@ export class SidebarComponent {
       section: 'Trading'
     },
     {
+      label: 'Instruments',
+      route: '/instruments',
+      icon: 'fas fa-table-list',
+      description: 'Markets & live prices',
+      section: 'Market Tools'
+    },
+    {
       label: 'Watchlists',
       route: '/watchlists',
       icon: 'fas fa-bookmark',

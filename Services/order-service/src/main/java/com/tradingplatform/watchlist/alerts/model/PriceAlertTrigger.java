@@ -17,6 +17,10 @@ public class PriceAlertTrigger {
     private Instant triggeredAt;
     private String reason;
     private DeliveryStatus deliveryStatus;
+    /** Channels the firing went out on, e.g. "EMAIL,IN_APP" (history reads only) */
+    private String channels;
+    /** Whether the bell shows it (history reads only) */
+    private boolean inApp = true;
 
     private String symbol;
     private AlertDirection direction;
@@ -75,4 +79,20 @@ public class PriceAlertTrigger {
 
     public AlertMode getMode() { return mode; }
     public void setMode(AlertMode mode) { this.mode = mode; }
+
+    public String getChannels() {
+        return channels;
+    }
+
+    public void setChannels(String channels) {
+        this.channels = channels;
+    }
+
+    public boolean isInApp() {
+        return inApp;
+    }
+
+    public void setInApp(boolean inApp) {
+        this.inApp = inApp;
+    }
 }

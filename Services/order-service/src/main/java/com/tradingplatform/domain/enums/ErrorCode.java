@@ -21,6 +21,7 @@ public enum ErrorCode {
     STR_404("STR-404"),
     STR_409("STR-409"),
     MKT_404("MKT-404"),
+    MKT_503("MKT-503"),
     ASS_404("ASS-404");
 
     private final String code;

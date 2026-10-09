@@ -1,5 +1,5 @@
 import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { provideRouter, withViewTransitions } from '@angular/router';
 import { provideHttpClient, HTTP_INTERCEPTORS, withInterceptorsFromDi } from '@angular/common/http';
 import { provideCharts, withDefaultRegisterables } from 'ng2-charts';
 import { routes } from './app.routes';
@@ -19,12 +19,15 @@ import { provideApi as provideAccountHistoryApi } from './api/generated/account-
 import { provideApi as provideCandleApi } from './api/generated/candle/provide-api';
 import { provideApi as provideStrategyApi } from './api/generated/strategy/provide-api';
 import { provideApi as provideTransactionsApi } from './api/generated/transactions/provide-api';
+import { provideApi as provideInstrumentsApi } from './api/generated/instruments/provide-api';
+import { provideApi as provideAccountSettingsApi } from './api/generated/account-settings/provide-api';
 import { environment } from './core/config/environment';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
-    provideRouter(routes),
+    // Pages cross-fade when the route changes (browsers without view transitions just switch)
+    provideRouter(routes, withViewTransitions({ skipInitialTransition: true })),
     provideHttpClient(withInterceptorsFromDi()),
     provideCharts(withDefaultRegisterables()), 
     provideAuthApi(environment.AUTH_SERVICE_URL),
@@ -40,6 +43,8 @@ export const appConfig: ApplicationConfig = {
     provideCandleApi(environment.TRADE_API_URL),
     provideStrategyApi(environment.TRADE_API_URL),
     provideTransactionsApi(environment.TRADE_API_URL),
+    provideInstrumentsApi(environment.TRADE_API_URL),
+    provideAccountSettingsApi(environment.TRADE_API_URL),
     {
       provide: HTTP_INTERCEPTORS,
       useClass: AuthInterceptor,

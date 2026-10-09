@@ -120,6 +120,64 @@
       }
     </header>
 
+    @if (!loading() && positions().length > 0) {
+      <div class="holdings-toolbar" data-testid="holdings-toolbar">
+        <div class="input-with-icon holdings-filter">
+          <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+          <input
+            class="search-input"
+            type="search"
+            [ngModel]="holdingsQuery()"
+            (ngModelChange)="holdingsQuery.set($event)"
+            placeholder="Filter holdings"
+            aria-label="Filter holdings"
+            data-testid="holdings-filter"
+          />
+        </div>
+        <div class="pill-tabs" role="group" aria-label="Market">
+          @for (option of [{ v: 'ALL', l: 'All markets' }, { v: 'USA', l: 'USA' }, { v: 'NSE', l: 'NSE' }, { v: 'OTHER', l: 'FX & crypto' }]; track option.v) {
+            <button
+              type="button"
+              class="pill-tab"
+              [class.active]="holdingsMarket() === option.v"
+              [attr.aria-pressed]="holdingsMarket() === option.v"
+              (click)="holdingsMarket.set($any(option.v))"
+              [attr.data-testid]="'holdings-market-' + option.v"
+            >{{ option.l }}</button>
+          }
+        </div>
+        <div class="pill-tabs" role="group" aria-label="Profit or loss">
+          @for (option of [{ v: 'all', l: 'All' }, { v: 'gain', l: 'In profit', i: 'fa-arrow-trend-up' }, { v: 'loss', l: 'At a loss', i: 'fa-arrow-trend-down' }]; track option.v) {
+            <button
+              type="button"
+              class="pill-tab"
+              [class.active]="holdingsPnl() === option.v"
+              [attr.aria-pressed]="holdingsPnl() === option.v"
+              (click)="holdingsPnl.set($any(option.v))"
+              [attr.data-testid]="'holdings-pnl-' + option.v"
+            >@if (option.i) {<i class="fas" [ngClass]="option.i" aria-hidden="true"></i>} {{ option.l }}</button>
+          }
+        </div>
+        <select class="filter-select class-select" [ngModel]="holdingsClass()" (ngModelChange)="holdingsClass.set($event)" aria-label="Asset class" data-testid="holdings-class">
+          <option value="ALL">All classes</option>
+          <option value="EQUITY">Equity</option>
+          <option value="FX">FX</option>
+          <option value="CRYPTO">Crypto</option>
+        </select>
+        <label class="sort-field">
+          <span><i class="fas fa-arrow-down-wide-short" aria-hidden="true"></i> Sort</span>
+          <select class="filter-select" [ngModel]="holdingsSort()" (ngModelChange)="holdingsSort.set($event)" aria-label="Sort holdings" data-testid="holdings-sort">
+            @for (option of holdingsSortOptions; track option.value) {
+              <option [value]="option.value">{{ option.label }}</option>
+            }
+          </select>
+        </label>
+        @if (holdingsFiltered()) {
+          <span class="filter-meta" data-testid="holdings-shown">{{ visiblePositions().length }} of {{ positions().length }} shown</span>
+        }
+      </div>
+    }
+
     <div class="table-wrapper">
       <table class="data-table holdings-table transactions-table">
         <thead>
@@ -134,7 +192,7 @@
             <th class="col-actions-head"><span class="sr-only">Trade</span></th>
           </tr>
         </thead>
-        <tbody>
+        <tbody class="anim-rows">
           @if (loading()) {
             <tr>
               <td colspan="8">
@@ -155,7 +213,7 @@
               </td>
             </tr>
           } @else {
-            @for (position of livePositions(); track position.symbol) {
+            @for (position of visiblePositions(); track position.symbol) {
               <tr class="transaction-row">
                 <td>
                   <span class="cell-strong instrument">{{ position.symbol }}</span>
@@ -166,6 +224,7 @@
                 <td class="num">
                   @if (position.lastPrice != null) {
                     <span
+                      [appFlashOnChange]="position.lastPrice"
                       [attr.title]="(position.live ? 'Live price' : 'Price from the portfolio service') + (position.priceAsOf ? ', updated ' + (position.priceAsOf | date: 'MMM d, h:mm a') : '')"
                       data-testid="live-price"
                     >{{ price(position.lastPrice, position) }}</span>
@@ -217,6 +276,16 @@
                       [attr.aria-label]="'Sell ' + position.symbol"
                       data-testid="holding-sell-btn"
                     >Sell</a>
+                  </div>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="8">
+                  <div class="empty-state" data-testid="holdings-no-match">
+                    <i class="fas fa-filter-circle-xmark"></i>
+                    <p>No holdings match these filters</p>
+                    <button type="button" class="btn btn-outline btn-sm" (click)="clearHoldingsFilters()">Clear filters</button>
                   </div>
                 </td>
               </tr>

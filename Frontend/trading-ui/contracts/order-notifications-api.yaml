@@ -28,6 +28,12 @@ info:
     `?after=<id>`; without `after` it gets the account's latest notifications (use that once, to learn
     where the feed is, without announcing history).
 
+    ## History
+
+    `GET /api/v1/accounts/{accountId}/notification-history` is the Notifications page's list: order
+    outcomes and price alert firings on every channel (not only in-app), newest first, each with the
+    channels it went out on and its details. Ids are stable (`order-12`, `alert-7`).
+
     ## Authentication
 
     Every `/api/v1/**` route requires a valid signed JWT in the `Authorization` header. A missing,
@@ -88,6 +94,41 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/OrderNotificationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorised'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/accounts/{accountId}/notification-history:
+    get:
+      tags: [OrderNotifications]
+      operationId: getNotificationHistory
+      summary: Order outcomes and price alerts on every channel, newest first
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: limit
+          in: query
+          required: false
+          description: How many items (default 100, at most 200).
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 200
+      responses:
+        '200':
+          description: The history, newest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NotificationHistoryItem'
         '401':
           $ref: '#/components/responses/Unauthorised'
         '403':
@@ -155,6 +196,88 @@ components:
           type: string
           format: date-time
           description: When the order was executed.
+
+    NotificationHistoryItem:
+      type: object
+      required: [id, kind, occurredAt, channels, inApp]
+      description: Exactly one of `order` and `priceAlert` is set, matching `kind`.
+      properties:
+        id:
+          type: string
+          description: Stable id, `order-{notificationId}` or `alert-{triggerId}`.
+        kind:
+          type: string
+          enum: [ORDER, PRICE_ALERT]
+        occurredAt:
+          type: string
+          format: date-time
+        status:
+          type: [string, 'null']
+          description: FILLED, REJECTED or CANCELLED for an order; DELIVERED, PENDING or FAILED for a price alert.
+        symbol:
+          type: [string, 'null']
+        channels:
+          type: array
+          description: The channels it went out on.
+          items:
+            type: string
+            enum: [EMAIL, SMS, IN_APP]
+        inApp:
+          type: boolean
+          description: Whether it was shown in the bell.
+        order:
+          oneOf:
+            - $ref: '#/components/schemas/OrderNotificationDetails'
+            - type: 'null'
+        priceAlert:
+          oneOf:
+            - $ref: '#/components/schemas/PriceAlertNotificationDetails'
+            - type: 'null'
+
+    OrderNotificationDetails:
+      type: object
+      properties:
+        orderId:
+          type: [string, 'null']
+        eventType:
+          type: [string, 'null']
+        side:
+          type: [string, 'null']
+        quantity:
+          type: [integer, 'null']
+          format: int32
+        limitPrice:
+          type: [number, 'null']
+        executedPrice:
+          type: [number, 'null']
+        reason:
+          type: [string, 'null']
+
+    PriceAlertNotificationDetails:
+      type: object
+      properties:
+        alertId:
+          type: [integer, 'null']
+          format: int64
+        triggerId:
+          type: [integer, 'null']
+          format: int64
+        direction:
+          type: [string, 'null']
+          description: ABOVE or BELOW.
+        threshold:
+          type: [number, 'null']
+        mode:
+          type: [string, 'null']
+          description: ONCE or EVERY_QUOTE.
+        price:
+          type: [number, 'null']
+          description: The price that crossed the threshold.
+        quoteAt:
+          type: [string, 'null']
+          format: date-time
+        reason:
+          type: [string, 'null']
 
     ErrorResponse:
       type: object

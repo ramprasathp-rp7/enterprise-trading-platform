@@ -1,43 +1,47 @@
-import { Injectable } from '@angular/core';
+import { Injectable, Injector, inject, signal } from '@angular/core';
+import { Observable, map, tap } from 'rxjs';
 import { CachedQuoteResponse } from '../../../api/generated/market-data';
-import { Candle, CandleStats, ChartRange, Instrument, MarketState, Quote } from '../instrument.models';
+import { InstrumentResponse, InstrumentsService } from '../../../api/generated/instruments';
+import { AssetClass, Candle, CandleStats, ChartRange, Exchange, Instrument, MarketState, Quote } from '../instrument.models';
 import { formatMoney } from '../../../shared/currency';
 
 /**
  * Instrument catalogue and search, plus the pure helpers that turn real market data into
  * what the instrument panel shows:
- * - the catalogue mirrors the INSTRUMENTS table (seeds 003 and 007), in id order, so every
- *   result is an instrument the order service accepts and its id addresses the candle API;
+ * - the catalogue mirrors the INSTRUMENTS table, in id order, so every result is an instrument the
+ *   order service accepts and its id addresses the candle API. It starts as the seeded instruments
+ *   (seeds 003 and 007) and is replaced by the instruments API's list once signed in (`load`), which
+ *   also brings in symbols added by symbol discovery (`discover`);
  * - quotes come from the market data API's quote cache (`toQuote`);
  * - candles come from the candle API (`candlesInRange`, `stats`).
  * Nothing here generates prices.
  */
 const CATALOGUE: Instrument[] = [
-  { id: 1, symbol: 'PFE', name: 'Pfizer Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true },
-  { id: 2, symbol: 'AAPL', name: 'Apple Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true },
-  { id: 3, symbol: 'INFY.NS', name: 'Infosys Limited', assetClass: 'EQUITY', currency: 'INR', tradable: true },
-  { id: 4, symbol: 'RELIANCE.NS', name: 'Reliance Industries', assetClass: 'EQUITY', currency: 'INR', tradable: true },
-  { id: 5, symbol: 'TATASTEEL.BO', name: 'Tata Steel Limited', assetClass: 'EQUITY', currency: 'INR', tradable: false },
-  { id: 6, symbol: 'FX:EURUSD', name: 'Euro / US Dollar', assetClass: 'FX', currency: 'USD', tradable: true },
-  { id: 7, symbol: 'X:BTC-USD', name: 'Bitcoin / US Dollar', assetClass: 'CRYPTO', currency: 'USD', tradable: true },
-  { id: 8, symbol: 'MSFT', name: 'Microsoft Corporation', assetClass: 'EQUITY', currency: 'USD', tradable: true },
-  { id: 9, symbol: 'GOOGL', name: 'Alphabet Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true },
-  { id: 10, symbol: 'AMZN', name: 'Amazon.com Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true },
-  { id: 11, symbol: 'NVDA', name: 'NVIDIA Corporation', assetClass: 'EQUITY', currency: 'USD', tradable: true },
-  { id: 12, symbol: 'TSLA', name: 'Tesla Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true },
-  { id: 13, symbol: 'META', name: 'Meta Platforms Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true },
-  { id: 14, symbol: 'JPM', name: 'JPMorgan Chase & Co.', assetClass: 'EQUITY', currency: 'USD', tradable: true },
-  { id: 15, symbol: 'NFLX', name: 'Netflix Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true },
-  { id: 16, symbol: 'TCS.NS', name: 'Tata Consultancy Services', assetClass: 'EQUITY', currency: 'INR', tradable: true },
-  { id: 17, symbol: 'HDFCBANK.NS', name: 'HDFC Bank Limited', assetClass: 'EQUITY', currency: 'INR', tradable: true },
-  { id: 18, symbol: 'ICICIBANK.NS', name: 'ICICI Bank Limited', assetClass: 'EQUITY', currency: 'INR', tradable: true },
-  { id: 19, symbol: 'WIPRO.NS', name: 'Wipro Limited', assetClass: 'EQUITY', currency: 'INR', tradable: true },
-  { id: 20, symbol: 'FX:GBPUSD', name: 'British Pound / US Dollar', assetClass: 'FX', currency: 'USD', tradable: true },
-  { id: 21, symbol: 'FX:USDJPY', name: 'US Dollar / Japanese Yen', assetClass: 'FX', currency: 'JPY', tradable: true },
-  { id: 22, symbol: 'FX:USDINR', name: 'US Dollar / Indian Rupee', assetClass: 'FX', currency: 'INR', tradable: true },
-  { id: 23, symbol: 'X:ETH-USD', name: 'Ethereum / US Dollar', assetClass: 'CRYPTO', currency: 'USD', tradable: true },
-  { id: 24, symbol: 'X:SOL-USD', name: 'Solana / US Dollar', assetClass: 'CRYPTO', currency: 'USD', tradable: true },
-  { id: 25, symbol: 'X:XRP-USD', name: 'XRP / US Dollar', assetClass: 'CRYPTO', currency: 'USD', tradable: true },
+  { id: 1, symbol: 'PFE', name: 'Pfizer Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true, exchange: 'NYSE' },
+  { id: 2, symbol: 'AAPL', name: 'Apple Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true, exchange: 'NASDAQ' },
+  { id: 3, symbol: 'INFY.NS', name: 'Infosys Limited', assetClass: 'EQUITY', currency: 'INR', tradable: true, exchange: 'NSE' },
+  { id: 4, symbol: 'RELIANCE.NS', name: 'Reliance Industries', assetClass: 'EQUITY', currency: 'INR', tradable: true, exchange: 'NSE' },
+  { id: 5, symbol: 'TATASTEEL.BO', name: 'Tata Steel Limited', assetClass: 'EQUITY', currency: 'INR', tradable: false, exchange: 'BSE' },
+  { id: 6, symbol: 'FX:EURUSD', name: 'Euro / US Dollar', assetClass: 'FX', currency: 'USD', tradable: true, exchange: 'FX' },
+  { id: 7, symbol: 'X:BTC-USD', name: 'Bitcoin / US Dollar', assetClass: 'CRYPTO', currency: 'USD', tradable: true, exchange: 'CRYPTO' },
+  { id: 8, symbol: 'MSFT', name: 'Microsoft Corporation', assetClass: 'EQUITY', currency: 'USD', tradable: true, exchange: 'NASDAQ' },
+  { id: 9, symbol: 'GOOGL', name: 'Alphabet Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true, exchange: 'NASDAQ' },
+  { id: 10, symbol: 'AMZN', name: 'Amazon.com Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true, exchange: 'NASDAQ' },
+  { id: 11, symbol: 'NVDA', name: 'NVIDIA Corporation', assetClass: 'EQUITY', currency: 'USD', tradable: true, exchange: 'NASDAQ' },
+  { id: 12, symbol: 'TSLA', name: 'Tesla Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true, exchange: 'NASDAQ' },
+  { id: 13, symbol: 'META', name: 'Meta Platforms Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true, exchange: 'NASDAQ' },
+  { id: 14, symbol: 'JPM', name: 'JPMorgan Chase & Co.', assetClass: 'EQUITY', currency: 'USD', tradable: true, exchange: 'NYSE' },
+  { id: 15, symbol: 'NFLX', name: 'Netflix Inc.', assetClass: 'EQUITY', currency: 'USD', tradable: true, exchange: 'NASDAQ' },
+  { id: 16, symbol: 'TCS.NS', name: 'Tata Consultancy Services', assetClass: 'EQUITY', currency: 'INR', tradable: true, exchange: 'NSE' },
+  { id: 17, symbol: 'HDFCBANK.NS', name: 'HDFC Bank Limited', assetClass: 'EQUITY', currency: 'INR', tradable: true, exchange: 'NSE' },
+  { id: 18, symbol: 'ICICIBANK.NS', name: 'ICICI Bank Limited', assetClass: 'EQUITY', currency: 'INR', tradable: true, exchange: 'NSE' },
+  { id: 19, symbol: 'WIPRO.NS', name: 'Wipro Limited', assetClass: 'EQUITY', currency: 'INR', tradable: true, exchange: 'NSE' },
+  { id: 20, symbol: 'FX:GBPUSD', name: 'British Pound / US Dollar', assetClass: 'FX', currency: 'USD', tradable: true, exchange: 'FX' },
+  { id: 21, symbol: 'FX:USDJPY', name: 'US Dollar / Japanese Yen', assetClass: 'FX', currency: 'JPY', tradable: true, exchange: 'FX' },
+  { id: 22, symbol: 'FX:USDINR', name: 'US Dollar / Indian Rupee', assetClass: 'FX', currency: 'INR', tradable: true, exchange: 'FX' },
+  { id: 23, symbol: 'X:ETH-USD', name: 'Ethereum / US Dollar', assetClass: 'CRYPTO', currency: 'USD', tradable: true, exchange: 'CRYPTO' },
+  { id: 24, symbol: 'X:SOL-USD', name: 'Solana / US Dollar', assetClass: 'CRYPTO', currency: 'USD', tradable: true, exchange: 'CRYPTO' },
+  { id: 25, symbol: 'X:XRP-USD', name: 'XRP / US Dollar', assetClass: 'CRYPTO', currency: 'USD', tradable: true, exchange: 'CRYPTO' },
 ];
 
 /** States worth trusting from the feed; 'unknown' falls back to the exchange clock */
@@ -67,6 +71,41 @@ const RANGE_START: Record<Exclude<ChartRange, 'Today'>, (end: Date) => Date> = {
   '3M': (end) => addMonths(end, -3),
 };
 
+/** Market preference groups (account-settings-api.yaml): USA = NYSE + NASDAQ, NSE, or everything */
+export type MarketGroup = 'USA' | 'NSE' | 'ALL';
+
+/** Where an instrument trades: its catalogue exchange, else derived from the symbol like the backend does */
+export function exchangeOf(instrument: Pick<Instrument, 'symbol' | 'exchange'>): Exchange {
+  if (instrument.exchange) {
+    return instrument.exchange;
+  }
+  const s = instrument.symbol.toUpperCase();
+  if (s.startsWith('FX:')) return 'FX';
+  if (s.startsWith('X:')) return 'CRYPTO';
+  if (s.endsWith('.NS')) return 'NSE';
+  if (s.endsWith('.BO')) return 'BSE';
+  return s === 'PFE' || s === 'JPM' ? 'NYSE' : 'NASDAQ';
+}
+
+/** Whether an instrument belongs to a market preference */
+export function inMarket(instrument: Pick<Instrument, 'symbol' | 'exchange'>, market: MarketGroup | null | undefined): boolean {
+  switch (market) {
+    case 'USA': {
+      const exchange = exchangeOf(instrument);
+      return exchange === 'NYSE' || exchange === 'NASDAQ';
+    }
+    case 'NSE':
+      return exchangeOf(instrument) === 'NSE';
+    default:
+      return true;
+  }
+}
+
+/** "US markets (NYSE, NASDAQ)", "NSE (India)" or "all markets", for hints next to filtered lists */
+export function marketLabel(market: MarketGroup | null | undefined): string {
+  return market === 'USA' ? 'US markets (NYSE, NASDAQ)' : market === 'NSE' ? 'NSE (India)' : 'all markets';
+}
+
 /** The instrument's trading currency from the catalogue, or null if the symbol is unknown. Usable outside DI. */
 export function instrumentCurrency(symbol: string | null | undefined): string | null {
   const wanted = (symbol ?? '').trim().toUpperCase();
@@ -86,30 +125,85 @@ export function formatInstrumentPrice(value: number | null | undefined, symbol: 
 
 @Injectable({ providedIn: 'root' })
 export class InstrumentCatalogService {
+  private readonly injector = inject(Injector);
+  /** Bumped whenever the catalogue changes, so views reading it through computed() update */
+  private readonly versionSignal = signal(0);
+  private readonly loadedSignal = signal(false);
+
+  readonly version = this.versionSignal.asReadonly();
+  /** True once the instruments API's list has replaced the seeded catalogue */
+  readonly isLoaded = this.loadedSignal.asReadonly();
+
   /** Clock for market state and the stats' trading day; overridable in tests */
   now: () => Date = () => new Date();
 
+  /** The instruments API client, resolved only when the catalogue talks to the server */
+  private get api(): InstrumentsService {
+    return this.injector.get(InstrumentsService);
+  }
+
+  /** Replaces the seeded catalogue with the server's list (once per session unless forced) */
+  load(force = false): void {
+    if (this.loadedSignal() && !force) {
+      return;
+    }
+    this.api.listInstruments().subscribe({
+      next: (instruments) => {
+        if (instruments?.length) {
+          CATALOGUE.splice(0, CATALOGUE.length, ...instruments.map(toInstrument));
+          this.loadedSignal.set(true);
+          this.versionSignal.update((v) => v + 1);
+        }
+      },
+      // Keep the seeded catalogue: every seeded instrument is still valid
+      error: () => undefined,
+    });
+  }
+
+  /**
+   * Symbol discovery: lists a symbol Fauxnance can quote (or returns it if already listed) and adds
+   * it to the catalogue. Errors are the API's (INS-404 unknown symbol, MKT-503 provider down).
+   */
+  discover(symbol: string): Observable<{ instrument: Instrument; created: boolean }> {
+    return this.api.discoverInstrument({ symbol: symbol.trim() }).pipe(
+      map((response) => ({ instrument: toInstrument(response.instrument), created: response.created })),
+      tap(({ instrument }) => {
+        const at = CATALOGUE.findIndex((i) => i.symbol === instrument.symbol);
+        if (at >= 0) {
+          CATALOGUE[at] = instrument;
+        } else {
+          CATALOGUE.push(instrument);
+        }
+        this.versionSignal.update((v) => v + 1);
+      }),
+    );
+  }
+
   all(): Instrument[] {
+    this.versionSignal();
     return [...CATALOGUE];
   }
 
   /** Exact lookup by symbol (case-insensitive) */
   find(symbol: string | null | undefined): Instrument | null {
+    this.versionSignal();
     const wanted = (symbol ?? '').trim().toUpperCase();
     return CATALOGUE.find((i) => i.symbol === wanted) ?? null;
   }
 
   /**
    * Search by symbol or name. Ranking: exact symbol, symbol prefix,
-   * name word prefix, then any substring.
+   * name word prefix, then any substring. `market` limits results to a market preference.
    */
-  search(query: string | null | undefined, limit = 8): Instrument[] {
+  search(query: string | null | undefined, limit = 8, market: MarketGroup | null = null): Instrument[] {
+    this.versionSignal();
+    const pool = CATALOGUE.filter((instrument) => inMarket(instrument, market));
     const q = (query ?? '').trim().toUpperCase();
     if (!q) {
-      return CATALOGUE.slice(0, limit);
+      return pool.slice(0, limit);
     }
 
-    const scored = CATALOGUE.map((instrument) => {
+    const scored = pool.map((instrument) => {
       const symbol = instrument.symbol.toUpperCase();
       const bareSymbol = symbol.replace(/^(FX|X):/, '');
       const name = instrument.name.toUpperCase();
@@ -306,4 +400,17 @@ function finite(value: number | null | undefined): number | null {
 function round(value: number, decimals: number): number {
   const factor = 10 ** decimals;
   return Math.round(value * factor) / factor;
+}
+
+/** An instruments API row as the catalogue's Instrument */
+function toInstrument(r: InstrumentResponse): Instrument {
+  return {
+    id: r.id,
+    symbol: r.symbol,
+    name: r.name,
+    assetClass: r.assetClass as AssetClass,
+    currency: r.currency,
+    tradable: r.tradable,
+    exchange: r.exchange as Exchange,
+  };
 }
