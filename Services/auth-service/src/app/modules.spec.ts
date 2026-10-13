@@ -40,7 +40,15 @@ describe('module wiring', () => {
   });
 
   test('database options come from the configuration and never synchronise the schema', () => {
-    expect(typeOrmOptions(config)).toEqual(expect.objectContaining({
+    // npm test loads the repository .env, which may ask for verified TLS
+    const sslMode = process.env.PGSSLMODE;
+    process.env.PGSSLMODE = 'disable';
+    const options = typeOrmOptions(config);
+    if (sslMode === undefined) delete process.env.PGSSLMODE;
+    else process.env.PGSSLMODE = sslMode;
+
+    expect(options).toEqual(expect.objectContaining({
+      ssl: false,
       type: 'postgres',
       host: 'db',
       port: 5432,

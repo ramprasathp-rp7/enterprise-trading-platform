@@ -7,7 +7,8 @@ PGPORT=5432
 PGUSER=postgres
 PGPASSWORD=n3u3d4!n3u3da!
 PGDATABASE=postgres
-PGSSLMODE=no-verify
+PGSSLMODE=require
+JDBC_PARAMS=?sslmode=require&sslrootcert=/config/rds-ca-bundle.pem
 
 DB_PASSWORD=n3u3d4!n3u3da!
 

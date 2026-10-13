@@ -163,6 +163,9 @@ x-common-env: &common-env
   POSTGRES_DB: ${DB_NAME}
   POSTGRES_USER: ${DB_USER}
   POSTGRES_PASSWORD: ${DB_PASSWORD}
+  # CA bundle the Node services check the database certificate against (PGSSLMODE=require/verify-*);
+  # Config/rds-ca-bundle.pem, through the read-only config mount. Java services: JDBC_PARAMS in .env.
+  PGSSLROOTCERT: ${APP_CONFIG_MOUNT:-/config}/rds-ca-bundle.pem
   # --- kafka
   KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_INTERNAL:-kafka:29092}
   KAFKA_BROKERS: ${KAFKA_INTERNAL:-kafka:29092}
@@ -238,6 +241,7 @@ services:
       SEED_COMMAND: ${DB_SEED_COMMAND:-for f in $$(ls *.sql | sort); do echo "== $$f"; psql -v ON_ERROR_STOP=1 -q -f "$$f" || exit 1; done}
     volumes:
       - ${DB_SEED_DIR:-./DockerFile}:/seed-src:ro
+      - *config-volume              # CA bundle for psql (PGSSLROOTCERT)
     depends_on: *wait-db
     entrypoint:
       - bash
