@@ -5,9 +5,12 @@ ORDER_SERVICE_DIR=./Services/order-service
 EXECUTOR_SERVICE_DIR=./Services/executor-service
 FRONTEND_DIR=./Frontend/trading-ui
 
-AUTH_SERVICE_EXTRA_DIR=./Services/auth-service
-ORDER_SERVICE_EXTRA_DIR=./Services/order-service
-EXECUTOR_SERVICE_EXTRA_DIR=./Services/executor-service
+AUTH_SERVICE_EXTRA_DIR=./Config
+AUTH_SERVICE_EXTRA_DEST=/Config
+ORDER_SERVICE_EXTRA_DIR=./Config
+ORDER_SERVICE_EXTRA_DEST=/Config
+EXECUTOR_SERVICE_EXTRA_DIR=./Config
+EXECUTOR_SERVICE_EXTRA_DEST=/Config
 FRONTEND_EXTRA_DIR=./Config
 FRONTEND_EXTRA_DEST=/Config
 
@@ -27,7 +30,7 @@ PGUSER=postgres
 PGSSLMODE=require
 PGPASSWORD=password
 
-DB_PASSWORD=your_password_here
+DB_PASSWORD=password
 
 # EC2 / SSH Configuration (for Kafka setup)
 EC2_USER=ec2-user
@@ -153,3 +156,6 @@ TRADING_STRATEGY_TRADE_API_URL=http://localhost:8081
 # End-of-day account history snapshot (cron, UTC)
 SCHEDULER_ACCOUNT_HISTORY_ENABLED=true
 # SCHEDULER_ACCOUNT_HISTORY_CRON=0\ 59\ 23\ *\ *\ *
+
+FRONTEND_URL_REWRITES=http://localhost:3000=http://3.110.108.24:4200/_auth http://localhost:8081=http://3.110.108.24:4200/_order
+KAFKA_TOPICS=orders:3:604800000 orders.DLT:3:604800000 trade-events:3:604800000 market-data:3:604800000 
