@@ -25,7 +25,7 @@ if [ "${1:-}" != "-y" ]; then
 fi
 
 echo "== 1. PRUNE"
-docker compose stop
+docker compose down
 docker image prune -af
 
 echo "== 2. BUILD (one image at a time)"

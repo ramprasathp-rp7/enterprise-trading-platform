@@ -1,3 +1,5 @@
+
+import { readFileSync } from 'node:fs';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { ConfigurationService } from '../config/configuration.service';
@@ -9,8 +11,11 @@ import { RefreshTokenRepository } from './repositories/refresh-token.repository'
 import { KnownAccountIdsRepository } from './repositories/known-account-ids.repository';
 
 /** TypeORM connection options, built from the service configuration */
-export function typeOrmOptions(configService: ConfigurationService): TypeOrmModuleOptions {
+export function typeOrmOptions(
+  configService: ConfigurationService,
+): TypeOrmModuleOptions {
   const dbConfig = configService.getDatabaseConfig();
+
   return {
     type: 'postgres',
     host: dbConfig.host,
@@ -18,8 +23,16 @@ export function typeOrmOptions(configService: ConfigurationService): TypeOrmModu
     username: dbConfig.username,
     password: dbConfig.password,
     database: dbConfig.database,
+    ssl: {
+      ca: readFileSync(
+        process.env.PGSSLROOTCERT ||
+          '/app/certs/rds-ca-bundle.pem',
+        'utf8',
+      ),
+      rejectUnauthorized: true,
+    },
     entities: [User, RefreshToken, KnownAccountId],
-    synchronize: false, // Auto-create tables in development
+    synchronize: false,
     logging: false,
     maxQueryExecutionTime: 1000,
     extra: {
@@ -36,7 +49,15 @@ export function typeOrmOptions(configService: ConfigurationService): TypeOrmModu
     }),
     TypeOrmModule.forFeature([User, RefreshToken, KnownAccountId]),
   ],
-  providers: [UsersRepository, RefreshTokenRepository, KnownAccountIdsRepository],
-  exports: [UsersRepository, RefreshTokenRepository, KnownAccountIdsRepository],
+  providers: [
+    UsersRepository,
+    RefreshTokenRepository,
+    KnownAccountIdsRepository,
+  ],
+  exports: [
+    UsersRepository,
+    RefreshTokenRepository,
+    KnownAccountIdsRepository,
+  ],
 })
 export class DatabaseModule {}

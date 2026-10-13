@@ -173,6 +173,8 @@ x-common-env: &common-env
 
 x-java-env: &java-env
   <<: *common-env
+  EC2_PRIVATE_IP: kafka          
+  KAFKA_PORT: "29092"
   SPRING_DATASOURCE_URL: "jdbc:postgresql://${DB_HOST}:${DB_PORT:-5432}/${DB_NAME}${JDBC_PARAMS:-}"
   SPRING_DATASOURCE_USERNAME: ${DB_USER}
   SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
@@ -364,6 +366,7 @@ services:
     env_file: ${ENV_FILE:-.env}
     environment:
       <<: *common-env
+      PLATFORM_CONFIG_PATH: /config/application.yaml
       PORT: ${AUTH_SERVICE_PORT:-3000}
       HC_PORT: ${AUTH_SERVICE_PORT:-3000}
       HC_PATH: ${AUTH_SERVICE_HEALTH_PATH:-}
@@ -437,6 +440,7 @@ services:
     env_file: ${ENV_FILE:-.env}
     environment:
       <<: *java-env
+      SPRING_CONFIG_ADDITIONAL_LOCATION: "optional:file:/config/"
       SERVER_PORT: ${EXECUTOR_SERVICE_PORT:-8082}
       PORT: ${EXECUTOR_SERVICE_PORT:-8082}
       HC_PORT: ${EXECUTOR_SERVICE_PORT:-8082}
