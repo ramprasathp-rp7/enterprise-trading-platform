@@ -1,58 +1,40 @@
-COMPOSE_PROFILES=frontend,auth-service,order-service,executor-service,kafka
-
-AUTH_SERVICE_DIR=./Services/auth-service
-ORDER_SERVICE_DIR=./Services/order-service
-EXECUTOR_SERVICE_DIR=./Services/executor-service
-FRONTEND_DIR=./Frontend/trading-ui
-
-AUTH_SERVICE_EXTRA_DIR=./Config
-AUTH_SERVICE_EXTRA_DEST=/Config
-ORDER_SERVICE_EXTRA_DIR=./Config
-ORDER_SERVICE_EXTRA_DEST=/Config
-EXECUTOR_SERVICE_EXTRA_DIR=./Config
-EXECUTOR_SERVICE_EXTRA_DEST=/Config
-FRONTEND_EXTRA_DIR=./Config
-FRONTEND_EXTRA_DEST=/Config
-
-APP_CONFIG_DIR=./Config
-APP_CONFIG_MOUNT=/config
-# Canonical environment template.
-# Copy this file to .env for local development.
-# Legacy alias: .example.env (kept in sync for backwards compatibility).
-
 # Database name required by apply.sh; keep in sync with database.name in Config/application.yaml
 POSTGRES_DB=postgres
 
 # PostgreSQL libpq environment variables used automatically by psql
-PGHOST=database-1.cnuwyaq0gjxg.ap-south-1.rds.amazonaws.com
+PGHOST=database-1.crk0qimgo8yj.ap-south-1.rds.amazonaws.com
 PGPORT=5432
 PGUSER=postgres
-PGSSLMODE=require
-PGPASSWORD=password
+PGPASSWORD=n3u3d4!n3u3da!
+PGDATABASE=postgres
+PGSSLMODE=no-verify
 
-DB_PASSWORD=password
+DB_PASSWORD=n3u3d4!n3u3da!
 
 # EC2 / SSH Configuration (for Kafka setup)
 EC2_USER=ec2-user
-EC2_PRIVATE_IP=your_ec2_private_ip_here
+EC2_PRIVATE_IP=kafka
+EC2_PUBLIC_IP=3.7.55.249
 SSH_PORT=22
 
 # Kafka broker host comes from EC2_PRIVATE_IP above; the port lives in Config/application.yaml (kafka.port).
 # Override the port with a KAFKA_PORT environment variable if needed.
+SPRING_KAFKA_CONSUMER_BOOTSTRAP_SERVERS=kafka:29092
+SPRING_KAFKA_PRODUCER_BOOTSTRAP_SERVERS=kafka:29092
 
-FAUXNANCE_API_KEY=your_fauxnance_key_here
-FAUXNANCE_BASE_URL=https://fauxnance.example.invalid
-
+FAUXNANCE_API_KEY=fnx_dev_EAuh71Dx7SZ5CjR6fBQH1mYNUezBzwKw
+FAUXNANCE_BASE_URL=https://y4t9nq2bqf.execute-api.eu-west-2.amazonaws.com/v1
 # Auth Service Configuration
 # Service ports and the database name live in Config/application.yaml.
 # PORT overrides services.auth.port for the auth service; leave it empty to use the shared config.
-PORT=
-JWT_SECRET=Doy2YEioFdCiJCvwS+jX9GpS7w7eKqWWiIAaM5WcNJI=
-JWT_ISSUER=auth-service
 
+# Auth Service Configuration
+PORT=3000
+JWT_SECRET=test-shared-secret-32-bytes-minimum-key
+JWT_ISSUER=auth-service
 # Preferences module (Sprint 10): AES-256 key for contact details at rest, base64 of 32 random bytes.
 # Generate with: openssl rand -base64 32. Unset means the published dev key (logged as a warning).
-PREFERENCES_CONTACT_KEY=Doy2YEioFdCiJCvwS+jX9GpS7w7eKqWWiIAaM5WcNJI=
+PREFERENCES_CONTACT_KEY=ZGV2LW9ubHktcHJlZmVyZW5jZXMtY29udGFjdC1rZXk=
 
 # Auth Service PostgreSQL Configuration
 AUTH_POSTGRES_DB=postgres
@@ -71,8 +53,8 @@ ANALYTICS_STAGING_DIR=.staging
 
 NODE_ENV=development
 
-AUTH_IT_USERNAME=Test_Username
-AUTH_IT_PASSWORD=Test_Password
+AUTH_IT_USERNAME=Raahul
+AUTH_IT_PASSWORD=Raahul160205
 # Account the auth integration test registers its user on (one user per account)
 AUTH_IT_ACCOUNT_ID=6
 
@@ -105,16 +87,6 @@ TRADING_STRATEGY_PAUSE_BEFORE_ORDER_MS=0
 # Order execution: ASYNC publishes orders to Kafka for the executor; SYNC settles them in the request
 TRADING_EXECUTION_MODE=ASYNC
 # Shared config file location (default: Config/application.yaml two folders above each service)
-PLATFORM_CONFIG_PATH=
-# Database name for psql/libpq tools (same as POSTGRES_DB); apply.sh target override (empty = POSTGRES_DB)
-PGDATABASE=postgres
-TARGET_DATABASE=postgres
-# ETL compatibility aliases, used only when the PG* names are missing
-DB_HOST=database-1.cnuwyaq0gjxg.ap-south-1.rds.amazonaws.com
-DB_PORT=5432
-DB_USER=postgres
-DB_NAME=postgres
-
 # Kafka producers (order and executor services): fail fast while the broker is down
 KAFKA_PRODUCER_MAX_BLOCK_MS=3000
 KAFKA_PRODUCER_REQUEST_TIMEOUT_MS=10000
@@ -155,7 +127,33 @@ TRADING_STRATEGY_TRADE_API_URL=http://localhost:8081
 
 # End-of-day account history snapshot (cron, UTC)
 SCHEDULER_ACCOUNT_HISTORY_ENABLED=true
-# SCHEDULER_ACCOUNT_HISTORY_CRON=0\ 59\ 23\ *\ *\ *
+SCHEDULER_ACCOUNT_HISTORY_CRON=0 59 23 * * *
 
-FRONTEND_URL_REWRITES=http://localhost:3000=http://3.110.108.24:4200/_auth http://localhost:8081=http://3.110.108.24:4200/_order
-KAFKA_TOPICS=orders:3:604800000 orders.DLT:3:604800000 trade-events:3:604800000 market-data:3:604800000 
+APP_CONFIG_DIR=./Config
+PLATFORM_CONFIG_PATH=/config/application.yaml
+
+COMPOSE_PROJECT_NAME=myteam
+COMPOSE_PROFILES=frontend,auth-service,order-service,executor-service,kafka
+PUBLIC_HOST=3.7.55.249
+DB_HOST=database-1.crk0qimgo8yj.ap-south-1.rds.amazonaws.com
+DB_NAME=postgres
+DB_USER=postgres
+AUTH_SERVICE_DIR=./Services/auth-service
+AUTH_SERVICE_PORT=3000
+ORDER_SERVICE_DIR=./Services/order-service
+ORDER_SERVICE_PORT=8081
+ORDER_SERVICE_HEALTH_PATH=/actuator/health
+EXECUTOR_SERVICE_DIR=./Services/executor-service
+EXECUTOR_SERVICE_PORT=8082
+FRONTEND_DIR=./Frontend/trading-ui
+FRONTEND_PORT=4200
+FRONTEND_URL_REWRITES=http://localhost:3000=http://3.7.55.249:4200/_auth http://localhost:8081=http://3.7.55.249:4200/_order
+KAFKA_TOPICS=orders:3:604800000 orders.DLT:3:604800000 trade-events:3:604800000 market-data:6:604800000 trade-events.DLT:3:604800000 market-data.DLT:6:604800000
+
+AUTH_SERVICE_EXTRA_DIR=./Config
+ORDER_SERVICE_EXTRA_DIR=./Config
+EXECUTOR_SERVICE_EXTRA_DIR=./Config
+FRONTEND_EXTRA_DIR=./Config
+FRONTEND_EXTRA_DEST=/Config
+
+APP_CONFIG_MOUNT=/config
