@@ -399,10 +399,11 @@ services:
     env_file: ${ENV_FILE:-.env}
     environment:
       <<: *java-env
-      SERVER_PORT: ${ORDER_SERVICE_PORT:-8081}          # beats server.port in application.yml
+      SERVER_PORT: ${ORDER_SERVICE_PORT:-8081}
       PORT: ${ORDER_SERVICE_PORT:-8081}
       HC_PORT: ${ORDER_SERVICE_PORT:-8081}
       HC_PATH: ${ORDER_SERVICE_HEALTH_PATH:-}
+      SPRING_CONFIG_ADDITIONAL_LOCATION: "optional:file:/config/"
       JAVA_OPTS: "${JAVA_OPTS:--XX:MaxRAMPercentage=60 -XX:+ExitOnOutOfMemoryError}"
     volumes:
       - *config-volume
