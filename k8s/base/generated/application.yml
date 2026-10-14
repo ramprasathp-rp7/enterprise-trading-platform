@@ -1,0 +1,33 @@
+frontend:
+  url: http://a54edce43610f4256a8c0cbe1b02829a-192372471.ap-south-1.elb.amazonaws.com
+  port:
+
+services:
+  auth:
+    url: ${AUTH_SERVICE_URL:http://auth-service}
+    port: ${AUTH_SERVICE_PORT:3000}
+    api_url: ${AUTH_SERVICE_URL:http://auth-service}:${AUTH_SERVICE_PORT:3000}
+    health_url: ${AUTH_SERVICE_URL:http://auth-service}:${AUTH_SERVICE_PORT:3000}/health
+  order:
+    url: ${ORDER_SERVICE_URL:http://order-service}
+    port: ${ORDER_SERVICE_PORT:8081}
+    api_url: ${ORDER_SERVICE_URL:http://order-service}:${ORDER_SERVICE_PORT:8081}/api/v1
+    health_url: ${ORDER_SERVICE_URL:http://order-service}:${ORDER_SERVICE_PORT:8081}/actuator/health
+  executor:
+    url: ${EXECUTOR_SERVICE_URL:http://executor-service}
+    port: ${EXECUTOR_SERVICE_PORT:8082}
+    health_url: ${EXECUTOR_SERVICE_URL:http://executor-service}:${EXECUTOR_SERVICE_PORT:8082}/actuator/health
+
+database:
+  host: ${DB_HOST}
+  port: ${DB_PORT:5432}
+  name: ${DB_NAME}
+  user: ${DB_USER}
+  password: ${DB_PASSWORD}
+  schemas:
+    trade: ${DB_SCHEMA_TRADE:trade}
+    auth: ${DB_SCHEMA_AUTH:auth}
+
+kafka:
+  host: kafka
+  port: 29092
