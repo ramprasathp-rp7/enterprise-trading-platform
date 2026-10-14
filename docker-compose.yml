@@ -351,7 +351,7 @@ services:
   #            every AUTH_SERVICE_ prefix, add the keys to .env.
   auth-service:
     profiles: [auth-service]
-    image: ${AUTH_SERVICE_IMAGE:-auth-service}:${IMAGE_TAG:-latest}
+    image: ${AUTH_SERVICE_IMAGE:-etp-auth-service}:${IMAGE_TAG:-latest}
     build:
       context: ${AUTH_SERVICE_DIR:-./services/auth-service}
       dockerfile: ${AUTH_SERVICE_DOCKERFILE:-Dockerfile}
@@ -386,7 +386,7 @@ services:
   #            ORDER_SERVICE_ prefix, add the keys to .env.
   order-service:
     profiles: [order-service]
-    image: ${ORDER_SERVICE_IMAGE:-order-service}:${IMAGE_TAG:-latest}
+    image: ${ORDER_SERVICE_IMAGE:-etp-order-service}:${IMAGE_TAG:-latest}
     build:
       context: ${ORDER_SERVICE_DIR:-./services/order-service}
       dockerfile: ${ORDER_SERVICE_DOCKERFILE:-Dockerfile}
@@ -424,7 +424,7 @@ services:
   # <<CHANGE>> second worker: copy this block, rename EXECUTOR_SERVICE_.
   executor-service:
     profiles: [executor-service]
-    image: ${EXECUTOR_SERVICE_IMAGE:-executor-service}:${IMAGE_TAG:-latest}
+    image: ${EXECUTOR_SERVICE_IMAGE:-etp-executor-service}:${IMAGE_TAG:-latest}
     build:
       context: ${EXECUTOR_SERVICE_DIR:-./services/executor-service}
       dockerfile: ${EXECUTOR_SERVICE_DOCKERFILE:-Dockerfile}
@@ -462,7 +462,7 @@ services:
   # ================================================================ FRONTEND
   frontend:
     profiles: [frontend]
-    image: ${FRONTEND_IMAGE:-frontend}:${IMAGE_TAG:-latest}
+    image: ${FRONTEND_IMAGE:-etp-frontend}:${IMAGE_TAG:-latest}
     build:
       context: ${FRONTEND_DIR:-./frontend}
       dockerfile: ${FRONTEND_DOCKERFILE:-Dockerfile}
