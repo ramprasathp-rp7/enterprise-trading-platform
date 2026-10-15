@@ -81,7 +81,7 @@ pipeline {
             docker build -t "$AUTH_LOCAL_IMAGE:$RELEASE_TAG" ./Services/auth-service
             docker build -t "$ORDER_LOCAL_IMAGE:$RELEASE_TAG" ./Services/order-service
             docker build -t "$EXECUTOR_LOCAL_IMAGE:$RELEASE_TAG" ./Services/executor-service
-            docker build --build-arg "BUILD_ENV=$BUILD_ENV" -t "$FRONTEND_LOCAL_IMAGE:$RELEASE_TAG" ./Frontend/trading-ui
+            docker build --build-arg "BUILD_ENV=$BUILD_ENV" --build-arg "EXTRA_DEST=/Config" --build-context extra=./Config -t "$FRONTEND_LOCAL_IMAGE:$RELEASE_TAG" ./Frontend/trading-ui
 
             declare -A IMAGE_MAP=(
               ["$AUTH_REPO"]="$AUTH_LOCAL_IMAGE"
