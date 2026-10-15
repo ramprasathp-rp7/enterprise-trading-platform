@@ -1,5 +1,5 @@
 frontend:
-  url: http://a54edce43610f4256a8c0cbe1b02829a-192372471.ap-south-1.elb.amazonaws.com
+  url: http://af155c093d6b44ebdb7f26277d9bb4d7-299973966.ap-south-1.elb.amazonaws.com
   port:
 
 services:
