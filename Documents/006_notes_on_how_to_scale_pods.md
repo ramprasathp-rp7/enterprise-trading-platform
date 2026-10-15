@@ -8,5 +8,5 @@ kubectl scale deploy --all --replicas=0
 To restart the pod, scale it back to 1
 
 ```bash
-kubectl scale deploy -all -replicas=1
+kubectl scale deploy --all --replicas=1
 ```
