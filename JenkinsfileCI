@@ -50,7 +50,7 @@ pipeline {
           command -v docker >/dev/null
           test -f Services/auth-service/Dockerfile
           test -f Services/order-service/Dockerfile
-          test -f Services/executor/Dockerfile
+          test -f Services/executor-service/Dockerfile
           test -f Frontend/trading-ui/Dockerfile
         '''
       }
@@ -78,9 +78,9 @@ pipeline {
             FRONTEND_URL=$(awk -F= '$1 == "FRONTEND_URL" {print $2}' "${K8S_OVERLAY}/urls.env")
             BUILD_ENV="AUTH_SERVICE_URL=$AUTH_URL AUTH_SERVICE_PORT=3000 ORDER_SERVICE_URL=$ORDER_URL ORDER_SERVICE_PORT=8081 FRONTEND_URL=$FRONTEND_URL FRONTEND_PORT=80"
 
-            docker build -t "$AUTH_LOCAL_IMAGE:$RELEASE_TAG" ./Services/auth_service
-            docker build -t "$ORDER_LOCAL_IMAGE:$RELEASE_TAG" ./Services/trade-api
-            docker build -t "$EXECUTOR_LOCAL_IMAGE:$RELEASE_TAG" ./Services/executor
+            docker build -t "$AUTH_LOCAL_IMAGE:$RELEASE_TAG" ./Services/auth-service
+            docker build -t "$ORDER_LOCAL_IMAGE:$RELEASE_TAG" ./Services/order-service
+            docker build -t "$EXECUTOR_LOCAL_IMAGE:$RELEASE_TAG" ./Services/executor-service
             docker build --build-arg "BUILD_ENV=$BUILD_ENV" -t "$FRONTEND_LOCAL_IMAGE:$RELEASE_TAG" ./Frontend/trading-ui
 
             declare -A IMAGE_MAP=(
