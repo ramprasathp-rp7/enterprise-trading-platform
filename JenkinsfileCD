@@ -10,9 +10,9 @@ pipeline {
 
   parameters {
     string(name: 'AWS_REGION', defaultValue: 'ap-south-1', description: 'AWS region')
-    string(name: 'RDS_HOST', defaultValue: 'database-1.c52m040i8bb8.ap-south-1.rds.amazonaws.com', description: 'RDS endpoint')
+    string(name: 'RDS_HOST', defaultValue: 'database-1.cnuwyaq0gjxg.ap-south-1.rds.amazonaws.com', description: 'RDS endpoint')
     string(name: 'RDS_PORT', defaultValue: '5432', description: 'RDS PostgreSQL port')
-    string(name: 'RDS_DATABASE', defaultValue: 'trading_system_db', description: 'RDS database name')
+    string(name: 'RDS_DATABASE', defaultValue: 'postgres', description: 'RDS database name')
     string(name: 'RDS_USER', defaultValue: 'postgres', description: 'RDS database user')
     string(name: 'IMAGE_TAG', defaultValue: '', description: 'Required ECR tag produced by JenkinsfileCI')
     string(name: 'K8S_OVERLAY', defaultValue: 'k8s/overlays/four-lb', description: 'Kustomize overlay')
@@ -157,12 +157,15 @@ pipeline {
           # Secrets are hardcoded here; no Jenkins credential is used.
           cat > k8s/base/secrets.env <<'SECRETS_EOF'
 # SECRETS. Copy to secrets.env (git-ignored) and fill in. Copied to base/secrets.env and turned into the Secret etp-secrets (guide 7.2).
-DB_PASSWORD=iykykykyk
-
+DB_PASSWORD=password
+PGPASSWORD=password
+PREFERENCES_CONTACT_KEY=ZGV2LW9ubHktcHJlZmVyZW5jZXMtY29udGFjdC1rZXk=
 # at least 32 bytes:  node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
-JWT_SECRET=whatthehell
-FAUXNANCE_API_KEY=dont_steal
-SMTP_PASS=lolllololo
+JWT_SECRET=replace-me-with-a-random-secret-of-at-least-32-bytes
+FAUXNANCE_API_KEY=fnx_dev_EAuh71Dx7SZ5CjR6fBQH1mYNUezBzwKw
+
+AUTH_IT_PASSWORD=
+E2E_PASSWORD=
 SECRETS_EOF
           kubectl apply --dry-run=server -k "$K8S_OVERLAY"
           kubectl apply -k "$K8S_OVERLAY"
