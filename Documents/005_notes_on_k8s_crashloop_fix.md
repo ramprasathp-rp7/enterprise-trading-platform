@@ -18,13 +18,12 @@ After the first deploy, `auth-service`, `order-service` and `executor-service` w
 
 ## How it is applied now
 
-The CA bundle lives outside the kustomize root, so kustomize must be run with the load restrictor off:
+The CA bundle is copied into `k8s/base/generated/` (inside the kustomize root), so a plain apply works:
 
 ```bash
-kubectl kustomize --load-restrictor LoadRestrictionsNone k8s/overlays/four-lb | kubectl apply -f -
+kubectl apply -k k8s/overlays/four-lb
 ```
 
-A plain `kubectl apply -k` fails with "file is not in or below" for `rds-ca-bundle.pem`.
 
 ## Verification
 
@@ -61,6 +60,8 @@ kubectl get nodes                      # 2 nodes Ready
 cp k8s/base/secrets.env.example k8s/base/secrets.env      # then fill in the real values
 ```
 
+`k8s/base/generated/` is git-ignored. Also copy the CA bundle: `cp Config/rds-ca-bundle.pem k8s/base/generated/`.
+
 `k8s/base/generated/application.yml` is git-ignored, so a fresh clone does not have it. It must be the
 placeholder version (`host: ${DB_HOST}`, `port: ${DB_PORT:5432}`, `kafka.port: 29092`, ...), *not* a plain copy
 of `Config/application.yaml` (which has `localhost` values and no `database.password`). Get it from the person
@@ -72,8 +73,8 @@ who deployed, or remove `generated/` from `k8s/base/.gitignore` and commit it so
 aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 906048429811.dkr.ecr.ap-south-1.amazonaws.com
 # build/push etp-auth-service, etp-order-service, etp-executor-service, etp-frontend
 
-# 4. Deploy (the load-restrictor flag is required, see above)
-kubectl kustomize --load-restrictor LoadRestrictionsNone k8s/overlays/four-lb | kubectl apply -f -
+# 4. Deploy (needs k8s/base/generated/application.yml and rds-ca-bundle.pem, see above)
+kubectl apply -k k8s/overlays/four-lb
 
 # 5. If only images changed (same tag :latest), force a rollout
 kubectl rollout restart deploy/auth-service deploy/order-service deploy/executor-service deploy/frontend

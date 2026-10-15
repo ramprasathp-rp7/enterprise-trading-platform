@@ -13,7 +13,7 @@ configMapGenerator:
   - name: etp-config
     envs: [config.env]
   - name: etp-shared-config            # the project's Config/application.yml (copy it into base/generated/ first - guide step 7.2)
-    files: [application.yml=generated/application.yml, rds-ca-bundle.pem=../../Config/rds-ca-bundle.pem]
+    files: [application.yml=generated/application.yml, rds-ca-bundle.pem=generated/rds-ca-bundle.pem]
 secretGenerator:
   - name: etp-secrets
     envs: [secrets.env]                # your secrets (copy of k8s/secrets.env)
