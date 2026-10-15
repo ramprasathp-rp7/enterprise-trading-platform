@@ -4,9 +4,11 @@ Deleting the pods using the kubectl delete command restarts the pod. Scaling the
 
 ```bash
 kubectl scale deploy --all --replicas=0
+kubectl scale statefulset --all --replicas=0
 ```
 To restart the pod, scale it back to 1
 
 ```bash
 kubectl scale deploy --all --replicas=1
+kubectl scale statefulset --all --replicas=1
 ```
