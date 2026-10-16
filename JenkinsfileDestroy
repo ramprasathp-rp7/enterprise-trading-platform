@@ -1,0 +1,213 @@
+pipeline {
+    agent any
+
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+        skipDefaultCheckout(true)
+        timeout(time: 15, unit: 'MINUTES')
+    }
+
+    parameters {
+        string(
+            name: 'AWS_REGION',
+            defaultValue: 'ap-south-1',
+            description: 'AWS region containing the existing EKS cluster'
+        )
+
+        string(
+            name: 'K8S_NAMESPACE',
+            defaultValue: 'default',
+            description: 'Namespace containing the application'
+        )
+
+        booleanParam(
+            name: 'CONFIRM_DESTROY',
+            defaultValue: false,
+            description: 'Confirm stopping the application'
+        )
+    }
+
+    environment {
+        EKS_CLUSTER_NAME = 'etp-cluster-1'
+    }
+
+    stages {
+        stage('Checkout SCM') {
+            steps {
+                deleteDir()
+                checkout scm
+            }
+        }
+
+        stage('Validate request and cluster') {
+            steps {
+                script {
+                    if (!params.CONFIRM_DESTROY) {
+                        error(
+                            'Cancelled. Set CONFIRM_DESTROY=true ' +
+                            'to stop the application.'
+                        )
+                    }
+
+                    if (params.K8S_NAMESPACE.trim() != 'default') {
+                        error(
+                            'This pipeline is configured for the default namespace. ' +
+                            'Review the pipeline before changing this restriction.'
+                        )
+                    }
+                }
+
+                sh '''#!/usr/bin/env bash
+                    set -euo pipefail
+
+                    command -v aws >/dev/null
+                    command -v kubectl >/dev/null
+
+                    echo "Validating EKS cluster..."
+
+                    aws eks describe-cluster \
+                        --region "$AWS_REGION" \
+                        --name "$EKS_CLUSTER_NAME" \
+                        --query 'cluster.status' \
+                        --output text | grep -qx ACTIVE
+
+                    aws eks update-kubeconfig \
+                        --region "$AWS_REGION" \
+                        --name "$EKS_CLUSTER_NAME"
+
+                    echo "Verifying application Deployments..."
+
+                    kubectl get deployment \
+                        auth-service \
+                        order-service \
+                        executor-service \
+                        frontend \
+                        -n "$K8S_NAMESPACE"
+
+                    echo "Current Kubernetes Services:"
+                    kubectl get svc -n "$K8S_NAMESPACE" -o wide
+                '''
+            }
+        }
+
+        stage('Check autoscaling') {
+            steps {
+                sh '''#!/usr/bin/env bash
+                    set -euo pipefail
+
+                    # An HPA could scale the application back up.
+                    targets=$(kubectl get hpa \
+                        -n "$K8S_NAMESPACE" \
+                        -o jsonpath='{range .items[*]}{.spec.scaleTargetRef.name}{"\\n"}{end}')
+
+                    while IFS= read -r target; do
+                        case "$target" in
+                            auth-service|order-service|executor-service|frontend)
+                                echo "ERROR: HPA targets $target."
+                                echo "Review its configuration before stopping the application."
+                                exit 1
+                                ;;
+                        esac
+                    done <<< "$targets"
+
+                    echo "No HPA targets the four application Deployments."
+                '''
+            }
+        }
+
+        stage('Stop application') {
+            steps {
+                sh '''#!/usr/bin/env bash
+                    set -euo pipefail
+
+                    echo "Scaling application Deployments to zero..."
+
+                    kubectl scale \
+                        deployment/auth-service \
+                        deployment/order-service \
+                        deployment/executor-service \
+                        deployment/frontend \
+                        --replicas=0 \
+                        -n "$K8S_NAMESPACE"
+
+                    echo "Waiting for Deployments to reach zero replicas..."
+
+                    deployments=(
+                        auth-service
+                        order-service
+                        executor-service
+                        frontend
+                    )
+
+                    for deployment in "${deployments[@]}"; do
+                        echo "Checking $deployment..."
+
+                        success=false
+
+                        for attempt in $(seq 1 60); do
+                            desired=$(kubectl get deployment "$deployment" \
+                                -n "$K8S_NAMESPACE" \
+                                -o jsonpath='{.spec.replicas}')
+
+                            current=$(kubectl get deployment "$deployment" \
+                                -n "$K8S_NAMESPACE" \
+                                -o jsonpath='{.status.replicas}')
+
+                            ready=$(kubectl get deployment "$deployment" \
+                                -n "$K8S_NAMESPACE" \
+                                -o jsonpath='{.status.readyReplicas}')
+
+                            if [[ "${desired:-0}" == "0" ]] &&
+                               [[ "${current:-0}" == "0" ]] &&
+                               [[ "${ready:-0}" == "0" ]]; then
+                                success=true
+                                break
+                            fi
+
+                            sleep 2
+                        done
+
+                        if [[ "$success" != "true" ]]; then
+                            echo "ERROR: $deployment did not reach zero replicas."
+                            exit 1
+                        fi
+                    done
+
+                    echo "All four application Deployments are stopped."
+                '''
+            }
+        }
+
+        stage('Verify preserved infrastructure') {
+            steps {
+                sh '''#!/usr/bin/env bash
+                    set -euo pipefail
+
+                    echo "Application Deployment status:"
+                    kubectl get deployment \
+                        auth-service \
+                        order-service \
+                        executor-service \
+                        frontend \
+                        -n "$K8S_NAMESPACE"
+
+                    echo "Services and LoadBalancer hostnames:"
+                    kubectl get svc -n "$K8S_NAMESPACE" -o wide
+
+                    echo "Checking EKS cluster remains active..."
+
+                    aws eks describe-cluster \
+                        --region "$AWS_REGION" \
+                        --name "$EKS_CLUSTER_NAME" \
+                        --query 'cluster.{Name:name,Status:status}' \
+                        --output table
+
+                    echo "Stop operation completed."
+                    echo "No Kubernetes resources were deleted."
+                    echo "RDS, Kafka, EKS and LoadBalancer Services were not deleted."
+                '''
+            }
+        }
+    }
+}
