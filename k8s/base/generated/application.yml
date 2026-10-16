@@ -1,5 +1,5 @@
 frontend:
-  url: http://af155c093d6b44ebdb7f26277d9bb4d7-299973966.ap-south-1.elb.amazonaws.com
+  url: https://ramprasathp-rp7.s029.etp.neueda.com
   port:
 
 services:
