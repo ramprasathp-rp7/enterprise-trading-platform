@@ -150,37 +150,44 @@ pipeline {
       }
     }
 
+    
     stage('Inject secrets and deploy selected images') {
-      steps {
-        sh '''#!/usr/bin/env bash
-          set -euo pipefail
-          # Secrets are hardcoded here; no Jenkins credential is used.
-          cat > k8s/base/secrets.env <<'SECRETS_EOF'
-# SECRETS. Copy to secrets.env (git-ignored) and fill in. Copied to base/secrets.env and turned into the Secret etp-secrets (guide 7.2).
-DB_PASSWORD=password
-PGPASSWORD=password
-PREFERENCES_CONTACT_KEY=ZGV2LW9ubHktcHJlZmVyZW5jZXMtY29udGFjdC1rZXk=
-# at least 32 bytes:  node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
-JWT_SECRET=replace-me-with-a-random-secret-of-at-least-32-bytes
-FAUXNANCE_API_KEY=fnx_dev_EAuh71Dx7SZ5CjR6fBQH1mYNUezBzwKw
+        steps {
+            withCredentials([
+                file(
+                    credentialsId: 'secrets-env',
+                    variable: 'SECRETS_FILE'
+                )
+            ]) {
+                sh '''#!/usr/bin/env bash
+                    set -euo pipefail
+                    umask 077
 
-AUTH_IT_PASSWORD=
-E2E_PASSWORD=
-SECRETS_EOF
-          kubectl apply --dry-run=server -k "$K8S_OVERLAY"
-          kubectl apply -k "$K8S_OVERLAY"
-          kubectl -n "$K8S_NAMESPACE" set image deployment/auth-service auth-service="$REGISTRY/$AUTH_REPO:$IMAGE_TAG"
-          kubectl -n "$K8S_NAMESPACE" set image deployment/order-service order-service="$REGISTRY/$ORDER_REPO:$IMAGE_TAG"
-          kubectl -n "$K8S_NAMESPACE" set image deployment/executor-service executor-service="$REGISTRY/$EXECUTOR_REPO:$IMAGE_TAG"
-          kubectl -n "$K8S_NAMESPACE" set image deployment/frontend frontend="$REGISTRY/$FRONTEND_REPO:$IMAGE_TAG"
-          kubectl -n "$K8S_NAMESPACE" rollout status deployment/auth-service --timeout=180s
-          kubectl -n "$K8S_NAMESPACE" rollout status deployment/order-service --timeout=180s
-          kubectl -n "$K8S_NAMESPACE" rollout status deployment/executor-service --timeout=180s
-          kubectl -n "$K8S_NAMESPACE" rollout status deployment/frontend --timeout=180s
-          kubectl -n "$K8S_NAMESPACE" get pods -o wide
-          kubectl -n "$K8S_NAMESPACE" get svc
-        '''
-      }
+                    # Copy the Jenkins Secret file into the location
+                    # expected by the Kubernetes Kustomize configuration.
+                    test -s "$SECRETS_FILE"
+                    cp "$SECRETS_FILE" k8s/base/secrets.env
+                    chmod 600 k8s/base/secrets.env
+
+                    # Validate and deploy.
+                    kubectl apply --dry-run=server -k "$K8S_OVERLAY"
+                    kubectl apply -k "$K8S_OVERLAY"
+
+                    kubectl -n "$K8S_NAMESPACE" set image deployment/auth-service auth-service="$REGISTRY/$AUTH_REPO:$IMAGE_TAG"
+                    kubectl -n "$K8S_NAMESPACE" set image deployment/order-service order-service="$REGISTRY/$ORDER_REPO:$IMAGE_TAG"
+                    kubectl -n "$K8S_NAMESPACE" set image deployment/executor-service executor-service="$REGISTRY/$EXECUTOR_REPO:$IMAGE_TAG"
+                    kubectl -n "$K8S_NAMESPACE" set image deployment/frontend frontend="$REGISTRY/$FRONTEND_REPO:$IMAGE_TAG"
+
+                    kubectl -n "$K8S_NAMESPACE" rollout status deployment/auth-service --timeout=180s
+                    kubectl -n "$K8S_NAMESPACE" rollout status deployment/order-service --timeout=180s
+                    kubectl -n "$K8S_NAMESPACE" rollout status deployment/executor-service --timeout=180s
+                    kubectl -n "$K8S_NAMESPACE" rollout status deployment/frontend --timeout=180s
+
+                    kubectl -n "$K8S_NAMESPACE" get pods -o wide
+                    kubectl -n "$K8S_NAMESPACE" get svc
+                '''
+            }
+        }
     }
   }
 
